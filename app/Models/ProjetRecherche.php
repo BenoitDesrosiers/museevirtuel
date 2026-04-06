@@ -12,6 +12,7 @@ class ProjetRecherche extends Model
 
     protected $fillable = [
         'groupe_id',
+        'type_projet_id',
         'titre_projet',
         'introduction_amener',
         'introduction_poser',
@@ -71,6 +72,22 @@ class ProjetRecherche extends Model
     }
 
     /**
+     * Retourne le type de projet associé.
+     */
+    public function typeProjet(): BelongsTo
+    {
+        return $this->belongsTo(TypeProjet::class, 'type_projet_id');
+    }
+
+    /**
+     * Retourne la grille de correction via le type de projet.
+     */
+    public function grille(): ?GrilleCorrection
+    {
+        return $this->typeProjet?->grille;
+    }
+
+    /**
      * Retourne les notes de la grille personnalisée (une ligne par étudiant × critère).
      */
     public function notesGrille(): HasMany
@@ -127,6 +144,14 @@ class ProjetRecherche extends Model
     }
 
     /**
+     * Retourne les contenus des sections dynamiques de ce projet.
+     */
+    public function sectionContenus(): HasMany
+    {
+        return $this->hasMany(ProjetSectionContenu::class, 'projet_id');
+    }
+
+    /**
      * Retourne les paragraphes de développement triés par ordre.
      */
     public function developpements(): HasMany
@@ -136,42 +161,68 @@ class ProjetRecherche extends Model
 
     /**
      * Calcule le pourcentage de complétion du contenu partagé (hors conclusions).
-     * Tient compte des champs fixes et de chaque paragraphe de développement (titre + contenu).
+     *
+     * Si le type de projet définit des sections dynamiques, celles-ci remplacent
+     * les champs d'introduction fixes dans le calcul.
+     * Sinon, les champs fixes (introduction_amener/poser/diviser) sont utilisés.
+     * Le titre_projet est toujours inclus.
      *
      * @return int Pourcentage entre 0 et 100.
      */
     public function completion(): int
     {
-        $champsFixes = [
-            'titre_projet',
-            'introduction_amener',
-            'introduction_poser',
-            'introduction_diviser',
-        ];
+        // Charger le type de projet et ses sections si pas déjà chargé
+        $typeProjet = $this->relationLoaded('typeProjet') ? $this->typeProjet : $this->typeProjet()->with('sections')->first();
+        $sections = $typeProjet?->sections ?? collect();
 
-        $remplisFixes = collect($champsFixes)
-            ->filter(fn (string $f) => trim(strip_tags((string) ($this->$f ?? ''))) !== '')
-            ->count();
+        if ($sections->isNotEmpty()) {
+            // Champs dynamiques : titre + chaque section
+            $total = 1 + $sections->count();
 
-        // Chaque paragraphe contribue 2 champs (titre + contenu)
-        $developpements = $this->relationLoaded('developpements')
-            ? $this->developpements
-            : $this->developpements()->get();
+            $remplisTotal = (trim(strip_tags((string) ($this->titre_projet ?? ''))) !== '') ? 1 : 0;
 
-        $totalDev = $developpements->count() * 2;
-        $remplisDev = $developpements->reduce(function (int $carry, ProjetDeveloppement $dev): int {
-            $carry += trim(strip_tags((string) ($dev->titre ?? ''))) !== '' ? 1 : 0;
-            $carry += trim(strip_tags((string) ($dev->contenu ?? ''))) !== '' ? 1 : 0;
+            $contenusParSection = $this->relationLoaded('sectionContenus')
+                ? $this->sectionContenus->keyBy('section_id')
+                : $this->sectionContenus()->get()->keyBy('section_id');
 
-            return $carry;
-        }, 0);
+            foreach ($sections as $section) {
+                $contenu = $contenusParSection->get($section->id)?->contenu ?? '';
+                if (trim(strip_tags((string) $contenu)) !== '') {
+                    $remplisTotal++;
+                }
+            }
+        } else {
+            // Champs fixes (projets sans type ou type sans sections)
+            $champsFixes = [
+                'titre_projet',
+                'introduction_amener',
+                'introduction_poser',
+                'introduction_diviser',
+            ];
 
-        $total = count($champsFixes) + $totalDev;
+            $remplisTotal = collect($champsFixes)
+                ->filter(fn (string $f) => trim(strip_tags((string) ($this->$f ?? ''))) !== '')
+                ->count();
+
+            // Chaque paragraphe de développement contribue 2 champs (titre + contenu)
+            $developpements = $this->relationLoaded('developpements')
+                ? $this->developpements
+                : $this->developpements()->get();
+
+            $total = count($champsFixes) + $developpements->count() * 2;
+
+            $remplisTotal += $developpements->reduce(function (int $carry, ProjetDeveloppement $dev): int {
+                $carry += trim(strip_tags((string) ($dev->titre ?? ''))) !== '' ? 1 : 0;
+                $carry += trim(strip_tags((string) ($dev->contenu ?? ''))) !== '' ? 1 : 0;
+
+                return $carry;
+            }, 0);
+        }
 
         if ($total === 0) {
             return 0;
         }
 
-        return (int) round(($remplisFixes + $remplisDev) / $total * 100);
+        return (int) round($remplisTotal / $total * 100);
     }
 }

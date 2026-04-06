@@ -3,7 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\ValidatePonderations;
-use App\Models\Classe;
+use App\Models\TypeProjet;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreGrilleCorrectionRequest extends FormRequest
@@ -11,15 +11,15 @@ class StoreGrilleCorrectionRequest extends FormRequest
     use ValidatePonderations;
 
     /**
-     * Vérifie que l'enseignant est propriétaire de la classe et qu'elle n'a pas encore de grille.
+     * Vérifie que l'enseignant est propriétaire du type de projet et qu'il n'a pas encore de grille.
      */
     public function authorize(): bool
     {
-        /** @var Classe $classe */
-        $classe = $this->route('classe');
+        /** @var TypeProjet $typeProjet */
+        $typeProjet = $this->route('typeProjet');
 
-        return $classe->enseignant_id === auth()->id()
-            && $classe->grille === null;
+        return $typeProjet->enseignant_id === auth()->id()
+            && $typeProjet->grille === null;
     }
 
     /**

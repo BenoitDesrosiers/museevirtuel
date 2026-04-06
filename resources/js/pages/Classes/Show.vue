@@ -4,9 +4,12 @@ import {
     ArrowLeft,
     Calendar,
     Check,
+    ChevronDown,
+    ChevronRight,
     ClipboardList,
     Download,
     FileText,
+    Grid2x2,
     Pencil,
     Plus,
     Trash2,
@@ -18,6 +21,7 @@ import { useI18n } from 'vue-i18n';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -30,8 +34,9 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
-import * as GrilleCorrectionController from '@/actions/App/Http/Controllers/GrilleCorrectionController';
+import typesProjetsRoutes from '@/routes/types-projets';
 
 type Etudiant = {
     id: number;
@@ -86,11 +91,23 @@ type EcheancierEtape = {
     ordre: number;
 };
 
-type Grille = {
+type GrilleResume = { id: number; nom: string } | null;
+
+type TypeProjetSection = {
+    id: number;
+    label: string;
+    description: string | null;
+    ordre: number;
+};
+
+type TypeProjet = {
     id: number;
     nom: string;
-    criteres: { id: number }[];
-} | null;
+    description: string | null;
+    accessible: boolean;
+    grille: GrilleResume;
+    sections: TypeProjetSection[];
+};
 
 type Props = {
     classe: Classe;
@@ -98,7 +115,7 @@ type Props = {
     groupes: Groupe[];
     documents: Document[];
     echeancierEtapes: EcheancierEtape[];
-    grille: Grille;
+    typesProjets: TypeProjet[];
 };
 
 const props = defineProps<Props>();
@@ -372,6 +389,88 @@ function formatSize(bytes: number): string {
     }
 
     return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
+// ─── Types de projet ──────────────────────────────────────────────────────────
+const showCreateTpDialog = ref(false);
+const createTpForm = useForm({
+    nom: '',
+    description: '',
+    sections: [] as { label: string; description: string }[],
+});
+
+function ajouterSectionCreate() {
+    createTpForm.sections.push({ label: '', description: '' });
+}
+
+function supprimerSectionCreate(idx: number) {
+    createTpForm.sections.splice(idx, 1);
+}
+
+function creerTypeProjet() {
+    createTpForm.post(typesProjetsRoutes.store.url(), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showCreateTpDialog.value = false;
+            createTpForm.reset();
+        },
+    });
+}
+
+const showEditTpDialog = ref(false);
+const editingTpId = ref<number | null>(null);
+const editTpForm = useForm({
+    nom: '',
+    description: '',
+    sections: [] as { id?: number; label: string; description: string }[],
+});
+
+function ouvrirEditionTp(tp: TypeProjet) {
+    editingTpId.value = tp.id;
+    editTpForm.nom = tp.nom;
+    editTpForm.description = tp.description ?? '';
+    editTpForm.sections = [...tp.sections]
+        .sort((a, b) => a.ordre - b.ordre)
+        .map((s) => ({ id: s.id, label: s.label, description: s.description ?? '' }));
+    showEditTpDialog.value = true;
+}
+
+function ajouterSectionEdit() {
+    editTpForm.sections.push({ label: '', description: '' });
+}
+
+function supprimerSectionEdit(idx: number) {
+    editTpForm.sections.splice(idx, 1);
+}
+
+function sauvegarderTp() {
+    if (!editingTpId.value) return;
+    editTpForm.put(typesProjetsRoutes.update.url(editingTpId.value), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showEditTpDialog.value = false;
+            editingTpId.value = null;
+        },
+    });
+}
+
+const toggleTpForm = useForm({});
+
+function toggleAccessibleTp(tp: TypeProjet) {
+    toggleTpForm.patch(typesProjetsRoutes.toggleAccessible.url(tp.id), {
+        preserveScroll: true,
+    });
+}
+
+const deleteTpForm = useForm({});
+
+function supprimerTp(tp: TypeProjet) {
+    if (!confirm(`Supprimer « ${tp.nom} » ? Cette action supprimera également la grille de correction associée et ne peut pas être annulée.`)) {
+        return;
+    }
+    deleteTpForm.delete(typesProjetsRoutes.destroy.url(tp.id), {
+        preserveScroll: true,
+    });
 }
 </script>
 
@@ -729,35 +828,89 @@ function formatSize(bytes: number): string {
                 </CardContent>
             </Card>
 
-            <!-- Grille de correction -->
+            <!-- Types de projet -->
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between">
                     <CardTitle>
                         <span class="flex items-center gap-2">
                             <ClipboardList class="h-5 w-5" />
-                            Grille de correction
+                            Types de projet
+                            <span class="text-sm font-normal text-muted-foreground">
+                                ({{ typesProjets.length }})
+                            </span>
                         </span>
                     </CardTitle>
-                    <Button size="sm" as-child>
-                        <Link :href="GrilleCorrectionController.edit(classe).url">
-                            <Pencil v-if="grille" class="mr-2 h-4 w-4" />
-                            <Plus v-else class="mr-2 h-4 w-4" />
-                            {{ grille ? 'Modifier' : 'Créer une grille' }}
-                        </Link>
+                    <Button size="sm" @click="showCreateTpDialog = true">
+                        <Plus class="mr-2 h-4 w-4" />
+                        Nouveau type
                     </Button>
                 </CardHeader>
                 <CardContent>
-                    <div v-if="grille" class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm font-medium">{{ grille.nom }}</p>
-                            <p class="text-xs text-muted-foreground">
-                                {{ grille.criteres.length }} compétence{{ grille.criteres.length !== 1 ? 's' : '' }}
-                            </p>
+                    <div
+                        v-if="typesProjets.length === 0"
+                        class="py-4 text-center text-sm text-muted-foreground"
+                    >
+                        Aucun type de projet. Créez-en un pour commencer.
+                    </div>
+                    <div v-else class="flex flex-col divide-y">
+                        <div
+                            v-for="tp in typesProjets"
+                            :key="tp.id"
+                            class="flex items-start justify-between gap-3 py-3"
+                        >
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="text-sm font-medium">{{ tp.nom }}</span>
+                                    <Badge
+                                        :class="tp.accessible
+                                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                                            : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'"
+                                        class="text-xs"
+                                    >
+                                        {{ tp.accessible ? 'Accessible' : 'Non accessible' }}
+                                    </Badge>
+                                </div>
+                                <p v-if="tp.description" class="mt-0.5 text-xs text-muted-foreground">
+                                    {{ tp.description }}
+                                </p>
+                                <div class="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <Grid2x2 class="h-3.5 w-3.5" />
+                                    <span>Grille :</span>
+                                    <Link
+                                        :href="typesProjetsRoutes.grille.edit.url(tp.id)"
+                                        class="text-primary hover:underline"
+                                    >
+                                        {{ tp.grille ? tp.grille.nom : 'Configurer la grille' }}
+                                    </Link>
+                                </div>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-1">
+                                <Button
+                                    size="sm"
+                                    :variant="tp.accessible ? 'outline' : 'secondary'"
+                                    class="h-7 text-xs"
+                                    :disabled="toggleTpForm.processing"
+                                    @click="toggleAccessibleTp(tp)"
+                                >
+                                    <ChevronRight v-if="!tp.accessible" class="mr-1 h-3 w-3" />
+                                    <ChevronDown v-else class="mr-1 h-3 w-3" />
+                                    {{ tp.accessible ? 'Masquer' : 'Rendre accessible' }}
+                                </Button>
+                                <Button size="icon" variant="ghost" class="h-7 w-7" @click="ouvrirEditionTp(tp)">
+                                    <Pencil class="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    class="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                    :disabled="deleteTpForm.processing"
+                                    @click="supprimerTp(tp)"
+                                >
+                                    <Trash2 class="h-3.5 w-3.5" />
+                                </Button>
+                            </div>
                         </div>
                     </div>
-                    <p v-else class="py-2 text-sm text-muted-foreground">
-                        Aucune grille de correction définie pour cette classe.
-                    </p>
                 </CardContent>
             </Card>
 
@@ -1137,6 +1290,170 @@ function formatSize(bytes: number): string {
             @update:open="handleGroupeDialogUpdate"
             @confirm="executeDeleteGroupe"
         />
+
+        <!-- Modal : Créer un type de projet -->
+        <Dialog v-model:open="showCreateTpDialog">
+            <DialogContent class="max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>Nouveau type de projet</DialogTitle>
+                </DialogHeader>
+                <form class="space-y-4" @submit.prevent="creerTypeProjet">
+                    <div class="grid gap-2">
+                        <Label for="tp-nom-create">Nom <span class="text-destructive">*</span></Label>
+                        <Input
+                            id="tp-nom-create"
+                            v-model="createTpForm.nom"
+                            placeholder="Ex. : Projet de recherche"
+                            required
+                        />
+                        <InputError :message="createTpForm.errors.nom" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="tp-desc-create">Description (optionnelle)</Label>
+                        <Textarea
+                            id="tp-desc-create"
+                            v-model="createTpForm.description"
+                            placeholder="Notes sur ce type de projet..."
+                            :rows="2"
+                        />
+                        <InputError :message="createTpForm.errors.description" />
+                    </div>
+
+                    <!-- Sections -->
+                    <div class="grid gap-3 border-t pt-3">
+                        <div>
+                            <Label>Sections du projet</Label>
+                            <p class="mt-1 text-xs text-muted-foreground">
+                                Définissez les parties que les étudiants devront rédiger. Sans section, l'introduction
+                                en trois parties est utilisée par défaut.
+                            </p>
+                        </div>
+                        <div v-if="createTpForm.sections.length > 0" class="flex flex-col gap-2">
+                            <div
+                                v-for="(section, idx) in createTpForm.sections"
+                                :key="idx"
+                                class="flex items-start gap-2 rounded-md border bg-muted/30 p-3"
+                            >
+                                <span class="mt-2 w-5 shrink-0 text-center text-xs text-muted-foreground">
+                                    {{ idx + 1 }}
+                                </span>
+                                <div class="flex-1 space-y-1.5">
+                                    <Input
+                                        v-model="createTpForm.sections[idx].label"
+                                        placeholder="Titre de la section *"
+                                        required
+                                    />
+                                    <InputError :message="createTpForm.errors[`sections.${idx}.label`]" />
+                                    <Input
+                                        v-model="createTpForm.sections[idx].description"
+                                        placeholder="Consigne pour les étudiants (optionnelle)"
+                                    />
+                                </div>
+                                <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    class="mt-0.5 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                                    @click="supprimerSectionCreate(idx)"
+                                >
+                                    <Trash2 class="h-3.5 w-3.5" />
+                                </Button>
+                            </div>
+                        </div>
+                        <Button type="button" size="sm" variant="outline" @click="ajouterSectionCreate">
+                            <Plus class="mr-2 h-4 w-4" />
+                            Ajouter une section
+                        </Button>
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" @click="showCreateTpDialog = false">
+                            Annuler
+                        </Button>
+                        <Button type="submit" :disabled="createTpForm.processing || !createTpForm.nom.trim()">
+                            Créer
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Modal : Modifier un type de projet -->
+        <Dialog v-model:open="showEditTpDialog">
+            <DialogContent class="max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>Modifier le type de projet</DialogTitle>
+                </DialogHeader>
+                <form class="space-y-4" @submit.prevent="sauvegarderTp">
+                    <div class="grid gap-2">
+                        <Label for="tp-nom-edit">Nom <span class="text-destructive">*</span></Label>
+                        <Input id="tp-nom-edit" v-model="editTpForm.nom" required />
+                        <InputError :message="editTpForm.errors.nom" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="tp-desc-edit">Description (optionnelle)</Label>
+                        <Textarea id="tp-desc-edit" v-model="editTpForm.description" :rows="2" />
+                        <InputError :message="editTpForm.errors.description" />
+                    </div>
+
+                    <!-- Sections -->
+                    <div class="grid gap-3 border-t pt-3">
+                        <div>
+                            <Label>Sections du projet</Label>
+                            <p class="mt-1 text-xs text-muted-foreground">
+                                Les sections retirées supprimeront le contenu rédigé par les étudiants dans ces
+                                sections.
+                            </p>
+                        </div>
+                        <div v-if="editTpForm.sections.length > 0" class="flex flex-col gap-2">
+                            <div
+                                v-for="(section, idx) in editTpForm.sections"
+                                :key="section.id ?? `new-${idx}`"
+                                class="flex items-start gap-2 rounded-md border bg-muted/30 p-3"
+                            >
+                                <span class="mt-2 w-5 shrink-0 text-center text-xs text-muted-foreground">
+                                    {{ idx + 1 }}
+                                </span>
+                                <div class="flex-1 space-y-1.5">
+                                    <Input
+                                        v-model="editTpForm.sections[idx].label"
+                                        placeholder="Titre de la section *"
+                                        required
+                                    />
+                                    <InputError :message="editTpForm.errors[`sections.${idx}.label`]" />
+                                    <Input
+                                        v-model="editTpForm.sections[idx].description"
+                                        placeholder="Consigne pour les étudiants (optionnelle)"
+                                    />
+                                </div>
+                                <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    class="mt-0.5 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                                    @click="supprimerSectionEdit(idx)"
+                                >
+                                    <Trash2 class="h-3.5 w-3.5" />
+                                </Button>
+                            </div>
+                        </div>
+                        <Button type="button" size="sm" variant="outline" @click="ajouterSectionEdit">
+                            <Plus class="mr-2 h-4 w-4" />
+                            Ajouter une section
+                        </Button>
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" @click="showEditTpDialog = false">
+                            Annuler
+                        </Button>
+                        <Button type="submit" :disabled="editTpForm.processing">
+                            Enregistrer
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
 
         <!-- Modal : Import CSV -->
         <Dialog v-model:open="showImportDialog">

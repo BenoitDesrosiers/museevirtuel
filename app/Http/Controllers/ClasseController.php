@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreClasseRequest;
 use App\Http\Requests\UpdateClasseRequest;
 use App\Models\Classe;
+use App\Models\TypeProjet;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -64,7 +65,10 @@ class ClasseController extends Controller
                 'ordre' => $etape->ordre,
             ]);
 
-        $grille = $classe->grille?->load('criteres');
+        $typesProjets = TypeProjet::where('enseignant_id', auth()->id())
+            ->with(['grille:id,type_projet_id,nom', 'sections'])
+            ->orderBy('nom')
+            ->get();
 
         return Inertia::render('Classes/Show', [
             'classe' => $classe,
@@ -72,11 +76,19 @@ class ClasseController extends Controller
             'groupes' => $groupes,
             'documents' => $documents,
             'echeancierEtapes' => $echeancierEtapes,
-            'grille' => $grille ? [
-                'id' => $grille->id,
-                'nom' => $grille->nom,
-                'criteres' => $grille->criteres->map->only('id')->values(),
-            ] : null,
+            'typesProjets' => $typesProjets->map(fn (TypeProjet $tp) => [
+                'id' => $tp->id,
+                'nom' => $tp->nom,
+                'description' => $tp->description,
+                'accessible' => $tp->accessible,
+                'grille' => $tp->grille ? ['id' => $tp->grille->id, 'nom' => $tp->grille->nom] : null,
+                'sections' => $tp->sections->map(fn ($s) => [
+                    'id' => $s->id,
+                    'label' => $s->label,
+                    'description' => $s->description,
+                    'ordre' => $s->ordre,
+                ])->values(),
+            ])->values(),
         ]);
     }
 

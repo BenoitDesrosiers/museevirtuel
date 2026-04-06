@@ -18,7 +18,9 @@ use App\Models\ProjetGrilleMalus;
 use App\Models\ProjetGrilleNote;
 use App\Models\ProjetNote;
 use App\Models\ProjetRecherche;
+use App\Models\ProjetSectionContenu;
 use App\Models\ProjetVoteRemise;
+use App\Models\TypeProjetSection;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
@@ -33,8 +35,8 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ProjetRechercheController extends Controller
 {
-    /** Pattern regex validant les noms de champs annotables (introductions ou développement_{id}). */
-    private const CHAMP_ANNOTABLE_REGEX = '/^(introduction_amener|introduction_poser|introduction_diviser|developpement_\d+)$/';
+    /** Pattern regex validant les noms de champs annotables (introductions, développement_{id} ou section_{id}). */
+    private const CHAMP_ANNOTABLE_REGEX = '/^(introduction_amener|introduction_poser|introduction_diviser|developpement_\d+|section_\d+)$/';
 
     /**
      * Affiche le projet de recherche du groupe avec l'avancement de chaque conclusion.
@@ -105,8 +107,13 @@ class ProjetRechercheController extends Controller
         $projet = ProjetRecherche::firstOrCreate(['groupe_id' => $groupe->id]);
 
         // Précharger en une seule requête chacune des relations — évite le N+1
-        $projet->load(['conclusions', 'commentaires', 'annotations', 'developpements', 'votes', 'notesGrille.critere', 'malusAppliques.malus']);
-        $classe->loadMissing(['grille.criteres', 'grille.malus']);
+        $projet->load(['conclusions', 'commentaires', 'annotations', 'developpements', 'votes', 'notes', 'notesGrille.critere', 'malusAppliques.malus', 'typeProjet.grille.criteres', 'typeProjet.grille.malus', 'typeProjet.sections', 'sectionContenus']);
+
+        // Guard accessibilité : si le type de projet n'est pas accessible, les étudiants ne peuvent pas accéder
+        if (! $estEnseignant && ! $user->isAdmin()) {
+            $typeProjet = $projet->typeProjet;
+            abort_if($typeProjet !== null && ! $typeProjet->accessible, 403, 'Ce type de projet n\'est pas encore accessible.');
+        }
 
         $conclusionsParMembre = $projet->conclusions->keyBy('user_id');
 
@@ -157,8 +164,13 @@ class ProjetRechercheController extends Controller
         // Condition commune : membre + non verrouillé + remise encore possible
         $peutAgir = $estMembre && ! $projet->verrouille && $projet->peutEtreRemis();
 
-        // Grille de correction personnalisée : dérivée automatiquement de la classe
-        $grillePersonnalisee = $classe->grille;
+        // Notes standard pondérées (visibles selon correction_visible)
+        $noteFinaleParEtudiant = ($estEnseignant || $projet->correction_visible)
+            ? $groupe->membres->mapWithKeys(fn (User $membre) => [$membre->id => ProjetNote::noteFinale($projet, $membre)])
+            : $groupe->membres->mapWithKeys(fn (User $membre) => [$membre->id => null]);
+
+        // Grille de correction personnalisée : dérivée du type de projet associé
+        $grillePersonnalisee = $projet->typeProjet?->grille;
         $notesGrilleParEtudiant = [];
         $malusParEtudiant = [];
         $noteFinaleGrilleParEtudiant = [];
@@ -204,11 +216,14 @@ class ProjetRechercheController extends Controller
                 'vote' => (bool) $v->vote,
             ])->values(),
             'retardPermis' => (bool) $projet->retard_permis,
+            'noteFinaleParEtudiant' => $noteFinaleParEtudiant,
             // Grille personnalisée (rattachée à la classe, automatique)
             'grillePersonnalisee' => $grillePersonnalisee,
             'notesGrilleParEtudiant' => $notesGrilleParEtudiant,
             'malusParEtudiant' => $malusParEtudiant,
             'noteFinaleGrilleParEtudiant' => $noteFinaleGrilleParEtudiant,
+            // Sections dynamiques définies par le professeur (vide si aucun type ou type sans sections)
+            'sections' => $this->construireSections($projet),
         ]);
     }
 
@@ -247,6 +262,21 @@ class ProjetRechercheController extends Controller
                 ->values()
             : collect();
 
+        if ($projet) {
+            $projet->load(['typeProjet.sections', 'sectionContenus']);
+        }
+
+        // Sections dynamiques avec leur contenu pour l'aperçu (annotations retirées)
+        $sections = $projet
+            ? collect($this->construireSections($projet))->map(fn (array $s) => [
+                'id' => $s['id'],
+                'label' => $s['label'],
+                'description' => $s['description'],
+                'ordre' => $s['ordre'],
+                'contenu' => HtmlHelper::stripAnnotationMarks($s['contenu']),
+            ])->values()
+            : collect();
+
         return Inertia::render('Projets/Apercu', [
             'groupe' => $groupe->only('id', 'numero', 'classe_id'),
             'classe' => $classe->only('id', 'nom_cours', 'code', 'groupe'),
@@ -260,6 +290,7 @@ class ProjetRechercheController extends Controller
                     'introduction_diviser' => HtmlHelper::stripAnnotationMarks($projet->introduction_diviser),
                 ]
                 : null,
+            'sections' => $sections,
             'developpements' => $projet
                 ? $projet->developpements->map(fn ($dev) => [
                     'id' => $dev->id,
@@ -270,6 +301,48 @@ class ProjetRechercheController extends Controller
                 : collect(),
             'conclusions' => $conclusions,
             'estEnseignant' => $estEnseignant,
+        ]);
+    }
+
+    /**
+     * Sauvegarde le contenu HTML d'une section dynamique pour un projet.
+     *
+     * Vérifie que la section appartient bien au type de projet du groupe (anti-IDOR).
+     * Tout membre du groupe peut modifier le contenu.
+     *
+     * @throws HttpException
+     */
+    public function updateSectionContenu(Request $request, Classe $classe, Groupe $groupe, TypeProjetSection $section): JsonResponse
+    {
+        abort_if($groupe->classe_id !== $classe->id, 404);
+        $groupe->load('classe');
+        $this->authorize('manageThematiques', $groupe);
+
+        $projet = ProjetRecherche::where('groupe_id', $groupe->id)->firstOrFail();
+        abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
+        abort_if(! $projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
+
+        // Vérifier que la section appartient au type de projet assigné — évite l'IDOR
+        $typeProjetId = $projet->type_projet_id;
+        abort_if($typeProjetId === null || $section->type_projet_id !== $typeProjetId, 404);
+
+        $validated = $request->validate([
+            'contenu' => ['nullable', 'string'],
+        ]);
+
+        ProjetSectionContenu::updateOrCreate(
+            ['projet_id' => $projet->id, 'section_id' => $section->id],
+            ['contenu' => $validated['contenu']],
+        );
+
+        // Supprimer les annotations orphelines si le contenu a changé
+        if ($validated['contenu'] !== null) {
+            $this->supprimerAnnotationsOrphelines($projet, 'section_'.$section->id, $validated['contenu']);
+        }
+
+        return response()->json([
+            'message' => 'saved',
+            'completion' => $projet->fresh()->load(['typeProjet.sections', 'sectionContenus'])->completion(),
         ]);
     }
 
@@ -898,7 +971,7 @@ class ProjetRechercheController extends Controller
     }
 
     /**
-     * Charge la grille de la classe et valide que l'utilisateur est bien membre du groupe.
+     * Charge la grille du type de projet et valide que l'utilisateur est bien membre du groupe.
      * Setup commun aux actions de notation grille (enseignant uniquement).
      *
      * @return array{0: GrilleCorrection, 1: ProjetRecherche}
@@ -907,11 +980,10 @@ class ProjetRechercheController extends Controller
      */
     private function chargerContexteGrille(Classe $classe, Groupe $groupe, int $userId): array
     {
-        $classe->loadMissing('grille');
-        $grille = $classe->grille;
-        abort_if($grille === null, 422, 'Aucune grille personnalisée n\'est définie pour cette classe.');
-
         $projet = ProjetRecherche::where('groupe_id', $groupe->id)->firstOrFail();
+        $projet->load('typeProjet.grille');
+        $grille = $projet->typeProjet?->grille;
+        abort_if($grille === null, 422, 'Aucune grille personnalisée n\'est définie pour ce type de projet.');
 
         // Vérifier que l'étudiant est bien membre du groupe — évite l'IDOR
         $groupe->loadMissing('membres');
@@ -938,6 +1010,32 @@ class ProjetRechercheController extends Controller
                 fn (User $membre) => [$membre->id => ProjetGrilleNote::noteFinale($projet, $membre)]
             ),
         ]);
+    }
+
+    /**
+     * Construit le tableau des sections dynamiques avec leur contenu courant.
+     *
+     * Retourne un tableau vide si le projet n'a pas de type ou si le type n'a pas de sections.
+     *
+     * @return array<int, array{id: int, label: string, description: string|null, ordre: int, contenu: string|null}>
+     */
+    private function construireSections(ProjetRecherche $projet): array
+    {
+        $sections = $projet->typeProjet?->sections ?? collect();
+
+        if ($sections->isEmpty()) {
+            return [];
+        }
+
+        $contenusParSection = $projet->sectionContenus->keyBy('section_id');
+
+        return $sections->map(fn (TypeProjetSection $s) => [
+            'id' => $s->id,
+            'label' => $s->label,
+            'description' => $s->description,
+            'ordre' => $s->ordre,
+            'contenu' => $contenusParSection->get($s->id)?->contenu,
+        ])->values()->all();
     }
 
     /**
@@ -991,10 +1089,11 @@ class ProjetRechercheController extends Controller
     /**
      * Met à jour le contenu HTML d'un champ annotable.
      *
-     * Si le champ est de la forme "developpement_{id}", met à jour le contenu
-     * du paragraphe correspondant. Sinon, met à jour la colonne du projet directement.
+     * - "developpement_{id}" → met à jour le contenu du paragraphe correspondant
+     * - "section_{id}" → met à jour le contenu de la section dynamique
+     * - autre → met à jour la colonne directe sur le projet (introduction_*)
      *
-     * @throws HttpException si le paragraphe n'appartient pas au projet
+     * @throws HttpException si la ressource n'appartient pas au projet
      */
     private function mettreAJourChampHtml(ProjetRecherche $projet, string $champ, string $html): void
     {
@@ -1004,6 +1103,12 @@ class ProjetRechercheController extends Controller
                 ->where('projet_id', $projet->id)
                 ->firstOrFail();
             $dev->update(['contenu' => $html]);
+        } elseif (str_starts_with($champ, 'section_')) {
+            $sectionId = (int) mb_substr($champ, mb_strlen('section_'));
+            ProjetSectionContenu::updateOrCreate(
+                ['projet_id' => $projet->id, 'section_id' => $sectionId],
+                ['contenu' => $html],
+            );
         } else {
             $projet->update([$champ => $html]);
         }

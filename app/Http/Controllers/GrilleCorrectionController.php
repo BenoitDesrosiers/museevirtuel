@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreGrilleCorrectionRequest;
 use App\Http\Requests\UpdateGrilleCorrectionRequest;
-use App\Models\Classe;
 use App\Models\GrilleCritere;
 use App\Models\GrilleMalus;
+use App\Models\TypeProjet;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -15,34 +15,33 @@ use Inertia\Response;
 class GrilleCorrectionController extends Controller
 {
     /**
-     * Affiche la page de gestion de la grille de correction d'une classe.
+     * Affiche la page de gestion de la grille de correction d'un type de projet.
      *
      * Sert à la fois de page de création et d'édition selon si la grille existe déjà.
-     * L'enseignant doit être propriétaire de la classe.
      */
-    public function edit(Classe $classe): Response
+    public function edit(TypeProjet $typeProjet): Response
     {
-        abort_if($classe->enseignant_id !== auth()->id(), 403);
+        $this->authorize('update', $typeProjet);
 
-        $grille = $classe->grille?->load(['criteres', 'malus']);
+        $grille = $typeProjet->grille?->load(['criteres', 'malus']);
 
-        return Inertia::render('Classes/Grille', [
-            'classe' => $classe->only(['id', 'nom_cours', 'code', 'groupe']),
+        return Inertia::render('GrilleCorrection/Edit', [
+            'typeProjet' => $typeProjet->only(['id', 'nom', 'description']),
             'grille' => $grille,
         ]);
     }
 
     /**
-     * Enregistre une nouvelle grille de correction pour une classe.
+     * Enregistre une nouvelle grille de correction pour un type de projet.
      *
-     * La classe ne doit pas encore avoir de grille (contrainte unique DB + authorize).
+     * Le type de projet ne doit pas encore avoir de grille (contrainte unique DB + authorize).
      */
-    public function store(StoreGrilleCorrectionRequest $request, Classe $classe): RedirectResponse
+    public function store(StoreGrilleCorrectionRequest $request, TypeProjet $typeProjet): RedirectResponse
     {
         $data = $request->validated();
 
-        DB::transaction(function () use ($data, $classe): void {
-            $grille = $classe->grille()->create([
+        DB::transaction(function () use ($data, $typeProjet): void {
+            $grille = $typeProjet->grille()->create([
                 'nom' => $data['nom'],
                 'description' => $data['description'] ?? null,
             ]);
@@ -67,20 +66,20 @@ class GrilleCorrectionController extends Controller
             }
         });
 
-        return redirect()->route('classes.show', $classe)->with('success', 'Grille de correction créée.');
+        return redirect()->route('types-projets.index')->with('success', 'Grille de correction créée.');
     }
 
     /**
-     * Met à jour la grille de correction existante d'une classe.
+     * Met à jour la grille de correction existante d'un type de projet.
      *
      * Stratégie de synchronisation des critères et malus :
      * - Ligne avec `id` → mise à jour du label/pondération/déduction
      * - Ligne sans `id`  → création
      * - Ligne absente    → suppression (cascade sur projet_grille_notes et projet_grille_malus)
      */
-    public function update(UpdateGrilleCorrectionRequest $request, Classe $classe): RedirectResponse
+    public function update(UpdateGrilleCorrectionRequest $request, TypeProjet $typeProjet): RedirectResponse
     {
-        $grille = $classe->grille;
+        $grille = $typeProjet->grille;
         $data = $request->validated();
 
         DB::transaction(function () use ($data, $grille): void {
@@ -140,20 +139,20 @@ class GrilleCorrectionController extends Controller
             }
         });
 
-        return redirect()->route('classes.show', $classe)->with('success', 'Grille de correction mise à jour.');
+        return redirect()->route('types-projets.index')->with('success', 'Grille de correction mise à jour.');
     }
 
     /**
-     * Supprime la grille de correction d'une classe.
+     * Supprime la grille de correction d'un type de projet.
      *
      * La suppression est en cascade sur les critères, malus, et toutes les notes associées.
      */
-    public function destroy(Classe $classe): RedirectResponse
+    public function destroy(TypeProjet $typeProjet): RedirectResponse
     {
-        abort_if($classe->enseignant_id !== auth()->id(), 403);
+        $this->authorize('update', $typeProjet);
 
-        $classe->grille?->delete();
+        $typeProjet->grille?->delete();
 
-        return redirect()->route('classes.show', $classe)->with('success', 'Grille de correction supprimée.');
+        return redirect()->route('types-projets.index')->with('success', 'Grille de correction supprimée.');
     }
 }

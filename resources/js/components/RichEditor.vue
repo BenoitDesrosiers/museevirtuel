@@ -477,9 +477,17 @@ function cancelEdit(): void {
 
 /**
  * Sauvegarde le contenu modifié d'une annotation existante via upsert (même commentaire_id).
+ * Si le contenu est vidé, supprime l'annotation.
  */
 function saveEdit(correction: Annotation): void {
-    if (!editor.value || !editingContent.value.trim()) {
+    if (!editor.value) {
+        return;
+    }
+
+    if (!editingContent.value.trim()) {
+        deleteAnnotation(correction);
+        editingId.value = null;
+        editingContent.value = '';
         return;
     }
 
@@ -1026,10 +1034,10 @@ function togglePanel(): void {
                         <div class="mt-1 flex gap-1">
                             <Button
                                 size="sm"
-                                :disabled="!editingContent.trim()"
+                                :variant="editingContent.trim() ? 'default' : 'destructive'"
                                 @click="saveEdit(correction)"
                             >
-                                Enregistrer
+                                {{ editingContent.trim() ? 'Enregistrer' : 'Supprimer' }}
                             </Button>
                             <Button
                                 size="sm"

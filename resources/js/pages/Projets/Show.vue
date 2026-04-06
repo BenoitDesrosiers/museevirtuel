@@ -114,6 +114,14 @@ type GrilleCriterePersonnalisee = { id: number; label: string; ponderation: numb
 type GrilleMalusPersonnalisee = { id: number; label: string; deduction: number; description: string | null; ordre: number };
 type GrillePersonnalisee = { id: number; nom: string; criteres: GrilleCriterePersonnalisee[]; malus: GrilleMalusPersonnalisee[] };
 
+type Section = {
+    id: number;
+    label: string;
+    description: string | null;
+    ordre: number;
+    contenu: string | null;
+};
+
 type Props = {
     groupe: Groupe;
     classe: Classe;
@@ -134,6 +142,8 @@ type Props = {
     commentaires: Record<string, Commentaire>;
     votes: VoteRemise[];
     annotationsParChamp: Record<string, Annotation[]>;
+    /** Sections dynamiques définies par le professeur (vide si aucun type ou type sans sections) */
+    sections: Section[];
     // Grille personnalisée (rattachée automatiquement à la classe)
     grillePersonnalisee: GrillePersonnalisee | null;
     /** notesGrilleParEtudiant[userId][critereId] = note */
@@ -158,6 +168,12 @@ const form = reactive({
     introduction_poser: props.projet.introduction_poser ?? '',
     introduction_diviser: props.projet.introduction_diviser ?? '',
 });
+
+// ─── Sections dynamiques ───────────────────────────────────────────────────────
+
+const sectionContenus = reactive<Record<number, string>>(
+    Object.fromEntries(props.sections.map((s) => [s.id, s.contenu ?? ''])),
+);
 
 // ─── Paragraphes de développement ─────────────────────────────────────────────
 
@@ -245,6 +261,41 @@ async function saveConclusion(etudiantId: number) {
         await axios.put(`${baseUrl.value}/conclusion`, {
             user_id: etudiantId,
             contenu: conclusionsLocales[etudiantId],
+        });
+        saveStatus.value = 'saved';
+        setTimeout(() => {
+            saveStatus.value = 'idle';
+        }, 2000);
+    } catch {
+        saveStatus.value = 'error';
+    }
+}
+
+const debounceSections = new Map<number, ReturnType<typeof setTimeout>>();
+
+function scheduleSectionSave(sectionId: number) {
+    if (!props.peutEditer) {
+        return;
+    }
+
+    saveStatus.value = 'saving';
+    const existing = debounceSections.get(sectionId);
+
+    if (existing) {
+        clearTimeout(existing);
+    }
+
+    debounceSections.set(sectionId, setTimeout(() => saveSection(sectionId), 1500));
+}
+
+async function saveSection(sectionId: number) {
+    if (!props.peutEditer) {
+        return;
+    }
+
+    try {
+        await axios.put(`${baseUrl.value}/sections/${sectionId}`, {
+            contenu: sectionContenus[sectionId],
         });
         saveStatus.value = 'saved';
         setTimeout(() => {
@@ -400,17 +451,23 @@ const codeComplet = computed(
 
 // ─── Table des matières ───────────────────────────────────────────────────────
 
-const tocEntrees = computed(() => [
-    { label: t('projets.show.introduction'), numero: null },
-    ...developpements.value.map((dev) => ({
-        label: dev.titre || t('projets.show.dev_paragraph', { n: dev.ordre }),
-        numero: dev.ordre,
-    })),
-    ...props.membres.map((m) => ({
-        label: t('projets.show.conclusion_member', { prenom: m.prenom, nom: m.nom }),
-        numero: null,
-    })),
-]);
+const tocEntrees = computed(() => {
+    const sectionItems = props.sections.length > 0
+        ? props.sections.map((s) => ({ label: s.label, numero: s.ordre }))
+        : [{ label: t('projets.show.introduction'), numero: null }];
+
+    return [
+        ...sectionItems,
+        ...developpements.value.map((dev) => ({
+            label: dev.titre || t('projets.show.dev_paragraph', { n: dev.ordre }),
+            numero: dev.ordre,
+        })),
+        ...props.membres.map((m) => ({
+            label: t('projets.show.conclusion_member', { prenom: m.prenom, nom: m.nom }),
+            numero: null,
+        })),
+    ];
+});
 
 // ─── Commentaires de l'enseignant ─────────────────────────────────────────────
 
@@ -441,11 +498,13 @@ const commentairesSaving = reactive<Record<string, boolean>>({});
 const commentairesReduits = reactive<Record<string, boolean>>({});
 
 const champsVisibles = computed((): string[] => {
+    const introChamps = props.sections.length > 0
+        ? props.sections.map((s) => `section_${s.id}`)
+        : ['introduction_amener', 'introduction_poser', 'introduction_diviser'];
+
     const champs: string[] = [
         'normes_presentation',
-        'introduction_amener',
-        'introduction_poser',
-        'introduction_diviser',
+        ...introChamps,
         ...developpements.value.map((d) => `developpement_${d.id}`),
     ];
 
@@ -758,6 +817,9 @@ async function supprimerAnnotation(
             if (dev) {
                 dev.contenu = payload.html;
             }
+        } else if (champ.startsWith('section_')) {
+            const sectionId = parseInt(champ.replace('section_', ''), 10);
+            sectionContenus[sectionId] = payload.html;
         }
     } catch {
         // Rollback : restaure la marque dans l'éditeur et la carte dans le panneau.
@@ -770,6 +832,9 @@ async function supprimerAnnotation(
             if (dev) {
                 dev.contenu = payload.htmlOriginal;
             }
+        } else if (champ.startsWith('section_')) {
+            const sectionId = parseInt(champ.replace('section_', ''), 10);
+            sectionContenus[sectionId] = payload.htmlOriginal;
         }
 
         if (annotations[champ]) {
@@ -1220,6 +1285,54 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                 </CardContent>
             </Card>
 
+            <!-- ─── Sections dynamiques (définies par le professeur) ─────── -->
+            <template v-if="props.sections.length > 0">
+                <Card v-for="section in props.sections" :key="section.id">
+                    <CardHeader class="flex flex-row items-center justify-between">
+                        <CardTitle class="flex flex-col gap-0.5">
+                            <span class="text-base font-semibold">{{ section.label }}</span>
+                            <span v-if="section.description" class="text-xs font-normal text-muted-foreground">
+                                {{ section.description }}
+                            </span>
+                        </CardTitle>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            @click="toggleSection(`section_${section.id}`)"
+                        >
+                            <ChevronUp v-if="!collapsed[`section_${section.id}`]" class="h-4 w-4" />
+                            <ChevronDown v-else class="h-4 w-4" />
+                        </Button>
+                    </CardHeader>
+                    <CardContent v-show="!collapsed[`section_${section.id}`]" class="space-y-4">
+                        <RichEditor
+                            v-model="sectionContenus[section.id]"
+                            :placeholder="`Rédigez la section « ${section.label} »…`"
+                            :read-only="!peutEditer"
+                            :est-enseignant="estEnseignant"
+                            :corrections="annotations[`section_${section.id}`] ?? []"
+                            @update:model-value="scheduleSectionSave(section.id)"
+                            @save-annotation="(p) => sauvegarderAnnotation(`section_${section.id}`, p)"
+                            @delete-annotation="(p) => supprimerAnnotation(`section_${section.id}`, p)"
+                        />
+                        <CommentaireEnseignant
+                            :commentaire="commentaires[`section_${section.id}`]"
+                            :brouillon="getBrouillon(`section_${section.id}`)"
+                            :est-reduit="!!commentairesReduits[`section_${section.id}`]"
+                            :is-saving="!!commentairesSaving[`section_${section.id}`]"
+                            :est-enseignant="estEnseignant"
+                            class="mt-3"
+                            @toggle="toggleCommentaire(`section_${section.id}`)"
+                            @save="sauvegarderCommentaire(`section_${section.id}`)"
+                            @delete="supprimerCommentaire(`section_${section.id}`)"
+                            @update:brouillon="(v) => setBrouillon(`section_${section.id}`, v)"
+                        />
+                    </CardContent>
+                </Card>
+            </template>
+
+            <!-- ─── Introduction (fallback si aucune section définie) ──────── -->
+            <template v-else>
             <!-- ─── Introduction ───────────────────────────────────────────── -->
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between">
@@ -1370,6 +1483,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
 
                 </CardContent>
             </Card>
+            </template><!-- /v-else intro fallback -->
 
             <!-- ─── Paragraphes de développement ──────────────────────────── -->
             <Card v-for="dev in developpements" :key="dev.id">

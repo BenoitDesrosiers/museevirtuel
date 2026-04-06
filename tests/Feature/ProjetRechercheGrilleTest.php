@@ -8,14 +8,15 @@ use App\Models\Groupe;
 use App\Models\ProjetGrilleMalus;
 use App\Models\ProjetGrilleNote;
 use App\Models\ProjetRecherche;
+use App\Models\TypeProjet;
 use App\Models\User;
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
 /**
- * Crée un contexte complet : enseignant, classe avec grille rattachée, groupe, étudiant et projet.
+ * Crée un contexte complet : enseignant, classe, type de projet avec grille, groupe, étudiant et projet.
  *
- * La grille appartient à la classe (et non plus à l'enseignant directement).
+ * La grille appartient au type de projet, qui est rattaché au projet de recherche.
  *
  * @return array{
  *     enseignant: User,
@@ -50,14 +51,23 @@ function creerContexteGrilleProjet(): array
     ]);
     $groupe->membres()->attach($etudiant->id);
 
-    // La grille appartient désormais à la classe
-    $grille = GrilleCorrection::create(['classe_id' => $classe->id, 'nom' => 'Grille projet']);
+    // La grille appartient au type de projet (et non à la classe directement)
+    $typeProjet = TypeProjet::create([
+        'enseignant_id' => $enseignant->id,
+        'nom' => 'Projet de recherche',
+        'accessible' => true,
+    ]);
+
+    $grille = GrilleCorrection::create(['type_projet_id' => $typeProjet->id, 'nom' => 'Grille projet']);
     $critere1 = $grille->criteres()->create(['label' => 'Analyse',   'ponderation' => 60, 'ordre' => 0]);
     $critere2 = $grille->criteres()->create(['label' => 'Rédaction', 'ponderation' => 40, 'ordre' => 1]);
     $malus = $grille->malus()->create(['label' => 'Fautes', 'deduction' => 3, 'ordre' => 0]);
 
-    // Plus de grille_id sur le projet — la grille est auto-dérivée de la classe
-    $projet = ProjetRecherche::create(['groupe_id' => $groupe->id]);
+    // Le projet est rattaché au type de projet pour accéder à sa grille
+    $projet = ProjetRecherche::create([
+        'groupe_id' => $groupe->id,
+        'type_projet_id' => $typeProjet->id,
+    ]);
 
     return compact('enseignant', 'classe', 'groupe', 'etudiant', 'projet', 'grille', 'critere1', 'critere2')
         + ['malus' => $malus];
@@ -117,7 +127,7 @@ test('un double PUT sur le même critère/étudiant met à jour sans créer de d
     $this->assertDatabaseHas('projet_grille_notes', ['critere_id' => $critere1->id, 'note' => 4]);
 });
 
-test('un critère hors de la grille de la classe est refusé (protection IDOR)', function () {
+test('un critère hors de la grille du type de projet est refusé (protection IDOR)', function () {
     [
         'enseignant' => $enseignant,
         'classe' => $classe,
@@ -125,9 +135,13 @@ test('un critère hors de la grille de la classe est refusé (protection IDOR)',
         'etudiant' => $etudiant,
     ] = creerContexteGrilleProjet();
 
-    // Crée une autre classe avec une autre grille (pour simuler un critère étranger)
-    $autreClasse = Classe::create(['nom_cours' => 'Autre', 'description' => 'T', 'code' => 'ZZZ-99', 'groupe' => '99', 'enseignant_id' => $enseignant->id]);
-    $autreGrille = GrilleCorrection::create(['classe_id' => $autreClasse->id, 'nom' => 'Autre grille']);
+    // Crée un autre type de projet avec une autre grille (critère étranger)
+    $autreType = TypeProjet::create([
+        'enseignant_id' => $enseignant->id,
+        'nom' => 'Autre type',
+        'accessible' => false,
+    ]);
+    $autreGrille = GrilleCorrection::create(['type_projet_id' => $autreType->id, 'nom' => 'Autre grille']);
     $autreCritere = $autreGrille->criteres()->create(['label' => 'Hors grille', 'ponderation' => 100, 'ordre' => 0]);
 
     $this->actingAs($enseignant)
@@ -247,7 +261,7 @@ test("l'enseignant peut retirer un malus appliqué", function () {
     ]);
 });
 
-test('un malus hors de la grille de la classe est refusé (protection IDOR)', function () {
+test('un malus hors de la grille du type de projet est refusé (protection IDOR)', function () {
     [
         'enseignant' => $enseignant,
         'classe' => $classe,
@@ -255,8 +269,12 @@ test('un malus hors de la grille de la classe est refusé (protection IDOR)', fu
         'etudiant' => $etudiant,
     ] = creerContexteGrilleProjet();
 
-    $autreClasse = Classe::create(['nom_cours' => 'Autre', 'description' => 'T', 'code' => 'ZZZ-88', 'groupe' => '88', 'enseignant_id' => $enseignant->id]);
-    $autreGrille = GrilleCorrection::create(['classe_id' => $autreClasse->id, 'nom' => 'Autre grille']);
+    $autreType = TypeProjet::create([
+        'enseignant_id' => $enseignant->id,
+        'nom' => 'Autre type',
+        'accessible' => false,
+    ]);
+    $autreGrille = GrilleCorrection::create(['type_projet_id' => $autreType->id, 'nom' => 'Autre grille']);
     $autreMalus = $autreGrille->malus()->create(['label' => 'Malus hors grille', 'deduction' => 5, 'ordre' => 0]);
 
     $this->actingAs($enseignant)
@@ -270,7 +288,7 @@ test('un malus hors de la grille de la classe est refusé (protection IDOR)', fu
 
 // ─── Calcul note finale grille ────────────────────────────────────────────────
 
-test('noteFinale retourne null si aucune note n\'a été saisie', function () {
+test("noteFinale retourne null si aucune note n'a été saisie", function () {
     ['projet' => $projet, 'etudiant' => $etudiant] = creerContexteGrilleProjet();
 
     expect(ProjetGrilleNote::noteFinale($projet, $etudiant))->toBeNull();

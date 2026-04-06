@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Classe extends Model
 {
@@ -46,13 +45,5 @@ class Classe extends Model
     public function echeancierEtapes(): HasMany
     {
         return $this->hasMany(EcheancierEtape::class)->orderBy('semaine')->orderBy('ordre');
-    }
-
-    /**
-     * Retourne la grille de correction rattachée à cette classe, si elle existe.
-     */
-    public function grille(): HasOne
-    {
-        return $this->hasOne(GrilleCorrection::class, 'classe_id');
     }
 }

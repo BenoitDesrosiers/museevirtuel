@@ -37,6 +37,14 @@ type Projet = {
     introduction_diviser: string | null;
 };
 
+type Section = {
+    id: number;
+    label: string;
+    description: string | null;
+    ordre: number;
+    contenu: string | null;
+};
+
 type Developpement = {
     id: number;
     ordre: number;
@@ -54,6 +62,7 @@ const props = defineProps<{
     classe: Classe;
     thematiques: Thematique[];
     projet: Projet | null;
+    sections: Section[];
     developpements: Developpement[];
     conclusions: ConclusionMembre[];
     estEnseignant: boolean;
@@ -121,7 +130,30 @@ const baseUrl = `/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/p
             </div>
 
             <template v-else>
-                <!-- ── Introduction ─────────────────────────────────────── -->
+                <!-- ── Sections dynamiques (définies par le professeur) ── -->
+                <template v-if="sections.length > 0">
+                    <section
+                        v-for="section in sections"
+                        :key="section.id"
+                        class="space-y-3"
+                    >
+                        <h2 class="text-xl font-semibold border-b pb-2">{{ section.label }}</h2>
+                        <p v-if="section.description" class="text-xs text-muted-foreground italic">
+                            {{ section.description }}
+                        </p>
+                        <div
+                            v-if="section.contenu && section.contenu.trim()"
+                            class="prose prose-sm max-w-none dark:prose-invert"
+                            v-html="section.contenu"
+                        />
+                        <p v-else class="text-muted-foreground text-sm italic">
+                            (Section non rédigée)
+                        </p>
+                    </section>
+                </template>
+
+                <!-- ── Introduction (fallback si aucune section) ─────────── -->
+                <template v-else>
                 <section class="space-y-6">
                     <h2 class="text-xl font-semibold border-b pb-2">Introduction</h2>
 
@@ -148,6 +180,7 @@ const baseUrl = `/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/p
                         Aucun contenu d'introduction rédigé.
                     </p>
                 </section>
+                </template>
 
                 <!-- ── Développements ───────────────────────────────────── -->
                 <section v-if="developpements.length > 0" class="space-y-8">

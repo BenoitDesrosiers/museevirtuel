@@ -22,12 +22,26 @@ class ExportProjetPdf
         // Noms des membres pour la page titre — chacun sur sa propre ligne dans la vue
         $membres = $groupe->membres->map(fn ($m) => "{$m->prenom} {$m->nom}")->values();
 
+        // Charger les sections dynamiques si le projet a un type de projet
+        if (! $projet->relationLoaded('typeProjet')) {
+            $projet->load(['typeProjet.sections', 'sectionContenus']);
+        }
+
+        $sections = $projet->typeProjet?->sections ?? collect();
+        $contenusParSection = $projet->sectionContenus->keyBy('section_id');
+
+        $sectionsAvecContenu = $sections->map(fn ($s) => [
+            'label' => $s->label,
+            'contenu' => HtmlHelper::stripAnnotationMarks($contenusParSection->get($s->id)?->contenu),
+        ])->values();
+
         $pdf = Pdf::loadView('projets.export', [
             'projet' => $projet,
             'groupe' => $groupe,
             'classe' => $classe,
             'enseignant' => $enseignant,
             'membres' => $membres,
+            'sections' => $sectionsAvecContenu,
             // Les conclusions sont chargées via $projet->conclusions (relation)
             // Closure exposée à la vue Blade pour nettoyer les marques d'annotation
             'stripMarks' => fn (?string $html): string => HtmlHelper::stripAnnotationMarks($html),

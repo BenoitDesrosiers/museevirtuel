@@ -196,31 +196,44 @@
         @endforeach
     </div>
 
-    {{-- ─── Introduction ──────────────────────────────────────────────── --}}
-    <div class="section">
-        <h2>Introduction</h2>
-
-        @if($projet->introduction_amener)
-            <div class="subsection">
-                <p class="subsection-label">Amener</p>
-                <div class="prose">{!! $stripMarks($projet->introduction_amener) !!}</div>
+    {{-- ─── Sections dynamiques ou Introduction classique ─────────────── --}}
+    @if($sections->isNotEmpty())
+        @foreach($sections as $section)
+            <div class="section">
+                <h2>{{ $section['label'] }}</h2>
+                @if(!empty($section['contenu']) && trim(strip_tags($section['contenu'])) !== '')
+                    <div class="prose">{!! $section['contenu'] !!}</div>
+                @else
+                    <p style="color: #999; font-style: italic;">(Section non rédigée)</p>
+                @endif
             </div>
-        @endif
+        @endforeach
+    @else
+        <div class="section">
+            <h2>Introduction</h2>
 
-        @if($projet->introduction_poser)
-            <div class="subsection">
-                <p class="subsection-label">Poser</p>
-                <div class="prose">{!! $stripMarks($projet->introduction_poser) !!}</div>
-            </div>
-        @endif
+            @if($projet->introduction_amener)
+                <div class="subsection">
+                    <p class="subsection-label">Amener</p>
+                    <div class="prose">{!! $stripMarks($projet->introduction_amener) !!}</div>
+                </div>
+            @endif
 
-        @if($projet->introduction_diviser)
-            <div class="subsection">
-                <p class="subsection-label">Diviser</p>
-                <div class="prose">{!! $stripMarks($projet->introduction_diviser) !!}</div>
-            </div>
-        @endif
-    </div>
+            @if($projet->introduction_poser)
+                <div class="subsection">
+                    <p class="subsection-label">Poser</p>
+                    <div class="prose">{!! $stripMarks($projet->introduction_poser) !!}</div>
+                </div>
+            @endif
+
+            @if($projet->introduction_diviser)
+                <div class="subsection">
+                    <p class="subsection-label">Diviser</p>
+                    <div class="prose">{!! $stripMarks($projet->introduction_diviser) !!}</div>
+                </div>
+            @endif
+        </div>
+    @endif
 
     {{-- ─── Paragraphes de développement (dynamiques) ─────────────── --}}
     @foreach($projet->developpements as $dev)

@@ -64,14 +64,31 @@ class ExportProjetWord
         // Champ TOC automatique : se met à jour à l'ouverture du fichier dans Word
         $tocSection->addTOC(['size' => 11], null, 1, 2);
 
-        // ─── Introduction (Heading 1) ─────────────────────────────────────────
-        $introSection = $word->addSection();
-        $introSection->addTitle('Introduction', 1);
-        $introSection->addTextBreak(1);
-        // Sujet amené, posé, divisé — texte normal continu, sans label ni titre
-        $this->addHtmlContent($introSection, $projet->introduction_amener);
-        $this->addHtmlContent($introSection, $projet->introduction_poser);
-        $this->addHtmlContent($introSection, $projet->introduction_diviser);
+        // ─── Sections dynamiques ou Introduction classique ───────────────────
+        if (! $projet->relationLoaded('typeProjet')) {
+            $projet->load(['typeProjet.sections', 'sectionContenus']);
+        }
+        $sections = $projet->typeProjet?->sections ?? collect();
+
+        if ($sections->isNotEmpty()) {
+            $contenusParSection = $projet->sectionContenus->keyBy('section_id');
+
+            foreach ($sections as $index => $section) {
+                $sectionWord = $word->addSection();
+                $sectionWord->addTitle($section->label, 1);
+                $sectionWord->addTextBreak(1);
+                $contenu = HtmlHelper::stripAnnotationMarks($contenusParSection->get($section->id)?->contenu);
+                $this->addHtmlContent($sectionWord, $contenu);
+            }
+        } else {
+            // Fallback : structure classique Introduction
+            $introSection = $word->addSection();
+            $introSection->addTitle('Introduction', 1);
+            $introSection->addTextBreak(1);
+            $this->addHtmlContent($introSection, $projet->introduction_amener);
+            $this->addHtmlContent($introSection, $projet->introduction_poser);
+            $this->addHtmlContent($introSection, $projet->introduction_diviser);
+        }
 
         // ─── Développement (Heading 1) + sous-sections (Heading 2) ───────────
         $developpements = $projet->relationLoaded('developpements')

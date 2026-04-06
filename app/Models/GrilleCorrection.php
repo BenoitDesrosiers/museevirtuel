@@ -11,17 +11,17 @@ class GrilleCorrection extends Model
     protected $table = 'grilles_correction';
 
     protected $fillable = [
-        'classe_id',
+        'type_projet_id',
         'nom',
         'description',
     ];
 
     /**
-     * Retourne la classe à laquelle appartient cette grille.
+     * Retourne le type de projet auquel appartient cette grille.
      */
-    public function classe(): BelongsTo
+    public function typeProjet(): BelongsTo
     {
-        return $this->belongsTo(Classe::class, 'classe_id');
+        return $this->belongsTo(TypeProjet::class, 'type_projet_id');
     }
 
     /**

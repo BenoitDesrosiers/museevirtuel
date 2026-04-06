@@ -12,6 +12,7 @@ use App\Http\Controllers\GroupeController;
 use App\Http\Controllers\GroupeMediaController;
 use App\Http\Controllers\ProjetRechercheController;
 use App\Http\Controllers\ThematiqueController;
+use App\Http\Controllers\TypeProjetController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -102,18 +103,47 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
     Route::delete('/classes/{classe}/groupes/{groupe}', [GroupeController::class, 'destroy'])
         ->name('groupes.destroy');
 
-    // Grille de correction rattachée à une classe
-    Route::get('/classes/{classe}/grille', [GrilleCorrectionController::class, 'edit'])
-        ->name('classes.grille.edit');
+    // Types de projet (enseignant/admin)
+    Route::get('/types-projets', [TypeProjetController::class, 'index'])
+        ->name('types-projets.index');
 
-    Route::post('/classes/{classe}/grille', [GrilleCorrectionController::class, 'store'])
-        ->name('classes.grille.store');
+    Route::post('/types-projets', [TypeProjetController::class, 'store'])
+        ->name('types-projets.store');
 
-    Route::put('/classes/{classe}/grille', [GrilleCorrectionController::class, 'update'])
-        ->name('classes.grille.update');
+    Route::put('/types-projets/{typeProjet}', [TypeProjetController::class, 'update'])
+        ->name('types-projets.update');
 
-    Route::delete('/classes/{classe}/grille', [GrilleCorrectionController::class, 'destroy'])
-        ->name('classes.grille.destroy');
+    Route::patch('/types-projets/{typeProjet}/toggle-accessible', [TypeProjetController::class, 'toggleAccessible'])
+        ->name('types-projets.toggle-accessible');
+
+    Route::delete('/types-projets/{typeProjet}', [TypeProjetController::class, 'destroy'])
+        ->name('types-projets.destroy');
+
+    // Sections du type de projet (définies par le professeur)
+    Route::post('/types-projets/{typeProjet}/sections', [TypeProjetController::class, 'storeSection'])
+        ->name('types-projets.sections.store');
+
+    Route::put('/types-projets/{typeProjet}/sections/reorder', [TypeProjetController::class, 'reorderSections'])
+        ->name('types-projets.sections.reorder');
+
+    Route::put('/types-projets/{typeProjet}/sections/{section}', [TypeProjetController::class, 'updateSection'])
+        ->name('types-projets.sections.update');
+
+    Route::delete('/types-projets/{typeProjet}/sections/{section}', [TypeProjetController::class, 'destroySection'])
+        ->name('types-projets.sections.destroy');
+
+    // Grille de correction rattachée à un type de projet
+    Route::get('/types-projets/{typeProjet}/grille', [GrilleCorrectionController::class, 'edit'])
+        ->name('types-projets.grille.edit');
+
+    Route::post('/types-projets/{typeProjet}/grille', [GrilleCorrectionController::class, 'store'])
+        ->name('types-projets.grille.store');
+
+    Route::put('/types-projets/{typeProjet}/grille', [GrilleCorrectionController::class, 'update'])
+        ->name('types-projets.grille.update');
+
+    Route::delete('/types-projets/{typeProjet}/grille', [GrilleCorrectionController::class, 'destroy'])
+        ->name('types-projets.grille.destroy');
 
     // Échéancier de classe
     Route::post('/classes/{classe}/echeancier', [EcheancierController::class, 'store'])
@@ -223,6 +253,10 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin'])->group(function ()
 
     Route::put('/classes/{classe}/groupes/{groupe}/projets/grille/malus', [ProjetRechercheController::class, 'toggleMalusGrille'])
         ->name('projets.grille.malus.toggle');
+
+    // Sections dynamiques — contenu rédigé par les étudiants
+    Route::put('/classes/{classe}/groupes/{groupe}/projets/sections/{section}', [ProjetRechercheController::class, 'updateSectionContenu'])
+        ->name('projets.sections.update');
 
     // Paragraphes de développement — CRUD + réordonnancement
     Route::post('/classes/{classe}/groupes/{groupe}/projets/developpements', [ProjetRechercheController::class, 'storeDeveloppement'])
