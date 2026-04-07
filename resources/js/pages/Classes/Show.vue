@@ -417,42 +417,6 @@ function creerTypeProjet() {
     });
 }
 
-const showEditTpDialog = ref(false);
-const editingTpId = ref<number | null>(null);
-const editTpForm = useForm({
-    nom: '',
-    description: '',
-    sections: [] as { id?: number; label: string; description: string }[],
-});
-
-function ouvrirEditionTp(tp: TypeProjet) {
-    editingTpId.value = tp.id;
-    editTpForm.nom = tp.nom;
-    editTpForm.description = tp.description ?? '';
-    editTpForm.sections = [...tp.sections]
-        .sort((a, b) => a.ordre - b.ordre)
-        .map((s) => ({ id: s.id, label: s.label, description: s.description ?? '' }));
-    showEditTpDialog.value = true;
-}
-
-function ajouterSectionEdit() {
-    editTpForm.sections.push({ label: '', description: '' });
-}
-
-function supprimerSectionEdit(idx: number) {
-    editTpForm.sections.splice(idx, 1);
-}
-
-function sauvegarderTp() {
-    if (!editingTpId.value) return;
-    editTpForm.put(typesProjetsRoutes.update.url(editingTpId.value), {
-        preserveScroll: true,
-        onSuccess: () => {
-            showEditTpDialog.value = false;
-            editingTpId.value = null;
-        },
-    });
-}
 
 const toggleTpForm = useForm({});
 
@@ -896,8 +860,10 @@ function supprimerTp(tp: TypeProjet) {
                                     <ChevronDown v-else class="mr-1 h-3 w-3" />
                                     {{ tp.accessible ? 'Masquer' : 'Rendre accessible' }}
                                 </Button>
-                                <Button size="icon" variant="ghost" class="h-7 w-7" @click="ouvrirEditionTp(tp)">
-                                    <Pencil class="h-3.5 w-3.5" />
+                                <Button size="icon" variant="ghost" class="h-7 w-7" as-child>
+                                    <Link :href="typesProjetsRoutes.edit.url(tp.id)" title="Modifier">
+                                        <Pencil class="h-3.5 w-3.5" />
+                                    </Link>
                                 </Button>
                                 <Button
                                     size="icon"
@@ -1378,82 +1344,6 @@ function supprimerTp(tp: TypeProjet) {
             </DialogContent>
         </Dialog>
 
-        <!-- Modal : Modifier un type de projet -->
-        <Dialog v-model:open="showEditTpDialog">
-            <DialogContent class="max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle>Modifier le type de projet</DialogTitle>
-                </DialogHeader>
-                <form class="space-y-4" @submit.prevent="sauvegarderTp">
-                    <div class="grid gap-2">
-                        <Label for="tp-nom-edit">Nom <span class="text-destructive">*</span></Label>
-                        <Input id="tp-nom-edit" v-model="editTpForm.nom" required />
-                        <InputError :message="editTpForm.errors.nom" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="tp-desc-edit">Description (optionnelle)</Label>
-                        <Textarea id="tp-desc-edit" v-model="editTpForm.description" :rows="2" />
-                        <InputError :message="editTpForm.errors.description" />
-                    </div>
-
-                    <!-- Sections -->
-                    <div class="grid gap-3 border-t pt-3">
-                        <div>
-                            <Label>Sections du projet</Label>
-                            <p class="mt-1 text-xs text-muted-foreground">
-                                Les sections retirées supprimeront le contenu rédigé par les étudiants dans ces
-                                sections.
-                            </p>
-                        </div>
-                        <div v-if="editTpForm.sections.length > 0" class="flex flex-col gap-2">
-                            <div
-                                v-for="(section, idx) in editTpForm.sections"
-                                :key="section.id ?? `new-${idx}`"
-                                class="flex items-start gap-2 rounded-md border bg-muted/30 p-3"
-                            >
-                                <span class="mt-2 w-5 shrink-0 text-center text-xs text-muted-foreground">
-                                    {{ idx + 1 }}
-                                </span>
-                                <div class="flex-1 space-y-1.5">
-                                    <Input
-                                        v-model="editTpForm.sections[idx].label"
-                                        placeholder="Titre de la section *"
-                                        required
-                                    />
-                                    <InputError :message="editTpForm.errors[`sections.${idx}.label`]" />
-                                    <Input
-                                        v-model="editTpForm.sections[idx].description"
-                                        placeholder="Consigne pour les étudiants (optionnelle)"
-                                    />
-                                </div>
-                                <Button
-                                    type="button"
-                                    size="icon"
-                                    variant="ghost"
-                                    class="mt-0.5 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                                    @click="supprimerSectionEdit(idx)"
-                                >
-                                    <Trash2 class="h-3.5 w-3.5" />
-                                </Button>
-                            </div>
-                        </div>
-                        <Button type="button" size="sm" variant="outline" @click="ajouterSectionEdit">
-                            <Plus class="mr-2 h-4 w-4" />
-                            Ajouter une section
-                        </Button>
-                    </div>
-
-                    <DialogFooter>
-                        <Button type="button" variant="outline" @click="showEditTpDialog = false">
-                            Annuler
-                        </Button>
-                        <Button type="submit" :disabled="editTpForm.processing">
-                            Enregistrer
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
 
         <!-- Modal : Import CSV -->
         <Dialog v-model:open="showImportDialog">

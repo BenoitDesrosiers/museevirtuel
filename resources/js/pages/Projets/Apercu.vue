@@ -5,7 +5,7 @@ import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 
-type Etudiant = {
+type Membre = {
     id: number;
     prenom: string;
     nom: string;
@@ -32,20 +32,9 @@ type Classe = {
 type Projet = {
     id: number;
     titre_projet: string | null;
-    introduction_amener: string | null;
-    introduction_poser: string | null;
-    introduction_diviser: string | null;
 };
 
-type Section = {
-    id: number;
-    label: string;
-    description: string | null;
-    ordre: number;
-    contenu: string | null;
-};
-
-type Developpement = {
+type Paragraphe = {
     id: number;
     ordre: number;
     titre: string | null;
@@ -53,23 +42,39 @@ type Developpement = {
 };
 
 type ConclusionMembre = {
-    etudiant: Etudiant;
+    userId: number;
     contenu: string;
+};
+
+type Section = {
+    id: number;
+    label: string;
+    description: string | null;
+    ordre: number;
+    type: 'texte' | 'paragraphes' | 'individuel';
+    contenu: string | null;
+    paragraphes: Paragraphe[] | null;
+    conclusionsParMembre: ConclusionMembre[] | null;
 };
 
 const props = defineProps<{
     groupe: Groupe;
     classe: Classe;
     thematiques: Thematique[];
+    membres: Membre[];
     projet: Projet | null;
     sections: Section[];
-    developpements: Developpement[];
-    conclusions: ConclusionMembre[];
     estEnseignant: boolean;
 }>();
 
 /** Construit l'URL de base pour les routes du projet de ce groupe. */
 const baseUrl = `/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/projets`;
+
+/** Retrouve le nom d'un membre par son userId. */
+function nomMembre(userId: number): string {
+    const m = props.membres.find((m) => m.id === userId);
+    return m ? `${m.prenom} ${m.nom}` : '—';
+}
 </script>
 
 <template>
@@ -130,17 +135,22 @@ const baseUrl = `/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/p
             </div>
 
             <template v-else>
-                <!-- ── Sections dynamiques (définies par le professeur) ── -->
-                <template v-if="sections.length > 0">
-                    <section
-                        v-for="section in sections"
-                        :key="section.id"
-                        class="space-y-3"
-                    >
-                        <h2 class="text-xl font-semibold border-b pb-2">{{ section.label }}</h2>
-                        <p v-if="section.description" class="text-xs text-muted-foreground italic">
-                            {{ section.description }}
-                        </p>
+                <p v-if="sections.length === 0" class="text-muted-foreground text-sm italic">
+                    Aucune section définie pour ce type de projet.
+                </p>
+
+                <section
+                    v-for="section in sections"
+                    :key="section.id"
+                    class="space-y-3"
+                >
+                    <h2 class="text-xl font-semibold border-b pb-2">{{ section.label }}</h2>
+                    <p v-if="section.description" class="text-xs text-muted-foreground italic">
+                        {{ section.description }}
+                    </p>
+
+                    <!-- Type texte -->
+                    <template v-if="section.type === 'texte'">
                         <div
                             v-if="section.contenu && section.contenu.trim()"
                             class="prose prose-sm max-w-none dark:prose-invert"
@@ -149,76 +159,50 @@ const baseUrl = `/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/p
                         <p v-else class="text-muted-foreground text-sm italic">
                             (Section non rédigée)
                         </p>
-                    </section>
-                </template>
+                    </template>
 
-                <!-- ── Introduction (fallback si aucune section) ─────────── -->
-                <template v-else>
-                <section class="space-y-6">
-                    <h2 class="text-xl font-semibold border-b pb-2">Introduction</h2>
+                    <!-- Type paragraphes -->
+                    <template v-else-if="section.type === 'paragraphes'">
+                        <template v-if="section.paragraphes && section.paragraphes.length > 0">
+                            <article
+                                v-for="p in section.paragraphes"
+                                :key="p.id"
+                                class="space-y-2"
+                            >
+                                <h3 v-if="p.titre" class="text-base font-semibold">{{ p.titre }}</h3>
+                                <div
+                                    v-if="p.contenu && p.contenu.trim()"
+                                    class="prose prose-sm max-w-none dark:prose-invert"
+                                    v-html="p.contenu"
+                                />
+                            </article>
+                        </template>
+                        <p v-else class="text-muted-foreground text-sm italic">
+                            (Aucun paragraphe rédigé)
+                        </p>
+                    </template>
 
-                    <div
-                        v-if="projet.introduction_amener"
-                        class="prose prose-sm max-w-none dark:prose-invert"
-                        v-html="projet.introduction_amener"
-                    />
-                    <div
-                        v-if="projet.introduction_poser"
-                        class="prose prose-sm max-w-none dark:prose-invert"
-                        v-html="projet.introduction_poser"
-                    />
-                    <div
-                        v-if="projet.introduction_diviser"
-                        class="prose prose-sm max-w-none dark:prose-invert"
-                        v-html="projet.introduction_diviser"
-                    />
-
-                    <p
-                        v-if="!projet.introduction_amener && !projet.introduction_poser && !projet.introduction_diviser"
-                        class="text-muted-foreground text-sm italic"
-                    >
-                        Aucun contenu d'introduction rédigé.
-                    </p>
-                </section>
-                </template>
-
-                <!-- ── Développements ───────────────────────────────────── -->
-                <section v-if="developpements.length > 0" class="space-y-8">
-                    <h2 class="text-xl font-semibold border-b pb-2">Développement</h2>
-
-                    <article
-                        v-for="dev in developpements"
-                        :key="dev.id"
-                        class="space-y-3"
-                    >
-                        <h3 v-if="dev.titre" class="text-base font-semibold">
-                            {{ dev.titre }}
-                        </h3>
-                        <div
-                            v-if="dev.contenu"
-                            class="prose prose-sm max-w-none dark:prose-invert"
-                            v-html="dev.contenu"
-                        />
-                    </article>
-                </section>
-
-                <!-- ── Conclusions individuelles ────────────────────────── -->
-                <section v-if="conclusions.length > 0" class="space-y-6">
-                    <h2 class="text-xl font-semibold border-b pb-2">Conclusions</h2>
-
-                    <article
-                        v-for="conclusion in conclusions"
-                        :key="conclusion.etudiant.id"
-                        class="space-y-2"
-                    >
-                        <h3 class="text-sm font-semibold text-muted-foreground">
-                            {{ conclusion.etudiant.prenom }} {{ conclusion.etudiant.nom }}
-                        </h3>
-                        <div
-                            class="prose prose-sm max-w-none dark:prose-invert"
-                            v-html="conclusion.contenu"
-                        />
-                    </article>
+                    <!-- Type individuel -->
+                    <template v-else-if="section.type === 'individuel'">
+                        <template v-if="section.conclusionsParMembre && section.conclusionsParMembre.length > 0">
+                            <article
+                                v-for="c in section.conclusionsParMembre"
+                                :key="c.userId"
+                                class="space-y-2"
+                            >
+                                <h3 class="text-sm font-semibold text-muted-foreground">
+                                    {{ nomMembre(c.userId) }}
+                                </h3>
+                                <div
+                                    class="prose prose-sm max-w-none dark:prose-invert"
+                                    v-html="c.contenu"
+                                />
+                            </article>
+                        </template>
+                        <p v-else class="text-muted-foreground text-sm italic">
+                            (Aucune conclusion rédigée)
+                        </p>
+                    </template>
                 </section>
             </template>
         </div>

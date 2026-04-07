@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ChevronDown, ChevronRight, Grid2x2, Pencil, Plus, Trash2 } from 'lucide-vue-next';
 import { ref } from 'vue';
 import FormDialog from '@/components/FormDialog.vue';
@@ -16,11 +16,20 @@ import typesProjets from '@/routes/types-projets';
 
 type GrilleResume = { id: number; nom: string } | null;
 
+type SectionType = 'texte' | 'paragraphes' | 'individuel';
+
 type Section = {
     id: number;
     label: string;
     description: string | null;
     ordre: number;
+    type: SectionType;
+};
+
+const SECTION_TYPE_LABELS: Record<SectionType, string> = {
+    texte: 'Texte libre',
+    paragraphes: 'Paragraphes',
+    individuel: 'Individuel (1 par membre)',
 };
 
 type TypeProjet = {
@@ -43,11 +52,11 @@ const showCreateDialog = ref(false);
 const createForm = useForm({
     nom: '',
     description: '',
-    sections: [] as { label: string; description: string }[],
+    sections: [] as { label: string; description: string; type: SectionType }[],
 });
 
 function ajouterSectionCreate() {
-    createForm.sections.push({ label: '', description: '' });
+    createForm.sections.push({ label: '', description: '', type: 'texte' });
 }
 
 function supprimerSectionCreate(idx: number) {
@@ -59,43 +68,6 @@ function creer() {
         onSuccess: () => {
             showCreateDialog.value = false;
             createForm.reset();
-        },
-    });
-}
-
-// ─── Édition TypeProjet ───────────────────────────────────────────────────────
-const showEditDialog = ref(false);
-const editingId = ref<number | null>(null);
-const editForm = useForm({
-    nom: '',
-    description: '',
-    sections: [] as { id?: number; label: string; description: string }[],
-});
-
-function ouvrirEdition(tp: TypeProjet) {
-    editingId.value = tp.id;
-    editForm.nom = tp.nom;
-    editForm.description = tp.description ?? '';
-    editForm.sections = [...tp.sections]
-        .sort((a, b) => a.ordre - b.ordre)
-        .map((s) => ({ id: s.id, label: s.label, description: s.description ?? '' }));
-    showEditDialog.value = true;
-}
-
-function ajouterSectionEdit() {
-    editForm.sections.push({ label: '', description: '' });
-}
-
-function supprimerSectionEdit(idx: number) {
-    editForm.sections.splice(idx, 1);
-}
-
-function sauvegarder() {
-    if (!editingId.value) return;
-    editForm.put(typesProjets.update.url(editingId.value), {
-        onSuccess: () => {
-            showEditDialog.value = false;
-            editingId.value = null;
         },
     });
 }
@@ -181,8 +153,10 @@ function supprimer(tp: TypeProjet) {
                                 {{ tp.accessible ? 'Masquer' : 'Rendre accessible' }}
                             </Button>
 
-                            <Button size="icon" variant="ghost" class="h-8 w-8" @click="ouvrirEdition(tp)">
-                                <Pencil class="h-4 w-4" />
+                            <Button size="icon" variant="ghost" class="h-8 w-8" as-child>
+                                <Link :href="typesProjets.edit.url(tp.id)" title="Modifier">
+                                    <Pencil class="h-4 w-4" />
+                                </Link>
                             </Button>
 
                             <Button
@@ -226,6 +200,9 @@ function supprimer(tp: TypeProjet) {
                                 class="rounded-md bg-muted px-2 py-0.5 text-xs"
                             >
                                 {{ s.ordre }}. {{ s.label }}
+                                <span class="ml-1 text-muted-foreground/60">
+                                    ({{ SECTION_TYPE_LABELS[s.type ?? 'texte'] }})
+                                </span>
                             </span>
                         </div>
                     </div>
@@ -291,6 +268,14 @@ function supprimer(tp: TypeProjet) {
                                     required
                                 />
                                 <InputError :message="createForm.errors[`sections.${idx}.label`]" />
+                                <select
+                                    v-model="createForm.sections[idx].type"
+                                    class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring"
+                                >
+                                    <option v-for="(label, val) in SECTION_TYPE_LABELS" :key="val" :value="val">
+                                        {{ label }}
+                                    </option>
+                                </select>
                                 <Input
                                     v-model="createForm.sections[idx].description"
                                     placeholder="Consigne pour les étudiants (optionnelle)"
@@ -316,76 +301,5 @@ function supprimer(tp: TypeProjet) {
             </div>
         </FormDialog>
 
-        <!-- ─── Dialog édition ───────────────────────────────────────────────── -->
-        <FormDialog
-            v-model:open="showEditDialog"
-            title="Modifier le type de projet"
-            :is-loading="editForm.processing"
-            submit-label="Enregistrer"
-            scrollable
-            @submit="sauvegarder"
-        >
-            <div class="grid gap-4">
-                <div class="grid gap-2">
-                    <Label for="nom-edit">Nom <span class="text-destructive">*</span></Label>
-                    <Input id="nom-edit" v-model="editForm.nom" required />
-                    <InputError :message="editForm.errors.nom" />
-                </div>
-
-                <div class="grid gap-2">
-                    <Label for="desc-edit">Description (optionnelle)</Label>
-                    <Textarea id="desc-edit" v-model="editForm.description" rows="2" />
-                    <InputError :message="editForm.errors.description" />
-                </div>
-
-                <!-- Sections -->
-                <div class="grid gap-3 border-t pt-3">
-                    <div>
-                        <Label>Sections du projet</Label>
-                        <p class="mt-1 text-xs text-muted-foreground">
-                            Les sections retirées supprimeront le contenu rédigé par les étudiants dans ces sections.
-                        </p>
-                    </div>
-
-                    <div v-if="editForm.sections.length > 0" class="flex flex-col gap-2">
-                        <div
-                            v-for="(section, idx) in editForm.sections"
-                            :key="section.id ?? `new-${idx}`"
-                            class="flex items-start gap-2 rounded-md border bg-muted/30 p-3"
-                        >
-                            <span class="mt-2 w-5 shrink-0 text-center text-xs text-muted-foreground">
-                                {{ idx + 1 }}
-                            </span>
-                            <div class="flex-1 space-y-1.5">
-                                <Input
-                                    v-model="editForm.sections[idx].label"
-                                    placeholder="Titre de la section *"
-                                    required
-                                />
-                                <InputError :message="editForm.errors[`sections.${idx}.label`]" />
-                                <Input
-                                    v-model="editForm.sections[idx].description"
-                                    placeholder="Consigne pour les étudiants (optionnelle)"
-                                />
-                            </div>
-                            <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                class="mt-0.5 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                                @click="supprimerSectionEdit(idx)"
-                            >
-                                <Trash2 class="h-3.5 w-3.5" />
-                            </Button>
-                        </div>
-                    </div>
-
-                    <Button type="button" size="sm" variant="outline" @click="ajouterSectionEdit">
-                        <Plus class="mr-2 h-4 w-4" />
-                        Ajouter une section
-                    </Button>
-                </div>
-            </div>
-        </FormDialog>
     </AppLayout>
 </template>

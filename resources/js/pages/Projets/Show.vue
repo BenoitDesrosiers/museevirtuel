@@ -17,6 +17,7 @@ import {
     MessageSquare,
     Plus,
     Send,
+    Settings2,
     Square,
     Star,
     Trash2,
@@ -114,12 +115,27 @@ type GrilleCriterePersonnalisee = { id: number; label: string; ponderation: numb
 type GrilleMalusPersonnalisee = { id: number; label: string; deduction: number; description: string | null; ordre: number };
 type GrillePersonnalisee = { id: number; nom: string; criteres: GrilleCriterePersonnalisee[]; malus: GrilleMalusPersonnalisee[] };
 
+type SectionParagraphe = {
+    id: number;
+    ordre: number;
+    titre: string | null;
+    contenu: string | null;
+};
+
+type SectionConclusionMembre = {
+    userId: number;
+    contenu: string | null;
+};
+
 type Section = {
     id: number;
     label: string;
     description: string | null;
     ordre: number;
+    type: 'texte' | 'paragraphes' | 'individuel';
     contenu: string | null;
+    paragraphes: SectionParagraphe[] | null;
+    conclusionsParMembre: SectionConclusionMembre[] | null;
 };
 
 type Props = {
@@ -173,6 +189,29 @@ const form = reactive({
 
 const sectionContenus = reactive<Record<number, string>>(
     Object.fromEntries(props.sections.map((s) => [s.id, s.contenu ?? ''])),
+);
+
+// Paragraphes pour les sections de type 'paragraphes' (clé : sectionId)
+const sectionParagraphesLocaux = reactive<Record<number, SectionParagraphe[]>>(
+    Object.fromEntries(
+        props.sections
+            .filter((s) => s.type === 'paragraphes')
+            .map((s) => [s.id, (s.paragraphes ?? []).map((p) => ({ ...p }))]),
+    ),
+);
+
+// Conclusions par section pour les sections de type 'individuel' (clé : sectionId → userId)
+const sectionConclusionsLocales = reactive<Record<number, Record<number, string>>>(
+    Object.fromEntries(
+        props.sections
+            .filter((s) => s.type === 'individuel')
+            .map((s) => [
+                s.id,
+                Object.fromEntries(
+                    (s.conclusionsParMembre ?? []).map((c) => [c.userId, c.contenu ?? '']),
+                ),
+            ]),
+    ),
 );
 
 // ─── Paragraphes de développement ─────────────────────────────────────────────
@@ -401,6 +440,92 @@ return;
     }
 }
 
+// ─── Paragraphes de sections dynamiques (type 'paragraphes') ─────────────────
+
+const debounceSectionParagraphes = new Map<number, ReturnType<typeof setTimeout>>();
+const sectionParagrapheEnCours = reactive<Record<number, boolean>>({});
+
+function scheduleSectionParagrapheSave(paragrapheId: number, sectionId: number) {
+    if (!props.peutEditer) return;
+    saveStatus.value = 'saving';
+    const existing = debounceSectionParagraphes.get(paragrapheId);
+    if (existing) clearTimeout(existing);
+    debounceSectionParagraphes.set(paragrapheId, setTimeout(() => saveSectionParagraphe(paragrapheId, sectionId), 1500));
+}
+
+async function saveSectionParagraphe(paragrapheId: number, sectionId: number) {
+    if (!props.peutEditer) return;
+    const paragraphes = sectionParagraphesLocaux[sectionId];
+    if (!paragraphes) return;
+    const p = paragraphes.find((p) => p.id === paragrapheId);
+    if (!p) return;
+    try {
+        await axios.patch(`${baseUrl.value}/sections/${sectionId}/paragraphes/${paragrapheId}`, {
+            titre: p.titre,
+            contenu: p.contenu,
+        });
+        saveStatus.value = 'saved';
+        setTimeout(() => { saveStatus.value = 'idle'; }, 2000);
+    } catch {
+        saveStatus.value = 'error';
+    }
+}
+
+async function ajouterSectionParagraphe(sectionId: number) {
+    if (sectionParagrapheEnCours[sectionId]) return;
+    sectionParagrapheEnCours[sectionId] = true;
+    try {
+        const response = await axios.post(`${baseUrl.value}/sections/${sectionId}/paragraphes`);
+        if (!sectionParagraphesLocaux[sectionId]) sectionParagraphesLocaux[sectionId] = [];
+        sectionParagraphesLocaux[sectionId].push(response.data.paragraphe);
+    } finally {
+        sectionParagrapheEnCours[sectionId] = false;
+    }
+}
+
+async function supprimerSectionParagraphe(paragrapheId: number, sectionId: number) {
+    const paragraphes = sectionParagraphesLocaux[sectionId];
+    if (!paragraphes || paragraphes.length <= 1) return;
+    if (sectionParagrapheEnCours[sectionId]) return;
+    sectionParagrapheEnCours[sectionId] = true;
+    try {
+        await axios.delete(`${baseUrl.value}/sections/${sectionId}/paragraphes/${paragrapheId}`);
+        sectionParagraphesLocaux[sectionId] = sectionParagraphesLocaux[sectionId]
+            .filter((p) => p.id !== paragrapheId)
+            .map((p, i) => ({ ...p, ordre: i + 1 }));
+    } finally {
+        sectionParagrapheEnCours[sectionId] = false;
+    }
+}
+
+// ─── Conclusions de sections dynamiques (type 'individuel') ──────────────────
+
+const debounceSectionConclusions = new Map<string, ReturnType<typeof setTimeout>>();
+
+function scheduleSectionConclusionSave(sectionId: number, userId: number) {
+    if (!props.peutEditer) return;
+    saveStatus.value = 'saving';
+    const key = `${sectionId}_${userId}`;
+    const existing = debounceSectionConclusions.get(key);
+    if (existing) clearTimeout(existing);
+    debounceSectionConclusions.set(key, setTimeout(() => saveSectionConclusion(sectionId, userId), 1500));
+}
+
+async function saveSectionConclusion(sectionId: number, userId: number) {
+    if (!props.peutEditer) return;
+    try {
+        await axios.put(`${baseUrl.value}/conclusion`, {
+            user_id: userId,
+            section_id: sectionId,
+            contenu: sectionConclusionsLocales[sectionId]?.[userId] ?? '',
+        });
+        saveStatus.value = 'saved';
+        setTimeout(() => { saveStatus.value = 'idle'; }, 2000);
+    } catch {
+        saveStatus.value = 'error';
+    }
+}
+
 // ─── Collapse / expand des sections ──────────────────────────────────────────
 
 const collapsed = reactive<Record<string, boolean>>({
@@ -452,12 +577,12 @@ const codeComplet = computed(
 // ─── Table des matières ───────────────────────────────────────────────────────
 
 const tocEntrees = computed(() => {
-    const sectionItems = props.sections.length > 0
-        ? props.sections.map((s) => ({ label: s.label, numero: s.ordre }))
-        : [{ label: t('projets.show.introduction'), numero: null }];
+    if (props.sections.length > 0) {
+        return props.sections.map((s) => ({ label: s.label, numero: s.ordre }));
+    }
 
     return [
-        ...sectionItems,
+        { label: t('projets.show.introduction'), numero: null },
         ...developpements.value.map((dev) => ({
             label: dev.titre || t('projets.show.dev_paragraph', { n: dev.ordre }),
             numero: dev.ordre,
@@ -498,17 +623,15 @@ const commentairesSaving = reactive<Record<string, boolean>>({});
 const commentairesReduits = reactive<Record<string, boolean>>({});
 
 const champsVisibles = computed((): string[] => {
-    const introChamps = props.sections.length > 0
-        ? props.sections.map((s) => `section_${s.id}`)
-        : ['introduction_amener', 'introduction_poser', 'introduction_diviser'];
+    const champs: string[] = ['normes_presentation'];
 
-    const champs: string[] = [
-        'normes_presentation',
-        ...introChamps,
-        ...developpements.value.map((d) => `developpement_${d.id}`),
-    ];
-
-    props.membres.forEach((m) => champs.push(`conclusion_${m.id}`));
+    if (props.sections.length > 0) {
+        champs.push(...props.sections.map((s) => `section_${s.id}`));
+    } else {
+        champs.push('introduction_amener', 'introduction_poser', 'introduction_diviser');
+        champs.push(...developpements.value.map((d) => `developpement_${d.id}`));
+        props.membres.forEach((m) => champs.push(`conclusion_${m.id}`));
+    }
 
     return champs.filter((c) => props.estEnseignant || commentaires[c]);
 });
@@ -817,6 +940,12 @@ async function supprimerAnnotation(
             if (dev) {
                 dev.contenu = payload.html;
             }
+        } else if (champ.startsWith('section_paragraphe_')) {
+            const paragId = parseInt(champ.replace('section_paragraphe_', ''), 10);
+            for (const paragraphes of Object.values(sectionParagraphesLocaux)) {
+                const p = (paragraphes as SectionParagraphe[]).find((p) => p.id === paragId);
+                if (p) { p.contenu = payload.html; break; }
+            }
         } else if (champ.startsWith('section_')) {
             const sectionId = parseInt(champ.replace('section_', ''), 10);
             sectionContenus[sectionId] = payload.html;
@@ -831,6 +960,12 @@ async function supprimerAnnotation(
 
             if (dev) {
                 dev.contenu = payload.htmlOriginal;
+            }
+        } else if (champ.startsWith('section_paragraphe_')) {
+            const paragId = parseInt(champ.replace('section_paragraphe_', ''), 10);
+            for (const paragraphes of Object.values(sectionParagraphesLocaux)) {
+                const p = (paragraphes as SectionParagraphe[]).find((p) => p.id === paragId);
+                if (p) { p.contenu = payload.htmlOriginal; break; }
             }
         } else if (champ.startsWith('section_')) {
             const sectionId = parseInt(champ.replace('section_', ''), 10);
@@ -1049,6 +1184,12 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             <Download class="mr-2 h-4 w-4" />
                             Exporter XML
                         </a>
+                    </Button>
+                    <Button v-if="estEnseignant" variant="ghost" size="sm" as-child>
+                        <Link href="/types-projets">
+                            <Settings2 class="mr-2 h-4 w-4" />
+                            Configurer les sections
+                        </Link>
                     </Button>
                     <Button
                         v-if="estEnseignant || (grillePersonnalisee && correctionVisible)"
@@ -1287,48 +1428,189 @@ function setOngletActif(section: string, membreId: number | 'tous') {
 
             <!-- ─── Sections dynamiques (définies par le professeur) ─────── -->
             <template v-if="props.sections.length > 0">
-                <Card v-for="section in props.sections" :key="section.id">
-                    <CardHeader class="flex flex-row items-center justify-between">
-                        <CardTitle class="flex flex-col gap-0.5">
-                            <span class="text-base font-semibold">{{ section.label }}</span>
-                            <span v-if="section.description" class="text-xs font-normal text-muted-foreground">
-                                {{ section.description }}
-                            </span>
-                        </CardTitle>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            @click="toggleSection(`section_${section.id}`)"
+                <template v-for="section in props.sections" :key="section.id">
+
+                    <!-- ── Type texte : zone de rédaction unique ─────────────── -->
+                    <Card v-if="section.type === 'texte'">
+                        <CardHeader class="flex flex-row items-center justify-between">
+                            <CardTitle class="flex flex-col gap-0.5">
+                                <span class="text-base font-semibold">{{ section.label }}</span>
+                                <span v-if="section.description" class="text-xs font-normal text-muted-foreground">
+                                    {{ section.description }}
+                                </span>
+                            </CardTitle>
+                            <Button variant="ghost" size="icon" @click="toggleSection(`section_${section.id}`)">
+                                <ChevronUp v-if="!collapsed[`section_${section.id}`]" class="h-4 w-4" />
+                                <ChevronDown v-else class="h-4 w-4" />
+                            </Button>
+                        </CardHeader>
+                        <CardContent v-show="!collapsed[`section_${section.id}`]" class="space-y-4">
+                            <RichEditor
+                                v-model="sectionContenus[section.id]"
+                                :placeholder="`Rédigez la section « ${section.label} »…`"
+                                :read-only="!peutEditer"
+                                :est-enseignant="estEnseignant"
+                                :corrections="annotations[`section_${section.id}`] ?? []"
+                                @update:model-value="scheduleSectionSave(section.id)"
+                                @save-annotation="(p) => sauvegarderAnnotation(`section_${section.id}`, p)"
+                                @delete-annotation="(p) => supprimerAnnotation(`section_${section.id}`, p)"
+                            />
+                            <CommentaireEnseignant
+                                :commentaire="commentaires[`section_${section.id}`]"
+                                :brouillon="getBrouillon(`section_${section.id}`)"
+                                :est-reduit="!!commentairesReduits[`section_${section.id}`]"
+                                :is-saving="!!commentairesSaving[`section_${section.id}`]"
+                                :est-enseignant="estEnseignant"
+                                class="mt-3"
+                                @toggle="toggleCommentaire(`section_${section.id}`)"
+                                @save="sauvegarderCommentaire(`section_${section.id}`)"
+                                @delete="supprimerCommentaire(`section_${section.id}`)"
+                                @update:brouillon="(v) => setBrouillon(`section_${section.id}`, v)"
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <!-- ── Type paragraphes : N sous-paragraphes ajoutables ───── -->
+                    <template v-else-if="section.type === 'paragraphes'">
+                        <Card
+                            v-for="para in sectionParagraphesLocaux[section.id] ?? []"
+                            :key="para.id"
                         >
-                            <ChevronUp v-if="!collapsed[`section_${section.id}`]" class="h-4 w-4" />
-                            <ChevronDown v-else class="h-4 w-4" />
-                        </Button>
-                    </CardHeader>
-                    <CardContent v-show="!collapsed[`section_${section.id}`]" class="space-y-4">
-                        <RichEditor
-                            v-model="sectionContenus[section.id]"
-                            :placeholder="`Rédigez la section « ${section.label} »…`"
-                            :read-only="!peutEditer"
-                            :est-enseignant="estEnseignant"
-                            :corrections="annotations[`section_${section.id}`] ?? []"
-                            @update:model-value="scheduleSectionSave(section.id)"
-                            @save-annotation="(p) => sauvegarderAnnotation(`section_${section.id}`, p)"
-                            @delete-annotation="(p) => supprimerAnnotation(`section_${section.id}`, p)"
-                        />
-                        <CommentaireEnseignant
-                            :commentaire="commentaires[`section_${section.id}`]"
-                            :brouillon="getBrouillon(`section_${section.id}`)"
-                            :est-reduit="!!commentairesReduits[`section_${section.id}`]"
-                            :is-saving="!!commentairesSaving[`section_${section.id}`]"
-                            :est-enseignant="estEnseignant"
-                            class="mt-3"
-                            @toggle="toggleCommentaire(`section_${section.id}`)"
-                            @save="sauvegarderCommentaire(`section_${section.id}`)"
-                            @delete="supprimerCommentaire(`section_${section.id}`)"
-                            @update:brouillon="(v) => setBrouillon(`section_${section.id}`, v)"
-                        />
-                    </CardContent>
-                </Card>
+                            <CardHeader class="flex flex-row items-center justify-between">
+                                <CardTitle class="flex items-center gap-2">
+                                    <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                                        {{ para.ordre }}
+                                    </span>
+                                    <span class="text-sm font-normal italic text-muted-foreground">
+                                        {{ para.titre || `${section.label} — paragraphe ${para.ordre}` }}
+                                    </span>
+                                </CardTitle>
+                                <div class="flex items-center gap-1">
+                                    <Button
+                                        v-if="peutEditer && (sectionParagraphesLocaux[section.id]?.length ?? 0) > 1"
+                                        variant="ghost"
+                                        size="icon"
+                                        class="h-8 w-8 text-destructive"
+                                        :disabled="!!sectionParagrapheEnCours[section.id]"
+                                        @click="supprimerSectionParagraphe(para.id, section.id)"
+                                    >
+                                        <Trash2 class="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        @click="toggleDev(para.id)"
+                                    >
+                                        <ChevronUp v-if="!collapsedDev[para.id]" class="h-4 w-4" />
+                                        <ChevronDown v-else class="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </CardHeader>
+                            <CardContent v-show="!collapsedDev[para.id]" class="space-y-2">
+                                <div v-if="peutEditer" class="mb-1">
+                                    <Label class="text-xs text-muted-foreground">Titre du paragraphe</Label>
+                                    <Input
+                                        :model-value="para.titre ?? ''"
+                                        :placeholder="`Titre du paragraphe ${para.ordre}`"
+                                        class="mt-1"
+                                        @update:model-value="(val: string) => { para.titre = val; scheduleSectionParagrapheSave(para.id, section.id); }"
+                                    />
+                                </div>
+                                <RichEditor
+                                    :model-value="para.contenu ?? ''"
+                                    :placeholder="`Rédigez le contenu du paragraphe ${para.ordre}…`"
+                                    :read-only="!peutEditer"
+                                    :est-enseignant="estEnseignant"
+                                    :corrections="annotations[`section_paragraphe_${para.id}`] ?? []"
+                                    @update:model-value="(val: string) => { para.contenu = val; scheduleSectionParagrapheSave(para.id, section.id); }"
+                                    @save-annotation="(p) => sauvegarderAnnotation(`section_paragraphe_${para.id}`, p)"
+                                    @delete-annotation="(p) => supprimerAnnotation(`section_paragraphe_${para.id}`, p)"
+                                />
+                                <CommentaireEnseignant
+                                    :commentaire="commentaires[`section_paragraphe_${para.id}`]"
+                                    :brouillon="getBrouillon(`section_paragraphe_${para.id}`)"
+                                    :est-reduit="!!commentairesReduits[`section_paragraphe_${para.id}`]"
+                                    :is-saving="!!commentairesSaving[`section_paragraphe_${para.id}`]"
+                                    :est-enseignant="estEnseignant"
+                                    class="mt-3"
+                                    @toggle="toggleCommentaire(`section_paragraphe_${para.id}`)"
+                                    @save="sauvegarderCommentaire(`section_paragraphe_${para.id}`)"
+                                    @delete="supprimerCommentaire(`section_paragraphe_${para.id}`)"
+                                    @update:brouillon="(v) => setBrouillon(`section_paragraphe_${para.id}`, v)"
+                                />
+                            </CardContent>
+                        </Card>
+
+                        <div v-if="peutEditer" class="flex justify-center">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                :disabled="!!sectionParagrapheEnCours[section.id]"
+                                @click="ajouterSectionParagraphe(section.id)"
+                            >
+                                <Loader2 v-if="sectionParagrapheEnCours[section.id]" class="mr-2 h-4 w-4 animate-spin" />
+                                <Plus v-else class="mr-2 h-4 w-4" />
+                                Ajouter un paragraphe — {{ section.label }}
+                            </Button>
+                        </div>
+                    </template>
+
+                    <!-- ── Type individuel : 1 zone par membre du groupe ─────── -->
+                    <template v-else-if="section.type === 'individuel'">
+                        <Card v-for="membre in props.membres" :key="membre.id">
+                            <CardHeader class="flex flex-row items-center justify-between">
+                                <CardTitle class="flex items-center gap-2">
+                                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
+                                        {{ membre.prenom[0] }}{{ membre.nom[0] }}
+                                    </span>
+                                    {{ section.label }} — {{ membre.prenom }} {{ membre.nom }}
+                                </CardTitle>
+                                <Button variant="ghost" size="icon" @click="toggleConclusion(section.id * 10000 + membre.id)">
+                                    <ChevronUp v-if="!collapsedConclusion[section.id * 10000 + membre.id]" class="h-4 w-4" />
+                                    <ChevronDown v-else class="h-4 w-4" />
+                                </Button>
+                            </CardHeader>
+                            <CardContent v-show="!collapsedConclusion[section.id * 10000 + membre.id]">
+                                <template v-if="peutEditer">
+                                    <p class="mb-2 text-xs text-muted-foreground">
+                                        N'importe quel membre peut rédiger la partie d'un autre.
+                                    </p>
+                                    <RichEditor
+                                        :model-value="sectionConclusionsLocales[section.id]?.[membre.id] ?? ''"
+                                        placeholder="Rédigez votre partie…"
+                                        :est-enseignant="estEnseignant"
+                                        @update:model-value="(val: string) => {
+                                            if (!sectionConclusionsLocales[section.id]) sectionConclusionsLocales[section.id] = {};
+                                            sectionConclusionsLocales[section.id][membre.id] = val;
+                                            scheduleSectionConclusionSave(section.id, membre.id);
+                                        }"
+                                    />
+                                </template>
+                                <template v-else>
+                                    <RichEditor
+                                        :model-value="sectionConclusionsLocales[section.id]?.[membre.id] ?? ''"
+                                        :read-only="true"
+                                        :est-enseignant="estEnseignant"
+                                        placeholder="Non rédigé"
+                                    />
+                                </template>
+                                <CommentaireEnseignant
+                                    :commentaire="commentaires[`section_individuel_${section.id}_${membre.id}`]"
+                                    :brouillon="getBrouillon(`section_individuel_${section.id}_${membre.id}`)"
+                                    :est-reduit="!!commentairesReduits[`section_individuel_${section.id}_${membre.id}`]"
+                                    :is-saving="!!commentairesSaving[`section_individuel_${section.id}_${membre.id}`]"
+                                    :est-enseignant="estEnseignant"
+                                    class="mt-3"
+                                    @toggle="toggleCommentaire(`section_individuel_${section.id}_${membre.id}`)"
+                                    @save="sauvegarderCommentaire(`section_individuel_${section.id}_${membre.id}`)"
+                                    @delete="supprimerCommentaire(`section_individuel_${section.id}_${membre.id}`)"
+                                    @update:brouillon="(v) => setBrouillon(`section_individuel_${section.id}_${membre.id}`, v)"
+                                />
+                            </CardContent>
+                        </Card>
+                    </template>
+
+                </template>
             </template>
 
             <!-- ─── Introduction (fallback si aucune section définie) ──────── -->
@@ -1485,7 +1767,8 @@ function setOngletActif(section: string, membreId: number | 'tous') {
             </Card>
             </template><!-- /v-else intro fallback -->
 
-            <!-- ─── Paragraphes de développement ──────────────────────────── -->
+            <!-- ─── Paragraphes de développement (legacy — masqué si sections dynamiques) ── -->
+            <template v-if="sections.length === 0">
             <Card v-for="dev in developpements" :key="dev.id">
                 <CardHeader class="flex flex-row items-center justify-between">
                     <CardTitle class="flex items-center gap-2">
@@ -1578,9 +1861,10 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     {{ t('projets.show.add_paragraph') }}
                 </Button>
             </div>
+            </template><!-- /legacy développements -->
 
-
-            <!-- ─── Conclusions individuelles ──────────────────────────────── -->
+            <!-- ─── Conclusions individuelles (legacy — masqué si sections dynamiques) ── -->
+            <template v-if="sections.length === 0">
             <Card v-for="item in conclusions" :key="item.etudiant.id">
                 <CardHeader class="flex flex-row items-center justify-between">
                     <CardTitle class="flex items-center gap-2">
@@ -1669,6 +1953,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
 
                 </CardContent>
             </Card>
+            </template><!-- /legacy conclusions -->
 
             <!-- ─── Remise de travail ──────────────────────────────────────────── -->
 

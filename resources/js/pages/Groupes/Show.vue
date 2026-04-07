@@ -356,7 +356,7 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                 <Button variant="outline" as-child>
                     <Link :href="`/classes/${groupe.classe_id}/groupes/${groupe.id}/projets`">
                         <BookOpen class="mr-2 h-4 w-4" />
-                        Projets de recherche
+                        Projets
                     </Link>
                 </Button>
             </div>
