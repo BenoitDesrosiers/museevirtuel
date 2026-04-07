@@ -335,9 +335,7 @@ class ProjetRechercheController extends Controller
         // Vérifier que la section appartient au TypeProjet passé en URL — évite l'IDOR
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->where('type_projet_id', $typeProjet->id)
-            ->firstOrFail();
+        $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
         abort_if(! $projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
@@ -440,9 +438,7 @@ class ProjetRechercheController extends Controller
         $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserMembreGroupe($classe, $groupe);
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->where('type_projet_id', $typeProjet->id)
-            ->firstOrFail();
+        $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($developpement->projet_id !== $projet->id, 404);
         abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
@@ -481,9 +477,7 @@ class ProjetRechercheController extends Controller
         $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserMembreGroupe($classe, $groupe);
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->where('type_projet_id', $typeProjet->id)
-            ->firstOrFail();
+        $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($developpement->projet_id !== $projet->id, 404);
         abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
@@ -514,9 +508,7 @@ class ProjetRechercheController extends Controller
         $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserMembreGroupe($classe, $groupe);
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->where('type_projet_id', $typeProjet->id)
-            ->firstOrFail();
+        $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
 
@@ -582,9 +574,7 @@ class ProjetRechercheController extends Controller
         $this->autoriserMembreGroupe($classe, $groupe);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->where('type_projet_id', $typeProjet->id)
-            ->firstOrFail();
+        $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($paragraphe->projet_id !== $projet->id || $paragraphe->section_id !== $section->id, 404);
         abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
@@ -621,9 +611,7 @@ class ProjetRechercheController extends Controller
         $this->autoriserMembreGroupe($classe, $groupe);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->where('type_projet_id', $typeProjet->id)
-            ->firstOrFail();
+        $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($paragraphe->projet_id !== $projet->id || $paragraphe->section_id !== $section->id, 404);
         abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
@@ -658,9 +646,7 @@ class ProjetRechercheController extends Controller
         $this->autoriserMembreGroupe($classe, $groupe);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->where('type_projet_id', $typeProjet->id)
-            ->firstOrFail();
+        $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
 
@@ -764,9 +750,7 @@ class ProjetRechercheController extends Controller
         $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserEnseignant($classe, $groupe);
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->where('type_projet_id', $typeProjet->id)
-            ->firstOrFail();
+        $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($commentaire->projet_id !== $projet->id, 404);
         $commentaire->delete();
@@ -885,9 +869,7 @@ class ProjetRechercheController extends Controller
         $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserEnseignant($classe, $groupe);
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->where('type_projet_id', $typeProjet->id)
-            ->firstOrFail();
+        $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($annotation->projet_id !== $projet->id, 404);
 
@@ -972,9 +954,7 @@ class ProjetRechercheController extends Controller
         $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserEnseignant($classe, $groupe);
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->where('type_projet_id', $typeProjet->id)
-            ->firstOrFail();
+        $projet = $this->trouverProjet($groupe, $typeProjet);
 
         DB::transaction(function () use ($projet): void {
             $projet->votes()->delete();
@@ -999,9 +979,7 @@ class ProjetRechercheController extends Controller
         $groupe->loadMissing('membres');
         abort_unless($groupe->membres->contains('id', auth()->id()), 403);
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->where('type_projet_id', $typeProjet->id)
-            ->firstOrFail();
+        $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_unless($projet->peutEtreRemis(), 422, 'La remise n\'est plus possible.');
 
@@ -1158,17 +1136,7 @@ class ProjetRechercheController extends Controller
      */
     public function exportPdf(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): HttpResponse
     {
-        abort_if($groupe->classe_id !== $classe->id, 404);
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-
-        $groupe->load(['membres', 'thematiques', 'classe.enseignant']);
-        $this->authorize('view', $groupe);
-
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->where('type_projet_id', $typeProjet->id)
-            ->firstOrFail();
-
-        $projet->load(['conclusions.etudiant', 'developpements']);
+        $projet = $this->chargerProjetPourExport($classe, $groupe, $typeProjet);
 
         return (new ExportProjetPdf)->execute($projet, $groupe);
     }
@@ -1181,17 +1149,7 @@ class ProjetRechercheController extends Controller
      */
     public function exportWord(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): StreamedResponse
     {
-        abort_if($groupe->classe_id !== $classe->id, 404);
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-
-        $groupe->load(['membres', 'thematiques', 'classe.enseignant']);
-        $this->authorize('view', $groupe);
-
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->where('type_projet_id', $typeProjet->id)
-            ->firstOrFail();
-
-        $projet->load(['conclusions.etudiant', 'developpements']);
+        $projet = $this->chargerProjetPourExport($classe, $groupe, $typeProjet);
 
         return (new ExportProjetWord)->execute($projet, $groupe);
     }
@@ -1216,9 +1174,7 @@ class ProjetRechercheController extends Controller
             403,
         );
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->where('type_projet_id', $typeProjet->id)
-            ->firstOrFail();
+        $projet = $this->trouverProjet($groupe, $typeProjet);
 
         $projet->load('notes');
 
@@ -1242,6 +1198,41 @@ class ProjetRechercheController extends Controller
     // ─── Méthodes privées ─────────────────────────────────────────────────────
 
     /**
+     * Retourne le ProjetRecherche correspondant au groupe et au type de projet, ou lève une 404.
+     *
+     * @throws HttpException
+     */
+    private function trouverProjet(Groupe $groupe, TypeProjet $typeProjet): ProjetRecherche
+    {
+        return ProjetRecherche::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->firstOrFail();
+    }
+
+    /**
+     * Autorise l'accès et charge le projet pour les exports PDF et Word.
+     *
+     * Factorise le guard commun (404/autorisation) et l'eager load partagé
+     * par exportPdf et exportWord.
+     *
+     * @throws HttpException
+     * @throws AuthorizationException
+     */
+    private function chargerProjetPourExport(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): ProjetRecherche
+    {
+        abort_if($groupe->classe_id !== $classe->id, 404);
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
+
+        $groupe->load(['membres', 'thematiques', 'classe.enseignant']);
+        $this->authorize('view', $groupe);
+
+        $projet = $this->trouverProjet($groupe, $typeProjet);
+        $projet->load(['conclusions.etudiant', 'developpements']);
+
+        return $projet;
+    }
+
+    /**
      * Vérifie que le TypeProjet appartient à l'enseignant de la classe.
      *
      * Empêche l'accès à un TypeProjet d'un autre enseignant via manipulation d'URL (IDOR).
@@ -1262,9 +1253,7 @@ class ProjetRechercheController extends Controller
      */
     private function chargerContexteGrille(Classe $classe, Groupe $groupe, TypeProjet $typeProjet, int $userId): array
     {
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->where('type_projet_id', $typeProjet->id)
-            ->firstOrFail();
+        $projet = $this->trouverProjet($groupe, $typeProjet);
 
         $projet->load('typeProjet.grille');
         $grille = $projet->typeProjet?->grille;
