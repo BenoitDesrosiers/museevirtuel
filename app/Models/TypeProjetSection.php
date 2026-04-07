@@ -15,6 +15,7 @@ class TypeProjetSection extends Model
         'label',
         'description',
         'ordre',
+        'type',
     ];
 
     /**
@@ -31,5 +32,13 @@ class TypeProjetSection extends Model
     public function contenus(): HasMany
     {
         return $this->hasMany(ProjetSectionContenu::class, 'section_id');
+    }
+
+    /**
+     * Retourne les paragraphes de section enregistrés pour cette section dans les projets.
+     */
+    public function sectionParagraphes(): HasMany
+    {
+        return $this->hasMany(ProjetSectionParagraphe::class, 'section_id');
     }
 }

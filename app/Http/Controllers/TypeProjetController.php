@@ -27,6 +27,20 @@ class TypeProjetController extends Controller
     }
 
     /**
+     * Affiche la page d'édition dédiée d'un type de projet.
+     */
+    public function edit(TypeProjet $typeProjet): Response
+    {
+        $this->authorize('update', $typeProjet);
+
+        $typeProjet->load(['sections' => fn ($q) => $q->orderBy('ordre')]);
+
+        return Inertia::render('TypeProjet/Edit', [
+            'typeProjet' => $typeProjet,
+        ]);
+    }
+
+    /**
      * Crée un nouveau type de projet pour l'enseignant connecté.
      *
      * Accepte un tableau optionnel `sections[]` pour créer les sections en une seule requête.
@@ -39,6 +53,7 @@ class TypeProjetController extends Controller
             'sections' => ['nullable', 'array'],
             'sections.*.label' => ['required', 'string', 'max:200'],
             'sections.*.description' => ['nullable', 'string', 'max:1000'],
+            'sections.*.type' => ['nullable', 'string', 'in:texte,paragraphes,individuel'],
         ]);
 
         $typeProjet = TypeProjet::create([
@@ -52,6 +67,7 @@ class TypeProjetController extends Controller
             $typeProjet->sections()->create([
                 'label' => $section['label'],
                 'description' => $section['description'] ?? null,
+                'type' => $section['type'] ?? 'texte',
                 'ordre' => $index + 1,
             ]);
         }
@@ -78,6 +94,7 @@ class TypeProjetController extends Controller
             'sections.*.id' => ['nullable', 'integer'],
             'sections.*.label' => ['required', 'string', 'max:200'],
             'sections.*.description' => ['nullable', 'string', 'max:1000'],
+            'sections.*.type' => ['nullable', 'string', 'in:texte,paragraphes,individuel'],
         ]);
 
         $typeProjet->update(['nom' => $data['nom'], 'description' => $data['description'] ?? null]);
@@ -100,12 +117,14 @@ class TypeProjetController extends Controller
                         ->update([
                             'label' => $sec['label'],
                             'description' => $sec['description'] ?? null,
+                            'type' => $sec['type'] ?? 'texte',
                             'ordre' => $index + 1,
                         ]);
                 } else {
                     $typeProjet->sections()->create([
                         'label' => $sec['label'],
                         'description' => $sec['description'] ?? null,
+                        'type' => $sec['type'] ?? 'texte',
                         'ordre' => $index + 1,
                     ]);
                 }
@@ -151,6 +170,7 @@ class TypeProjetController extends Controller
         $data = $request->validate([
             'label' => ['required', 'string', 'max:200'],
             'description' => ['nullable', 'string', 'max:1000'],
+            'type' => ['nullable', 'string', 'in:texte,paragraphes,individuel'],
         ]);
 
         $ordre = ($typeProjet->sections()->max('ordre') ?? 0) + 1;
@@ -158,6 +178,7 @@ class TypeProjetController extends Controller
         $typeProjet->sections()->create([
             'label' => $data['label'],
             'description' => $data['description'] ?? null,
+            'type' => $data['type'] ?? 'texte',
             'ordre' => $ordre,
         ]);
 
@@ -175,6 +196,7 @@ class TypeProjetController extends Controller
         $data = $request->validate([
             'label' => ['required', 'string', 'max:200'],
             'description' => ['nullable', 'string', 'max:1000'],
+            'type' => ['nullable', 'string', 'in:texte,paragraphes,individuel'],
         ]);
 
         $section->update($data);

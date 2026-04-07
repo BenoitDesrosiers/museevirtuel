@@ -110,6 +110,9 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
     Route::post('/types-projets', [TypeProjetController::class, 'store'])
         ->name('types-projets.store');
 
+    Route::get('/types-projets/{typeProjet}/edit', [TypeProjetController::class, 'edit'])
+        ->name('types-projets.edit');
+
     Route::put('/types-projets/{typeProjet}', [TypeProjetController::class, 'update'])
         ->name('types-projets.update');
 
@@ -219,92 +222,106 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin'])->group(function ()
         ->name('groupes.medias.destroy');
 
     // ─── Projets de recherche ─────────────────────────────────────────────────
-    // Un seul projet par groupe — l'URL n'inclut plus {etudiant}
+    // Un projet par (groupe × TypeProjet) — index liste tous les TypeProjets accessibles
     Route::get('/classes/{classe}/groupes/{groupe}/projets', [ProjetRechercheController::class, 'index'])
         ->name('projets.index');
 
-    Route::get('/classes/{classe}/groupes/{groupe}/projets/edit', [ProjetRechercheController::class, 'show'])
+    // Toutes les routes suivantes sont scoped par {typeProjet}
+    Route::get('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/edit', [ProjetRechercheController::class, 'show'])
         ->name('projets.show');
 
-    Route::get('/classes/{classe}/groupes/{groupe}/projets/apercu', [ProjetRechercheController::class, 'apercu'])
+    Route::get('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/apercu', [ProjetRechercheController::class, 'apercu'])
         ->name('projets.apercu');
 
-    Route::put('/classes/{classe}/groupes/{groupe}/projets', [ProjetRechercheController::class, 'update'])
+    Route::put('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}', [ProjetRechercheController::class, 'update'])
         ->name('projets.update');
 
     // Conclusion individuelle de l'étudiant authentifié
-    Route::put('/classes/{classe}/groupes/{groupe}/projets/conclusion', [ProjetRechercheController::class, 'updateConclusion'])
+    Route::put('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/conclusion', [ProjetRechercheController::class, 'updateConclusion'])
         ->name('projets.conclusion.update');
 
     // Commentaires de l'enseignant par champ (enseignant uniquement — vérifié dans le controller)
-    Route::put('/classes/{classe}/groupes/{groupe}/projets/commentaires', [ProjetRechercheController::class, 'upsertCommentaire'])
+    Route::put('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/commentaires', [ProjetRechercheController::class, 'upsertCommentaire'])
         ->name('projets.commentaires.upsert');
 
-    Route::delete('/classes/{classe}/groupes/{groupe}/projets/commentaires/{commentaire}', [ProjetRechercheController::class, 'destroyCommentaire'])
+    Route::delete('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/commentaires/{commentaire}', [ProjetRechercheController::class, 'destroyCommentaire'])
         ->name('projets.commentaires.destroy');
 
     // Notes de la grille de correction (enseignant uniquement — vérifié dans le controller)
-    Route::put('/classes/{classe}/groupes/{groupe}/projets/notes', [ProjetRechercheController::class, 'upsertNote'])
+    Route::put('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/notes', [ProjetRechercheController::class, 'upsertNote'])
         ->name('projets.notes.upsert');
 
     // Grille de correction personnalisée (enseignant uniquement — vérifié dans le controller)
-    Route::put('/classes/{classe}/groupes/{groupe}/projets/grille/notes', [ProjetRechercheController::class, 'upsertNoteGrille'])
+    Route::put('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/grille/notes', [ProjetRechercheController::class, 'upsertNoteGrille'])
         ->name('projets.grille.notes.upsert');
 
-    Route::put('/classes/{classe}/groupes/{groupe}/projets/grille/malus', [ProjetRechercheController::class, 'toggleMalusGrille'])
+    Route::put('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/grille/malus', [ProjetRechercheController::class, 'toggleMalusGrille'])
         ->name('projets.grille.malus.toggle');
 
     // Sections dynamiques — contenu rédigé par les étudiants
-    Route::put('/classes/{classe}/groupes/{groupe}/projets/sections/{section}', [ProjetRechercheController::class, 'updateSectionContenu'])
+    Route::put('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}', [ProjetRechercheController::class, 'updateSectionContenu'])
         ->name('projets.sections.update');
 
+    // Paragraphes de section de type 'paragraphes' — CRUD + réordonnancement
+    Route::post('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/paragraphes', [ProjetRechercheController::class, 'storeSectionParagraphe'])
+        ->name('projets.sections.paragraphes.store');
+
+    Route::patch('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/paragraphes/reorder', [ProjetRechercheController::class, 'reorderSectionParagraphes'])
+        ->name('projets.sections.paragraphes.reorder');
+
+    Route::patch('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/paragraphes/{paragraphe}', [ProjetRechercheController::class, 'updateSectionParagraphe'])
+        ->name('projets.sections.paragraphes.update');
+
+    Route::delete('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/paragraphes/{paragraphe}', [ProjetRechercheController::class, 'destroySectionParagraphe'])
+        ->name('projets.sections.paragraphes.destroy');
+
     // Paragraphes de développement — CRUD + réordonnancement
-    Route::post('/classes/{classe}/groupes/{groupe}/projets/developpements', [ProjetRechercheController::class, 'storeDeveloppement'])
+    Route::post('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/developpements', [ProjetRechercheController::class, 'storeDeveloppement'])
         ->name('projets.developpements.store');
 
-    Route::put('/classes/{classe}/groupes/{groupe}/projets/developpements/{developpement}', [ProjetRechercheController::class, 'updateDeveloppement'])
+    Route::put('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/developpements/{developpement}', [ProjetRechercheController::class, 'updateDeveloppement'])
         ->name('projets.developpements.update');
 
-    Route::delete('/classes/{classe}/groupes/{groupe}/projets/developpements/{developpement}', [ProjetRechercheController::class, 'destroyDeveloppement'])
+    Route::delete('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/developpements/{developpement}', [ProjetRechercheController::class, 'destroyDeveloppement'])
         ->name('projets.developpements.destroy');
 
-    Route::patch('/classes/{classe}/groupes/{groupe}/projets/developpements/reorder', [ProjetRechercheController::class, 'reorderDeveloppements'])
+    Route::patch('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/developpements/reorder', [ProjetRechercheController::class, 'reorderDeveloppements'])
         ->name('projets.developpements.reorder');
 
     // Annotations inline de l'enseignant par champ (enseignant uniquement — vérifié dans le controller)
-    Route::put('/classes/{classe}/groupes/{groupe}/projets/annotations', [ProjetRechercheController::class, 'upsertAnnotation'])
+    Route::put('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/annotations', [ProjetRechercheController::class, 'upsertAnnotation'])
         ->name('projets.annotations.upsert');
 
-    Route::delete('/classes/{classe}/groupes/{groupe}/projets/annotations/{annotation}', [ProjetRechercheController::class, 'destroyAnnotation'])
+    Route::delete('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/annotations/{annotation}', [ProjetRechercheController::class, 'destroyAnnotation'])
         ->name('projets.annotations.destroy');
 
     // Toggles prof — visibilité des corrections + verrouillage (enseignant uniquement — vérifié dans le controller)
-    Route::patch('/classes/{classe}/groupes/{groupe}/projets/correction-visible', [ProjetRechercheController::class, 'toggleCorrectionVisible'])
+    Route::patch('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/correction-visible', [ProjetRechercheController::class, 'toggleCorrectionVisible'])
         ->name('projets.correction-visible.toggle');
 
-    Route::patch('/classes/{classe}/groupes/{groupe}/projets/verrouille', [ProjetRechercheController::class, 'toggleVerrouille'])
+    Route::patch('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/verrouille', [ProjetRechercheController::class, 'toggleVerrouille'])
         ->name('projets.verrouille.toggle');
 
     // Remise de travail
-    Route::post('/classes/{classe}/groupes/{groupe}/projets/remettre', [ProjetRechercheController::class, 'remettreTravail'])
+    Route::post('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/remettre', [ProjetRechercheController::class, 'remettreTravail'])
         ->name('projets.remettre');
 
-    Route::patch('/classes/{classe}/groupes/{groupe}/projets/parametres-remise', [ProjetRechercheController::class, 'updateParametresRemise'])
+    Route::patch('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/parametres-remise', [ProjetRechercheController::class, 'updateParametresRemise'])
         ->name('projets.parametres-remise.update');
 
-    Route::delete('/classes/{classe}/groupes/{groupe}/projets/annuler-remise', [ProjetRechercheController::class, 'annulerRemise'])
+    Route::delete('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/annuler-remise', [ProjetRechercheController::class, 'annulerRemise'])
         ->name('projets.annulerRemise');
 
-    Route::post('/classes/{classe}/groupes/{groupe}/projets/voter-remise', [ProjetRechercheController::class, 'voterRemise'])
+    Route::post('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/voter-remise', [ProjetRechercheController::class, 'voterRemise'])
         ->name('projets.voterRemise');
 
-    Route::get('/classes/{classe}/groupes/{groupe}/projets/pdf', [ProjetRechercheController::class, 'exportPdf'])
+    Route::get('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/pdf', [ProjetRechercheController::class, 'exportPdf'])
         ->name('projets.export.pdf');
 
-    Route::get('/classes/{classe}/groupes/{groupe}/projets/word', [ProjetRechercheController::class, 'exportWord'])
+    Route::get('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/word', [ProjetRechercheController::class, 'exportWord'])
         ->name('projets.export.word');
 
-    Route::get('/classes/{classe}/groupes/{groupe}/projets/xml-notes', [ProjetRechercheController::class, 'exportXmlNotes'])
+    Route::get('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/xml-notes', [ProjetRechercheController::class, 'exportXmlNotes'])
         ->name('projets.export.xml');
 });
 

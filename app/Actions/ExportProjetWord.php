@@ -4,8 +4,10 @@ namespace App\Actions;
 
 use App\Helpers\HtmlHelper;
 use App\Models\Groupe;
-use App\Models\ProjetConclusion;
 use App\Models\ProjetRecherche;
+use App\Models\TypeProjetSection;
+use App\Models\User;
+use Illuminate\Support\Collection;
 use PhpOffice\PhpWord\Element\Section;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
@@ -17,17 +19,22 @@ class ExportProjetWord
     /**
      * Génère et retourne le projet de groupe en .docx.
      *
-     * Structure :
+     * Structure générée à partir des sections typées du TypeProjet :
      *  - Page titre
      *  - Table des matières (champ TOC Word, mise à jour à l'ouverture)
-     *  - Introduction (Heading 1) — amener/poser/diviser en texte continu
-     *  - Développement (Heading 1) — chaque sous-section en Heading 2
-     *  - Conclusion (Heading 1) — un Heading 2 par membre si > 1 membre
+     *  - Une section Word par TypeProjetSection :
+     *      • texte       → Heading 1 + contenu HTML
+     *      • paragraphes → Heading 1 + sous-sections Heading 2 (titre + contenu)
+     *      • individuel  → Heading 1 + un Heading 2 par membre (si > 1 membre)
      */
     public function execute(ProjetRecherche $projet, Groupe $groupe): StreamedResponse
     {
         $classe = $groupe->classe;
         $enseignant = $classe->enseignant;
+
+        if (! $projet->relationLoaded('typeProjet')) {
+            $projet->load(['typeProjet.sections', 'sectionContenus', 'sectionParagraphes', 'conclusions']);
+        }
 
         $word = new PhpWord;
         $word->setDefaultFontName('Times New Roman');
@@ -64,79 +71,47 @@ class ExportProjetWord
         // Champ TOC automatique : se met à jour à l'ouverture du fichier dans Word
         $tocSection->addTOC(['size' => 11], null, 1, 2);
 
-        // ─── Sections dynamiques ou Introduction classique ───────────────────
-        if (! $projet->relationLoaded('typeProjet')) {
-            $projet->load(['typeProjet.sections', 'sectionContenus']);
-        }
+        // ─── Sections dynamiques ──────────────────────────────────────────────
         $sections = $projet->typeProjet?->sections ?? collect();
+        $contenusParSection = $projet->sectionContenus->keyBy('section_id');
+        $paragraphesParSection = $projet->sectionParagraphes->groupBy('section_id');
+        $conclusionsParUser = $projet->conclusions
+            ->filter(fn ($c) => $c->section_id !== null)
+            ->groupBy('section_id')
+            ->map(fn ($conc) => $conc->keyBy('user_id'));
 
-        if ($sections->isNotEmpty()) {
-            $contenusParSection = $projet->sectionContenus->keyBy('section_id');
-
-            foreach ($sections as $index => $section) {
-                $sectionWord = $word->addSection();
-                $sectionWord->addTitle($section->label, 1);
-                $sectionWord->addTextBreak(1);
-                $contenu = HtmlHelper::stripAnnotationMarks($contenusParSection->get($section->id)?->contenu);
-                $this->addHtmlContent($sectionWord, $contenu);
-            }
-        } else {
-            // Fallback : structure classique Introduction
-            $introSection = $word->addSection();
-            $introSection->addTitle('Introduction', 1);
-            $introSection->addTextBreak(1);
-            $this->addHtmlContent($introSection, $projet->introduction_amener);
-            $this->addHtmlContent($introSection, $projet->introduction_poser);
-            $this->addHtmlContent($introSection, $projet->introduction_diviser);
-        }
-
-        // ─── Développement (Heading 1) + sous-sections (Heading 2) ───────────
-        $developpements = $projet->relationLoaded('developpements')
-            ? $projet->developpements
-            : $projet->developpements()->get();
-
-        $devMainSection = $word->addSection();
-        $devMainSection->addTitle('Développement', 1);
-        $devMainSection->addTextBreak(1);
-
-        foreach ($developpements as $index => $dev) {
-            // Le premier paragraphe partage la section du H1 "Développement"
-            $devSection = ($index === 0) ? $devMainSection : $word->addSection();
-            $titreDev = $dev->titre ?: "Paragraphe de développement {$dev->ordre}";
-            $devSection->addTitle($titreDev, 2);
-            $devSection->addTextBreak(1);
-            $this->addHtmlContent($devSection, $dev->contenu);
-        }
-
-        // Fallback si aucun paragraphe n'existe (projet vide)
-        if ($developpements->isEmpty()) {
-            $this->addHtmlContent($devMainSection, null);
-        }
-
-        // ─── Conclusions (Heading 1 global, Heading 2 par membre si > 1) ─────
         $nbMembres = $groupe->membres->count();
-        $isFirst = true;
 
-        foreach ($groupe->membres as $membre) {
-            /** @var ProjetConclusion|null $conclusion */
-            $conclusion = $projet->conclusions->firstWhere('user_id', $membre->id);
+        foreach ($sections as $typeSection) {
+            /** @var TypeProjetSection $typeSection */
+            $sectionWord = $word->addSection();
+            $sectionWord->addTitle($typeSection->label, 1);
+            $sectionWord->addTextBreak(1);
 
-            $conclusionSection = $word->addSection();
+            match ($typeSection->type ?? 'texte') {
+                'paragraphes' => $this->renderParagraphes(
+                    $word,
+                    $sectionWord,
+                    $paragraphesParSection->get($typeSection->id) ?? collect()
+                ),
+                'individuel' => $this->renderIndividuel(
+                    $word,
+                    $sectionWord,
+                    $groupe->membres,
+                    $conclusionsParUser->get($typeSection->id) ?? collect(),
+                    $nbMembres
+                ),
+                default => $this->addHtmlContent(
+                    $sectionWord,
+                    $contenusParSection->get($typeSection->id)?->contenu
+                ),
+            };
+        }
 
-            // "Conclusion" en Heading 1 uniquement pour le premier membre
-            if ($isFirst) {
-                $conclusionSection->addTitle('Conclusion', 1);
-                $conclusionSection->addTextBreak(1);
-                $isFirst = false;
-            }
-
-            // Heading 2 par membre uniquement si le groupe compte plusieurs membres
-            if ($nbMembres > 1) {
-                $conclusionSection->addTitle("{$membre->prenom} {$membre->nom}", 2);
-                $conclusionSection->addTextBreak(1);
-            }
-
-            $this->addHtmlContent($conclusionSection, $conclusion?->contenu);
+        // Fallback si aucune section définie (projet sans TypeProjet configuré)
+        if ($sections->isEmpty()) {
+            $vide = $word->addSection();
+            $this->addHtmlContent($vide, null);
         }
 
         // ─── Stream du fichier ────────────────────────────────────────────────
@@ -148,6 +123,55 @@ class ExportProjetWord
         }, $nomFichier, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         ]);
+    }
+
+    /**
+     * Ajoute les paragraphes d'une section de type 'paragraphes' comme sous-sections (Heading 2).
+     *
+     * @param  Collection  $paragraphes
+     */
+    private function renderParagraphes(PhpWord $word, Section $firstSection, $paragraphes): void
+    {
+        if ($paragraphes->isEmpty()) {
+            $this->addHtmlContent($firstSection, null);
+
+            return;
+        }
+
+        foreach ($paragraphes->sortBy('ordre') as $index => $paragraphe) {
+            // Le premier partage la section du H1
+            $sectionParagraphe = ($index === 0) ? $firstSection : $word->addSection();
+            $titre = $paragraphe->titre ?: "Paragraphe {$paragraphe->ordre}";
+            $sectionParagraphe->addTitle($titre, 2);
+            $sectionParagraphe->addTextBreak(1);
+            $this->addHtmlContent($sectionParagraphe, $paragraphe->contenu);
+        }
+    }
+
+    /**
+     * Ajoute les conclusions individuelles d'une section de type 'individuel'.
+     *
+     * @param  Collection  $membres
+     * @param  Collection  $conclusionsParUser  keyBy user_id
+     */
+    private function renderIndividuel(PhpWord $word, Section $firstSection, $membres, $conclusionsParUser, int $nbMembres): void
+    {
+        $isFirst = true;
+
+        foreach ($membres as $membre) {
+            /** @var User $membre */
+            $sectionConclusion = $isFirst ? $firstSection : $word->addSection();
+
+            if ($nbMembres > 1) {
+                $sectionConclusion->addTitle("{$membre->prenom} {$membre->nom}", 2);
+                $sectionConclusion->addTextBreak(1);
+            }
+
+            $conclusion = $conclusionsParUser->get($membre->id);
+            $this->addHtmlContent($sectionConclusion, $conclusion?->contenu);
+
+            $isFirst = false;
+        }
     }
 
     /**

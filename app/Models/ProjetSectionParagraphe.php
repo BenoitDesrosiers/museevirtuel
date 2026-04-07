@@ -5,19 +5,20 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ProjetConclusion extends Model
+class ProjetSectionParagraphe extends Model
 {
-    protected $table = 'projet_conclusions';
+    protected $table = 'projet_section_paragraphes';
 
     protected $fillable = [
         'projet_id',
-        'user_id',
         'section_id',
+        'ordre',
+        'titre',
         'contenu',
     ];
 
     /**
-     * Retourne le projet de recherche auquel appartient cette conclusion.
+     * Retourne le projet de recherche auquel appartient ce paragraphe.
      */
     public function projet(): BelongsTo
     {
@@ -25,15 +26,7 @@ class ProjetConclusion extends Model
     }
 
     /**
-     * Retourne l'étudiant auteur de cette conclusion.
-     */
-    public function etudiant(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'user_id');
-    }
-
-    /**
-     * Retourne la section de type projet liée à cette conclusion (nullable).
+     * Retourne la section de type projet à laquelle appartient ce paragraphe.
      */
     public function section(): BelongsTo
     {
