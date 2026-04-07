@@ -204,7 +204,7 @@ test("un étudiant ne peut pas accéder au show d'un projet si le type n'est pas
     ]);
 
     $this->actingAs($etudiant)
-        ->get("/classes/{$classe->id}/groupes/{$groupe->id}/projets/edit")
+        ->get("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/edit")
         ->assertForbidden();
 });
 
@@ -405,6 +405,47 @@ test("l'update sans clé sections ne modifie pas les sections existantes", funct
         ->assertRedirect();
 
     expect(TypeProjetSection::where('type_projet_id', $typeProjet->id)->count())->toBe(1);
+});
+
+// ─── Edit (page dédiée) ────────────────────────────────────────────────────────
+
+test("l'enseignant accède à la page d'édition de son type de projet", function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet X', 'accessible' => false]);
+    TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Introduction', 'ordre' => 1, 'type' => 'texte']);
+
+    $this->actingAs($enseignant)
+        ->get("/types-projets/{$typeProjet->id}/edit")
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('TypeProjet/Edit')
+            ->has('typeProjet', fn (AssertableInertia $tp) => $tp
+                ->where('id', $typeProjet->id)
+                ->where('nom', 'Projet X')
+                ->has('sections', 1)
+                ->etc()
+            )
+        );
+});
+
+test("un enseignant ne peut pas accéder à la page d'édition d'un autre enseignant", function () {
+    $enseignantA = User::factory()->create(['role' => 'enseignant']);
+    $enseignantB = User::factory()->create(['role' => 'enseignant']);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignantA->id, 'nom' => 'Projet A', 'accessible' => false]);
+
+    $this->actingAs($enseignantB)
+        ->get("/types-projets/{$typeProjet->id}/edit")
+        ->assertForbidden();
+});
+
+test("un étudiant est redirigé depuis la page d'édition d'un type de projet", function () {
+    $etudiant = User::factory()->create(['role' => 'etudiant']);
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet', 'accessible' => false]);
+
+    $this->actingAs($etudiant)
+        ->get("/types-projets/{$typeProjet->id}/edit")
+        ->assertRedirect();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

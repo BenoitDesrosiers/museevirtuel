@@ -14,7 +14,7 @@ use App\Models\User;
  * Crée un scénario complet : enseignant, classe, groupe, étudiant membre,
  * type de projet avec une section, et un projet associé.
  *
- * @return array{enseignant: User, etudiant: User, classe: Classe, groupe: Groupe, projet: ProjetRecherche, section: TypeProjetSection}
+ * @return array{enseignant: User, etudiant: User, classe: Classe, groupe: Groupe, typeProjet: TypeProjet, projet: ProjetRecherche, section: TypeProjetSection}
  */
 function creerScenarioSection(): array
 {
@@ -46,16 +46,16 @@ function creerScenarioSection(): array
         'type_projet_id' => $typeProjet->id,
     ]);
 
-    return compact('enseignant', 'etudiant', 'classe', 'groupe', 'projet', 'section');
+    return compact('enseignant', 'etudiant', 'classe', 'groupe', 'typeProjet', 'projet', 'section');
 }
 
 // ─── updateSectionContenu ─────────────────────────────────────────────────────
 
 test("un étudiant membre peut sauvegarder le contenu d'une section", function () {
-    ['etudiant' => $etudiant, 'classe' => $classe, 'groupe' => $groupe, 'projet' => $projet, 'section' => $section] = creerScenarioSection();
+    ['etudiant' => $etudiant, 'classe' => $classe, 'groupe' => $groupe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioSection();
 
     $this->actingAs($etudiant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/sections/{$section->id}", [
+        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/sections/{$section->id}", [
             'contenu' => '<p>Texte de la section</p>',
         ])
         ->assertOk()
@@ -69,15 +69,15 @@ test("un étudiant membre peut sauvegarder le contenu d'une section", function (
 });
 
 test('un deuxième PUT sur la même section fait un upsert (pas de doublon)', function () {
-    ['etudiant' => $etudiant, 'classe' => $classe, 'groupe' => $groupe, 'projet' => $projet, 'section' => $section] = creerScenarioSection();
+    ['etudiant' => $etudiant, 'classe' => $classe, 'groupe' => $groupe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioSection();
 
     $this->actingAs($etudiant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/sections/{$section->id}", [
+        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/sections/{$section->id}", [
             'contenu' => '<p>Version 1</p>',
         ]);
 
     $this->actingAs($etudiant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/sections/{$section->id}", [
+        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/sections/{$section->id}", [
             'contenu' => '<p>Version 2</p>',
         ])
         ->assertOk();
@@ -87,20 +87,20 @@ test('un deuxième PUT sur la même section fait un upsert (pas de doublon)', fu
 });
 
 test("un non-membre ne peut pas sauvegarder le contenu d'une section (403)", function () {
-    ['classe' => $classe, 'groupe' => $groupe, 'section' => $section] = creerScenarioSection();
+    ['classe' => $classe, 'groupe' => $groupe, 'typeProjet' => $typeProjet, 'section' => $section] = creerScenarioSection();
 
     $autreEtudiant = User::factory()->create(['role' => 'etudiant']);
     $classe->etudiants()->attach($autreEtudiant->id);
 
     $this->actingAs($autreEtudiant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/sections/{$section->id}", [
+        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/sections/{$section->id}", [
             'contenu' => '<p>Piratage</p>',
         ])
         ->assertForbidden();
 });
 
 test("impossible de modifier la section d'un autre type de projet (IDOR)", function () {
-    ['etudiant' => $etudiant, 'classe' => $classe, 'groupe' => $groupe] = creerScenarioSection();
+    ['etudiant' => $etudiant, 'classe' => $classe, 'groupe' => $groupe, 'typeProjet' => $typeProjet] = creerScenarioSection();
 
     // Section appartenant à un autre type de projet
     $autreType = TypeProjet::create([
@@ -115,19 +115,19 @@ test("impossible de modifier la section d'un autre type de projet (IDOR)", funct
     ]);
 
     $this->actingAs($etudiant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/sections/{$autreSection->id}", [
+        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/sections/{$autreSection->id}", [
             'contenu' => '<p>Injection</p>',
         ])
         ->assertNotFound();
 });
 
 test('un étudiant ne peut pas modifier une section si le projet est verrouillé', function () {
-    ['etudiant' => $etudiant, 'classe' => $classe, 'groupe' => $groupe, 'projet' => $projet, 'section' => $section] = creerScenarioSection();
+    ['etudiant' => $etudiant, 'classe' => $classe, 'groupe' => $groupe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioSection();
 
     $projet->update(['verrouille' => true]);
 
     $this->actingAs($etudiant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/sections/{$section->id}", [
+        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/sections/{$section->id}", [
             'contenu' => '<p>Bloqué</p>',
         ])
         ->assertForbidden();
@@ -136,7 +136,7 @@ test('un étudiant ne peut pas modifier une section si le projet est verrouillé
 // ─── Sections visibles dans show() ───────────────────────────────────────────
 
 test('le show du projet contient les sections avec leur contenu', function () {
-    ['etudiant' => $etudiant, 'classe' => $classe, 'groupe' => $groupe, 'projet' => $projet, 'section' => $section] = creerScenarioSection();
+    ['etudiant' => $etudiant, 'classe' => $classe, 'groupe' => $groupe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioSection();
 
     ProjetSectionContenu::create([
         'projet_id' => $projet->id,
@@ -145,7 +145,7 @@ test('le show du projet contient les sections avec leur contenu', function () {
     ]);
 
     $this->actingAs($etudiant)
-        ->get("/classes/{$classe->id}/groupes/{$groupe->id}/projets/edit")
+        ->get("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/edit")
         ->assertInertia(fn ($page) => $page
             ->component('Projets/Show')
             ->has('sections', 1)
@@ -154,7 +154,7 @@ test('le show du projet contient les sections avec leur contenu', function () {
         );
 });
 
-test("le show retourne un tableau sections vide si aucun type de projet n'est assigné", function () {
+test("le show retourne un tableau sections vide si le type de projet n'a aucune section", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
     $etudiant = User::factory()->create(['role' => 'etudiant']);
 
@@ -167,8 +167,15 @@ test("le show retourne un tableau sections vide si aucun type de projet n'est as
     $groupe = Groupe::create(['classe_id' => $classe->id, 'created_by' => $etudiant->id]);
     $groupe->membres()->attach($etudiant->id);
 
+    // TypeProjet sans aucune section
+    $typeProjet = TypeProjet::create([
+        'enseignant_id' => $enseignant->id,
+        'nom' => 'Type sans sections',
+        'accessible' => true,
+    ]);
+
     $this->actingAs($etudiant)
-        ->get("/classes/{$classe->id}/groupes/{$groupe->id}/projets/edit")
+        ->get("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/edit")
         ->assertInertia(fn ($page) => $page
             ->component('Projets/Show')
             ->where('sections', [])

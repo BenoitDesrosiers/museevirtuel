@@ -6,14 +6,15 @@ use App\Models\ProjetCommentaire;
 use App\Models\ProjetDeveloppement;
 use App\Models\ProjetNote;
 use App\Models\ProjetRecherche;
+use App\Models\TypeProjet;
 use App\Models\User;
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
 /**
- * Crée un contexte de test avec un enseignant, une classe, un groupe et deux étudiants membres.
+ * Crée un contexte de test avec un enseignant, une classe, un groupe, un étudiant membre et un projet.
  *
- * @return array{enseignant: User, classe: Classe, groupe: Groupe, etudiant: User, projet: ProjetRecherche}
+ * @return array{enseignant: User, classe: Classe, groupe: Groupe, etudiant: User, typeProjet: TypeProjet, projet: ProjetRecherche}
  */
 function creerContexteProjet(): array
 {
@@ -37,18 +38,27 @@ function creerContexteProjet(): array
 
     $groupe->membres()->attach($etudiant->id);
 
-    $projet = ProjetRecherche::create(['groupe_id' => $groupe->id]);
+    $typeProjet = TypeProjet::create([
+        'enseignant_id' => $enseignant->id,
+        'nom' => 'Projet test',
+        'accessible' => true,
+    ]);
 
-    return compact('enseignant', 'classe', 'groupe', 'etudiant', 'projet');
+    $projet = ProjetRecherche::create([
+        'groupe_id' => $groupe->id,
+        'type_projet_id' => $typeProjet->id,
+    ]);
+
+    return compact('enseignant', 'classe', 'groupe', 'etudiant', 'typeProjet', 'projet');
 }
 
 // ─── Commentaires — autorisation ──────────────────────────────────────────────
 
 test("l'enseignant peut créer un commentaire sur un champ du projet", function () {
-    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe] = creerContexteProjet();
+    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'typeProjet' => $typeProjet] = creerContexteProjet();
 
     $this->actingAs($enseignant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/commentaires", [
+        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/commentaires", [
             'champ' => 'introduction_amener',
             'contenu' => 'Pensez à contextualiser davantage.',
         ])
@@ -62,10 +72,10 @@ test("l'enseignant peut créer un commentaire sur un champ du projet", function 
 });
 
 test('un étudiant ne peut pas créer un commentaire', function () {
-    ['etudiant' => $etudiant, 'classe' => $classe, 'groupe' => $groupe] = creerContexteProjet();
+    ['etudiant' => $etudiant, 'classe' => $classe, 'groupe' => $groupe, 'typeProjet' => $typeProjet] = creerContexteProjet();
 
     $this->actingAs($etudiant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/commentaires", [
+        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/commentaires", [
             'champ' => 'introduction_amener',
             'contenu' => 'Tentative non autorisée.',
         ])
@@ -75,7 +85,7 @@ test('un étudiant ne peut pas créer un commentaire', function () {
 // ─── Commentaires — upsert ────────────────────────────────────────────────────
 
 test('un deuxième PUT sur le même champ met à jour le commentaire sans créer de doublon', function () {
-    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'projet' => $projet] = creerContexteProjet();
+    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'typeProjet' => $typeProjet, 'projet' => $projet] = creerContexteProjet();
 
     $dev = ProjetDeveloppement::create([
         'projet_id' => $projet->id,
@@ -85,7 +95,7 @@ test('un deuxième PUT sur le même champ met à jour le commentaire sans créer
     ]);
 
     $champ = "developpement_{$dev->id}";
-    $url = "/classes/{$classe->id}/groupes/{$groupe->id}/projets/commentaires";
+    $url = "/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/commentaires";
 
     $this->actingAs($enseignant)->putJson($url, [
         'champ' => $champ,
@@ -102,7 +112,7 @@ test('un deuxième PUT sur le même champ met à jour le commentaire sans créer
 });
 
 test("l'enseignant peut supprimer un commentaire", function () {
-    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'projet' => $projet] = creerContexteProjet();
+    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'typeProjet' => $typeProjet, 'projet' => $projet] = creerContexteProjet();
 
     $commentaire = ProjetCommentaire::create([
         'projet_id' => $projet->id,
@@ -112,7 +122,7 @@ test("l'enseignant peut supprimer un commentaire", function () {
     ]);
 
     $this->actingAs($enseignant)
-        ->deleteJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/commentaires/{$commentaire->id}")
+        ->deleteJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/commentaires/{$commentaire->id}")
         ->assertOk()
         ->assertJson(['message' => 'deleted']);
 
@@ -122,10 +132,10 @@ test("l'enseignant peut supprimer un commentaire", function () {
 // ─── Commentaires — validation ────────────────────────────────────────────────
 
 test('un champ non autorisé retourne une erreur de validation', function () {
-    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe] = creerContexteProjet();
+    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'typeProjet' => $typeProjet] = creerContexteProjet();
 
     $this->actingAs($enseignant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/commentaires", [
+        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/commentaires", [
             'champ' => 'champ_inexistant',
             'contenu' => 'Test.',
         ])
@@ -133,10 +143,10 @@ test('un champ non autorisé retourne une erreur de validation', function () {
 });
 
 test('le contenu du commentaire est obligatoire', function () {
-    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe] = creerContexteProjet();
+    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'typeProjet' => $typeProjet] = creerContexteProjet();
 
     $this->actingAs($enseignant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/commentaires", [
+        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/commentaires", [
             'champ' => 'introduction_amener',
             'contenu' => '',
         ])
@@ -146,10 +156,10 @@ test('le contenu du commentaire est obligatoire', function () {
 // ─── Notes — autorisation ─────────────────────────────────────────────────────
 
 test("l'enseignant peut sauvegarder une note par étudiant", function () {
-    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'etudiant' => $etudiant, 'projet' => $projet] = creerContexteProjet();
+    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'etudiant' => $etudiant, 'typeProjet' => $typeProjet, 'projet' => $projet] = creerContexteProjet();
 
     $this->actingAs($enseignant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/notes", [
+        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/notes", [
             'critere' => 'developpement_faits',
             'note' => 4,
             'user_id' => $etudiant->id,
@@ -166,10 +176,10 @@ test("l'enseignant peut sauvegarder une note par étudiant", function () {
 });
 
 test('un étudiant ne peut pas sauvegarder une note', function () {
-    ['etudiant' => $etudiant, 'classe' => $classe, 'groupe' => $groupe] = creerContexteProjet();
+    ['etudiant' => $etudiant, 'classe' => $classe, 'groupe' => $groupe, 'typeProjet' => $typeProjet] = creerContexteProjet();
 
     $this->actingAs($etudiant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/notes", [
+        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/notes", [
             'critere' => 'developpement_faits',
             'note' => 4,
             'user_id' => $etudiant->id,
@@ -178,10 +188,10 @@ test('un étudiant ne peut pas sauvegarder une note', function () {
 });
 
 test('user_id est obligatoire pour sauvegarder une note', function () {
-    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe] = creerContexteProjet();
+    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'typeProjet' => $typeProjet] = creerContexteProjet();
 
     $this->actingAs($enseignant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/notes", [
+        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/notes", [
             'critere' => 'ecriture',
             'note' => 3,
             // user_id absent
@@ -192,10 +202,10 @@ test('user_id est obligatoire pour sauvegarder une note', function () {
 // ─── Notes — validation ───────────────────────────────────────────────────────
 
 it('accepte uniquement les notes 0, 2, 3 et 4', function (int $note) {
-    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'etudiant' => $etudiant] = creerContexteProjet();
+    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'etudiant' => $etudiant, 'typeProjet' => $typeProjet] = creerContexteProjet();
 
     $this->actingAs($enseignant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/notes", [
+        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/notes", [
             'critere' => 'ecriture',
             'note' => $note,
             'user_id' => $etudiant->id,
@@ -204,10 +214,10 @@ it('accepte uniquement les notes 0, 2, 3 et 4', function (int $note) {
 })->with([1, 5, -1, 99]);
 
 test('un critère inexistant retourne une erreur de validation', function () {
-    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'etudiant' => $etudiant] = creerContexteProjet();
+    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'etudiant' => $etudiant, 'typeProjet' => $typeProjet] = creerContexteProjet();
 
     $this->actingAs($enseignant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/notes", [
+        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/notes", [
             'critere' => 'critere_inexistant',
             'note' => 4,
             'user_id' => $etudiant->id,
@@ -218,14 +228,14 @@ test('un critère inexistant retourne une erreur de validation', function () {
 // ─── Notes — sécurité membre ──────────────────────────────────────────────────
 
 test("l'enseignant ne peut pas noter un étudiant hors du groupe", function () {
-    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe] = creerContexteProjet();
+    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'typeProjet' => $typeProjet] = creerContexteProjet();
 
     // Étudiant inscrit à la classe mais pas membre du groupe
     $etudiantHorsGroupe = User::factory()->create(['role' => 'etudiant']);
     $classe->etudiants()->attach($etudiantHorsGroupe->id);
 
     $this->actingAs($enseignant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/notes", [
+        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/notes", [
             'critere' => 'ecriture',
             'note' => 3,
             'user_id' => $etudiantHorsGroupe->id,
@@ -236,9 +246,9 @@ test("l'enseignant ne peut pas noter un étudiant hors du groupe", function () {
 // ─── Notes — upsert ───────────────────────────────────────────────────────────
 
 test('un deuxième PUT sur le même critère et étudiant met à jour la note sans créer de doublon', function () {
-    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'etudiant' => $etudiant, 'projet' => $projet] = creerContexteProjet();
+    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'etudiant' => $etudiant, 'typeProjet' => $typeProjet, 'projet' => $projet] = creerContexteProjet();
 
-    $url = "/classes/{$classe->id}/groupes/{$groupe->id}/projets/notes";
+    $url = "/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/notes";
 
     $this->actingAs($enseignant)->putJson($url, ['critere' => 'ecriture', 'note' => 3, 'user_id' => $etudiant->id]);
     $this->actingAs($enseignant)->putJson($url, ['critere' => 'ecriture', 'note' => 4, 'user_id' => $etudiant->id])->assertOk();
@@ -256,9 +266,9 @@ test('un deuxième PUT sur le même critère et étudiant met à jour la note sa
 // ─── Note finale calculée ─────────────────────────────────────────────────────
 
 test('la note finale par étudiant est correctement calculée sur 100', function () {
-    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'etudiant' => $etudiant, 'projet' => $projet] = creerContexteProjet();
+    ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'etudiant' => $etudiant, 'typeProjet' => $typeProjet, 'projet' => $projet] = creerContexteProjet();
 
-    $url = "/classes/{$classe->id}/groupes/{$groupe->id}/projets/notes";
+    $url = "/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/notes";
 
     // Tous les critères à "Excellent" (4) pour cet étudiant → note finale = 100
     foreach (array_keys(ProjetNote::CRITERES) as $critere) {

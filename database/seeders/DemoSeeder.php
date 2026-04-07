@@ -3,17 +3,55 @@
 namespace Database\Seeders;
 
 use App\Models\Classe;
+use App\Models\GrilleCorrection;
+use App\Models\GrilleCritere;
+use App\Models\GrilleMalus;
 use App\Models\Groupe;
 use App\Models\ProjetConclusion;
-use App\Models\ProjetDeveloppement;
 use App\Models\ProjetRecherche;
+use App\Models\ProjetSectionContenu;
+use App\Models\ProjetSectionParagraphe;
 use App\Models\Thematique;
+use App\Models\TypeProjet;
+use App\Models\TypeProjetSection;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 class DemoSeeder extends Seeder
 {
+    private const CRITERES = [
+        ['label' => 'Introduction : mise en contexte, problématique et annonce du plan',  'ponderation' => 15],
+        ['label' => 'Qualité et diversité des sources bibliographiques (min. 5 sources)',  'ponderation' => 15],
+        ['label' => 'Développement : profondeur de l\'analyse et pertinence des arguments', 'ponderation' => 30],
+        ['label' => 'Intégration et exploitation des données d\'entrevue',                  'ponderation' => 20],
+        ['label' => 'Conclusion : synthèse et ouverture',                                  'ponderation' => 10],
+        ['label' => 'Présentation, structure et respect des normes de mise en page',        'ponderation' => 10],
+    ];
+
+    private const MALUS = [
+        [
+            'label' => 'Fautes de français',
+            'deduction' => 0.5,
+            'description' => '0,5 point déduit par faute (orthographe, grammaire, syntaxe), jusqu\'à un maximum de 5 points.',
+        ],
+        [
+            'label' => 'Remise en retard',
+            'deduction' => 5.0,
+            'description' => '5 points déduits par jour de retard.',
+        ],
+        [
+            'label' => 'Non-respect des normes de présentation',
+            'deduction' => 2.0,
+            'description' => 'Police, marges, espacement ou numérotation non conformes au guide de présentation.',
+        ],
+        [
+            'label' => 'Absence d\'entrevue',
+            'deduction' => 10.0,
+            'description' => 'L\'équipe n\'a pas réalisé d\'entrevue avec un témoin ou participant.',
+        ],
+    ];
+
     public function run(): void
     {
         // ─── Enseignant ───────────────────────────────────────────────────────
@@ -87,7 +125,6 @@ class DemoSeeder extends Seeder
         }
 
         // ─── Groupe ───────────────────────────────────────────────────────────
-        // Un seul groupe de démo par classe — on réutilise s'il existe déjà
         /** @var Groupe $groupe */
         $groupe = $classe->groupes()->firstOrCreate(
             ['created_by' => $etudiants[0]->id],
@@ -97,48 +134,130 @@ class DemoSeeder extends Seeder
             ]
         );
 
-        // Attacher les membres (idempotent via syncWithoutDetaching)
         $groupe->membres()->syncWithoutDetaching(array_map(fn ($e) => $e->id, $etudiants));
-
-        // Attacher la thématique
         $groupe->thematiques()->syncWithoutDetaching([$thematique->id]);
 
-        // ─── Projet de recherche ──────────────────────────────────────────────
-        /** @var ProjetRecherche $projet */
-        $projet = ProjetRecherche::updateOrCreate(
-            ['groupe_id' => $groupe->id],
+        // ─── TypeProjet ───────────────────────────────────────────────────────
+        /** @var TypeProjet $typeProjet */
+        $typeProjet = TypeProjet::firstOrCreate(
+            ['enseignant_id' => $prof->id, 'nom' => 'Projet de recherche'],
             [
-                'titre_projet' => 'La Révolution tranquille : rupture ou continuité dans l\'histoire du Québec ?',
-
-                'introduction_amener' => 'Le Québec du début du XXe siècle est une société majoritairement rurale, profondément marquée par les valeurs catholiques et une économie dominée par une élite anglophone. Pendant des décennies, l\'Église catholique contrôle l\'éducation, la santé et les services sociaux, tandis que le gouvernement de Maurice Duplessis maintient un conservatisme politique qui freine toute modernisation de l\'État. Cette période, connue sous le nom de « Grande Noirceur », prend fin avec la mort de Duplessis en 1959 et l\'élection du Parti libéral de Jean Lesage en 1960.',
-
-                'introduction_poser' => 'Dans quelle mesure la Révolution tranquille constitue-t-elle une véritable rupture avec le passé québécois, et quelles en sont les transformations les plus durables sur le plan social, économique et culturel ?',
-
-                'introduction_diviser' => 'Pour répondre à cette question, nous examinerons d\'abord les réformes institutionnelles mises en place par l\'État québécois entre 1960 et 1970. Nous analyserons ensuite les transformations sociales et culturelles qui ont redéfini l\'identité québécoise. Enfin, nous évaluerons l\'héritage économique de cette période et son impact sur le nationalisme contemporain.',
+                'description' => 'Projet de recherche documentaire sur un sujet d\'histoire du Québec.',
+                'accessible' => true,
             ]
         );
 
-        // Paragraphes de développement — supprimer les anciens avant de réinsérer (idempotent)
-        $projet->developpements()->delete();
+        // ─── Sections du TypeProjet (idempotent : suppression + recréation) ──
+        // La cascade supprime automatiquement les ProjetSectionContenu liés
+        $typeProjet->sections()->delete();
 
-        $developpementsDemo = [
-            ['titre' => 'La réforme de l\'État et la laïcisation des institutions', 'contenu' => 'La principale transformation de la Révolution tranquille réside dans la récupération par l\'État des pouvoirs jusqu\'alors détenus par l\'Église. La création du ministère de l\'Éducation en 1964, suivant les recommandations de la Commission Parent, marque un tournant décisif : l\'éducation devient une responsabilité de l\'État, gratuite et accessible à tous. La création de la Caisse de dépôt et placement du Québec (1965), de la Régie des rentes (1965) et d\'Hydro-Québec nationalisée (1962) témoignent d\'une volonté de maîtriser les leviers économiques du développement. L\'expression « Maîtres chez nous » du gouvernement Lesage résume parfaitement cette ambition d\'autonomie collective.'],
-            ['titre' => 'Les transformations sociales et la montée du féminisme', 'contenu' => 'La Révolution tranquille s\'accompagne d\'une profonde transformation des mentalités et des structures sociales. Le taux de natalité, l\'un des plus élevés au monde dans les années 1950, chute rapidement dans les années 1960, phénomène connu sous le nom de « revanche des berceaux inversée ». Les femmes accèdent massivement au marché du travail et au monde universitaire. Le mouvement féministe québécois s\'affirme avec la création de la Fédération des femmes du Québec en 1966. Les mœurs évoluent, le mariage civil se banalise et le taux de pratique religieuse s\'effondre progressivement.'],
-            ['titre' => 'L\'affirmation de l\'identité nationale et le mouvement souverainiste', 'contenu' => 'La Révolution tranquille est indissociable de l\'émergence d\'un nouveau nationalisme québécois. Là où le nationalisme traditionnel était d\'inspiration catholique et conservateur, le néo-nationalisme des années 1960 est laïc, progressiste et axé sur l\'affirmation de la langue française et de la spécificité culturelle québécoise. La fondation du Rassemblement pour l\'indépendance nationale (RIN) en 1960 et du Parti Québécois en 1968 par René Lévesque incarnent cette nouvelle aspiration à la souveraineté.'],
-            ['titre' => 'Le développement économique et la question linguistique', 'contenu' => 'Sur le plan économique, la Révolution tranquille amorce une modernisation accélérée du Québec. L\'État investit massivement dans les infrastructures, l\'éducation supérieure et les entreprises publiques. Les Québécois francophones, longtemps cantonnés à des emplois subalternes dans les entreprises anglophones, commencent à accéder à des postes de cadres et de direction. Cette prise de conscience conduit à la Commission Gendron (1968-1972), dont les travaux mèneront à la Loi 22 (1974) puis à la Charte de la langue française, la Loi 101, adoptée en 1977 sous le gouvernement Lévesque.'],
-            ['titre' => 'L\'héritage de la Révolution tranquille et ses limites', 'contenu' => 'Si la Révolution tranquille a profondément transformé le Québec, son bilan est nuancé. D\'un côté, elle a permis la création d\'un État moderne, la démocratisation de l\'éducation et l\'affirmation de l\'identité francophone. De l\'autre, la croissance rapide de l\'État a généré une dette publique significative et des bureaucraties parfois inefficaces. La Révolution tranquille reste néanmoins un moment fondateur dans la construction de l\'identité québécoise contemporaine.'],
+        $sectionsData = [
+            ['label' => 'Introduction',  'type' => 'texte'],
+            ['label' => 'Développement', 'type' => 'paragraphes'],
+            ['label' => 'Conclusion',    'type' => 'individuel'],
         ];
 
-        foreach ($developpementsDemo as $ordre => $data) {
-            ProjetDeveloppement::create([
-                'projet_id' => $projet->id,
+        /** @var TypeProjetSection[] $sections */
+        $sections = [];
+        foreach ($sectionsData as $ordre => $data) {
+            $sections[] = TypeProjetSection::create([
+                'type_projet_id' => $typeProjet->id,
+                'label' => $data['label'],
+                'type' => $data['type'],
                 'ordre' => $ordre + 1,
+            ]);
+        }
+
+        // ─── Grille de correction (inlinée — une seule par TypeProjet) ────────
+        if (! $typeProjet->grille()->exists()) {
+            /** @var GrilleCorrection $grille */
+            $grille = GrilleCorrection::create([
+                'type_projet_id' => $typeProjet->id,
+                'nom' => 'Grille de correction — Projet de recherche',
+                'description' => 'Grille officielle du projet de recherche (session en cours). Total : 100 points.',
+            ]);
+
+            foreach (self::CRITERES as $ordre => $critere) {
+                GrilleCritere::create([
+                    'grille_id' => $grille->id,
+                    'label' => $critere['label'],
+                    'ponderation' => $critere['ponderation'],
+                    'ordre' => $ordre + 1,
+                ]);
+            }
+
+            foreach (self::MALUS as $ordre => $malus) {
+                GrilleMalus::create([
+                    'grille_id' => $grille->id,
+                    'label' => $malus['label'],
+                    'deduction' => $malus['deduction'],
+                    'description' => $malus['description'],
+                    'ordre' => $ordre + 1,
+                ]);
+            }
+        }
+
+        // ─── Projet de recherche ──────────────────────────────────────────────
+        /** @var ProjetRecherche $projet */
+        $projet = ProjetRecherche::firstOrCreate(
+            ['groupe_id' => $groupe->id, 'type_projet_id' => $typeProjet->id],
+            ['titre_projet' => 'La Révolution tranquille : rupture ou continuité dans l\'histoire du Québec ?']
+        );
+
+        // ─── Contenu de l'introduction (section type 'texte') ────────────────
+        ProjetSectionContenu::updateOrCreate(
+            ['projet_id' => $projet->id, 'section_id' => $sections[0]->id],
+            [
+                'contenu' => '<p>Le Québec du début du XX<sup>e</sup> siècle est une société majoritairement rurale, profondément marquée par les valeurs catholiques et une économie dominée par une élite anglophone. Cette période, connue sous le nom de « Grande Noirceur », prend fin avec la mort de Duplessis en 1959 et l\'élection du Parti libéral de Jean Lesage en 1960.</p>'
+                    .'<p><strong>Problématique :</strong> Dans quelle mesure la Révolution tranquille constitue-t-elle une véritable rupture avec le passé québécois, et quelles en sont les transformations les plus durables sur le plan social, économique et culturel ?</p>'
+                    .'<p>Pour répondre à cette question, nous examinerons d\'abord les réformes institutionnelles, puis les transformations sociales et culturelles, et enfin l\'héritage économique et nationaliste de cette période.</p>',
+            ]
+        );
+
+        // ─── Paragraphes de développement (section type 'paragraphes') ────────
+        $sectionDev = $sections[1];
+
+        // Supprimer et recréer pour idempotence
+        ProjetSectionParagraphe::where('projet_id', $projet->id)
+            ->where('section_id', $sectionDev->id)
+            ->delete();
+
+        $paragraphes = [
+            [
+                'titre' => 'La réforme de l\'État et la laïcisation des institutions',
+                'contenu' => 'La principale transformation de la Révolution tranquille réside dans la récupération par l\'État des pouvoirs jusqu\'alors détenus par l\'Église. La création du ministère de l\'Éducation en 1964, suivant les recommandations de la Commission Parent, marque un tournant décisif : l\'éducation devient une responsabilité de l\'État, gratuite et accessible à tous. La création de la Caisse de dépôt et placement du Québec (1965), de la Régie des rentes (1965) et d\'Hydro-Québec nationalisée (1962) témoignent d\'une volonté de maîtriser les leviers économiques du développement. L\'expression « Maîtres chez nous » du gouvernement Lesage résume parfaitement cette ambition d\'autonomie collective.',
+            ],
+            [
+                'titre' => 'Les transformations sociales et la montée du féminisme',
+                'contenu' => 'La Révolution tranquille s\'accompagne d\'une profonde transformation des mentalités et des structures sociales. Le taux de natalité, l\'un des plus élevés au monde dans les années 1950, chute rapidement dans les années 1960, phénomène connu sous le nom de « revanche des berceaux inversée ». Les femmes accèdent massivement au marché du travail et au monde universitaire. Le mouvement féministe québécois s\'affirme avec la création de la Fédération des femmes du Québec en 1966. Les mœurs évoluent, le mariage civil se banalise et le taux de pratique religieuse s\'effondre progressivement.',
+            ],
+            [
+                'titre' => 'L\'affirmation de l\'identité nationale et le mouvement souverainiste',
+                'contenu' => 'La Révolution tranquille est indissociable de l\'émergence d\'un nouveau nationalisme québécois. Là où le nationalisme traditionnel était d\'inspiration catholique et conservateur, le néo-nationalisme des années 1960 est laïc, progressiste et axé sur l\'affirmation de la langue française et de la spécificité culturelle québécoise. La fondation du Rassemblement pour l\'indépendance nationale (RIN) en 1960 et du Parti Québécois en 1968 par René Lévesque incarnent cette nouvelle aspiration à la souveraineté.',
+            ],
+            [
+                'titre' => 'Le développement économique et la question linguistique',
+                'contenu' => 'Sur le plan économique, la Révolution tranquille amorce une modernisation accélérée du Québec. L\'État investit massivement dans les infrastructures, l\'éducation supérieure et les entreprises publiques. Les Québécois francophones, longtemps cantonnés à des emplois subalternes dans les entreprises anglophones, commencent à accéder à des postes de cadres et de direction. Cette prise de conscience conduit à la Commission Gendron (1968-1972), dont les travaux mèneront à la Loi 22 (1974) puis à la Charte de la langue française, la Loi 101, adoptée en 1977 sous le gouvernement Lévesque.',
+            ],
+            [
+                'titre' => 'L\'héritage de la Révolution tranquille et ses limites',
+                'contenu' => 'Si la Révolution tranquille a profondément transformé le Québec, son bilan est nuancé. D\'un côté, elle a permis la création d\'un État moderne, la démocratisation de l\'éducation et l\'affirmation de l\'identité francophone. De l\'autre, la croissance rapide de l\'État a généré une dette publique significative et des bureaucraties parfois inefficaces. La Révolution tranquille reste néanmoins un moment fondateur dans la construction de l\'identité québécoise contemporaine.',
+            ],
+        ];
+
+        foreach ($paragraphes as $index => $data) {
+            ProjetSectionParagraphe::create([
+                'projet_id' => $projet->id,
+                'section_id' => $sectionDev->id,
+                'ordre' => $index + 1,
                 'titre' => $data['titre'],
                 'contenu' => $data['contenu'],
             ]);
         }
 
-        // ─── Conclusions individuelles ─────────────────────────────────────────
+        // ─── Conclusions individuelles (section type 'individuel') ─────────────
+        $sectionConclusion = $sections[2];
+
         $conclusions = [
             $etudiants[0]->id => 'La Révolution tranquille représente, à mes yeux, le moment le plus transformateur de l\'histoire du Québec moderne. En étudiant cette période, j\'ai réalisé à quel point la laïcisation des institutions a libéré la société québécoise d\'un carcan religieux qui freinait son développement. La nationalisation de l\'électricité et la création du ministère de l\'Éducation m\'apparaissent comme les réformes les plus symboliques : elles incarnent la volonté du peuple québécois de reprendre le contrôle de son destin. Ce qui me frappe le plus, c\'est la rapidité de ces transformations — en moins de vingt ans, le Québec a rattrapé un retard historique considérable.',
 
@@ -151,7 +270,7 @@ class DemoSeeder extends Seeder
 
         foreach ($conclusions as $userId => $contenu) {
             ProjetConclusion::updateOrCreate(
-                ['projet_id' => $projet->id, 'user_id' => $userId],
+                ['projet_id' => $projet->id, 'user_id' => $userId, 'section_id' => $sectionConclusion->id],
                 ['contenu' => $contenu]
             );
         }
