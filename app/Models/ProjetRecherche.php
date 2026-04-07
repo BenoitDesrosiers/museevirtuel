@@ -14,9 +14,6 @@ class ProjetRecherche extends Model
         'groupe_id',
         'type_projet_id',
         'titre_projet',
-        'introduction_amener',
-        'introduction_poser',
-        'introduction_diviser',
         'correction_visible',
         'verrouille',
         'date_remise',
@@ -152,6 +149,14 @@ class ProjetRecherche extends Model
     }
 
     /**
+     * Retourne les paragraphes des sections de type 'paragraphes' triés par ordre.
+     */
+    public function sectionParagraphes(): HasMany
+    {
+        return $this->hasMany(ProjetSectionParagraphe::class, 'projet_id')->orderBy('ordre');
+    }
+
+    /**
      * Retourne les paragraphes de développement triés par ordre.
      */
     public function developpements(): HasMany
@@ -162,61 +167,33 @@ class ProjetRecherche extends Model
     /**
      * Calcule le pourcentage de complétion du contenu partagé (hors conclusions).
      *
-     * Si le type de projet définit des sections dynamiques, celles-ci remplacent
-     * les champs d'introduction fixes dans le calcul.
-     * Sinon, les champs fixes (introduction_amener/poser/diviser) sont utilisés.
-     * Le titre_projet est toujours inclus.
+     * Basé uniquement sur les sections de type 'texte' du TypeProjet.
+     * Le titre_projet est toujours inclus dans le calcul.
+     * Les sections de type 'paragraphes' et 'individuel' sont exclues du calcul
+     * car leur saisie ne passe pas par ProjetSectionContenu.
      *
      * @return int Pourcentage entre 0 et 100.
      */
     public function completion(): int
     {
-        // Charger le type de projet et ses sections si pas déjà chargé
         $typeProjet = $this->relationLoaded('typeProjet') ? $this->typeProjet : $this->typeProjet()->with('sections')->first();
         $sections = $typeProjet?->sections ?? collect();
 
-        if ($sections->isNotEmpty()) {
-            // Champs dynamiques : titre + chaque section
-            $total = 1 + $sections->count();
+        // Seules les sections de type 'texte' sont mesurables via sectionContenus
+        $sectionsTexte = $sections->filter(fn ($s) => ($s->type ?? 'texte') === 'texte');
 
-            $remplisTotal = (trim(strip_tags((string) ($this->titre_projet ?? ''))) !== '') ? 1 : 0;
+        $total = 1 + $sectionsTexte->count();
+        $remplisTotal = (trim(strip_tags((string) ($this->titre_projet ?? ''))) !== '') ? 1 : 0;
 
-            $contenusParSection = $this->relationLoaded('sectionContenus')
-                ? $this->sectionContenus->keyBy('section_id')
-                : $this->sectionContenus()->get()->keyBy('section_id');
+        $contenusParSection = $this->relationLoaded('sectionContenus')
+            ? $this->sectionContenus->keyBy('section_id')
+            : $this->sectionContenus()->get()->keyBy('section_id');
 
-            foreach ($sections as $section) {
-                $contenu = $contenusParSection->get($section->id)?->contenu ?? '';
-                if (trim(strip_tags((string) $contenu)) !== '') {
-                    $remplisTotal++;
-                }
+        foreach ($sectionsTexte as $section) {
+            $contenu = $contenusParSection->get($section->id)?->contenu ?? '';
+            if (trim(strip_tags((string) $contenu)) !== '') {
+                $remplisTotal++;
             }
-        } else {
-            // Champs fixes (projets sans type ou type sans sections)
-            $champsFixes = [
-                'titre_projet',
-                'introduction_amener',
-                'introduction_poser',
-                'introduction_diviser',
-            ];
-
-            $remplisTotal = collect($champsFixes)
-                ->filter(fn (string $f) => trim(strip_tags((string) ($this->$f ?? ''))) !== '')
-                ->count();
-
-            // Chaque paragraphe de développement contribue 2 champs (titre + contenu)
-            $developpements = $this->relationLoaded('developpements')
-                ? $this->developpements
-                : $this->developpements()->get();
-
-            $total = count($champsFixes) + $developpements->count() * 2;
-
-            $remplisTotal += $developpements->reduce(function (int $carry, ProjetDeveloppement $dev): int {
-                $carry += trim(strip_tags((string) ($dev->titre ?? ''))) !== '' ? 1 : 0;
-                $carry += trim(strip_tags((string) ($dev->contenu ?? ''))) !== '' ? 1 : 0;
-
-                return $carry;
-            }, 0);
         }
 
         if ($total === 0) {

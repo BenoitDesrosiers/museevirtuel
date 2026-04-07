@@ -19,13 +19,16 @@ use App\Models\ProjetGrilleNote;
 use App\Models\ProjetNote;
 use App\Models\ProjetRecherche;
 use App\Models\ProjetSectionContenu;
+use App\Models\ProjetSectionParagraphe;
 use App\Models\ProjetVoteRemise;
+use App\Models\TypeProjet;
 use App\Models\TypeProjetSection;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -35,13 +38,14 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ProjetRechercheController extends Controller
 {
-    /** Pattern regex validant les noms de champs annotables (introductions, développement_{id} ou section_{id}). */
-    private const CHAMP_ANNOTABLE_REGEX = '/^(introduction_amener|introduction_poser|introduction_diviser|developpement_\d+|section_\d+)$/';
+    /** Pattern regex validant les noms de champs annotables (développement_{id}, section_{id} ou section_paragraphe_{id}). */
+    private const CHAMP_ANNOTABLE_REGEX = '/^(developpement_\d+|section_\d+|section_paragraphe_\d+)$/';
 
     /**
-     * Affiche le projet de recherche du groupe avec l'avancement de chaque conclusion.
+     * Affiche toutes les cartes de projets disponibles pour ce groupe.
      *
-     * Utilise un eager load des conclusions pour éviter le N+1 (une requête par membre).
+     * Retourne un tableau de TypeProjets accessibles de l'enseignant de la classe,
+     * chacun accompagné du ProjetRecherche correspondant (ou null si non encore créé).
      *
      * @throws HttpException
      * @throws AuthorizationException
@@ -54,32 +58,53 @@ class ProjetRechercheController extends Controller
         $this->authorize('view', $groupe);
 
         $user = auth()->user();
+        $estEnseignant = $groupe->classe->enseignant_id === $user->id;
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)->first();
+        // Charger les TypeProjets de l'enseignant de la classe
+        $query = TypeProjet::where('enseignant_id', $groupe->classe->enseignant_id);
 
-        // Précharger les conclusions en une seule requête — évite le N+1 dans la boucle membres
-        if ($projet) {
-            $projet->load('conclusions');
+        // Les étudiants ne voient que les types rendus accessibles par l'enseignant
+        if (! $estEnseignant && $user->role !== 'admin') {
+            $query->where('accessible', true);
         }
-        $conclusionsParMembre = $projet ? $projet->conclusions->keyBy('user_id') : collect();
 
-        $conclusions = $groupe->membres->map(function (User $membre) use ($conclusionsParMembre): array {
-            $conclusion = $conclusionsParMembre->get($membre->id);
+        $typesProjets = $query->get();
+
+        // Précharger tous les projets de ce groupe en une seule requête — évite le N+1
+        $projetsParType = ProjetRecherche::where('groupe_id', $groupe->id)
+            ->whereIn('type_projet_id', $typesProjets->pluck('id'))
+            ->with('conclusions')
+            ->get()
+            ->keyBy('type_projet_id');
+
+        $projets = $typesProjets->map(function (TypeProjet $typeProjet) use ($groupe, $projetsParType): array {
+            $projet = $projetsParType->get($typeProjet->id);
+
+            $conclusionsParMembre = $projet ? $projet->conclusions->keyBy('user_id') : collect();
+
+            $conclusions = $groupe->membres->map(function (User $membre) use ($conclusionsParMembre): array {
+                $conclusion = $conclusionsParMembre->get($membre->id);
+
+                return [
+                    'etudiant' => $membre->only('id', 'prenom', 'nom'),
+                    'a_redige' => $conclusion !== null && trim(strip_tags((string) ($conclusion->contenu ?? ''))) !== '',
+                ];
+            });
 
             return [
-                'etudiant' => $membre->only('id', 'prenom', 'nom'),
-                'a_redige' => $conclusion !== null && trim(strip_tags((string) ($conclusion->contenu ?? ''))) !== '',
+                'typeProjet' => $typeProjet->only('id', 'nom', 'description'),
+                'projet' => $projet
+                    ? ['id' => $projet->id, 'titre_projet' => $projet->titre_projet, 'completion' => $projet->completion()]
+                    : null,
+                'conclusions' => $conclusions,
             ];
         });
 
         return Inertia::render('Projets/Index', [
             'groupe' => $groupe->only('id', 'nom', 'classe_id'),
             'classe' => $classe->only('id', 'nom_cours', 'code', 'groupe'),
-            'projet' => $projet
-                ? ['id' => $projet->id, 'titre_projet' => $projet->titre_projet, 'completion' => $projet->completion()]
-                : null,
-            'conclusions' => $conclusions,
-            'estEnseignant' => $groupe->classe->enseignant_id === $user->id,
+            'projets' => $projets,
+            'estEnseignant' => $estEnseignant,
         ]);
     }
 
@@ -93,9 +118,10 @@ class ProjetRechercheController extends Controller
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function show(Classe $classe, Groupe $groupe): Response
+    public function show(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): Response
     {
         abort_if($groupe->classe_id !== $classe->id, 404);
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
 
         $groupe->load(['membres', 'thematiques', 'classe.enseignant']);
         $this->authorize('view', $groupe);
@@ -103,17 +129,19 @@ class ProjetRechercheController extends Controller
         $user = auth()->user();
         $estEnseignant = $groupe->classe->enseignant_id === $user->id;
 
+        // Guard accessibilité : si le type de projet n'est pas accessible, les étudiants ne peuvent pas accéder
+        if (! $estEnseignant && $user->role !== 'admin') {
+            abort_if(! $typeProjet->accessible, 403, 'Ce type de projet n\'est pas encore accessible.');
+        }
+
         // Créer le projet partagé s'il n'existe pas encore (accès à l'éditeur implique volonté de créer)
-        $projet = ProjetRecherche::firstOrCreate(['groupe_id' => $groupe->id]);
+        $projet = ProjetRecherche::firstOrCreate([
+            'groupe_id' => $groupe->id,
+            'type_projet_id' => $typeProjet->id,
+        ]);
 
         // Précharger en une seule requête chacune des relations — évite le N+1
-        $projet->load(['conclusions', 'commentaires', 'annotations', 'developpements', 'votes', 'notes', 'notesGrille.critere', 'malusAppliques.malus', 'typeProjet.grille.criteres', 'typeProjet.grille.malus', 'typeProjet.sections', 'sectionContenus']);
-
-        // Guard accessibilité : si le type de projet n'est pas accessible, les étudiants ne peuvent pas accéder
-        if (! $estEnseignant && ! $user->isAdmin()) {
-            $typeProjet = $projet->typeProjet;
-            abort_if($typeProjet !== null && ! $typeProjet->accessible, 403, 'Ce type de projet n\'est pas encore accessible.');
-        }
+        $projet->load(['conclusions', 'commentaires', 'annotations', 'developpements', 'votes', 'notes', 'notesGrille.critere', 'malusAppliques.malus', 'typeProjet.grille.criteres', 'typeProjet.grille.malus', 'typeProjet.sections', 'sectionContenus', 'sectionParagraphes']);
 
         $conclusionsParMembre = $projet->conclusions->keyBy('user_id');
 
@@ -139,9 +167,6 @@ class ProjetRechercheController extends Controller
                 ! $projet->correction_visible,
                 fn ($coll) => $coll->where('type', 'commentaire')
             );
-
-        // Développements indexés par id pour accès O(1) lors du tri des annotations
-        $developpementsParId = $projet->developpements->keyBy('id');
 
         // Annotations inline indexées par champ, triées par la position persistée en base.
         $annotationsParChamp = $annotationsFiltrees
@@ -199,6 +224,7 @@ class ProjetRechercheController extends Controller
             'enseignant' => $groupe->classe->enseignant->only('id', 'prenom', 'nom'),
             'membres' => $groupe->membres->map->only('id', 'prenom', 'nom')->values(),
             'projet' => $projet,
+            'typeProjet' => $typeProjet->only('id', 'nom'),
             'developpements' => $projet->developpements->map->only('id', 'ordre', 'titre', 'contenu')->values(),
             'conclusions' => $conclusions,
             'peutEditer' => $peutAgir,
@@ -217,13 +243,11 @@ class ProjetRechercheController extends Controller
             ])->values(),
             'retardPermis' => (bool) $projet->retard_permis,
             'noteFinaleParEtudiant' => $noteFinaleParEtudiant,
-            // Grille personnalisée (rattachée à la classe, automatique)
             'grillePersonnalisee' => $grillePersonnalisee,
             'notesGrilleParEtudiant' => $notesGrilleParEtudiant,
             'malusParEtudiant' => $malusParEtudiant,
             'noteFinaleGrilleParEtudiant' => $noteFinaleGrilleParEtudiant,
-            // Sections dynamiques définies par le professeur (vide si aucun type ou type sans sections)
-            'sections' => $this->construireSections($projet),
+            'sections' => $this->construireSections($projet, $groupe->membres),
         ]);
     }
 
@@ -231,15 +255,15 @@ class ProjetRechercheController extends Controller
      * Affiche le projet en mode aperçu (lecture seule, sans annotations ni contrôles).
      *
      * Accessible aux membres du groupe et à l'enseignant de la classe.
-     * Charge uniquement les données nécessaires à l'affichage typographique :
-     * développements et conclusions individuelles avec le nom de leur auteur.
+     * Rend les sections dynamiques des 3 types (texte, paragraphes, individuel).
      *
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function apercu(Classe $classe, Groupe $groupe): Response
+    public function apercu(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): Response
     {
         abort_if($groupe->classe_id !== $classe->id, 404);
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
 
         $groupe->load(['membres', 'thematiques', 'classe']);
         $this->authorize('view', $groupe);
@@ -248,32 +272,36 @@ class ProjetRechercheController extends Controller
         $estEnseignant = $groupe->classe->enseignant_id === $user->id;
 
         $projet = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->with(['developpements', 'conclusions.etudiant'])
+            ->where('type_projet_id', $typeProjet->id)
+            ->with(['typeProjet.sections', 'sectionContenus', 'sectionParagraphes', 'conclusions'])
             ->first();
 
-        $conclusions = $projet
-            ? $projet->conclusions
-                ->filter(fn (ProjetConclusion $c) => trim(strip_tags((string) ($c->contenu ?? ''))) !== '')
-                ->map(fn (ProjetConclusion $c) => [
-                    'etudiant' => $c->etudiant->only('id', 'prenom', 'nom'),
-                    // Retirer les marques d'annotation — l'aperçu affiche le texte brut
-                    'contenu' => HtmlHelper::stripAnnotationMarks($c->contenu),
-                ])
-                ->values()
-            : collect();
-
-        if ($projet) {
-            $projet->load(['typeProjet.sections', 'sectionContenus']);
-        }
-
-        // Sections dynamiques avec leur contenu pour l'aperçu (annotations retirées)
         $sections = $projet
-            ? collect($this->construireSections($projet))->map(fn (array $s) => [
+            ? collect($this->construireSections($projet, $groupe->membres))->map(fn (array $s) => [
                 'id' => $s['id'],
                 'label' => $s['label'],
                 'description' => $s['description'],
                 'ordre' => $s['ordre'],
-                'contenu' => HtmlHelper::stripAnnotationMarks($s['contenu']),
+                'type' => $s['type'],
+                'contenu' => $s['type'] === 'texte'
+                    ? HtmlHelper::stripAnnotationMarks($s['contenu'])
+                    : null,
+                'paragraphes' => $s['type'] === 'paragraphes'
+                    ? collect($s['paragraphes'] ?? [])->map(fn (array $p) => [
+                        'id' => $p['id'],
+                        'ordre' => $p['ordre'],
+                        'titre' => $p['titre'],
+                        'contenu' => HtmlHelper::stripAnnotationMarks($p['contenu']),
+                    ])->values()->all()
+                    : null,
+                'conclusionsParMembre' => $s['type'] === 'individuel'
+                    ? collect($s['conclusionsParMembre'] ?? [])
+                        ->filter(fn (array $c) => trim(strip_tags((string) ($c['contenu'] ?? ''))) !== '')
+                        ->map(fn (array $c) => [
+                            'userId' => $c['userId'],
+                            'contenu' => HtmlHelper::stripAnnotationMarks($c['contenu']),
+                        ])->values()->all()
+                    : null,
             ])->values()
             : collect();
 
@@ -281,25 +309,11 @@ class ProjetRechercheController extends Controller
             'groupe' => $groupe->only('id', 'numero', 'classe_id'),
             'classe' => $classe->only('id', 'nom_cours', 'code', 'groupe'),
             'thematiques' => $groupe->thematiques->map->only('id', 'nom'),
+            'membres' => $groupe->membres->map->only('id', 'prenom', 'nom')->values(),
             'projet' => $projet
-                ? [
-                    'id' => $projet->id,
-                    'titre_projet' => $projet->titre_projet,
-                    'introduction_amener' => HtmlHelper::stripAnnotationMarks($projet->introduction_amener),
-                    'introduction_poser' => HtmlHelper::stripAnnotationMarks($projet->introduction_poser),
-                    'introduction_diviser' => HtmlHelper::stripAnnotationMarks($projet->introduction_diviser),
-                ]
+                ? ['id' => $projet->id, 'titre_projet' => $projet->titre_projet]
                 : null,
             'sections' => $sections,
-            'developpements' => $projet
-                ? $projet->developpements->map(fn ($dev) => [
-                    'id' => $dev->id,
-                    'ordre' => $dev->ordre,
-                    'titre' => $dev->titre,
-                    'contenu' => HtmlHelper::stripAnnotationMarks($dev->contenu),
-                ])->values()
-                : collect(),
-            'conclusions' => $conclusions,
             'estEnseignant' => $estEnseignant,
         ]);
     }
@@ -307,24 +321,26 @@ class ProjetRechercheController extends Controller
     /**
      * Sauvegarde le contenu HTML d'une section dynamique pour un projet.
      *
-     * Vérifie que la section appartient bien au type de projet du groupe (anti-IDOR).
-     * Tout membre du groupe peut modifier le contenu.
+     * Vérifie que la section appartient bien au TypeProjet du groupe (anti-IDOR).
      *
      * @throws HttpException
      */
-    public function updateSectionContenu(Request $request, Classe $classe, Groupe $groupe, TypeProjetSection $section): JsonResponse
+    public function updateSectionContenu(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): JsonResponse
     {
         abort_if($groupe->classe_id !== $classe->id, 404);
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $groupe->load('classe');
         $this->authorize('manageThematiques', $groupe);
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)->firstOrFail();
+        // Vérifier que la section appartient au TypeProjet passé en URL — évite l'IDOR
+        abort_if($section->type_projet_id !== $typeProjet->id, 404);
+
+        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->firstOrFail();
+
         abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
         abort_if(! $projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
-
-        // Vérifier que la section appartient au type de projet assigné — évite l'IDOR
-        $typeProjetId = $projet->type_projet_id;
-        abort_if($typeProjetId === null || $section->type_projet_id !== $typeProjetId, 404);
 
         $validated = $request->validate([
             'contenu' => ['nullable', 'string'],
@@ -335,7 +351,6 @@ class ProjetRechercheController extends Controller
             ['contenu' => $validated['contenu']],
         );
 
-        // Supprimer les annotations orphelines si le contenu a changé
         if ($validated['contenu'] !== null) {
             $this->supprimerAnnotationsOrphelines($projet, 'section_'.$section->id, $validated['contenu']);
         }
@@ -347,42 +362,33 @@ class ProjetRechercheController extends Controller
     }
 
     /**
-     * Met à jour le contenu partagé du projet (titre, sections d'introduction).
-     *
-     * Les paragraphes de développement sont gérés par leurs propres routes.
-     * Tout membre du groupe peut modifier ce contenu.
+     * Met à jour le titre du projet.
      *
      * @throws HttpException
      */
-    public function update(Request $request, Classe $classe, Groupe $groupe): JsonResponse
+    public function update(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
         abort_if($groupe->classe_id !== $classe->id, 404);
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
 
         $groupe->load('classe');
-        $this->authorize('manageThematiques', $groupe); // membre du groupe uniquement
+        $this->authorize('manageThematiques', $groupe);
 
         $validated = $request->validate([
             'titre_projet' => ['nullable', 'string', 'max:500'],
-            'introduction_amener' => ['nullable', 'string'],
-            'introduction_poser' => ['nullable', 'string'],
-            'introduction_diviser' => ['nullable', 'string'],
         ]);
 
-        $existant = ProjetRecherche::where('groupe_id', $groupe->id)->first();
+        $existant = ProjetRecherche::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->first();
+
         abort_if($existant?->verrouille, 403, 'Ce document est verrouillé.');
         abort_if($existant !== null && ! $existant->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
 
         $projet = ProjetRecherche::updateOrCreate(
-            ['groupe_id' => $groupe->id],
+            ['groupe_id' => $groupe->id, 'type_projet_id' => $typeProjet->id],
             $validated,
         );
-
-        // Pour chaque champ d'introduction mis à jour, supprimer les annotations dont la marque a disparu.
-        foreach (['introduction_amener', 'introduction_poser', 'introduction_diviser'] as $champ) {
-            if (array_key_exists($champ, $validated) && $validated[$champ] !== null) {
-                $this->supprimerAnnotationsOrphelines($projet, $champ, $validated[$champ]);
-            }
-        }
 
         return response()->json([
             'message' => 'saved',
@@ -395,11 +401,16 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function storeDeveloppement(Request $request, Classe $classe, Groupe $groupe): JsonResponse
+    public function storeDeveloppement(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserMembreGroupe($classe, $groupe);
 
-        $projet = ProjetRecherche::firstOrCreate(['groupe_id' => $groupe->id]);
+        $projet = ProjetRecherche::firstOrCreate([
+            'groupe_id' => $groupe->id,
+            'type_projet_id' => $typeProjet->id,
+        ]);
+
         abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
         abort_if(! $projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
 
@@ -424,11 +435,15 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function updateDeveloppement(Request $request, Classe $classe, Groupe $groupe, ProjetDeveloppement $developpement): JsonResponse
+    public function updateDeveloppement(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetDeveloppement $developpement): JsonResponse
     {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserMembreGroupe($classe, $groupe);
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)->firstOrFail();
+        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->firstOrFail();
+
         abort_if($developpement->projet_id !== $projet->id, 404);
         abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
         abort_if(! $projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
@@ -440,7 +455,6 @@ class ProjetRechercheController extends Controller
 
         $developpement->update($validated);
 
-        // Supprimer les annotations orphelines du paragraphe si le contenu HTML a changé.
         if (array_key_exists('contenu', $validated) && $validated['contenu'] !== null) {
             $this->supprimerAnnotationsOrphelines(
                 $projet,
@@ -462,11 +476,15 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function destroyDeveloppement(Classe $classe, Groupe $groupe, ProjetDeveloppement $developpement): JsonResponse
+    public function destroyDeveloppement(Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetDeveloppement $developpement): JsonResponse
     {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserMembreGroupe($classe, $groupe);
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)->firstOrFail();
+        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->firstOrFail();
+
         abort_if($developpement->projet_id !== $projet->id, 404);
         abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
         abort_if(! $projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
@@ -474,7 +492,6 @@ class ProjetRechercheController extends Controller
 
         $developpement->delete();
 
-        // Renuméroter les paragraphes restants pour éviter les trous
         $projet->developpements()->orderBy('ordre')->each(
             function (ProjetDeveloppement $dev, int $index): void {
                 $dev->update(['ordre' => $index + 1]);
@@ -492,11 +509,15 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function reorderDeveloppements(Request $request, Classe $classe, Groupe $groupe): JsonResponse
+    public function reorderDeveloppements(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserMembreGroupe($classe, $groupe);
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)->firstOrFail();
+        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->firstOrFail();
+
         abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
 
         $validated = $request->validate([
@@ -505,9 +526,153 @@ class ProjetRechercheController extends Controller
         ]);
 
         foreach ($validated['ordre'] as $index => $id) {
-            // Le filtre projet_id empêche de réordonner les paragraphes d'un autre projet
             ProjetDeveloppement::where('id', $id)
                 ->where('projet_id', $projet->id)
+                ->update(['ordre' => $index + 1]);
+        }
+
+        return response()->json(['message' => 'reordered']);
+    }
+
+    /**
+     * Ajoute un nouveau paragraphe à la fin d'une section de type 'paragraphes'.
+     *
+     * @throws HttpException
+     */
+    public function storeSectionParagraphe(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): JsonResponse
+    {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
+        $this->autoriserMembreGroupe($classe, $groupe);
+        abort_if($section->type_projet_id !== $typeProjet->id, 404);
+
+        $projet = ProjetRecherche::firstOrCreate([
+            'groupe_id' => $groupe->id,
+            'type_projet_id' => $typeProjet->id,
+        ]);
+
+        abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
+        abort_if(! $projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
+
+        $ordre = (ProjetSectionParagraphe::where('projet_id', $projet->id)
+            ->where('section_id', $section->id)
+            ->max('ordre') ?? 0) + 1;
+
+        $paragraphe = ProjetSectionParagraphe::create([
+            'projet_id' => $projet->id,
+            'section_id' => $section->id,
+            'ordre' => $ordre,
+            'titre' => null,
+            'contenu' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'created',
+            'paragraphe' => $paragraphe->only('id', 'ordre', 'titre', 'contenu'),
+        ], 201);
+    }
+
+    /**
+     * Met à jour le titre et/ou le contenu d'un paragraphe de section.
+     *
+     * @throws HttpException
+     */
+    public function updateSectionParagraphe(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, ProjetSectionParagraphe $paragraphe): JsonResponse
+    {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
+        $this->autoriserMembreGroupe($classe, $groupe);
+        abort_if($section->type_projet_id !== $typeProjet->id, 404);
+
+        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->firstOrFail();
+
+        abort_if($paragraphe->projet_id !== $projet->id || $paragraphe->section_id !== $section->id, 404);
+        abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
+        abort_if(! $projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
+
+        $validated = $request->validate([
+            'titre' => ['nullable', 'string', 'max:500'],
+            'contenu' => ['nullable', 'string'],
+        ]);
+
+        $paragraphe->update($validated);
+
+        if (array_key_exists('contenu', $validated) && $validated['contenu'] !== null) {
+            $this->supprimerAnnotationsOrphelines(
+                $projet,
+                'section_paragraphe_'.$paragraphe->id,
+                $validated['contenu']
+            );
+        }
+
+        return response()->json(['message' => 'saved']);
+    }
+
+    /**
+     * Supprime un paragraphe de section et réordonne les suivants.
+     *
+     * Refuse la suppression si c'est le dernier paragraphe (minimum : 1).
+     *
+     * @throws HttpException
+     */
+    public function destroySectionParagraphe(Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, ProjetSectionParagraphe $paragraphe): JsonResponse
+    {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
+        $this->autoriserMembreGroupe($classe, $groupe);
+        abort_if($section->type_projet_id !== $typeProjet->id, 404);
+
+        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->firstOrFail();
+
+        abort_if($paragraphe->projet_id !== $projet->id || $paragraphe->section_id !== $section->id, 404);
+        abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
+        abort_if(! $projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
+
+        $count = ProjetSectionParagraphe::where('projet_id', $projet->id)
+            ->where('section_id', $section->id)
+            ->count();
+
+        abort_if($count <= 1, 422, 'La section doit conserver au moins un paragraphe.');
+
+        $paragraphe->delete();
+
+        ProjetSectionParagraphe::where('projet_id', $projet->id)
+            ->where('section_id', $section->id)
+            ->orderBy('ordre')
+            ->each(function (ProjetSectionParagraphe $p, int $index): void {
+                $p->update(['ordre' => $index + 1]);
+            });
+
+        return response()->json(['message' => 'deleted']);
+    }
+
+    /**
+     * Met à jour l'ordre de tous les paragraphes d'une section de type 'paragraphes'.
+     *
+     * @throws HttpException
+     */
+    public function reorderSectionParagraphes(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): JsonResponse
+    {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
+        $this->autoriserMembreGroupe($classe, $groupe);
+        abort_if($section->type_projet_id !== $typeProjet->id, 404);
+
+        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->firstOrFail();
+
+        abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
+
+        $validated = $request->validate([
+            'ordre' => ['required', 'array'],
+            'ordre.*' => ['required', 'integer', 'exists:projet_section_paragraphes,id'],
+        ]);
+
+        foreach ($validated['ordre'] as $index => $id) {
+            ProjetSectionParagraphe::where('id', $id)
+                ->where('projet_id', $projet->id)
+                ->where('section_id', $section->id)
                 ->update(['ordre' => $index + 1]);
         }
 
@@ -522,30 +687,40 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function updateConclusion(Request $request, Classe $classe, Groupe $groupe): JsonResponse
+    public function updateConclusion(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
         abort_if($groupe->classe_id !== $classe->id, 404);
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
 
         $groupe->load(['classe', 'membres']);
-        $this->authorize('manageThematiques', $groupe); // membre du groupe uniquement
+        $this->authorize('manageThematiques', $groupe);
 
         $validated = $request->validate([
             'contenu' => ['nullable', 'string'],
             'user_id' => ['required', 'integer', 'exists:users,id'],
+            'section_id' => ['nullable', 'integer', Rule::exists('type_projet_sections', 'id')->where('type_projet_id', $typeProjet->id)],
         ]);
 
-        // Empêche de modifier la conclusion d'un étudiant hors du groupe (IDOR)
         abort_unless(
             $groupe->membres->contains('id', $validated['user_id']),
             422,
             'Cet étudiant n\'est pas membre du groupe.',
         );
 
-        $projet = ProjetRecherche::firstOrCreate(['groupe_id' => $groupe->id]);
+        $projet = ProjetRecherche::firstOrCreate([
+            'groupe_id' => $groupe->id,
+            'type_projet_id' => $typeProjet->id,
+        ]);
+
         abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
 
+        $clé = ['projet_id' => $projet->id, 'user_id' => $validated['user_id']];
+        if (isset($validated['section_id'])) {
+            $clé['section_id'] = $validated['section_id'];
+        }
+
         ProjetConclusion::updateOrCreate(
-            ['projet_id' => $projet->id, 'user_id' => $validated['user_id']],
+            $clé,
             ['contenu' => $validated['contenu']],
         );
 
@@ -555,15 +730,17 @@ class ProjetRechercheController extends Controller
     /**
      * Crée ou met à jour le commentaire de l'enseignant pour un champ donné.
      *
-     * Seul l'enseignant de la classe peut commenter.
-     *
      * @throws HttpException
      */
-    public function upsertCommentaire(UpsertProjetCommentaireRequest $request, Classe $classe, Groupe $groupe): JsonResponse
+    public function upsertCommentaire(UpsertProjetCommentaireRequest $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserEnseignant($classe, $groupe);
 
-        $projet = ProjetRecherche::firstOrCreate(['groupe_id' => $groupe->id]);
+        $projet = ProjetRecherche::firstOrCreate([
+            'groupe_id' => $groupe->id,
+            'type_projet_id' => $typeProjet->id,
+        ]);
 
         $commentaire = ProjetCommentaire::updateOrCreate(
             ['projet_id' => $projet->id, 'champ' => $request->validated('champ')],
@@ -582,14 +759,16 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function destroyCommentaire(Classe $classe, Groupe $groupe, ProjetCommentaire $commentaire): JsonResponse
+    public function destroyCommentaire(Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetCommentaire $commentaire): JsonResponse
     {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserEnseignant($classe, $groupe);
 
-        // Vérifier que le commentaire appartient bien au projet de ce groupe — évite l'IDOR
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)->firstOrFail();
-        abort_if($commentaire->projet_id !== $projet->id, 404);
+        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->firstOrFail();
 
+        abort_if($commentaire->projet_id !== $projet->id, 404);
         $commentaire->delete();
 
         return response()->json(['message' => 'deleted']);
@@ -598,15 +777,13 @@ class ProjetRechercheController extends Controller
     /**
      * Crée ou met à jour la note d'un critère de la grille de correction.
      *
-     * Seul l'enseignant de la classe peut noter.
-     *
      * @throws HttpException
      */
-    public function upsertNote(UpsertProjetNoteRequest $request, Classe $classe, Groupe $groupe): JsonResponse
+    public function upsertNote(UpsertProjetNoteRequest $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserEnseignant($classe, $groupe);
 
-        // S'assurer que l'étudiant noté est bien membre de ce groupe — évite de noter un élève d'un autre groupe
         $groupe->loadMissing('membres');
         abort_unless(
             $groupe->membres->contains('id', $request->validated('user_id')),
@@ -614,7 +791,10 @@ class ProjetRechercheController extends Controller
             'Cet étudiant n\'est pas membre de ce groupe.',
         );
 
-        $projet = ProjetRecherche::firstOrCreate(['groupe_id' => $groupe->id]);
+        $projet = ProjetRecherche::firstOrCreate([
+            'groupe_id' => $groupe->id,
+            'type_projet_id' => $typeProjet->id,
+        ]);
 
         ProjetNote::updateOrCreate(
             [
@@ -625,30 +805,25 @@ class ProjetRechercheController extends Controller
             ['note' => $request->validated('note')],
         );
 
-        // Recharger les notes pour recalculer par étudiant
         $projet->load('notes');
         $groupe->load('membres');
 
-        $noteFinaleParEtudiant = $groupe->membres->mapWithKeys(
-            fn (User $membre) => [$membre->id => ProjetNote::noteFinale($projet, $membre)]
-        );
-
         return response()->json([
             'message' => 'saved',
-            'noteFinaleParEtudiant' => $noteFinaleParEtudiant,
+            'noteFinaleParEtudiant' => $groupe->membres->mapWithKeys(
+                fn (User $membre) => [$membre->id => ProjetNote::noteFinale($projet, $membre)]
+            ),
         ]);
     }
 
     /**
      * Crée ou met à jour une annotation inline sur un champ du projet.
      *
-     * Met à jour simultanément le HTML du champ (avec la marque CommentMark)
-     * et persiste le texte de l'annotation via un upsert sur le commentaire_id.
-     *
      * @throws HttpException si l'utilisateur n'est pas l'enseignant de la classe
      */
-    public function upsertAnnotation(Request $request, Classe $classe, Groupe $groupe): JsonResponse
+    public function upsertAnnotation(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserEnseignant($classe, $groupe);
 
         $validated = $request->validate([
@@ -659,20 +834,18 @@ class ProjetRechercheController extends Controller
             'type' => ['sometimes', 'string', 'in:commentaire,correction'],
         ]);
 
-        $projet = ProjetRecherche::firstOrCreate(['groupe_id' => $groupe->id]);
+        $projet = ProjetRecherche::firstOrCreate([
+            'groupe_id' => $groupe->id,
+            'type_projet_id' => $typeProjet->id,
+        ]);
 
-        // Mettre à jour le HTML du champ correspondant (projet ou paragraphe de développement)
         $this->mettreAJourChampHtml($projet, $validated['champ'], $validated['html']);
-
-        // Supprimer les annotations dont la marque a disparu du HTML (nettoyage des orphelines)
         $this->supprimerAnnotationsOrphelines($projet, $validated['champ'], $validated['html']);
 
-        // Calculer la position séquentielle de cette marque dans le HTML du champ
         preg_match_all('/data-comment-id="([^"]+)"/', $validated['html'], $allIds);
         $positionIndex = array_search($validated['commentaire_id'], $allIds[1], true);
         $position = $positionIndex !== false ? (int) $positionIndex : null;
 
-        // Extraire le texte surligné par la marque (strip_tags pour ignorer le HTML interne)
         preg_match(
             '/<mark[^>]*data-comment-id="'.preg_quote($validated['commentaire_id'], '/').'[^>]*"[^>]*>(.*?)<\/mark>/si',
             $validated['html'],
@@ -680,7 +853,6 @@ class ProjetRechercheController extends Controller
         );
         $motAnnote = isset($markMatch[1]) ? strip_tags($markMatch[1]) : null;
 
-        // Upsert de l'annotation par commentaire_id (clé naturelle de la marque TipTap)
         $annotation = ProjetAnnotation::updateOrCreate(
             ['projet_id' => $projet->id, 'commentaire_id' => $validated['commentaire_id']],
             [
@@ -706,13 +878,17 @@ class ProjetRechercheController extends Controller
     /**
      * Supprime une annotation inline et met à jour le HTML du champ pour retirer la marque.
      *
-     * @throws HttpException si l'utilisateur n'est pas l'enseignant ou si l'annotation ne correspond pas
+     * @throws HttpException
      */
-    public function destroyAnnotation(Request $request, Classe $classe, Groupe $groupe, ProjetAnnotation $annotation): JsonResponse
+    public function destroyAnnotation(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetAnnotation $annotation): JsonResponse
     {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserEnseignant($classe, $groupe);
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)->firstOrFail();
+        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->firstOrFail();
+
         abort_if($annotation->projet_id !== $projet->id, 404);
 
         $validated = $request->validate([
@@ -720,14 +896,7 @@ class ProjetRechercheController extends Controller
             'html' => ['required', 'string'],
         ]);
 
-        // Mettre à jour le HTML sans la marque supprimée
         $this->mettreAJourChampHtml($projet, $validated['champ'], $validated['html']);
-
-        // On supprime uniquement l'annotation ciblée — pas de nettoyage en cascade ici.
-        // supprimerAnnotationsOrphelines est dangereux dans ce contexte : si le HTML envoyé
-        // ne contient pas toutes les marques attendues (ex. après reconnexion), il supprimerait
-        // les autres annotations par erreur. Ce nettoyage est déjà assuré dans upsertAnnotation,
-        // update et updateDeveloppement lors des sauvegardes normales.
         $annotation->delete();
 
         return response()->json(['message' => 'deleted']);
@@ -736,19 +905,20 @@ class ProjetRechercheController extends Controller
     /**
      * Enregistre la remise du travail par l'équipe d'étudiants.
      *
-     * Refuse si le document est verrouillé ou si une remise existe déjà
-     * sans que les remises multiples soient activées.
-     *
      * @throws HttpException
      */
-    public function remettreTravail(Classe $classe, Groupe $groupe): JsonResponse
+    public function remettreTravail(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
         abort_if($groupe->classe_id !== $classe->id, 404);
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
 
         $groupe->loadMissing('classe', 'membres');
         abort_unless($groupe->membres->contains('id', auth()->id()), 403);
 
-        $projet = ProjetRecherche::firstOrCreate(['groupe_id' => $groupe->id]);
+        $projet = ProjetRecherche::firstOrCreate([
+            'groupe_id' => $groupe->id,
+            'type_projet_id' => $typeProjet->id,
+        ]);
 
         abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
         abort_unless($projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis et les remises multiples ne sont pas autorisées.');
@@ -762,13 +932,13 @@ class ProjetRechercheController extends Controller
     }
 
     /**
-     * Met à jour les paramètres de remise configurés par l'enseignant
-     * (date limite, remises multiples).
+     * Met à jour les paramètres de remise configurés par l'enseignant.
      *
      * @throws HttpException
      */
-    public function updateParametresRemise(Request $request, Classe $classe, Groupe $groupe): JsonResponse
+    public function updateParametresRemise(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserEnseignant($classe, $groupe);
 
         $validated = $request->validate([
@@ -777,7 +947,11 @@ class ProjetRechercheController extends Controller
             'retard_permis' => ['boolean'],
         ]);
 
-        $projet = ProjetRecherche::firstOrCreate(['groupe_id' => $groupe->id]);
+        $projet = ProjetRecherche::firstOrCreate([
+            'groupe_id' => $groupe->id,
+            'type_projet_id' => $typeProjet->id,
+        ]);
+
         $projet->update($validated);
 
         return response()->json([
@@ -791,16 +965,16 @@ class ProjetRechercheController extends Controller
     /**
      * Annule la remise du travail (enseignant seulement).
      *
-     * Réinitialise `remis_le` à null et supprime tous les votes de remise existants
-     * pour permettre un nouveau cycle de vote.
-     *
      * @throws HttpException
      */
-    public function annulerRemise(Classe $classe, Groupe $groupe): JsonResponse
+    public function annulerRemise(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserEnseignant($classe, $groupe);
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)->firstOrFail();
+        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->firstOrFail();
 
         DB::transaction(function () use ($projet): void {
             $projet->votes()->delete();
@@ -813,32 +987,33 @@ class ProjetRechercheController extends Controller
     /**
      * Enregistre ou met à jour le vote de remise d'un étudiant membre du groupe.
      *
-     * Si tous les membres du groupe ont voté `true`, la remise est enregistrée
-     * automatiquement de façon atomique (transaction) pour éviter les race conditions.
+     * Si tous les membres ont voté true, la remise est enregistrée de façon atomique.
      *
      * @throws HttpException
      */
-    public function voterRemise(Request $request, Classe $classe, Groupe $groupe): JsonResponse
+    public function voterRemise(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
         abort_if($groupe->classe_id !== $classe->id, 404);
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
 
         $groupe->loadMissing('membres');
         abort_unless($groupe->membres->contains('id', auth()->id()), 403);
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)->firstOrFail();
+        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->firstOrFail();
+
         abort_unless($projet->peutEtreRemis(), 422, 'La remise n\'est plus possible.');
 
         $validated = $request->validate([
             'vote' => ['required', 'boolean'],
         ]);
 
-        // Upsert atomique pour éviter les doublons (contrainte unique en base)
         ProjetVoteRemise::updateOrCreate(
             ['projet_id' => $projet->id, 'user_id' => auth()->id()],
             ['vote' => $validated['vote']],
         );
 
-        // Déclencher la soumission si tous les membres ont voté true
         $votes = $projet->votes()->get();
         $nbMembres = $groupe->membres->count();
 
@@ -847,7 +1022,6 @@ class ProjetRechercheController extends Controller
 
         if ($tousOntVote) {
             DB::transaction(function () use ($projet): void {
-                // Vérifier une dernière fois dans la transaction (évite la race condition)
                 $projet->refresh();
 
                 if ($projet->remis_le === null || $projet->remises_multiples) {
@@ -867,11 +1041,16 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function toggleCorrectionVisible(Classe $classe, Groupe $groupe): JsonResponse
+    public function toggleCorrectionVisible(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserEnseignant($classe, $groupe);
 
-        $projet = ProjetRecherche::firstOrCreate(['groupe_id' => $groupe->id]);
+        $projet = ProjetRecherche::firstOrCreate([
+            'groupe_id' => $groupe->id,
+            'type_projet_id' => $typeProjet->id,
+        ]);
+
         $projet->update(['correction_visible' => ! $projet->correction_visible]);
 
         return response()->json([
@@ -885,11 +1064,16 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function toggleVerrouille(Classe $classe, Groupe $groupe): JsonResponse
+    public function toggleVerrouille(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserEnseignant($classe, $groupe);
 
-        $projet = ProjetRecherche::firstOrCreate(['groupe_id' => $groupe->id]);
+        $projet = ProjetRecherche::firstOrCreate([
+            'groupe_id' => $groupe->id,
+            'type_projet_id' => $typeProjet->id,
+        ]);
+
         $projet->update(['verrouille' => ! $projet->verrouille]);
 
         return response()->json([
@@ -901,13 +1085,11 @@ class ProjetRechercheController extends Controller
     /**
      * Crée ou met à jour la note d'un étudiant pour un critère de la grille personnalisée.
      *
-     * Seul l'enseignant de la classe peut noter.
-     * Le critère doit appartenir à la grille assignée au projet.
-     *
      * @throws HttpException
      */
-    public function upsertNoteGrille(Request $request, Classe $classe, Groupe $groupe): JsonResponse
+    public function upsertNoteGrille(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserEnseignant($classe, $groupe);
 
         $validated = $request->validate([
@@ -916,7 +1098,7 @@ class ProjetRechercheController extends Controller
             'user_id' => ['required', 'integer', 'exists:users,id'],
         ]);
 
-        [$grille, $projet] = $this->chargerContexteGrille($classe, $groupe, $validated['user_id']);
+        [$grille, $projet] = $this->chargerContexteGrille($classe, $groupe, $typeProjet, $validated['user_id']);
 
         $request->validate([
             'critere_id' => [Rule::exists('grille_criteres', 'id')->where('grille_id', $grille->id)],
@@ -937,13 +1119,11 @@ class ProjetRechercheController extends Controller
     /**
      * Applique ou retire un malus sur un étudiant pour la grille personnalisée du projet.
      *
-     * Seul l'enseignant de la classe peut modifier les malus.
-     * Le malus doit appartenir à la grille assignée au projet.
-     *
      * @throws HttpException
      */
-    public function toggleMalusGrille(Request $request, Classe $classe, Groupe $groupe): JsonResponse
+    public function toggleMalusGrille(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
         $this->autoriserEnseignant($classe, $groupe);
 
         $validated = $request->validate([
@@ -952,7 +1132,7 @@ class ProjetRechercheController extends Controller
             'applique' => ['required', 'boolean'],
         ]);
 
-        [$grille, $projet] = $this->chargerContexteGrille($classe, $groupe, $validated['user_id']);
+        [$grille, $projet] = $this->chargerContexteGrille($classe, $groupe, $typeProjet, $validated['user_id']);
 
         $request->validate([
             'malus_id' => [Rule::exists('grille_malus', 'id')->where('grille_id', $grille->id)],
@@ -971,21 +1151,125 @@ class ProjetRechercheController extends Controller
     }
 
     /**
+     * Génère et retourne le projet en PDF.
+     *
+     * @throws HttpException
+     * @throws AuthorizationException
+     */
+    public function exportPdf(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): HttpResponse
+    {
+        abort_if($groupe->classe_id !== $classe->id, 404);
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
+
+        $groupe->load(['membres', 'thematiques', 'classe.enseignant']);
+        $this->authorize('view', $groupe);
+
+        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->firstOrFail();
+
+        $projet->load(['conclusions.etudiant', 'developpements']);
+
+        return (new ExportProjetPdf)->execute($projet, $groupe);
+    }
+
+    /**
+     * Génère et retourne le projet en Word (.docx).
+     *
+     * @throws HttpException
+     * @throws AuthorizationException
+     */
+    public function exportWord(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): StreamedResponse
+    {
+        abort_if($groupe->classe_id !== $classe->id, 404);
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
+
+        $groupe->load(['membres', 'thematiques', 'classe.enseignant']);
+        $this->authorize('view', $groupe);
+
+        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->firstOrFail();
+
+        $projet->load(['conclusions.etudiant', 'developpements']);
+
+        return (new ExportProjetWord)->execute($projet, $groupe);
+    }
+
+    /**
+     * Exporte les notes finales des membres du groupe en XML.
+     *
+     * @throws HttpException
+     * @throws AuthorizationException
+     */
+    public function exportXmlNotes(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): HttpResponse
+    {
+        abort_if($groupe->classe_id !== $classe->id, 404);
+        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
+
+        $groupe->load(['membres', 'classe']);
+        $this->authorize('view', $groupe);
+
+        $user = auth()->user();
+        abort_unless(
+            $user->role === 'admin' || $groupe->classe->enseignant_id === $user->id,
+            403,
+        );
+
+        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->firstOrFail();
+
+        $projet->load('notes');
+
+        $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><notes/>');
+
+        foreach ($groupe->membres as $membre) {
+            $note = ProjetNote::noteFinale($projet, $membre);
+            $etudiantNode = $xml->addChild('etudiant');
+            $etudiantNode->addChild('no_da', preg_replace('/\D/', '', (string) $membre->no_da));
+            $etudiantNode->addChild('note', $note !== null ? (string) $note : '');
+        }
+
+        $nomFichier = sprintf('notes_groupe_%d.xml', $groupe->numero);
+
+        return response($xml->asXML(), 200, [
+            'Content-Type' => 'application/xml; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$nomFichier}\"",
+        ]);
+    }
+
+    // ─── Méthodes privées ─────────────────────────────────────────────────────
+
+    /**
+     * Vérifie que le TypeProjet appartient à l'enseignant de la classe.
+     *
+     * Empêche l'accès à un TypeProjet d'un autre enseignant via manipulation d'URL (IDOR).
+     *
+     * @throws HttpException
+     */
+    private function verifierTypeProjetAppartientClasse(TypeProjet $typeProjet, Classe $classe): void
+    {
+        abort_if($typeProjet->enseignant_id !== $classe->enseignant_id, 404);
+    }
+
+    /**
      * Charge la grille du type de projet et valide que l'utilisateur est bien membre du groupe.
-     * Setup commun aux actions de notation grille (enseignant uniquement).
      *
      * @return array{0: GrilleCorrection, 1: ProjetRecherche}
      *
      * @throws HttpException
      */
-    private function chargerContexteGrille(Classe $classe, Groupe $groupe, int $userId): array
+    private function chargerContexteGrille(Classe $classe, Groupe $groupe, TypeProjet $typeProjet, int $userId): array
     {
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)->firstOrFail();
+        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->firstOrFail();
+
         $projet->load('typeProjet.grille');
         $grille = $projet->typeProjet?->grille;
         abort_if($grille === null, 422, 'Aucune grille personnalisée n\'est définie pour ce type de projet.');
 
-        // Vérifier que l'étudiant est bien membre du groupe — évite l'IDOR
         $groupe->loadMissing('membres');
         abort_unless(
             $groupe->membres->contains('id', $userId),
@@ -998,7 +1282,7 @@ class ProjetRechercheController extends Controller
 
     /**
      * Recharge les notes et malus d'un projet et retourne la réponse JSON standard
-     * pour les endpoints de notation grille (upsertNoteGrille et toggleMalusGrille).
+     * pour les endpoints de notation grille.
      */
     private function reponseGrilleNotesFinales(ProjetRecherche $projet, Groupe $groupe): JsonResponse
     {
@@ -1015,11 +1299,15 @@ class ProjetRechercheController extends Controller
     /**
      * Construit le tableau des sections dynamiques avec leur contenu courant.
      *
-     * Retourne un tableau vide si le projet n'a pas de type ou si le type n'a pas de sections.
+     * Selon le type de section :
+     * - 'texte'       → champ `contenu` (ProjetSectionContenu)
+     * - 'paragraphes' → champ `paragraphes` (liste ProjetSectionParagraphe triée par ordre)
+     * - 'individuel'  → champ `conclusionsParMembre` (1 entrée par membre du groupe)
      *
-     * @return array<int, array{id: int, label: string, description: string|null, ordre: int, contenu: string|null}>
+     * @param  Collection|null  $membres  membres du groupe (requis pour le type 'individuel')
+     * @return array<int, array{id: int, label: string, description: string|null, ordre: int, type: string, contenu: string|null, paragraphes: array|null, conclusionsParMembre: array|null}>
      */
-    private function construireSections(ProjetRecherche $projet): array
+    private function construireSections(ProjetRecherche $projet, ?Collection $membres = null): array
     {
         $sections = $projet->typeProjet?->sections ?? collect();
 
@@ -1029,19 +1317,39 @@ class ProjetRechercheController extends Controller
 
         $contenusParSection = $projet->sectionContenus->keyBy('section_id');
 
+        $paragraphesParSection = $projet->relationLoaded('sectionParagraphes')
+            ? $projet->sectionParagraphes->groupBy('section_id')
+            : collect();
+
+        // Conclusions scoped à une section (section_id non null)
+        $conclusionsParSectionEtUser = $projet->conclusions
+            ->filter(fn (ProjetConclusion $c) => $c->section_id !== null)
+            ->groupBy('section_id')
+            ->map(fn ($conc) => $conc->keyBy('user_id'));
+
         return $sections->map(fn (TypeProjetSection $s) => [
             'id' => $s->id,
             'label' => $s->label,
             'description' => $s->description,
             'ordre' => $s->ordre,
-            'contenu' => $contenusParSection->get($s->id)?->contenu,
+            'type' => $s->type ?? 'texte',
+            'contenu' => $s->type !== 'paragraphes' && $s->type !== 'individuel'
+                ? $contenusParSection->get($s->id)?->contenu
+                : null,
+            'paragraphes' => $s->type === 'paragraphes'
+                ? ($paragraphesParSection->get($s->id)?->map->only('id', 'ordre', 'titre', 'contenu')->values()->all() ?? [])
+                : null,
+            'conclusionsParMembre' => $s->type === 'individuel' && $membres !== null
+                ? $membres->map(fn (User $m) => [
+                    'userId' => $m->id,
+                    'contenu' => $conclusionsParSectionEtUser->get($s->id)?->get($m->id)?->contenu,
+                ])->values()->all()
+                : null,
         ])->values()->all();
     }
 
     /**
      * Vérifie que le groupe appartient à la classe et autorise l'action manageThematiques.
-     *
-     * Factorise les 3 lignes de guard communes aux 4 méthodes *Developpement.
      *
      * @throws HttpException
      */
@@ -1067,9 +1375,6 @@ class ProjetRechercheController extends Controller
 
     /**
      * Supprime les annotations d'un champ dont la marque n'est plus présente dans le HTML.
-     *
-     * Appelée après chaque mise à jour du HTML d'un champ pour garantir la cohérence
-     * entre le contenu de l'éditeur et les enregistrements en base de données.
      */
     private function supprimerAnnotationsOrphelines(ProjetRecherche $projet, string $champ, string $html): void
     {
@@ -1081,7 +1386,7 @@ class ProjetRechercheController extends Controller
             ->when(
                 ! empty($idsPresents),
                 fn ($q) => $q->whereNotIn('commentaire_id', $idsPresents),
-                fn ($q) => $q, // Si le champ n'a plus aucune marque, supprimer toutes les annotations
+                fn ($q) => $q,
             )
             ->delete();
     }
@@ -1089,9 +1394,8 @@ class ProjetRechercheController extends Controller
     /**
      * Met à jour le contenu HTML d'un champ annotable.
      *
-     * - "developpement_{id}" → met à jour le contenu du paragraphe correspondant
-     * - "section_{id}" → met à jour le contenu de la section dynamique
-     * - autre → met à jour la colonne directe sur le projet (introduction_*)
+     * Supporte les préfixes : `developpement_`, `section_paragraphe_`, `section_`.
+     * Tout autre préfixe est rejeté par le CHAMP_ANNOTABLE_REGEX en amont.
      *
      * @throws HttpException si la ressource n'appartient pas au projet
      */
@@ -1103,101 +1407,18 @@ class ProjetRechercheController extends Controller
                 ->where('projet_id', $projet->id)
                 ->firstOrFail();
             $dev->update(['contenu' => $html]);
+        } elseif (str_starts_with($champ, 'section_paragraphe_')) {
+            $paragId = (int) mb_substr($champ, mb_strlen('section_paragraphe_'));
+            $paragraphe = ProjetSectionParagraphe::where('id', $paragId)
+                ->where('projet_id', $projet->id)
+                ->firstOrFail();
+            $paragraphe->update(['contenu' => $html]);
         } elseif (str_starts_with($champ, 'section_')) {
             $sectionId = (int) mb_substr($champ, mb_strlen('section_'));
             ProjetSectionContenu::updateOrCreate(
                 ['projet_id' => $projet->id, 'section_id' => $sectionId],
                 ['contenu' => $html],
             );
-        } else {
-            $projet->update([$champ => $html]);
         }
-    }
-
-    /**
-     * Génère et retourne le projet de groupe en PDF.
-     *
-     * Retourne 404 si aucun projet n'a encore été créé (ne crée pas de projet vide).
-     *
-     * @throws HttpException
-     * @throws AuthorizationException
-     */
-    public function exportPdf(Classe $classe, Groupe $groupe): HttpResponse
-    {
-        abort_if($groupe->classe_id !== $classe->id, 404);
-
-        $groupe->load(['membres', 'thematiques', 'classe.enseignant']);
-        $this->authorize('view', $groupe);
-
-        // firstOrFail : un export sur un projet inexistant doit retourner 404, pas créer un projet vide
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)->firstOrFail();
-        $projet->load(['conclusions.etudiant', 'developpements']);
-
-        return (new ExportProjetPdf)->execute($projet, $groupe);
-    }
-
-    /**
-     * Génère et retourne le projet de groupe en Word (.docx).
-     *
-     * Retourne 404 si aucun projet n'a encore été créé (ne crée pas de projet vide).
-     *
-     * @throws HttpException
-     * @throws AuthorizationException
-     */
-    public function exportWord(Classe $classe, Groupe $groupe): StreamedResponse
-    {
-        abort_if($groupe->classe_id !== $classe->id, 404);
-
-        $groupe->load(['membres', 'thematiques', 'classe.enseignant']);
-        $this->authorize('view', $groupe);
-
-        // firstOrFail : un export sur un projet inexistant doit retourner 404, pas créer un projet vide
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)->firstOrFail();
-        $projet->load(['conclusions.etudiant', 'developpements']);
-
-        return (new ExportProjetWord)->execute($projet, $groupe);
-    }
-
-    /**
-     * Exporte les notes finales des membres du groupe en XML.
-     *
-     * Structure : <notes><etudiant><no_da>…</no_da><note>82.5</note></etudiant></notes>
-     * Réservé à l'enseignant de la classe et aux admins.
-     *
-     * @throws HttpException
-     * @throws AuthorizationException
-     */
-    public function exportXmlNotes(Classe $classe, Groupe $groupe): HttpResponse
-    {
-        abort_if($groupe->classe_id !== $classe->id, 404);
-
-        $groupe->load(['membres', 'classe']);
-        $this->authorize('view', $groupe);
-
-        // Seul l'enseignant de la classe ou un admin peut exporter les notes
-        $user = auth()->user();
-        abort_unless(
-            $user->role === 'admin' || $groupe->classe->enseignant_id === $user->id,
-            403,
-        );
-
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)->firstOrFail();
-        $projet->load('notes');
-
-        $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><notes/>');
-
-        foreach ($groupe->membres as $membre) {
-            $note = ProjetNote::noteFinale($projet, $membre);
-            $etudiantNode = $xml->addChild('etudiant');
-            $etudiantNode->addChild('no_da', preg_replace('/\D/', '', (string) $membre->no_da));
-            $etudiantNode->addChild('note', $note !== null ? (string) $note : '');
-        }
-
-        $nomFichier = sprintf('notes_groupe_%d.xml', $groupe->numero);
-
-        return response($xml->asXML(), 200, [
-            'Content-Type' => 'application/xml; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$nomFichier}\"",
-        ]);
     }
 }
