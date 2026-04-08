@@ -9,7 +9,10 @@ use App\Http\Controllers\EnseignantController;
 use App\Http\Controllers\EtudiantController;
 use App\Http\Controllers\GrilleCorrectionController;
 use App\Http\Controllers\GroupeController;
+use App\Http\Controllers\GroupeEchangeController;
 use App\Http\Controllers\GroupeMediaController;
+use App\Http\Controllers\InscriptionTemoinController;
+use App\Http\Controllers\PersonneAgeeController;
 use App\Http\Controllers\ProjetRechercheController;
 use App\Http\Controllers\ThematiqueController;
 use App\Http\Controllers\TypeProjetController;
@@ -23,6 +26,15 @@ Route::get('/', function () {
     return redirect()->route('login');
 })->name('home');
 
+// ─── Inscription témoin (public) ───────────────────────────────────────────────
+Route::middleware('throttle:10,1')->group(function () {
+    Route::get('/inscription/temoin', [InscriptionTemoinController::class, 'show'])
+        ->name('inscription.temoin');
+
+    Route::post('/inscription/temoin', [InscriptionTemoinController::class, 'store'])
+        ->name('inscription.temoin.store');
+});
+
 // Redirection post-login selon le rôle
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', function () {
@@ -31,9 +43,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return match ($user->role) {
             'admin' => redirect()->route('administration.index'),
             'enseignant' => redirect()->route('enseignant.index'),
+            'personne_agee' => redirect()->route('personne-agee.index'),
             default => redirect()->route('classes.index'),
         };
     })->name('dashboard');
+
+    // ─── Personne âgée ────────────────────────────────────────────────────────
+    Route::get('/personne-agee', [PersonneAgeeController::class, 'index'])
+        ->middleware('role:personne_agee')
+        ->name('personne-agee.index');
 });
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
@@ -49,6 +67,10 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
     Route::delete('/administration/enseignants/{enseignant}', [AdministrationController::class, 'destroyEnseignant'])
         ->name('administration.enseignants.destroy');
+
+    // Approbation des témoins (personnes âgées) en attente
+    Route::put('/administration/temoins/{user}/approuver', [AdministrationController::class, 'approuverTemoin'])
+        ->name('administration.temoins.approuver');
 });
 
 // ─── Enseignant (+ Admin) ──────────────────────────────────────────────────────
@@ -102,6 +124,10 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
     // Suppression de groupe (enseignant de la classe ou admin — cascade projet)
     Route::delete('/classes/{classe}/groupes/{groupe}', [GroupeController::class, 'destroy'])
         ->name('groupes.destroy');
+
+    // Assignation d'un témoin à un groupe (enseignant/admin)
+    Route::put('/classes/{classe}/groupes/{groupe}/temoin', [GroupeController::class, 'assignerTemoin'])
+        ->name('groupes.temoin.update');
 
     // Types de projet (enseignant/admin)
     Route::get('/types-projets', [TypeProjetController::class, 'index'])
@@ -189,6 +215,15 @@ Route::middleware(['auth', 'role:etudiant'])->group(function () {
     // Progression personnelle de l'étudiant sur l'échéancier
     Route::patch('/classes/{classe}/echeancier/{etape}/toggle-etudiant', [EcheancierController::class, 'toggleEtudiant'])
         ->name('echeancier.toggleEtudiant');
+});
+
+// ─── Échanges groupe ↔ témoin (tous les rôles auth concernés) ─────────────────
+Route::middleware(['auth', 'role:etudiant,enseignant,admin,personne_agee'])->group(function () {
+    Route::get('/classes/{classe}/groupes/{groupe}/echanges', [GroupeEchangeController::class, 'index'])
+        ->name('echanges.index');
+
+    Route::post('/classes/{classe}/groupes/{groupe}/echanges', [GroupeEchangeController::class, 'store'])
+        ->name('echanges.store');
 });
 
 // ─── Corrections inline des notes (enseignant + admin) ────────────────────────

@@ -12,6 +12,7 @@ class Groupe extends Model
     protected $fillable = [
         'classe_id',
         'created_by',
+        'personne_agee_id',
     ];
 
     protected $appends = ['numero'];
@@ -34,6 +35,16 @@ class Groupe extends Model
     public function createur(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function temoin(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'personne_agee_id');
+    }
+
+    public function echanges(): HasMany
+    {
+        return $this->hasMany(GroupeEchange::class)->orderBy('created_at');
     }
 
     public function membres(): BelongsToMany

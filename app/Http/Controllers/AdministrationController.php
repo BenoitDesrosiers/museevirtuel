@@ -31,9 +31,16 @@ class AdministrationController extends Controller
             'total_etudiants' => User::where('role', 'etudiant')->count(),
         ];
 
+        $temoinsEnAttente = User::enAttente()
+            ->where('role', 'personne_agee')
+            ->with('thematique:id,nom')
+            ->orderBy('created_at')
+            ->get(['id', 'prenom', 'nom', 'email', 'description', 'thematique_id', 'theme_libre', 'created_at']);
+
         return Inertia::render('Administration/Index', [
             'enseignants' => $enseignants,
             'stats' => $stats,
+            'temoinsEnAttente' => $temoinsEnAttente,
         ]);
     }
 
@@ -83,5 +90,24 @@ class AdministrationController extends Controller
         $enseignant->delete();
 
         return back()->with('success', __('enseignant.deleted'));
+    }
+
+    /**
+     * Approuve l'inscription d'un témoin (personne âgée) en attente.
+     *
+     * Active le compte en passant son statut à 'actif' et marque l'email comme vérifié.
+     *
+     * @throws HttpException si la cible n'est pas une personne âgée en attente
+     */
+    public function approuverTemoin(User $user): RedirectResponse
+    {
+        abort_if($user->role !== 'personne_agee' || ! $user->estEnAttente(), 403);
+
+        // email_verified_at n'est pas dans $fillable — on l'assigne directement
+        $user->statut = 'actif';
+        $user->email_verified_at = now();
+        $user->save();
+
+        return back()->with('success', __('Le compte de '.$user->prenom.' '.$user->nom.' a été approuvé.'));
     }
 }

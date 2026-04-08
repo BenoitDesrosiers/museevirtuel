@@ -3,8 +3,10 @@
 namespace App\Models;
 
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -23,6 +25,10 @@ class User extends Authenticatable
         'password',
         'role',
         'locale',
+        'statut',
+        'description',
+        'thematique_id',
+        'theme_libre',
     ];
 
     protected $hidden = [
@@ -71,6 +77,24 @@ class User extends Authenticatable
         return $this->role === 'etudiant';
     }
 
+    public function isPersonneAgee(): bool
+    {
+        return $this->role === 'personne_agee';
+    }
+
+    public function estEnAttente(): bool
+    {
+        return $this->statut === 'en_attente';
+    }
+
+    /**
+     * Filtre les utilisateurs dont le compte est en attente d'approbation.
+     */
+    public function scopeEnAttente(Builder $query): Builder
+    {
+        return $query->where('statut', 'en_attente');
+    }
+
     // Classes créées par l'enseignant
     public function classes(): HasMany
     {
@@ -95,5 +119,11 @@ class User extends Authenticatable
     public function groupesMembre(): BelongsToMany
     {
         return $this->belongsToMany(Groupe::class, 'groupe_etudiant');
+    }
+
+    // Thématique choisie lors de l'inscription (personne âgée)
+    public function thematique(): BelongsTo
+    {
+        return $this->belongsTo(Thematique::class);
     }
 }

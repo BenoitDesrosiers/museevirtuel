@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import { Pencil, Plus, Trash2, Users } from 'lucide-vue-next';
+import { CheckCircle, Pencil, Plus, Trash2, Users } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import FormDialog from '@/components/FormDialog.vue';
@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { approuver } from '@/routes/administration/temoins';
 
 type Enseignant = {
     id: number;
@@ -27,13 +28,33 @@ type Stats = {
     total_etudiants: number;
 };
 
+type TemoinEnAttente = {
+    id: number;
+    prenom: string;
+    nom: string;
+    email: string;
+    description: string;
+    thematique_id: number | null;
+    theme_libre: string | null;
+    created_at: string;
+    thematique: { id: number; nom: string } | null;
+};
+
 type Props = {
     enseignants: Enseignant[];
     stats: Stats;
+    temoinsEnAttente: TemoinEnAttente[];
 };
 
 defineProps<Props>();
 const { t } = useI18n();
+
+// ─── Approuver un témoin ──────────────────────────────────────────────────────
+const approuverForm = useForm({});
+
+function approuverTemoin(temoin: TemoinEnAttente) {
+    approuverForm.put(approuver.url(temoin.id));
+}
 
 // ─── Créer un enseignant ──────────────────────────────────────────────────────
 const showCreateDialog = ref(false);
@@ -194,6 +215,65 @@ return;
                                 <tr v-if="enseignants.length === 0">
                                     <td colspan="6" class="text-muted-foreground py-6 text-center">
                                         {{ $t('administration.index.no_teachers') }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Demandes de témoins en attente -->
+            <Card>
+                <CardHeader>
+                    <CardTitle>Demandes d'inscription — Témoins</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b text-left">
+                                    <th class="pb-3 pr-4 font-medium">Prénom</th>
+                                    <th class="pb-3 pr-4 font-medium">Nom</th>
+                                    <th class="pb-3 pr-4 font-medium">Courriel</th>
+                                    <th class="pb-3 pr-4 font-medium">Thème</th>
+                                    <th class="pb-3 pr-4 font-medium">Description</th>
+                                    <th class="pb-3 font-medium">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="temoin in temoinsEnAttente"
+                                    :key="temoin.id"
+                                    class="border-b last:border-0"
+                                >
+                                    <td class="py-3 pr-4">{{ temoin.prenom }}</td>
+                                    <td class="py-3 pr-4">{{ temoin.nom }}</td>
+                                    <td class="py-3 pr-4 text-muted-foreground">{{ temoin.email }}</td>
+                                    <td class="py-3 pr-4">
+                                        <span v-if="temoin.thematique">{{ temoin.thematique.nom }}</span>
+                                        <span v-else-if="temoin.theme_libre" class="italic">{{ temoin.theme_libre }}</span>
+                                        <span v-else class="text-muted-foreground">—</span>
+                                    </td>
+                                    <td class="max-w-xs py-3 pr-4">
+                                        <p class="line-clamp-2 text-muted-foreground">{{ temoin.description }}</p>
+                                    </td>
+                                    <td class="py-3">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            class="text-green-600 hover:text-green-700"
+                                            :disabled="approuverForm.processing"
+                                            @click="approuverTemoin(temoin)"
+                                        >
+                                            <CheckCircle class="mr-1 h-4 w-4" />
+                                            Approuver
+                                        </Button>
+                                    </td>
+                                </tr>
+                                <tr v-if="temoinsEnAttente.length === 0">
+                                    <td colspan="6" class="text-muted-foreground py-6 text-center">
+                                        Aucune demande en attente.
                                     </td>
                                 </tr>
                             </tbody>

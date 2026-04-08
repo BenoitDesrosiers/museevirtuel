@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { ArrowLeft, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Download, FileText, ImagePlus, Music, Pencil, Trash2 } from 'lucide-vue-next';
+import { ArrowLeft, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Download, FileText, ImagePlus, MessageSquare, Music, Pencil, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import FormDialog from '@/components/FormDialog.vue';
@@ -8,6 +8,7 @@ import Heading from '@/components/Heading.vue';
 import NoteAvecCorrections from '@/components/NoteAvecCorrections.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
@@ -70,11 +71,13 @@ type Groupe = {
     numero: number;
     classe_id: number;
     created_by: number;
+    personne_agee_id: number | null;
     classe: Classe;
     membres: User[];
     thematiques: Thematique[];
     notes: Note[];
     medias: Media[];
+    temoin: User | null;
 };
 
 type EtudiantDispo = {
@@ -90,6 +93,7 @@ type Props = {
     estCreateur: boolean;
     thematiquesDispo: Thematique[];
     etudiantsDispo: EtudiantDispo[];
+    temoinsDisponibles: User[];
 };
 
 const props = defineProps<Props>();
@@ -306,6 +310,17 @@ function toggleToutesNotes(): void {
     }
 }
 
+// ─── Assigner un témoin (enseignant seulement) ────────────────────────────────
+const temoinForm = useForm({
+    personne_agee_id: props.groupe.personne_agee_id as number | null,
+});
+
+function submitTemoin() {
+    temoinForm.put(`/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/temoin`, {
+        preserveScroll: true,
+    });
+}
+
 // ─── Formatage ────────────────────────────────────────────────────────────────
 function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString('fr-CA', {
@@ -351,15 +366,70 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                 :description="`${groupe.classe.code} — Groupe ${groupe.classe.groupe} · ${groupe.classe.nom_cours}`"
             />
 
-            <!-- Lien vers les projets de recherche -->
-            <div>
+            <!-- Liens rapides -->
+            <div class="flex flex-wrap gap-2">
                 <Button variant="outline" as-child>
                     <Link :href="`/classes/${groupe.classe_id}/groupes/${groupe.id}/projets`">
                         <BookOpen class="mr-2 h-4 w-4" />
                         Projets
                     </Link>
                 </Button>
+                <Button v-if="groupe.temoin || estMembre || estEnseignant" variant="outline" as-child>
+                    <Link :href="`/classes/${groupe.classe_id}/groupes/${groupe.id}/echanges`">
+                        <MessageSquare class="mr-2 h-4 w-4" />
+                        Échanges avec le témoin
+                        <span v-if="groupe.temoin" class="ml-1 text-xs text-muted-foreground">
+                            ({{ groupe.temoin.prenom }} {{ groupe.temoin.nom }})
+                        </span>
+                    </Link>
+                </Button>
             </div>
+
+            <!-- Carte Témoin (enseignant seulement) -->
+            <Card v-if="estEnseignant">
+                <CardHeader>
+                    <CardTitle>Témoin assigné</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div v-if="groupe.temoin" class="mb-4 flex items-center gap-3">
+                        <span class="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium">
+                            {{ groupe.temoin.prenom[0] }}{{ groupe.temoin.nom[0] }}
+                        </span>
+                        <span class="text-sm font-medium">{{ groupe.temoin.prenom }} {{ groupe.temoin.nom }}</span>
+                    </div>
+                    <p v-else class="text-muted-foreground mb-4 text-sm">Aucun témoin assigné à ce groupe.</p>
+
+                    <form class="flex items-end gap-3" @submit.prevent="submitTemoin">
+                        <div class="flex-1">
+                            <Select
+                                :model-value="temoinForm.personne_agee_id ? String(temoinForm.personne_agee_id) : 'none'"
+                                @update:model-value="(v) => temoinForm.personne_agee_id = v === 'none' ? null : Number(v)"
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Sélectionner un témoin…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Aucun témoin</SelectItem>
+                                    <SelectItem
+                                        v-for="t in temoinsDisponibles"
+                                        :key="t.id"
+                                        :value="String(t.id)"
+                                    >
+                                        {{ t.prenom }} {{ t.nom }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Button type="submit" size="sm" :disabled="temoinForm.processing">
+                            Enregistrer
+                        </Button>
+                    </form>
+
+                    <p v-if="temoinForm.errors.personne_agee_id" class="text-destructive mt-2 text-sm">
+                        {{ temoinForm.errors.personne_agee_id }}
+                    </p>
+                </CardContent>
+            </Card>
 
             <div class="grid gap-6 lg:grid-cols-2">
                 <!-- Membres -->

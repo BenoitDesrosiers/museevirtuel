@@ -18,6 +18,46 @@ class GroupePolicy
             return true;
         }
 
+        return $this->estMembreOuTemoin($user, $groupe);
+    }
+
+    /**
+     * Détermine si l'utilisateur peut assigner un témoin au groupe.
+     *
+     * Réservé à l'enseignant de la classe et aux admins.
+     */
+    public function assignerTemoin(User $user, Groupe $groupe): bool
+    {
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        return $user->isEnseignant() && $groupe->classe->enseignant_id === $user->id;
+    }
+
+    /**
+     * Détermine si l'utilisateur peut accéder aux échanges du groupe.
+     *
+     * Accessible aux membres, au témoin assigné, à l'enseignant de la classe et aux admins.
+     */
+    public function echanges(User $user, Groupe $groupe): bool
+    {
+        if ($user->isAdmin() || $groupe->classe->enseignant_id === $user->id) {
+            return true;
+        }
+
+        return $this->estMembreOuTemoin($user, $groupe);
+    }
+
+    /**
+     * Vérifie si l'utilisateur est membre du groupe ou le témoin assigné.
+     */
+    private function estMembreOuTemoin(User $user, Groupe $groupe): bool
+    {
+        if ($groupe->personne_agee_id === $user->id) {
+            return true;
+        }
+
         return $groupe->membres()->where('users.id', $user->id)->exists();
     }
 

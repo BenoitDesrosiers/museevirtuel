@@ -7,10 +7,12 @@ use App\Models\EcheancierEtudiantProgress;
 use App\Models\Groupe;
 use App\Models\GroupeNote;
 use App\Models\GroupeNoteCorrection;
+use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -156,6 +158,7 @@ class GroupeController extends Controller
             'notes.corrections',
             'createur',
             'medias.auteur',
+            'temoin',
         ]);
 
         $thematiquesDispo = $groupe->classe->enseignant
@@ -167,6 +170,12 @@ class GroupeController extends Controller
             ->whereNotIn('users.id', $membreIds)
             ->get(['users.id', 'prenom', 'nom']);
 
+        $temoinsDisponibles = $estEnseignant || $user->isAdmin()
+            ? User::where('role', 'personne_agee')
+                ->where('statut', 'actif')
+                ->get(['id', 'prenom', 'nom'])
+            : collect();
+
         return Inertia::render('Groupes/Show', [
             'groupe' => $groupe,
             'estMembre' => $estMembre,
@@ -174,6 +183,7 @@ class GroupeController extends Controller
             'estCreateur' => $groupe->created_by === $user->id,
             'thematiquesDispo' => $thematiquesDispo,
             'etudiantsDispo' => $etudiantsDispo,
+            'temoinsDisponibles' => $temoinsDisponibles,
         ]);
     }
 
@@ -373,6 +383,34 @@ class GroupeController extends Controller
         );
 
         abort_if($note->groupe_id !== $groupe->id, 404);
+    }
+
+    /**
+     * Assigne ou désassigne un témoin (personne âgée) au groupe.
+     *
+     * Réservé à l'enseignant de la classe et aux admins.
+     * Passer personne_agee_id = null pour désassigner.
+     *
+     * @throws AuthorizationException
+     */
+    public function assignerTemoin(Request $request, Classe $classe, Groupe $groupe): RedirectResponse
+    {
+        abort_if($groupe->classe_id !== $classe->id, 404);
+
+        $groupe->load('classe');
+        $this->authorize('assignerTemoin', $groupe);
+
+        $validated = $request->validate([
+            'personne_agee_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')->where('role', 'personne_agee')->where('statut', 'actif'),
+            ],
+        ]);
+
+        $groupe->update(['personne_agee_id' => $validated['personne_agee_id']]);
+
+        return back()->with('success', 'Témoin mis à jour.');
     }
 
     /**
