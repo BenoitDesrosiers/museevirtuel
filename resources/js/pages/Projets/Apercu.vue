@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft, Download, Eye } from 'lucide-vue-next';
+import { useI18n } from 'vue-i18n';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
+
+const { t } = useI18n();
 
 type Membre = {
     id: number;
@@ -79,15 +82,15 @@ function nomMembre(userId: number): string {
 
 <template>
     <AppLayout>
-        <Head :title="`Aperçu — ${projet?.titre_projet ?? 'Projet de recherche'}`" />
+        <Head :title="`${$t('apercu.preview_label')} — ${projet?.titre_projet ?? $t('projets.index.heading_title')}`" />
 
-        <div class="flex flex-col gap-6 p-6 max-w-4xl mx-auto">
+        <div class="mx-auto flex max-w-4xl flex-col gap-6 p-6">
             <!-- Retour -->
             <div class="flex items-center justify-between">
                 <Button variant="ghost" size="sm" as-child>
                     <Link :href="`${baseUrl}/edit`">
                         <ArrowLeft class="mr-2 h-4 w-4" />
-                        Retour à l'éditeur
+                        {{ $t('apercu.back_to_editor') }}
                     </Link>
                 </Button>
 
@@ -110,19 +113,19 @@ function nomMembre(userId: number): string {
 
             <!-- Heading -->
             <div>
-                <div class="flex items-center gap-2 mb-1">
+                <div class="mb-1 flex items-center gap-2">
                     <Eye class="h-4 w-4 text-muted-foreground" />
-                    <span class="text-sm text-muted-foreground">Aperçu du projet</span>
+                    <span class="text-sm text-muted-foreground">{{ $t('apercu.preview_label') }}</span>
                 </div>
                 <Heading
-                    :title="projet?.titre_projet ?? 'Projet de recherche'"
+                    :title="projet?.titre_projet ?? $t('projets.index.heading_title')"
                     :description="`${classe.code} — Groupe ${classe.groupe} · ${classe.nom_cours} · Groupe ${groupe.numero}`"
                 />
-                <div v-if="thematiques.length > 0" class="flex flex-wrap gap-2 mt-3">
+                <div v-if="thematiques.length > 0" class="mt-3 flex flex-wrap gap-2">
                     <span
                         v-for="thematique in thematiques"
                         :key="thematique.id"
-                        class="bg-primary/10 text-primary rounded-full px-3 py-1 text-sm"
+                        class="rounded-full bg-primary/10 px-3 py-1 text-sm text-primary"
                     >
                         {{ thematique.nom }}
                     </span>
@@ -130,13 +133,13 @@ function nomMembre(userId: number): string {
             </div>
 
             <!-- Contenu vide -->
-            <div v-if="!projet" class="text-muted-foreground py-12 text-center text-sm">
-                Le projet de recherche n'a pas encore été créé.
+            <div v-if="!projet" class="py-12 text-center text-sm text-muted-foreground">
+                {{ $t('apercu.no_project') }}
             </div>
 
             <template v-else>
-                <p v-if="sections.length === 0" class="text-muted-foreground text-sm italic">
-                    Aucune section définie pour ce type de projet.
+                <p v-if="sections.length === 0" class="text-sm italic text-muted-foreground">
+                    {{ $t('apercu.no_sections') }}
                 </p>
 
                 <section
@@ -144,8 +147,8 @@ function nomMembre(userId: number): string {
                     :key="section.id"
                     class="space-y-3"
                 >
-                    <h2 class="text-xl font-semibold border-b pb-2">{{ section.label }}</h2>
-                    <p v-if="section.description" class="text-xs text-muted-foreground italic">
+                    <h2 class="border-b pb-2 text-xl font-semibold">{{ section.label }}</h2>
+                    <p v-if="section.description" class="text-xs italic text-muted-foreground">
                         {{ section.description }}
                     </p>
 
@@ -156,8 +159,8 @@ function nomMembre(userId: number): string {
                             class="prose prose-sm max-w-none dark:prose-invert"
                             v-html="section.contenu"
                         />
-                        <p v-else class="text-muted-foreground text-sm italic">
-                            (Section non rédigée)
+                        <p v-else class="text-sm italic text-muted-foreground">
+                            {{ $t('apercu.section_not_written') }}
                         </p>
                     </template>
 
@@ -177,8 +180,8 @@ function nomMembre(userId: number): string {
                                 />
                             </article>
                         </template>
-                        <p v-else class="text-muted-foreground text-sm italic">
-                            (Aucun paragraphe rédigé)
+                        <p v-else class="text-sm italic text-muted-foreground">
+                            {{ $t('apercu.no_paragraphs') }}
                         </p>
                     </template>
 
@@ -199,8 +202,8 @@ function nomMembre(userId: number): string {
                                 />
                             </article>
                         </template>
-                        <p v-else class="text-muted-foreground text-sm italic">
-                            (Aucune conclusion rédigée)
+                        <p v-else class="text-sm italic text-muted-foreground">
+                            {{ $t('apercu.no_conclusions') }}
                         </p>
                     </template>
                 </section>

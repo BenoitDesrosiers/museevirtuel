@@ -226,19 +226,19 @@ return;
             <!-- Demandes de témoins en attente -->
             <Card>
                 <CardHeader>
-                    <CardTitle>Demandes d'inscription — Témoins</CardTitle>
+                    <CardTitle>{{ $t('administration.index.temoins_table') }}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="border-b text-left">
-                                    <th class="pb-3 pr-4 font-medium">Prénom</th>
-                                    <th class="pb-3 pr-4 font-medium">Nom</th>
-                                    <th class="pb-3 pr-4 font-medium">Courriel</th>
-                                    <th class="pb-3 pr-4 font-medium">Thème</th>
-                                    <th class="pb-3 pr-4 font-medium">Description</th>
-                                    <th class="pb-3 font-medium">Action</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.temoins_header_first_name') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.temoins_header_last_name') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.temoins_header_email') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.temoins_header_theme') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.temoins_header_description') }}</th>
+                                    <th class="pb-3 font-medium">{{ $t('administration.index.temoins_header_action') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -267,13 +267,13 @@ return;
                                             @click="approuverTemoin(temoin)"
                                         >
                                             <CheckCircle class="mr-1 h-4 w-4" />
-                                            Approuver
+                                            {{ $t('administration.index.temoins_approve') }}
                                         </Button>
                                     </td>
                                 </tr>
                                 <tr v-if="temoinsEnAttente.length === 0">
                                     <td colspan="6" class="text-muted-foreground py-6 text-center">
-                                        Aucune demande en attente.
+                                        {{ $t('administration.index.temoins_no_pending') }}
                                     </td>
                                 </tr>
                             </tbody>

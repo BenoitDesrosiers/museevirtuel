@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ChevronDown, ChevronRight, Grid2x2, Pencil, Plus, Trash2 } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import FormDialog from '@/components/FormDialog.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -13,6 +14,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import typesProjets from '@/routes/types-projets';
+
+const { t } = useI18n();
 
 type GrilleResume = { id: number; nom: string } | null;
 
@@ -26,11 +29,11 @@ type Section = {
     type: SectionType;
 };
 
-const SECTION_TYPE_LABELS: Record<SectionType, string> = {
-    texte: 'Texte libre',
-    paragraphes: 'Paragraphes',
-    individuel: 'Individuel (1 par membre)',
-};
+const sectionTypeLabels = computed<Record<SectionType, string>>(() => ({
+    texte: t('types_projet.edit.section_type_texte_label'),
+    paragraphes: t('types_projet.edit.section_type_paragraphes_label'),
+    individuel: t('types_projet.edit.section_type_individuel_label'),
+}));
 
 type TypeProjet = {
     id: number;
@@ -83,11 +86,7 @@ function toggleAccessible(tp: TypeProjet) {
 const deleteForm = useForm({});
 
 function supprimer(tp: TypeProjet) {
-    if (
-        !confirm(
-            `Supprimer « ${tp.nom} » ? Cette action supprimera également la grille de correction et toutes les sections associées, et ne peut pas être annulée.`,
-        )
-    ) {
+    if (!confirm(t('types_projet.index.confirm_delete', { nom: tp.nom }))) {
         return;
     }
     deleteForm.delete(typesProjets.destroy.url(tp.id));
@@ -96,24 +95,24 @@ function supprimer(tp: TypeProjet) {
 
 <template>
     <AppLayout>
-        <Head title="Types de projet" />
+        <Head :title="$t('types_projet.index.page_title')" />
 
         <div class="mx-auto flex max-w-3xl flex-col gap-6 p-6">
             <div class="flex items-center justify-between">
                 <Heading
-                    title="Types de projet"
-                    description="Chaque type de projet définit les sections que les étudiants devront rédiger, ainsi que sa propre grille de correction."
+                    :title="$t('types_projet.index.heading_title')"
+                    :description="$t('types_projet.index.heading_description')"
                 />
                 <Button size="sm" @click="showCreateDialog = true">
                     <Plus class="mr-2 h-4 w-4" />
-                    Nouveau type
+                    {{ $t('types_projet.index.new_type') }}
                 </Button>
             </div>
 
             <!-- Liste vide -->
             <Card v-if="props.typesProjets.length === 0">
                 <CardContent class="py-10 text-center text-muted-foreground">
-                    Aucun type de projet. Créez-en un pour commencer.
+                    {{ $t('types_projet.index.no_types') }}
                 </CardContent>
             </Card>
 
@@ -132,7 +131,7 @@ function supprimer(tp: TypeProjet) {
                                     "
                                     class="text-xs"
                                 >
-                                    {{ tp.accessible ? 'Accessible' : 'Non accessible' }}
+                                    {{ tp.accessible ? $t('types_projet.index.badge_accessible') : $t('types_projet.index.badge_not_accessible') }}
                                 </Badge>
                             </CardTitle>
                             <p v-if="tp.description" class="mt-1 text-sm text-muted-foreground">
@@ -150,11 +149,11 @@ function supprimer(tp: TypeProjet) {
                             >
                                 <ChevronRight v-if="!tp.accessible" class="mr-1 h-3 w-3" />
                                 <ChevronDown v-else class="mr-1 h-3 w-3" />
-                                {{ tp.accessible ? 'Masquer' : 'Rendre accessible' }}
+                                {{ tp.accessible ? $t('types_projet.index.btn_hide') : $t('types_projet.index.btn_make_accessible') }}
                             </Button>
 
                             <Button size="icon" variant="ghost" class="h-8 w-8" as-child>
-                                <Link :href="typesProjets.edit.url(tp.id)" title="Modifier">
+                                <Link :href="typesProjets.edit.url(tp.id)" :title="$t('common.edit')">
                                     <Pencil class="h-4 w-4" />
                                 </Link>
                             </Button>
@@ -176,12 +175,12 @@ function supprimer(tp: TypeProjet) {
                     <!-- Grille associée -->
                     <div class="flex items-center gap-3">
                         <Grid2x2 class="h-4 w-4 text-muted-foreground" />
-                        <span class="text-sm text-muted-foreground">Grille de correction :</span>
+                        <span class="text-sm text-muted-foreground">{{ $t('types_projet.index.grille_label') }}</span>
                         <a
                             :href="typesProjets.grille.edit.url(tp.id)"
                             class="text-sm font-medium text-primary hover:underline"
                         >
-                            {{ tp.grille ? tp.grille.nom : 'Configurer la grille' }}
+                            {{ tp.grille ? tp.grille.nom : $t('types_projet.index.configure_grille') }}
                         </a>
                     </div>
 
@@ -190,7 +189,7 @@ function supprimer(tp: TypeProjet) {
                         <p class="mb-2 text-xs font-medium text-muted-foreground">
                             {{ tp.sections.length }} section{{ tp.sections.length !== 1 ? 's' : '' }}
                             <span v-if="tp.sections.length === 0" class="font-normal italic">
-                                — introduction par défaut
+                                {{ $t('types_projet.index.default_intro') }}
                             </span>
                         </p>
                         <div v-if="tp.sections.length > 0" class="flex flex-wrap gap-1.5">
@@ -201,7 +200,7 @@ function supprimer(tp: TypeProjet) {
                             >
                                 {{ s.ordre }}. {{ s.label }}
                                 <span class="ml-1 text-muted-foreground/60">
-                                    ({{ SECTION_TYPE_LABELS[s.type ?? 'texte'] }})
+                                    ({{ sectionTypeLabels[s.type ?? 'texte'] }})
                                 </span>
                             </span>
                         </div>
@@ -213,30 +212,30 @@ function supprimer(tp: TypeProjet) {
         <!-- ─── Dialog création ──────────────────────────────────────────────── -->
         <FormDialog
             v-model:open="showCreateDialog"
-            title="Nouveau type de projet"
+            :title="$t('types_projet.index.modal_title')"
             :is-loading="createForm.processing"
-            submit-label="Créer"
+            :submit-label="$t('types_projet.index.modal_create')"
             scrollable
             @submit="creer"
         >
             <div class="grid gap-4">
                 <div class="grid gap-2">
-                    <Label for="nom-create">Nom <span class="text-destructive">*</span></Label>
+                    <Label for="nom-create">{{ $t('types_projet.index.modal_name_label') }} <span class="text-destructive">*</span></Label>
                     <Input
                         id="nom-create"
                         v-model="createForm.nom"
-                        placeholder="Ex. : Projet de recherche documentaire"
+                        :placeholder="$t('types_projet.index.modal_name_placeholder')"
                         required
                     />
                     <InputError :message="createForm.errors.nom" />
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="desc-create">Description (optionnelle)</Label>
+                    <Label for="desc-create">{{ $t('types_projet.index.modal_description_label') }}</Label>
                     <Textarea
                         id="desc-create"
                         v-model="createForm.description"
-                        placeholder="Notes sur ce type de projet..."
+                        :placeholder="$t('types_projet.index.modal_description_placeholder')"
                         rows="2"
                     />
                     <InputError :message="createForm.errors.description" />
@@ -245,10 +244,9 @@ function supprimer(tp: TypeProjet) {
                 <!-- Sections -->
                 <div class="grid gap-3 border-t pt-3">
                     <div>
-                        <Label>Sections du projet</Label>
+                        <Label>{{ $t('types_projet.index.modal_sections_title') }}</Label>
                         <p class="mt-1 text-xs text-muted-foreground">
-                            Définissez les parties que les étudiants devront rédiger. Sans section, l'introduction en
-                            trois parties est utilisée par défaut.
+                            {{ $t('types_projet.index.modal_sections_hint') }}
                         </p>
                     </div>
 
@@ -264,7 +262,7 @@ function supprimer(tp: TypeProjet) {
                             <div class="flex-1 space-y-1.5">
                                 <Input
                                     v-model="createForm.sections[idx].label"
-                                    placeholder="Titre de la section *"
+                                    :placeholder="$t('types_projet.index.modal_section_title_placeholder')"
                                     required
                                 />
                                 <InputError :message="createForm.errors[`sections.${idx}.label`]" />
@@ -272,13 +270,13 @@ function supprimer(tp: TypeProjet) {
                                     v-model="createForm.sections[idx].type"
                                     class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring"
                                 >
-                                    <option v-for="(label, val) in SECTION_TYPE_LABELS" :key="val" :value="val">
+                                    <option v-for="(label, val) in sectionTypeLabels" :key="val" :value="val">
                                         {{ label }}
                                     </option>
                                 </select>
                                 <Input
                                     v-model="createForm.sections[idx].description"
-                                    placeholder="Consigne pour les étudiants (optionnelle)"
+                                    :placeholder="$t('types_projet.index.modal_section_instruction_placeholder')"
                                 />
                             </div>
                             <Button
@@ -295,7 +293,7 @@ function supprimer(tp: TypeProjet) {
 
                     <Button type="button" size="sm" variant="outline" @click="ajouterSectionCreate">
                         <Plus class="mr-2 h-4 w-4" />
-                        Ajouter une section
+                        {{ $t('types_projet.index.modal_add_section') }}
                     </Button>
                 </div>
             </div>

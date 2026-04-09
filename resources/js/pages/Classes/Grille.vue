@@ -2,6 +2,7 @@
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { Minus, Plus, TriangleAlert } from 'lucide-vue-next';
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
+
+const { t } = useI18n();
 
 type CritereInput = { id?: number; label: string; ponderation: number };
 type MalusInput = { id?: number; label: string; deduction: number; description: string };
@@ -87,48 +90,46 @@ function submit() {
 
 <template>
     <AppLayout>
-        <Head :title="isEdit ? 'Modifier la grille' : 'Nouvelle grille de correction'" />
+        <Head :title="isEdit ? $t('grille.page_title_edit') : $t('grille.page_title_new')" />
 
         <div class="mx-auto flex max-w-3xl flex-col gap-6 p-6">
             <!-- Retour vers la classe -->
             <div>
                 <Button variant="ghost" size="sm" as-child>
                     <Link :href="`/classes/${classe.id}`">
-                        ← {{ classe.code }} — Groupe {{ classe.groupe }}
+                        ← {{ classe.code }} — {{ classe.groupe }}
                     </Link>
                 </Button>
             </div>
 
             <Heading
-                :title="isEdit ? 'Modifier la grille' : 'Nouvelle grille de correction'"
-                :description="isEdit
-                    ? 'Modifiez les compétences et les malus. Les scores déjà saisis pour les critères conservés sont préservés.'
-                    : 'Définissez les compétences et leurs pondérations. La somme doit être égale à 100.'"
+                :title="isEdit ? $t('grille.heading_edit') : $t('grille.heading_new')"
+                :description="isEdit ? $t('grille.description_edit') : $t('grille.description_new')"
             />
 
-            <form @submit.prevent="submit" class="flex flex-col gap-6">
+            <form class="flex flex-col gap-6" @submit.prevent="submit">
                 <!-- Informations générales -->
                 <Card>
                     <CardHeader>
-                        <CardTitle class="text-base">Informations</CardTitle>
+                        <CardTitle class="text-base">{{ $t('grille.info_title') }}</CardTitle>
                     </CardHeader>
                     <CardContent class="flex flex-col gap-4">
                         <div class="grid gap-2">
-                            <Label for="nom">Nom de la grille <span class="text-destructive">*</span></Label>
+                            <Label for="nom">{{ $t('grille.label_name') }} <span class="text-destructive">*</span></Label>
                             <Input
                                 id="nom"
                                 v-model="form.nom"
-                                placeholder="Ex. : Grille projet histoire 4e secondaire"
+                                :placeholder="$t('grille.placeholder_name')"
                                 required
                             />
                             <InputError :message="form.errors.nom" />
                         </div>
                         <div class="grid gap-2">
-                            <Label for="description">Description (optionnelle)</Label>
+                            <Label for="description">{{ $t('grille.label_description') }}</Label>
                             <Textarea
                                 id="description"
                                 v-model="form.description"
-                                placeholder="Notes pour vous rappeler quand utiliser cette grille..."
+                                :placeholder="$t('grille.placeholder_description')"
                                 rows="2"
                             />
                             <InputError :message="form.errors.description" />
@@ -140,7 +141,7 @@ function submit() {
                 <Card>
                     <CardHeader>
                         <div class="flex items-center justify-between">
-                            <CardTitle class="text-base">Compétences</CardTitle>
+                            <CardTitle class="text-base">{{ $t('grille.competencies_title') }}</CardTitle>
                             <!-- Indicateur de somme -->
                             <div class="flex items-center gap-2">
                                 <Badge
@@ -160,9 +161,9 @@ function submit() {
                     </CardHeader>
                     <CardContent class="flex flex-col gap-3">
                         <!-- En-têtes colonnes -->
-                        <div class="grid grid-cols-[1fr_100px_36px] gap-2 text-xs font-medium text-muted-foreground px-1">
-                            <span>Libellé</span>
-                            <span class="text-center">Pondération</span>
+                        <div class="grid grid-cols-[1fr_100px_36px] gap-2 px-1 text-xs font-medium text-muted-foreground">
+                            <span>{{ $t('grille.col_label') }}</span>
+                            <span class="text-center">{{ $t('grille.col_weight') }}</span>
                             <span />
                         </div>
 
@@ -175,7 +176,7 @@ function submit() {
                             <div>
                                 <Input
                                     v-model="critere.label"
-                                    :placeholder="`Compétence ${index + 1}`"
+                                    :placeholder="$t('grille.competency_placeholder', { n: index + 1 })"
                                     required
                                 />
                                 <InputError :message="(form.errors as any)[`criteres.${index}.label`]" />
@@ -196,7 +197,7 @@ function submit() {
                                 size="icon"
                                 variant="ghost"
                                 :disabled="form.criteres.length <= 1"
-                                class="text-muted-foreground hover:text-destructive h-8 w-8 shrink-0"
+                                class="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
                                 @click="supprimerCritere(index)"
                             >
                                 <Minus class="h-4 w-4" />
@@ -207,7 +208,7 @@ function submit() {
 
                         <Button type="button" variant="outline" size="sm" class="self-start" @click="ajouterCritere">
                             <Plus class="mr-2 h-4 w-4" />
-                            Ajouter une compétence
+                            {{ $t('grille.add_competency') }}
                         </Button>
                     </CardContent>
                 </Card>
@@ -217,9 +218,9 @@ function submit() {
                     <CardHeader>
                         <div class="flex items-center justify-between">
                             <div>
-                                <CardTitle class="text-base">Malus (optionnel)</CardTitle>
-                                <p class="text-muted-foreground mt-1 text-sm">
-                                    Points déduits de la note finale pour certains cas (ex. : fautes de français).
+                                <CardTitle class="text-base">{{ $t('grille.penalties_title') }}</CardTitle>
+                                <p class="mt-1 text-sm text-muted-foreground">
+                                    {{ $t('grille.penalties_description') }}
                                 </p>
                             </div>
                         </div>
@@ -233,19 +234,19 @@ function submit() {
                             <div class="flex flex-col gap-1">
                                 <Input
                                     v-model="m.label"
-                                    placeholder="Ex. : Fautes de français"
+                                    :placeholder="$t('grille.penalty_label_placeholder')"
                                     required
                                 />
                                 <Input
                                     v-model="m.description"
-                                    placeholder="Description (optionnelle)"
+                                    :placeholder="$t('grille.penalty_description_placeholder')"
                                     class="text-sm"
                                 />
                                 <InputError :message="(form.errors as any)[`malus.${index}.label`]" />
                             </div>
                             <div class="flex flex-col gap-1">
                                 <div class="relative">
-                                    <span class="text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 text-sm">−</span>
+                                    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">−</span>
                                     <Input
                                         v-model.number="m.deduction"
                                         type="number"
@@ -256,14 +257,14 @@ function submit() {
                                         required
                                     />
                                 </div>
-                                <span class="text-muted-foreground text-xs text-center">points</span>
+                                <span class="text-center text-xs text-muted-foreground">{{ $t('grille.penalty_points') }}</span>
                                 <InputError :message="(form.errors as any)[`malus.${index}.deduction`]" />
                             </div>
                             <Button
                                 type="button"
                                 size="icon"
                                 variant="ghost"
-                                class="text-muted-foreground hover:text-destructive mt-1 h-8 w-8 shrink-0"
+                                class="mt-1 h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
                                 @click="supprimerMalus(index)"
                             >
                                 <Minus class="h-4 w-4" />
@@ -272,7 +273,7 @@ function submit() {
 
                         <Button type="button" variant="outline" size="sm" class="self-start" @click="ajouterMalus">
                             <Plus class="mr-2 h-4 w-4" />
-                            Ajouter un malus
+                            {{ $t('grille.add_penalty') }}
                         </Button>
                     </CardContent>
                 </Card>
@@ -280,13 +281,13 @@ function submit() {
                 <!-- Actions -->
                 <div class="flex justify-end gap-3">
                     <Button type="button" variant="outline" as-child>
-                        <Link :href="`/classes/${classe.id}`">Annuler</Link>
+                        <Link :href="`/classes/${classe.id}`">{{ $t('grille.cancel') }}</Link>
                     </Button>
                     <Button
                         type="submit"
                         :disabled="form.processing || !ponderationsValides"
                     >
-                        {{ isEdit ? 'Enregistrer les modifications' : 'Créer la grille' }}
+                        {{ isEdit ? $t('grille.save_changes') : $t('grille.create_grid') }}
                     </Button>
                 </div>
             </form>

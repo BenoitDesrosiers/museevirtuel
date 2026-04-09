@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, GripVertical, Plus, Trash2 } from 'lucide-vue-next';
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -11,6 +13,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import typesProjets from '@/routes/types-projets';
+
+const { t } = useI18n();
 
 type SectionType = 'texte' | 'paragraphes' | 'individuel' | 'entrevue';
 
@@ -35,28 +39,28 @@ type Props = {
     typeProjet: TypeProjet;
 };
 
-const SECTION_TYPES: { value: SectionType; label: string; description: string }[] = [
+const sectionTypes = computed<{ value: SectionType; label: string; description: string }[]>(() => [
     {
         value: 'texte',
-        label: 'Texte libre',
-        description: 'Un seul bloc de texte partagé par tout le groupe.',
+        label: t('types_projet.edit.section_type_texte_label'),
+        description: t('types_projet.edit.section_type_texte_desc'),
     },
     {
         value: 'paragraphes',
-        label: 'Paragraphes',
-        description: 'Le groupe peut ajouter plusieurs paragraphes dynamiquement.',
+        label: t('types_projet.edit.section_type_paragraphes_label'),
+        description: t('types_projet.edit.section_type_paragraphes_desc'),
     },
     {
         value: 'individuel',
-        label: 'Individuel',
-        description: 'Chaque membre rédige sa propre version de cette section.',
+        label: t('types_projet.edit.section_type_individuel_label'),
+        description: t('types_projet.edit.section_type_individuel_desc'),
     },
     {
         value: 'entrevue',
-        label: 'Schéma d\'entrevue',
-        description: 'Concepts structurés avec dimensions, indicateurs et questions spécifiques.',
+        label: t('types_projet.edit.section_type_entrevue_label'),
+        description: t('types_projet.edit.section_type_entrevue_desc'),
     },
-];
+]);
 
 const props = defineProps<Props>();
 
@@ -110,7 +114,7 @@ function sauvegarder() {
 
 <template>
     <AppLayout>
-        <Head :title="`Modifier — ${props.typeProjet.nom}`" />
+        <Head :title="`${$t('types_projet.edit.heading_title')} — ${props.typeProjet.nom}`" />
 
         <div class="mx-auto flex max-w-2xl flex-col gap-6 p-6">
             <!-- En-tête -->
@@ -120,22 +124,22 @@ function sauvegarder() {
                     class="mb-3 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
                 >
                     <ArrowLeft class="h-3.5 w-3.5" />
-                    Retour aux types de projet
+                    {{ $t('types_projet.edit.back') }}
                 </Link>
-                <Heading title="Modifier le type de projet" />
+                <Heading :title="$t('types_projet.edit.heading_title')" />
             </div>
 
             <!-- Informations générales -->
             <Card>
                 <CardContent class="grid gap-4 pt-6">
                     <div class="grid gap-2">
-                        <Label for="nom">Nom <span class="text-destructive">*</span></Label>
+                        <Label for="nom">{{ $t('types_projet.edit.label_name') }} <span class="text-destructive">*</span></Label>
                         <Input id="nom" v-model="form.nom" required />
                         <InputError :message="form.errors.nom" />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="description">Description (optionnelle)</Label>
+                        <Label for="description">{{ $t('types_projet.edit.label_description') }}</Label>
                         <Textarea id="description" v-model="form.description" rows="2" />
                         <InputError :message="form.errors.description" />
                     </div>
@@ -145,10 +149,10 @@ function sauvegarder() {
             <!-- Paramètres de remise -->
             <Card>
                 <CardContent class="grid gap-4 pt-6">
-                    <h2 class="text-sm font-semibold">Paramètres de remise</h2>
+                    <h2 class="text-sm font-semibold">{{ $t('types_projet.edit.submission_section') }}</h2>
 
                     <div class="grid gap-2">
-                        <Label for="date_remise">Date limite de remise (optionnelle)</Label>
+                        <Label for="date_remise">{{ $t('types_projet.edit.label_deadline') }}</Label>
                         <Input
                             id="date_remise"
                             v-model="form.date_remise"
@@ -164,8 +168,8 @@ function sauvegarder() {
                             @update:checked="(v) => (form.remises_multiples = v as boolean)"
                         />
                         <div class="grid gap-0.5">
-                            <Label for="remises_multiples" class="cursor-pointer">Remises multiples autorisées</Label>
-                            <p class="text-xs text-muted-foreground">Le groupe peut remettre son travail plusieurs fois.</p>
+                            <Label for="remises_multiples" class="cursor-pointer">{{ $t('types_projet.edit.label_multiple_submissions') }}</Label>
+                            <p class="text-xs text-muted-foreground">{{ $t('types_projet.edit.multiple_submissions_hint') }}</p>
                         </div>
                     </div>
 
@@ -176,8 +180,8 @@ function sauvegarder() {
                             @update:checked="(v) => (form.retard_permis = v as boolean)"
                         />
                         <div class="grid gap-0.5">
-                            <Label for="retard_permis" class="cursor-pointer">Remise en retard permise</Label>
-                            <p class="text-xs text-muted-foreground">La remise reste possible après la date limite.</p>
+                            <Label for="retard_permis" class="cursor-pointer">{{ $t('types_projet.edit.label_late_submission') }}</Label>
+                            <p class="text-xs text-muted-foreground">{{ $t('types_projet.edit.late_submission_hint') }}</p>
                         </div>
                     </div>
                 </CardContent>
@@ -187,21 +191,21 @@ function sauvegarder() {
             <div class="flex flex-col gap-3">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h2 class="text-sm font-semibold">Sections du projet</h2>
+                        <h2 class="text-sm font-semibold">{{ $t('types_projet.edit.sections_title') }}</h2>
                         <p class="text-xs text-muted-foreground">
-                            Définissez les parties que les étudiants devront rédiger et leur mode de saisie.
+                            {{ $t('types_projet.edit.sections_hint') }}
                         </p>
                     </div>
                     <Button type="button" size="sm" variant="outline" @click="ajouterSection">
                         <Plus class="mr-2 h-3.5 w-3.5" />
-                        Ajouter
+                        {{ $t('types_projet.edit.add_section') }}
                     </Button>
                 </div>
 
                 <!-- Message vide -->
                 <Card v-if="form.sections.length === 0">
                     <CardContent class="py-8 text-center text-sm text-muted-foreground">
-                        Aucune section définie. Cliquez sur « Ajouter » pour commencer.
+                        {{ $t('types_projet.edit.no_sections') }}
                     </CardContent>
                 </Card>
 
@@ -221,13 +225,13 @@ function sauvegarder() {
                             <div class="flex-1 space-y-1.5">
                                 <Input
                                     v-model="form.sections[idx].label"
-                                    placeholder="Titre de la section *"
+                                    :placeholder="$t('types_projet.edit.section_title_placeholder')"
                                     required
                                 />
                                 <InputError :message="form.errors[`sections.${idx}.label`]" />
                                 <Input
                                     v-model="form.sections[idx].description"
-                                    placeholder="Consigne pour les étudiants (optionnelle)"
+                                    :placeholder="$t('types_projet.edit.section_instruction_placeholder')"
                                 />
                             </div>
                             <Button
@@ -243,23 +247,23 @@ function sauvegarder() {
 
                         <!-- Sélecteur de type -->
                         <div class="ml-11">
-                            <p class="mb-2 text-xs font-medium text-muted-foreground">Mode de saisie</p>
+                            <p class="mb-2 text-xs font-medium text-muted-foreground">{{ $t('types_projet.edit.input_mode_label') }}</p>
                             <div class="grid grid-cols-3 gap-2">
                                 <button
-                                    v-for="t in SECTION_TYPES"
-                                    :key="t.value"
+                                    v-for="sType in sectionTypes"
+                                    :key="sType.value"
                                     type="button"
                                     :class="[
                                         'flex flex-col rounded-md border px-3 py-2.5 text-left text-xs transition-colors',
-                                        form.sections[idx].type === t.value
+                                        form.sections[idx].type === sType.value
                                             ? 'border-primary bg-primary/5 text-primary'
                                             : 'border-border bg-background text-muted-foreground hover:border-muted-foreground/40',
                                     ]"
-                                    @click="form.sections[idx].type = t.value"
+                                    @click="form.sections[idx].type = sType.value"
                                 >
-                                    <span class="font-medium">{{ t.label }}</span>
+                                    <span class="font-medium">{{ sType.label }}</span>
                                     <span class="mt-0.5 leading-tight text-muted-foreground/70">
-                                        {{ t.description }}
+                                        {{ sType.description }}
                                     </span>
                                 </button>
                             </div>
@@ -271,7 +275,7 @@ function sauvegarder() {
             <!-- Bouton enregistrer -->
             <div class="flex justify-end">
                 <Button :disabled="form.processing" @click="sauvegarder">
-                    {{ form.processing ? 'Enregistrement…' : 'Enregistrer les modifications' }}
+                    {{ form.processing ? $t('types_projet.edit.save_btn_saving') : $t('types_projet.edit.save_btn') }}
                 </Button>
             </div>
         </div>

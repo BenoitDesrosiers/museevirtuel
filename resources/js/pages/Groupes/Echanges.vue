@@ -2,12 +2,15 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { ArrowLeft, Send } from 'lucide-vue-next';
 import { computed, nextTick, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { Auth } from '@/types/auth';
+
+const { t } = useI18n();
 
 type User = {
     id: number;
@@ -90,7 +93,7 @@ function submit() {
 
 <template>
     <AppLayout>
-        <Head :title="`Échanges — Groupe ${groupe.numero}`" />
+        <Head :title="$t('echanges.page_title', { n: groupe.numero })" />
 
         <div class="flex flex-col gap-6 p-6">
             <!-- Retour -->
@@ -98,13 +101,13 @@ function submit() {
                 <Button variant="ghost" size="sm" as-child>
                     <Link :href="`/classes/${classe.id}/groupes/${groupe.id}`">
                         <ArrowLeft class="mr-2 h-4 w-4" />
-                        Retour au groupe
+                        {{ $t('echanges.back') }}
                     </Link>
                 </Button>
             </div>
 
             <Heading
-                :title="`Échanges — Groupe ${groupe.numero}`"
+                :title="$t('echanges.page_title', { n: groupe.numero })"
                 :description="`${classe.code} · ${classe.nom_cours}`"
             />
 
@@ -117,19 +120,19 @@ function submit() {
                         </span>
                         <div>
                             <p class="text-sm font-medium">{{ groupe.temoin.prenom }} {{ groupe.temoin.nom }}</p>
-                            <p class="text-muted-foreground text-xs">Témoin du groupe</p>
+                            <p class="text-muted-foreground text-xs">{{ $t('echanges.witness_of_group') }}</p>
                         </div>
                     </div>
                 </CardContent>
             </Card>
             <div v-else class="text-muted-foreground rounded-lg border border-dashed p-4 text-center text-sm">
-                Aucun témoin n'est encore assigné à ce groupe. Un enseignant doit d'abord en désigner un.
+                {{ $t('echanges.no_witness') }}
             </div>
 
             <!-- Thread d'échanges -->
             <Card>
                 <CardHeader>
-                    <CardTitle>Messages ({{ echanges.length }})</CardTitle>
+                    <CardTitle>{{ $t('echanges.messages_title', { n: echanges.length }) }}</CardTitle>
                 </CardHeader>
                 <CardContent class="flex flex-col gap-2">
                     <!-- Fil de discussion -->
@@ -141,7 +144,7 @@ function submit() {
                             v-if="echanges.length === 0"
                             class="text-muted-foreground py-6 text-center text-sm"
                         >
-                            Aucun message pour l'instant. Commencez la conversation !
+                            {{ $t('echanges.no_messages') }}
                         </div>
 
                         <div
@@ -177,7 +180,7 @@ function submit() {
                                 v-model="form.contenu"
                                 rows="3"
                                 maxlength="3000"
-                                :placeholder="estTemoin ? 'Répondre au groupe…' : 'Écrire au témoin…'"
+                                :placeholder="estTemoin ? $t('echanges.placeholder_temoin') : $t('echanges.placeholder_etudiant')"
                                 class="resize-none"
                             />
                             <p v-if="form.errors.contenu" class="text-destructive text-sm">
@@ -190,7 +193,7 @@ function submit() {
                                     :disabled="form.processing || !form.contenu.trim()"
                                 >
                                     <Send class="mr-2 h-4 w-4" />
-                                    Envoyer
+                                    {{ $t('echanges.send') }}
                                 </Button>
                             </div>
                         </form>

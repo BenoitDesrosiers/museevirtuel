@@ -2,9 +2,12 @@
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { MessageSquare, Users } from 'lucide-vue-next';
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
+
+const { t } = useI18n();
 
 type User = {
     id: number;
@@ -38,15 +41,15 @@ const user = computed(() => page.props.auth?.user as { prenom: string; nom: stri
 
 <template>
     <AppLayout>
-        <Head title="Espace Témoin" />
+        <Head :title="$t('personne_agee.page_title')" />
 
         <div class="flex flex-col gap-6 p-6">
             <div>
                 <h1 class="text-2xl font-semibold">
-                    Bonjour {{ user?.prenom }} !
+                    {{ $t('personne_agee.welcome', { prenom: user?.prenom }) }}
                 </h1>
                 <p class="text-muted-foreground mt-1 text-sm">
-                    Bienvenue dans votre espace Témoin.
+                    {{ $t('personne_agee.welcome_description') }}
                 </p>
             </div>
 
@@ -55,8 +58,8 @@ const user = computed(() => page.props.auth?.user as { prenom: string; nom: stri
                 v-if="groupes.length === 0"
                 class="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm"
             >
-                Vous n'êtes encore assigné(e) à aucun groupe.<br>
-                Un enseignant vous contactera bientôt.
+                {{ $t('personne_agee.no_groups') }}<br>
+                {{ $t('personne_agee.no_groups_contact') }}
             </div>
 
             <!-- Liste des groupes assignés -->
@@ -68,7 +71,7 @@ const user = computed(() => page.props.auth?.user as { prenom: string; nom: stri
                 >
                     <CardHeader>
                         <CardTitle class="text-base">
-                            Groupe {{ groupe.numero }}
+                            {{ $t('personne_agee.group_number', { n: groupe.numero }) }}
                         </CardTitle>
                         <p class="text-muted-foreground text-sm">
                             {{ groupe.classe.code }} — {{ groupe.classe.nom_cours }}
@@ -79,7 +82,7 @@ const user = computed(() => page.props.auth?.user as { prenom: string; nom: stri
                         <div>
                             <p class="text-muted-foreground mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide">
                                 <Users class="h-3.5 w-3.5" />
-                                Membres
+                                {{ $t('personne_agee.members') }}
                             </p>
                             <ul class="space-y-1">
                                 <li
@@ -100,7 +103,7 @@ const user = computed(() => page.props.auth?.user as { prenom: string; nom: stri
                             <Button class="w-full" as-child>
                                 <Link :href="`/classes/${groupe.classe.id}/groupes/${groupe.id}/echanges`">
                                     <MessageSquare class="mr-2 h-4 w-4" />
-                                    Voir les échanges
+                                    {{ $t('personne_agee.see_exchanges') }}
                                     <span
                                         v-if="groupe.nb_echanges > 0"
                                         class="bg-primary-foreground/20 ml-2 rounded-full px-1.5 py-0.5 text-xs"
