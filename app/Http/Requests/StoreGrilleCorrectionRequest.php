@@ -37,7 +37,7 @@ class StoreGrilleCorrectionRequest extends FormRequest
             'criteres.*.ponderation' => ['required', 'integer', 'min:1', 'max:100'],
             'malus' => ['nullable', 'array'],
             'malus.*.label' => ['required', 'string', 'max:255'],
-            'malus.*.deduction' => ['required', 'numeric', 'min:0.01', 'max:100'],
+            'malus.*.deduction' => ['required', 'numeric', 'min:0', 'max:100'],
             'malus.*.description' => ['nullable', 'string', 'max:500'],
         ];
     }

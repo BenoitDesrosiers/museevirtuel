@@ -5,13 +5,14 @@ import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import typesProjets from '@/routes/types-projets';
 
-type SectionType = 'texte' | 'paragraphes' | 'individuel';
+type SectionType = 'texte' | 'paragraphes' | 'individuel' | 'entrevue';
 
 type SectionFormItem = {
     id?: number;
@@ -24,6 +25,9 @@ type TypeProjet = {
     id: number;
     nom: string;
     description: string | null;
+    date_remise: string | null;
+    remises_multiples: boolean;
+    retard_permis: boolean;
     sections: { id: number; label: string; description: string | null; ordre: number; type: SectionType }[];
 };
 
@@ -47,13 +51,29 @@ const SECTION_TYPES: { value: SectionType; label: string; description: string }[
         label: 'Individuel',
         description: 'Chaque membre rédige sa propre version de cette section.',
     },
+    {
+        value: 'entrevue',
+        label: 'Schéma d\'entrevue',
+        description: 'Concepts structurés avec dimensions, indicateurs et questions spécifiques.',
+    },
 ];
 
 const props = defineProps<Props>();
 
+/**
+ * Convertit une date ISO en format attendu par datetime-local (YYYY-MM-DDTHH:mm).
+ */
+function toDatetimeLocal(iso: string | null | undefined): string {
+    if (!iso) return '';
+    return iso.slice(0, 16);
+}
+
 const form = useForm({
     nom: props.typeProjet.nom,
     description: props.typeProjet.description ?? '',
+    date_remise: toDatetimeLocal(props.typeProjet.date_remise),
+    remises_multiples: props.typeProjet.remises_multiples,
+    retard_permis: props.typeProjet.retard_permis,
     sections: props.typeProjet.sections.map<SectionFormItem>((s) => ({
         id: s.id,
         label: s.label,
@@ -118,6 +138,47 @@ function sauvegarder() {
                         <Label for="description">Description (optionnelle)</Label>
                         <Textarea id="description" v-model="form.description" rows="2" />
                         <InputError :message="form.errors.description" />
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Paramètres de remise -->
+            <Card>
+                <CardContent class="grid gap-4 pt-6">
+                    <h2 class="text-sm font-semibold">Paramètres de remise</h2>
+
+                    <div class="grid gap-2">
+                        <Label for="date_remise">Date limite de remise (optionnelle)</Label>
+                        <Input
+                            id="date_remise"
+                            v-model="form.date_remise"
+                            type="datetime-local"
+                        />
+                        <InputError :message="form.errors.date_remise" />
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <Checkbox
+                            id="remises_multiples"
+                            :checked="form.remises_multiples"
+                            @update:checked="(v) => (form.remises_multiples = v as boolean)"
+                        />
+                        <div class="grid gap-0.5">
+                            <Label for="remises_multiples" class="cursor-pointer">Remises multiples autorisées</Label>
+                            <p class="text-xs text-muted-foreground">Le groupe peut remettre son travail plusieurs fois.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <Checkbox
+                            id="retard_permis"
+                            :checked="form.retard_permis"
+                            @update:checked="(v) => (form.retard_permis = v as boolean)"
+                        />
+                        <div class="grid gap-0.5">
+                            <Label for="retard_permis" class="cursor-pointer">Remise en retard permise</Label>
+                            <p class="text-xs text-muted-foreground">La remise reste possible après la date limite.</p>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

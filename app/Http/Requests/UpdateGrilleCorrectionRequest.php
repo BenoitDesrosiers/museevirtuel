@@ -40,7 +40,7 @@ class UpdateGrilleCorrectionRequest extends FormRequest
             'malus' => ['nullable', 'array'],
             'malus.*.id' => ['nullable', 'integer'],
             'malus.*.label' => ['required', 'string', 'max:255'],
-            'malus.*.deduction' => ['required', 'numeric', 'min:0.01', 'max:100'],
+            'malus.*.deduction' => ['required', 'numeric', 'min:0', 'max:100'],
             'malus.*.description' => ['nullable', 'string', 'max:500'],
         ];
     }

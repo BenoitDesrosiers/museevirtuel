@@ -54,7 +54,7 @@ class ProjetRechercheSeeder extends Seeder
         // ─── Contenus des sections texte (Amené / Posé / Divisé) ─────────────
         $contenusSections = [
             'Sujet amené' => '<p>Depuis l\'aube de la civilisation universitaire, l\'être humain a cherché à comprendre les mécanismes profonds qui gouvernent sa capacité à rédiger un travail de fin de session la veille de la remise. De nombreux philosophes, dont Socrate lui-même (qui, rappelons-le, n\'avait pas accès à Internet), se sont penchés sur cette question fondamentale : pourquoi est-ce que tout devient urgent en décembre ?</p><p>La pizza froide, vestige sacré des nuits de travail, s\'impose comme un objet d\'étude incontournable dans ce contexte de détresse intellectuelle organisée.</p>',
-            'Sujet posé'  => '<p>La problématique centrale de cette recherche peut être formulée comme suit : <strong>dans quelle mesure la consommation de pizza froide à 3h du matin influence-t-elle la qualité rédactionnelle d\'un travail universitaire ?</strong></p>',
+            'Sujet posé' => '<p>La problématique centrale de cette recherche peut être formulée comme suit : <strong>dans quelle mesure la consommation de pizza froide à 3h du matin influence-t-elle la qualité rédactionnelle d\'un travail universitaire ?</strong></p>',
             'Sujet divisé' => '<p>Ce travail s\'articulera en cinq grandes parties : thermodynamique, effets neurologiques, sémiologie du fromage, modèle prédictif et recommandations pratiques.</p>',
         ];
 
@@ -79,34 +79,34 @@ class ProjetRechercheSeeder extends Seeder
 
             $paragraphes = [
                 [
-                    'titre'   => 'Thermodynamique de la pizza froide : une approche phénoménologique',
+                    'titre' => 'Thermodynamique de la pizza froide : une approche phénoménologique',
                     'contenu' => '<p>La pizza, une fois sortie du four, entame un processus irréversible de refroidissement que la physique classique nomme "dissipation thermique" et que l\'étudiant nomme "oups, j\'ai oublié de manger".</p>',
                 ],
                 [
-                    'titre'   => 'Effets neuropsychologiques de la consommation nocturne de glucides sur la syntaxe',
+                    'titre' => 'Effets neuropsychologiques de la consommation nocturne de glucides sur la syntaxe',
                     'contenu' => '<p>Plusieurs études fictives ont démontré que la consommation de glucides raffinés après minuit provoque le <strong>syndrome de la phrase sans fin</strong>.</p>',
                 ],
                 [
-                    'titre'   => 'Le fromage comme métaphore de la procrastination : analyse sémiologique',
+                    'titre' => 'Le fromage comme métaphore de la procrastination : analyse sémiologique',
                     'contenu' => '<p>Tout comme le fromage, la procrastination commence chaude et prometteuse, puis se solidifie en une masse compacte et difficile à décoller de la conscience de l\'étudiant.</p>',
                 ],
                 [
-                    'titre'   => 'Modèle prédictif : corrélation entre pointes de pizza et note finale',
+                    'titre' => 'Modèle prédictif : corrélation entre pointes de pizza et note finale',
                     'contenu' => '<p><strong>Note finale = (Nombre de pointes × 1,7) − (Heures de sommeil × 0,3) + (Tasses de café × 2,1) − Constante de désespoir</strong></p>',
                 ],
                 [
-                    'titre'   => 'Recommandations pratiques à l\'intention des futurs étudiants en état de crise',
+                    'titre' => 'Recommandations pratiques à l\'intention des futurs étudiants en état de crise',
                     'contenu' => '<ul><li>Commander la pizza avant 21h.</li><li>Garder au moins une tranche pour le matin.</li><li>Ne pas lire ses propres notes à jeun.</li></ul>',
                 ],
             ];
 
             foreach ($paragraphes as $index => $data) {
                 ProjetSectionParagraphe::create([
-                    'projet_id'  => $projet->id,
+                    'projet_id' => $projet->id,
                     'section_id' => $sectionDev->id,
-                    'ordre'      => $index + 1,
-                    'titre'      => $data['titre'],
-                    'contenu'    => $data['contenu'],
+                    'ordre' => $index + 1,
+                    'titre' => $data['titre'],
+                    'contenu' => $data['contenu'],
                 ]);
             }
         }

@@ -50,10 +50,13 @@ class TypeProjetController extends Controller
         $data = $request->validate([
             'nom' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:1000'],
+            'date_remise' => ['nullable', 'date'],
+            'remises_multiples' => ['boolean'],
+            'retard_permis' => ['boolean'],
             'sections' => ['nullable', 'array'],
             'sections.*.label' => ['required', 'string', 'max:200'],
             'sections.*.description' => ['nullable', 'string', 'max:1000'],
-            'sections.*.type' => ['nullable', 'string', 'in:texte,paragraphes,individuel'],
+            'sections.*.type' => ['nullable', 'string', 'in:texte,paragraphes,individuel,entrevue'],
         ]);
 
         $typeProjet = TypeProjet::create([
@@ -61,6 +64,9 @@ class TypeProjetController extends Controller
             'nom' => $data['nom'],
             'description' => $data['description'] ?? null,
             'accessible' => false,
+            'date_remise' => $data['date_remise'] ?? null,
+            'remises_multiples' => $data['remises_multiples'] ?? false,
+            'retard_permis' => $data['retard_permis'] ?? false,
         ]);
 
         foreach ($data['sections'] ?? [] as $index => $section) {
@@ -90,14 +96,23 @@ class TypeProjetController extends Controller
         $data = $request->validate([
             'nom' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:1000'],
+            'date_remise' => ['nullable', 'date'],
+            'remises_multiples' => ['boolean'],
+            'retard_permis' => ['boolean'],
             'sections' => ['nullable', 'array'],
             'sections.*.id' => ['nullable', 'integer'],
             'sections.*.label' => ['required', 'string', 'max:200'],
             'sections.*.description' => ['nullable', 'string', 'max:1000'],
-            'sections.*.type' => ['nullable', 'string', 'in:texte,paragraphes,individuel'],
+            'sections.*.type' => ['nullable', 'string', 'in:texte,paragraphes,individuel,entrevue'],
         ]);
 
-        $typeProjet->update(['nom' => $data['nom'], 'description' => $data['description'] ?? null]);
+        $typeProjet->update([
+            'nom' => $data['nom'],
+            'description' => $data['description'] ?? null,
+            'date_remise' => $data['date_remise'] ?? null,
+            'remises_multiples' => $data['remises_multiples'] ?? false,
+            'retard_permis' => $data['retard_permis'] ?? false,
+        ]);
 
         if ($request->has('sections')) {
             $sections = $data['sections'] ?? [];

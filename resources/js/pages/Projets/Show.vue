@@ -127,15 +127,36 @@ type SectionConclusionMembre = {
     contenu: string | null;
 };
 
+type EntrevueLigne = {
+    id: number;
+    ordre: number;
+    dimension: string | null;
+    indicateur: string | null;
+    questions: string[];
+};
+
+type EntrevueConcept = {
+    id: number;
+    label: string;
+    ordre: number;
+    lignes: EntrevueLigne[];
+};
+
+type TypeProjetInfo = {
+    id: number;
+    nom: string;
+};
+
 type Section = {
     id: number;
     label: string;
     description: string | null;
     ordre: number;
-    type: 'texte' | 'paragraphes' | 'individuel';
+    type: 'texte' | 'paragraphes' | 'individuel' | 'entrevue';
     contenu: string | null;
     paragraphes: SectionParagraphe[] | null;
     conclusionsParMembre: SectionConclusionMembre[] | null;
+    concepts: EntrevueConcept[] | null;
 };
 
 type Props = {
@@ -158,6 +179,8 @@ type Props = {
     commentaires: Record<string, Commentaire>;
     votes: VoteRemise[];
     annotationsParChamp: Record<string, Annotation[]>;
+    /** Type de projet affiché (transmis depuis le controller) */
+    typeProjet: TypeProjetInfo;
     /** Sections dynamiques définies par le professeur (vide si aucun type ou type sans sections) */
     sections: Section[];
     // Grille personnalisée (rattachée automatiquement à la classe)
@@ -200,6 +223,21 @@ const sectionParagraphesLocaux = reactive<Record<number, SectionParagraphe[]>>(
     ),
 );
 
+// Concepts d'entrevue pour les sections de type 'entrevue' (clé : sectionId)
+const sectionConceptsLocaux = reactive<Record<number, EntrevueConcept[]>>(
+    Object.fromEntries(
+        props.sections
+            .filter((s) => s.type === 'entrevue')
+            .map((s) => [
+                s.id,
+                (s.concepts ?? []).map((c) => ({
+                    ...c,
+                    lignes: c.lignes.map((l) => ({ ...l, questions: [...(l.questions ?? [])] })),
+                })),
+            ]),
+    ),
+);
+
 // Conclusions par section pour les sections de type 'individuel' (clé : sectionId → userId)
 const sectionConclusionsLocales = reactive<Record<number, Record<number, string>>>(
     Object.fromEntries(
@@ -239,7 +277,7 @@ const debounceDev = new Map<number, ReturnType<typeof setTimeout>>();
 
 const baseUrl = computed(
     () =>
-        `/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/projets`,
+        `/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/projets/${props.typeProjet.id}`,
 );
 
 function scheduleSharedSave() {
@@ -526,6 +564,135 @@ async function saveSectionConclusion(sectionId: number, userId: number) {
     }
 }
 
+// ─── Concepts d'entrevue (type 'entrevue') ────────────────────────────────────
+
+const debounceConceptsLabel = new Map<number, ReturnType<typeof setTimeout>>();
+const debounceLignes = new Map<number, ReturnType<typeof setTimeout>>();
+const conceptEnCours = reactive<Record<number, boolean>>({});
+
+function scheduleConceptLabelSave(conceptId: number, sectionId: number) {
+    if (!props.peutEditer) return;
+    saveStatus.value = 'saving';
+    const existing = debounceConceptsLabel.get(conceptId);
+    if (existing) clearTimeout(existing);
+    debounceConceptsLabel.set(conceptId, setTimeout(() => saveConceptLabel(conceptId, sectionId), 1500));
+}
+
+async function saveConceptLabel(conceptId: number, sectionId: number) {
+    if (!props.peutEditer) return;
+    const concepts = sectionConceptsLocaux[sectionId];
+    if (!concepts) return;
+    const c = concepts.find((c) => c.id === conceptId);
+    if (!c) return;
+    try {
+        await axios.patch(`${baseUrl.value}/sections/${sectionId}/concepts/${conceptId}`, { label: c.label });
+        saveStatus.value = 'saved';
+        setTimeout(() => { saveStatus.value = 'idle'; }, 2000);
+    } catch {
+        saveStatus.value = 'error';
+    }
+}
+
+function scheduleLigneSave(ligneId: number, conceptId: number, sectionId: number) {
+    if (!props.peutEditer) return;
+    saveStatus.value = 'saving';
+    const existing = debounceLignes.get(ligneId);
+    if (existing) clearTimeout(existing);
+    debounceLignes.set(ligneId, setTimeout(() => saveLigne(ligneId, conceptId, sectionId), 1500));
+}
+
+async function saveLigne(ligneId: number, conceptId: number, sectionId: number) {
+    if (!props.peutEditer) return;
+    const concepts = sectionConceptsLocaux[sectionId];
+    if (!concepts) return;
+    const c = concepts.find((c) => c.id === conceptId);
+    if (!c) return;
+    const l = c.lignes.find((l) => l.id === ligneId);
+    if (!l) return;
+    try {
+        await axios.patch(
+            `${baseUrl.value}/sections/${sectionId}/concepts/${conceptId}/lignes/${ligneId}`,
+            { dimension: l.dimension, indicateur: l.indicateur, questions: l.questions },
+        );
+        saveStatus.value = 'saved';
+        setTimeout(() => { saveStatus.value = 'idle'; }, 2000);
+    } catch {
+        saveStatus.value = 'error';
+    }
+}
+
+async function ajouterConcept(sectionId: number) {
+    if (conceptEnCours[sectionId]) return;
+    conceptEnCours[sectionId] = true;
+    try {
+        const response = await axios.post(`${baseUrl.value}/sections/${sectionId}/concepts`, { label: 'Nouveau concept' });
+        if (!sectionConceptsLocaux[sectionId]) sectionConceptsLocaux[sectionId] = [];
+        sectionConceptsLocaux[sectionId].push({ ...response.data.concept, lignes: [] });
+    } finally {
+        conceptEnCours[sectionId] = false;
+    }
+}
+
+async function supprimerConcept(conceptId: number, sectionId: number) {
+    if (conceptEnCours[sectionId]) return;
+    conceptEnCours[sectionId] = true;
+    try {
+        await axios.delete(`${baseUrl.value}/sections/${sectionId}/concepts/${conceptId}`);
+        sectionConceptsLocaux[sectionId] = sectionConceptsLocaux[sectionId]
+            .filter((c) => c.id !== conceptId)
+            .map((c, i) => ({ ...c, ordre: i + 1 }));
+    } finally {
+        conceptEnCours[sectionId] = false;
+    }
+}
+
+async function ajouterLigne(conceptId: number, sectionId: number) {
+    const concepts = sectionConceptsLocaux[sectionId];
+    if (!concepts) return;
+    try {
+        const response = await axios.post(
+            `${baseUrl.value}/sections/${sectionId}/concepts/${conceptId}/lignes`,
+        );
+        const c = concepts.find((c) => c.id === conceptId);
+        if (c) c.lignes.push({ ...response.data.ligne, questions: [] });
+    } catch {
+        saveStatus.value = 'error';
+    }
+}
+
+async function supprimerLigne(ligneId: number, conceptId: number, sectionId: number) {
+    const concepts = sectionConceptsLocaux[sectionId];
+    if (!concepts) return;
+    try {
+        await axios.delete(`${baseUrl.value}/sections/${sectionId}/concepts/${conceptId}/lignes/${ligneId}`);
+        const c = concepts.find((c) => c.id === conceptId);
+        if (c) {
+            c.lignes = c.lignes
+                .filter((l) => l.id !== ligneId)
+                .map((l, i) => ({ ...l, ordre: i + 1 }));
+        }
+    } catch {
+        saveStatus.value = 'error';
+    }
+}
+
+function ajouterQuestion(ligne: EntrevueLigne, conceptId: number, sectionId: number) {
+    ligne.questions = [...ligne.questions, ''];
+    scheduleLigneSave(ligne.id, conceptId, sectionId);
+}
+
+function supprimerQuestion(ligne: EntrevueLigne, qIndex: number, conceptId: number, sectionId: number) {
+    ligne.questions = ligne.questions.filter((_, i) => i !== qIndex);
+    scheduleLigneSave(ligne.id, conceptId, sectionId);
+}
+
+function totalQuestions(sectionId: number): number {
+    return (sectionConceptsLocaux[sectionId] ?? []).reduce(
+        (sum, c) => sum + c.lignes.reduce((s, l) => s + (l.questions?.length ?? 0), 0),
+        0,
+    );
+}
+
 // ─── Collapse / expand des sections ──────────────────────────────────────────
 
 const collapsed = reactive<Record<string, boolean>>({
@@ -724,7 +891,7 @@ async function toggleVerrouille(): Promise<void> {
 // d'écraser les modifications en cours de saisie de l'étudiant.
 
 usePoll(10_000, {
-    only: ['verrouille', 'correctionVisible', 'peutEditer', 'peutRemettre', 'annotationsParChamp', 'votes', 'retardPermis', 'remisLe'],
+    only: ['verrouille', 'correctionVisible', 'peutEditer', 'peutRemettre', 'annotationsParChamp', 'votes', 'remisLe'],
 });
 
 // Synchronise les refs locales depuis les props Inertia mises à jour par le polling.
@@ -788,7 +955,6 @@ const retardPermis = ref(props.retardPermis);
 const votes = ref<VoteRemise[]>([...props.votes]);
 const voteEnCours = ref(false);
 const annulationEnCours = ref(false);
-const parametresRemiseEnCours = ref(false);
 
 const dateRemiseFormatee = computed(() => {
     if (!dateRemise.value) {
@@ -811,27 +977,6 @@ const dateRemiseDepassee = computed(() => {
 
     return new Date(dateRemise.value) < new Date();
 });
-
-async function sauvegarderParametresRemise(): Promise<void> {
-    if (parametresRemiseEnCours.value) {
-        return;
-    }
-
-    parametresRemiseEnCours.value = true;
-
-    try {
-        const response = await axios.patch(`${baseUrl.value}/parametres-remise`, {
-            date_remise: dateRemise.value,
-            remises_multiples: remisesMultiples.value,
-            retard_permis: retardPermis.value,
-        });
-        dateRemise.value = response.data.date_remise;
-        remisesMultiples.value = response.data.remises_multiples;
-        retardPermis.value = response.data.retard_permis;
-    } finally {
-        parametresRemiseEnCours.value = false;
-    }
-}
 
 /**
  * Enregistre le vote "pour remettre" de l'étudiant connecté.
@@ -1610,6 +1755,175 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         </Card>
                     </template>
 
+                    <!-- ── Type entrevue : concepts + tableau dim/indic/questions ── -->
+                    <template v-else-if="section.type === 'entrevue'">
+                        <!-- Compteur de questions -->
+                        <div class="mb-2 flex items-center justify-between">
+                            <span class="text-sm text-muted-foreground">
+                                Questions renseignées :
+                                <span :class="totalQuestions(section.id) >= 10 ? 'font-semibold text-green-600' : 'font-semibold text-amber-500'">
+                                    {{ totalQuestions(section.id) }}
+                                </span>
+                                <span class="text-muted-foreground"> / 10 min.</span>
+                            </span>
+                        </div>
+
+                        <!-- Liste des concepts -->
+                        <Card
+                            v-for="concept in sectionConceptsLocaux[section.id] ?? []"
+                            :key="concept.id"
+                        >
+                            <CardHeader class="flex flex-row items-start justify-between gap-2 pb-2">
+                                <div class="flex flex-1 items-center gap-2">
+                                    <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                                        {{ concept.ordre }}
+                                    </span>
+                                    <input
+                                        v-if="peutEditer"
+                                        :value="concept.label"
+                                        class="flex-1 rounded border-0 bg-transparent text-sm font-medium outline-none focus:ring-1 focus:ring-ring"
+                                        placeholder="Nom du concept…"
+                                        @input="(e) => { concept.label = (e.target as HTMLInputElement).value; scheduleConceptLabelSave(concept.id, section.id); }"
+                                    />
+                                    <span v-else class="text-sm font-medium">{{ concept.label }}</span>
+                                </div>
+                                <Button
+                                    v-if="peutEditer"
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-7 w-7 shrink-0 text-destructive"
+                                    :disabled="!!conceptEnCours[section.id]"
+                                    @click="supprimerConcept(concept.id, section.id)"
+                                >
+                                    <Trash2 class="h-3.5 w-3.5" />
+                                </Button>
+                            </CardHeader>
+
+                            <CardContent class="pt-0">
+                                <!-- Tableau lignes -->
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="border-b text-xs text-muted-foreground">
+                                            <th class="pb-1 pr-2 text-left font-medium">Dimension</th>
+                                            <th class="pb-1 pr-2 text-left font-medium">Indicateur</th>
+                                            <th class="pb-1 text-left font-medium">Questions spécifiques</th>
+                                            <th v-if="peutEditer" class="w-8" />
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr
+                                            v-for="ligne in concept.lignes"
+                                            :key="ligne.id"
+                                            class="align-top"
+                                        >
+                                            <!-- Dimension -->
+                                            <td class="py-1 pr-2 align-top">
+                                                <textarea
+                                                    v-if="peutEditer"
+                                                    :value="ligne.dimension ?? ''"
+                                                    rows="2"
+                                                    class="w-full resize-none rounded border border-input bg-transparent p-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+                                                    placeholder="Dimension…"
+                                                    @input="(e) => { ligne.dimension = (e.target as HTMLTextAreaElement).value; scheduleLigneSave(ligne.id, concept.id, section.id); }"
+                                                />
+                                                <span v-else class="block whitespace-pre-wrap">{{ ligne.dimension }}</span>
+                                            </td>
+                                            <!-- Indicateur -->
+                                            <td class="py-1 pr-2 align-top">
+                                                <textarea
+                                                    v-if="peutEditer"
+                                                    :value="ligne.indicateur ?? ''"
+                                                    rows="2"
+                                                    class="w-full resize-none rounded border border-input bg-transparent p-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+                                                    placeholder="Indicateur…"
+                                                    @input="(e) => { ligne.indicateur = (e.target as HTMLTextAreaElement).value; scheduleLigneSave(ligne.id, concept.id, section.id); }"
+                                                />
+                                                <span v-else class="block whitespace-pre-wrap">{{ ligne.indicateur }}</span>
+                                            </td>
+                                            <!-- Questions -->
+                                            <td class="py-1 align-top">
+                                                <div class="space-y-1">
+                                                    <div
+                                                        v-for="(q, qi) in ligne.questions"
+                                                        :key="qi"
+                                                        class="flex items-start gap-1"
+                                                    >
+                                                        <span class="mt-1.5 shrink-0 text-xs text-muted-foreground">{{ qi + 1 }}.</span>
+                                                        <input
+                                                            v-if="peutEditer"
+                                                            :value="q"
+                                                            class="flex-1 rounded border border-input bg-transparent p-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+                                                            placeholder="Question…"
+                                                            @input="(e) => { ligne.questions[qi] = (e.target as HTMLInputElement).value; scheduleLigneSave(ligne.id, concept.id, section.id); }"
+                                                        />
+                                                        <span v-else class="flex-1">{{ q }}</span>
+                                                        <Button
+                                                            v-if="peutEditer"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            class="h-6 w-6 shrink-0 text-destructive"
+                                                            @click="supprimerQuestion(ligne, qi, concept.id, section.id)"
+                                                        >
+                                                            <Trash2 class="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
+                                                    <Button
+                                                        v-if="peutEditer"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        class="h-6 gap-1 text-xs"
+                                                        @click="ajouterQuestion(ligne, concept.id, section.id)"
+                                                    >
+                                                        <Plus class="h-3 w-3" />
+                                                        Ajouter une question
+                                                    </Button>
+                                                    <p v-else-if="!ligne.questions?.length" class="text-xs text-muted-foreground italic">Aucune question</p>
+                                                </div>
+                                            </td>
+                                            <!-- Supprimer ligne -->
+                                            <td v-if="peutEditer" class="py-1 pl-1 align-top">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    class="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                                    @click="supprimerLigne(ligne.id, concept.id, section.id)"
+                                                >
+                                                    <Trash2 class="h-3.5 w-3.5" />
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <!-- Bouton ajouter ligne -->
+                                <Button
+                                    v-if="peutEditer"
+                                    variant="outline"
+                                    size="sm"
+                                    class="mt-2 gap-1 text-xs"
+                                    @click="ajouterLigne(concept.id, section.id)"
+                                >
+                                    <Plus class="h-3 w-3" />
+                                    Ajouter une ligne
+                                </Button>
+                            </CardContent>
+                        </Card>
+
+                        <!-- Bouton ajouter concept -->
+                        <div v-if="peutEditer" class="flex justify-center">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                :disabled="!!conceptEnCours[section.id]"
+                                @click="ajouterConcept(section.id)"
+                            >
+                                <Loader2 v-if="conceptEnCours[section.id]" class="mr-2 h-4 w-4 animate-spin" />
+                                <Plus v-else class="mr-2 h-4 w-4" />
+                                Ajouter un concept — {{ section.label }}
+                            </Button>
+                        </div>
+                    </template>
+
                 </template>
             </template>
 
@@ -1957,7 +2271,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
 
             <!-- ─── Remise de travail ──────────────────────────────────────────── -->
 
-            <!-- Panneau de configuration de la remise (enseignant) -->
+            <!-- Panneau de configuration de la remise (enseignant — lecture seule) -->
             <Card v-if="estEnseignant">
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2 text-base">
@@ -1966,48 +2280,26 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     </CardTitle>
                 </CardHeader>
                 <CardContent class="space-y-4">
-                    <div class="flex flex-wrap items-end gap-4">
-                        <div class="flex-1">
-                            <Label class="mb-1 block text-xs text-muted-foreground">
-                                {{ t('projets.show.submission_deadline') }}
-                            </Label>
-                            <input
-                                v-model="dateRemise"
-                                type="datetime-local"
-                                class="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                            />
+                    <!-- Paramètres (lecture seule — configurés au niveau du type de projet) -->
+                    <div class="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                        <div class="mb-2 flex flex-wrap gap-x-6 gap-y-1">
+                            <span v-if="dateRemise">
+                                <CalendarDays class="mr-1 inline-block h-3.5 w-3.5" />
+                                {{ dateRemiseFormatee }}
+                            </span>
+                            <span v-else class="italic">Aucune date limite définie.</span>
+                            <span v-if="remisesMultiples" class="text-green-600 dark:text-green-400">Remises multiples ✓</span>
+                            <span v-if="retardPermis" class="text-amber-600 dark:text-amber-400">Retard permis ✓</span>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <input
-                                id="remises-multiples"
-                                v-model="remisesMultiples"
-                                type="checkbox"
-                                class="h-4 w-4 rounded border-input"
-                            />
-                            <Label for="remises-multiples" class="cursor-pointer text-sm">
-                                {{ t('projets.show.allow_multiple') }}
-                            </Label>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <input
-                                id="retard-permis"
-                                v-model="retardPermis"
-                                type="checkbox"
-                                class="h-4 w-4 rounded border-input"
-                            />
-                            <Label for="retard-permis" class="cursor-pointer text-sm">
-                                {{ t('projets.show.late_allowed') }}
-                            </Label>
-                        </div>
-                        <Button
-                            size="sm"
-                            :disabled="parametresRemiseEnCours"
-                            @click="sauvegarderParametresRemise"
+                        <Link
+                            :href="`/types-projets/${typeProjet.id}/edit`"
+                            class="inline-flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
                         >
-                            <Loader2 v-if="parametresRemiseEnCours" class="mr-2 h-4 w-4 animate-spin" />
-                            {{ t('common.save') }}
-                        </Button>
+                            <Settings2 class="h-3 w-3" />
+                            Modifier les paramètres dans le type de projet
+                        </Link>
                     </div>
+                    <!-- Annulation de remise si déjà soumis -->
                     <div v-if="remisLe" class="flex items-center justify-between gap-3">
                         <div class="text-sm text-muted-foreground">
                             <CheckCircle2 class="mr-1 inline-block h-4 w-4 text-green-500" />

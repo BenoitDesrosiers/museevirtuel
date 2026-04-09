@@ -75,6 +75,28 @@ test('le nom est obligatoire lors de la création', function () {
         ->assertJsonValidationErrors(['nom']);
 });
 
+// ─── Store avec paramètres de remise ─────────────────────────────────────────
+
+test("l'enseignant peut créer un type de projet avec des paramètres de remise", function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+
+    $this->actingAs($enseignant)
+        ->post('/types-projets', [
+            'nom' => 'Projet avec remise',
+            'date_remise' => '2026-05-01T23:59',
+            'remises_multiples' => true,
+            'retard_permis' => false,
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('types_projets', [
+        'enseignant_id' => $enseignant->id,
+        'nom' => 'Projet avec remise',
+        'remises_multiples' => true,
+        'retard_permis' => false,
+    ]);
+});
+
 // ─── Update ───────────────────────────────────────────────────────────────────
 
 test("l'enseignant peut modifier son type de projet", function () {
@@ -91,6 +113,26 @@ test("l'enseignant peut modifier son type de projet", function () {
     $this->assertDatabaseHas('types_projets', [
         'id' => $typeProjet->id,
         'nom' => 'Nouveau nom',
+    ]);
+});
+
+test("l'enseignant peut configurer les paramètres de remise via update", function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet', 'accessible' => false]);
+
+    $this->actingAs($enseignant)
+        ->put("/types-projets/{$typeProjet->id}", [
+            'nom' => 'Projet',
+            'date_remise' => '2026-06-15T23:59',
+            'remises_multiples' => true,
+            'retard_permis' => true,
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('types_projets', [
+        'id' => $typeProjet->id,
+        'remises_multiples' => true,
+        'retard_permis' => true,
     ]);
 });
 

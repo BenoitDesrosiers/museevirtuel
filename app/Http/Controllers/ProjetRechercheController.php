@@ -8,6 +8,7 @@ use App\Helpers\HtmlHelper;
 use App\Http\Requests\UpsertProjetCommentaireRequest;
 use App\Http\Requests\UpsertProjetNoteRequest;
 use App\Models\Classe;
+use App\Models\EntrevueConcept;
 use App\Models\GrilleCorrection;
 use App\Models\Groupe;
 use App\Models\ProjetAnnotation;
@@ -141,7 +142,7 @@ class ProjetRechercheController extends Controller
         ]);
 
         // Précharger en une seule requête chacune des relations — évite le N+1
-        $projet->load(['conclusions', 'commentaires', 'annotations', 'developpements', 'votes', 'notes', 'notesGrille.critere', 'malusAppliques.malus', 'typeProjet.grille.criteres', 'typeProjet.grille.malus', 'typeProjet.sections', 'sectionContenus', 'sectionParagraphes']);
+        $projet->load(['conclusions', 'commentaires', 'annotations', 'developpements', 'votes', 'notes', 'notesGrille.critere', 'malusAppliques.malus', 'typeProjet.grille.criteres', 'typeProjet.grille.malus', 'typeProjet.sections', 'sectionContenus', 'sectionParagraphes', 'entrevueConcepts.lignes']);
 
         $conclusionsParMembre = $projet->conclusions->keyBy('user_id');
 
@@ -231,9 +232,9 @@ class ProjetRechercheController extends Controller
             'estEnseignant' => $estEnseignant,
             'correctionVisible' => (bool) $projet->correction_visible,
             'verrouille' => (bool) $projet->verrouille,
-            'dateRemise' => $projet->date_remise?->toIso8601String(),
+            'dateRemise' => $typeProjet->date_remise?->toIso8601String(),
             'remisLe' => $projet->remis_le?->toIso8601String(),
-            'remisesMultiples' => (bool) $projet->remises_multiples,
+            'remisesMultiples' => (bool) $typeProjet->remises_multiples,
             'peutRemettre' => $peutAgir,
             'commentaires' => $commentaires,
             'annotationsParChamp' => $annotationsParChamp,
@@ -241,7 +242,7 @@ class ProjetRechercheController extends Controller
                 'user_id' => $v->user_id,
                 'vote' => (bool) $v->vote,
             ])->values(),
-            'retardPermis' => (bool) $projet->retard_permis,
+            'retardPermis' => (bool) $typeProjet->retard_permis,
             'noteFinaleParEtudiant' => $noteFinaleParEtudiant,
             'grillePersonnalisee' => $grillePersonnalisee,
             'notesGrilleParEtudiant' => $notesGrilleParEtudiant,
@@ -273,7 +274,7 @@ class ProjetRechercheController extends Controller
 
         $projet = ProjetRecherche::where('groupe_id', $groupe->id)
             ->where('type_projet_id', $typeProjet->id)
-            ->with(['typeProjet.sections', 'sectionContenus', 'sectionParagraphes', 'conclusions'])
+            ->with(['typeProjet.sections', 'sectionContenus', 'sectionParagraphes', 'conclusions', 'entrevueConcepts.lignes'])
             ->first();
 
         $sections = $projet
@@ -302,6 +303,8 @@ class ProjetRechercheController extends Controller
                             'contenu' => HtmlHelper::stripAnnotationMarks($c['contenu']),
                         ])->values()->all()
                     : null,
+                // Les concepts d'entrevue sont passés tels quels dans l'aperçu (pas d'annotations HTML à nettoyer)
+                'concepts' => $s['type'] === 'entrevue' ? ($s['concepts'] ?? []) : null,
             ])->values()
             : collect();
 
@@ -902,6 +905,9 @@ class ProjetRechercheController extends Controller
             'type_projet_id' => $typeProjet->id,
         ]);
 
+        // Associer la relation pour que peutEtreRemis() lise les paramètres depuis TypeProjet
+        $projet->setRelation('typeProjet', $typeProjet);
+
         abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
         abort_unless($projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis et les remises multiples ne sont pas autorisées.');
 
@@ -910,37 +916,6 @@ class ProjetRechercheController extends Controller
         return response()->json([
             'message' => 'remis',
             'remis_le' => $projet->remis_le->toIso8601String(),
-        ]);
-    }
-
-    /**
-     * Met à jour les paramètres de remise configurés par l'enseignant.
-     *
-     * @throws HttpException
-     */
-    public function updateParametresRemise(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
-    {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserEnseignant($classe, $groupe);
-
-        $validated = $request->validate([
-            'date_remise' => ['nullable', 'date'],
-            'remises_multiples' => ['boolean'],
-            'retard_permis' => ['boolean'],
-        ]);
-
-        $projet = ProjetRecherche::firstOrCreate([
-            'groupe_id' => $groupe->id,
-            'type_projet_id' => $typeProjet->id,
-        ]);
-
-        $projet->update($validated);
-
-        return response()->json([
-            'message' => 'saved',
-            'date_remise' => $projet->date_remise?->toIso8601String(),
-            'remises_multiples' => $projet->remises_multiples,
-            'retard_permis' => $projet->retard_permis,
         ]);
     }
 
@@ -1200,12 +1175,16 @@ class ProjetRechercheController extends Controller
     /**
      * Retourne le ProjetRecherche correspondant au groupe et au type de projet, ou lève une 404.
      *
+     * Charge toujours la relation typeProjet pour que peutEtreRemis() lise
+     * les paramètres depuis le TypeProjet sans requête supplémentaire.
+     *
      * @throws HttpException
      */
     private function trouverProjet(Groupe $groupe, TypeProjet $typeProjet): ProjetRecherche
     {
         return ProjetRecherche::where('groupe_id', $groupe->id)
             ->where('type_projet_id', $typeProjet->id)
+            ->with('typeProjet')
             ->firstOrFail();
     }
 
@@ -1292,9 +1271,10 @@ class ProjetRechercheController extends Controller
      * - 'texte'       → champ `contenu` (ProjetSectionContenu)
      * - 'paragraphes' → champ `paragraphes` (liste ProjetSectionParagraphe triée par ordre)
      * - 'individuel'  → champ `conclusionsParMembre` (1 entrée par membre du groupe)
+     * - 'entrevue'    → champ `concepts` (liste EntrevueConcept avec leurs lignes)
      *
      * @param  Collection|null  $membres  membres du groupe (requis pour le type 'individuel')
-     * @return array<int, array{id: int, label: string, description: string|null, ordre: int, type: string, contenu: string|null, paragraphes: array|null, conclusionsParMembre: array|null}>
+     * @return array<int, array{id: int, label: string, description: string|null, ordre: int, type: string, contenu: string|null, paragraphes: array|null, conclusionsParMembre: array|null, concepts: array|null}>
      */
     private function construireSections(ProjetRecherche $projet, ?Collection $membres = null): array
     {
@@ -1316,13 +1296,18 @@ class ProjetRechercheController extends Controller
             ->groupBy('section_id')
             ->map(fn ($conc) => $conc->keyBy('user_id'));
 
+        // Concepts d'entrevue groupés par section
+        $conceptsParSection = $projet->relationLoaded('entrevueConcepts')
+            ? $projet->entrevueConcepts->groupBy('section_id')
+            : collect();
+
         return $sections->map(fn (TypeProjetSection $s) => [
             'id' => $s->id,
             'label' => $s->label,
             'description' => $s->description,
             'ordre' => $s->ordre,
             'type' => $s->type ?? 'texte',
-            'contenu' => $s->type !== 'paragraphes' && $s->type !== 'individuel'
+            'contenu' => ($s->type === null || $s->type === 'texte')
                 ? $contenusParSection->get($s->id)?->contenu
                 : null,
             'paragraphes' => $s->type === 'paragraphes'
@@ -1333,6 +1318,14 @@ class ProjetRechercheController extends Controller
                     'userId' => $m->id,
                     'contenu' => $conclusionsParSectionEtUser->get($s->id)?->get($m->id)?->contenu,
                 ])->values()->all()
+                : null,
+            'concepts' => $s->type === 'entrevue'
+                ? ($conceptsParSection->get($s->id)?->map(fn (EntrevueConcept $c) => [
+                    'id' => $c->id,
+                    'label' => $c->label,
+                    'ordre' => $c->ordre,
+                    'lignes' => $c->lignes->map->only('id', 'ordre', 'dimension', 'indicateur', 'questions')->values()->all(),
+                ])->values()->all() ?? [])
                 : null,
         ])->values()->all();
     }

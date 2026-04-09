@@ -36,12 +36,12 @@ return new class extends Migration
             foreach ($sectionsData as $section) {
                 $sectionIds[$section['ordre']] = DB::table('type_projet_sections')->insertGetId([
                     'type_projet_id' => $typeProjetId,
-                    'label'          => $section['label'],
-                    'type'           => $section['type'],
-                    'ordre'          => $section['ordre'],
-                    'description'    => null,
-                    'created_at'     => $now,
-                    'updated_at'     => $now,
+                    'label' => $section['label'],
+                    'type' => $section['type'],
+                    'ordre' => $section['ordre'],
+                    'description' => null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
                 ]);
             }
 

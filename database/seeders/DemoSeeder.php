@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\Classe;
+use App\Models\EntrevueConcept;
+use App\Models\EntrevueLigne;
 use App\Models\GrilleCorrection;
 use App\Models\GrilleCritere;
 use App\Models\GrilleMalus;
@@ -273,6 +275,141 @@ class DemoSeeder extends Seeder
                 ['projet_id' => $projet->id, 'user_id' => $userId, 'section_id' => $sectionConclusion->id],
                 ['contenu' => $contenu]
             );
+        }
+
+        // ─── TypeProjet "Schéma d'entrevue" ───────────────────────────────────
+        // Compatibilité : le TypeProjet peut exister sous l'ancien nom "Entrevue"
+        /** @var TypeProjet $typeProjetEntrevue */
+        $typeProjetEntrevue = TypeProjet::where('enseignant_id', $prof->id)
+            ->whereIn('nom', ["Schéma d'entrevue", 'Entrevue'])
+            ->first()
+            ?? TypeProjet::create([
+                'enseignant_id' => $prof->id,
+                'nom' => "Schéma d'entrevue",
+                'description' => "Préparation structurée de l'entrevue avec une personne âgée : concepts, dimensions, indicateurs et questions spécifiques.",
+                'accessible' => true,
+            ]);
+
+        $typeProjetEntrevue->update([
+            'nom' => "Schéma d'entrevue",
+            'description' => "Préparation structurée de l'entrevue avec une personne âgée : concepts, dimensions, indicateurs et questions spécifiques.",
+            'accessible' => true,
+        ]);
+
+        // Sections du TypeProjet entrevue (idempotent)
+        $typeProjetEntrevue->sections()->delete();
+
+        $sectionsEntrevue = [];
+        foreach ([
+            ['label' => "Sujet de l'enquête", 'type' => 'texte',    'ordre' => 1],
+            ['label' => 'Concepts',            'type' => 'entrevue', 'ordre' => 2],
+        ] as $data) {
+            $sectionsEntrevue[] = TypeProjetSection::create([
+                'type_projet_id' => $typeProjetEntrevue->id,
+                'label' => $data['label'],
+                'type' => $data['type'],
+                'ordre' => $data['ordre'],
+            ]);
+        }
+
+        // Grille de correction du schéma d'entrevue
+        if (! $typeProjetEntrevue->grille()->exists()) {
+            /** @var GrilleCorrection $grilleEntrevue */
+            $grilleEntrevue = GrilleCorrection::create([
+                'type_projet_id' => $typeProjetEntrevue->id,
+                'nom' => "Grille de correction — Schéma d'entrevue",
+                'description' => "Grille d'évaluation du schéma d'entrevue. Total : 100 points.",
+            ]);
+
+            $criteresEntrevue = [
+                ['label' => 'Clarté et pertinence du sujet d\'enquête',          'ponderation' => 10],
+                ['label' => 'Qualité des dimensions (axes d\'analyse)',           'ponderation' => 20],
+                ['label' => 'Pertinence des indicateurs',                         'ponderation' => 20],
+                ['label' => 'Qualité et précision des questions (min. 10)',        'ponderation' => 40],
+                ['label' => 'Structure logique et cohérence d\'ensemble',          'ponderation' => 5],
+                ['label' => 'Respect du nombre minimal de questions',             'ponderation' => 5],
+            ];
+
+            foreach ($criteresEntrevue as $ordre => $critere) {
+                GrilleCritere::create([
+                    'grille_id' => $grilleEntrevue->id,
+                    'label' => $critere['label'],
+                    'ponderation' => $critere['ponderation'],
+                    'ordre' => $ordre + 1,
+                ]);
+            }
+        }
+
+        // Projet schéma d'entrevue pour le groupe démo
+        /** @var ProjetRecherche $projetEntrevue */
+        $projetEntrevue = ProjetRecherche::updateOrCreate(
+            ['groupe_id' => $groupe->id, 'type_projet_id' => $typeProjetEntrevue->id],
+            ['titre_projet' => 'Entrevue avec un témoin de la Révolution tranquille']
+        );
+
+        // Sujet de l'enquête (section type 'texte')
+        ProjetSectionContenu::updateOrCreate(
+            ['projet_id' => $projetEntrevue->id, 'section_id' => $sectionsEntrevue[0]->id],
+            [
+                'contenu' => '<p>Notre enquête porte sur le vécu de la Révolution tranquille tel qu\'il a été perçu et vécu par des personnes ayant grandi dans le Québec des années 1950-1970. Nous cherchons à comprendre comment les grandes transformations institutionnelles (laïcisation, nationalisation, essor de l\'État) ont été ressenties au quotidien par la population.</p>',
+            ]
+        );
+
+        // Concepts d'entrevue (section type 'entrevue') — idempotent
+        EntrevueConcept::where('projet_id', $projetEntrevue->id)
+            ->where('section_id', $sectionsEntrevue[1]->id)
+            ->delete();
+
+        $conceptsData = [
+            [
+                'label' => 'Pratique religieuse',
+                'lignes' => [
+                    [
+                        'dimension' => 'Fréquence de pratique',
+                        'indicateur' => 'Présence à la messe, aux sacrements',
+                        'questions' => ['Alliez-vous à la messe tous les dimanches dans votre enfance ?', 'À quel moment avez-vous commencé à aller moins souvent à l\'église ?'],
+                    ],
+                    [
+                        'dimension' => 'Rôle du clergé',
+                        'indicateur' => 'Influence du curé dans la vie de quartier',
+                        'questions' => ['Le curé de votre paroisse était-il une figure importante dans votre communauté ?', 'Pouvez-vous me donner un exemple de son influence ?'],
+                    ],
+                ],
+            ],
+            [
+                'label' => "Accès à l'éducation",
+                'lignes' => [
+                    [
+                        'dimension' => 'Scolarisation',
+                        'indicateur' => 'Niveau d\'études atteint, accès au collège classique',
+                        'questions' => ["Jusqu'à quel niveau avez-vous pu étudier ?", "L'école était-elle gratuite dans votre enfance ?"],
+                    ],
+                    [
+                        'dimension' => 'Création du ministère de l\'Éducation (1964)',
+                        'indicateur' => 'Impact perçu sur les opportunités scolaires',
+                        'questions' => ['Avez-vous remarqué un changement dans l\'accès à l\'éducation après la réforme Parent ?', 'Vos enfants ont-ils eu plus d\'accès à l\'éducation que vous ?'],
+                    ],
+                ],
+            ],
+        ];
+
+        foreach ($conceptsData as $cIndex => $conceptData) {
+            $concept = EntrevueConcept::create([
+                'projet_id' => $projetEntrevue->id,
+                'section_id' => $sectionsEntrevue[1]->id,
+                'label' => $conceptData['label'],
+                'ordre' => $cIndex + 1,
+            ]);
+
+            foreach ($conceptData['lignes'] as $lIndex => $ligneData) {
+                EntrevueLigne::create([
+                    'concept_id' => $concept->id,
+                    'dimension' => $ligneData['dimension'],
+                    'indicateur' => $ligneData['indicateur'],
+                    'questions' => $ligneData['questions'],
+                    'ordre' => $lIndex + 1,
+                ]);
+            }
         }
     }
 }

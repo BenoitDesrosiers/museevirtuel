@@ -42,14 +42,24 @@ class ProjetRecherche extends Model
     /**
      * Indique si le travail peut encore être remis par l'équipe.
      *
+     * Les paramètres (date_remise, remises_multiples, retard_permis) sont lus
+     * depuis le TypeProjet associé s'il est chargé, sinon depuis les colonnes
+     * locales (fallback rétrocompatible).
+     *
      * Retourne false si :
      * - déjà remis et remises multiples non autorisées, OU
      * - la date limite est dépassée et les remises en retard ne sont pas permises.
      */
     public function peutEtreRemis(): bool
     {
+        $tp = $this->relationLoaded('typeProjet') ? $this->typeProjet : null;
+
+        $dateRemise = $tp?->date_remise ?? $this->date_remise;
+        $retardPermis = $tp !== null ? $tp->retard_permis : $this->retard_permis;
+        $remisesMultiples = $tp !== null ? $tp->remises_multiples : $this->remises_multiples;
+
         // Blocage si délai dépassé et retard non permis
-        if (! $this->retard_permis && $this->date_remise !== null && now()->gt($this->date_remise)) {
+        if (! $retardPermis && $dateRemise !== null && now()->gt($dateRemise)) {
             return false;
         }
 
@@ -57,7 +67,7 @@ class ProjetRecherche extends Model
             return true;
         }
 
-        return (bool) $this->remises_multiples;
+        return (bool) $remisesMultiples;
     }
 
     /**
@@ -162,6 +172,14 @@ class ProjetRecherche extends Model
     public function developpements(): HasMany
     {
         return $this->hasMany(ProjetDeveloppement::class, 'projet_id')->orderBy('ordre');
+    }
+
+    /**
+     * Retourne les concepts d'entrevue du projet, triés par ordre.
+     */
+    public function entrevueConcepts(): HasMany
+    {
+        return $this->hasMany(EntrevueConcept::class, 'projet_id')->orderBy('ordre');
     }
 
     /**

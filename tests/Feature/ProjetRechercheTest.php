@@ -453,14 +453,15 @@ test('la remise est refusée si le document est verrouillé', function () {
         ->assertForbidden();
 });
 
-test('une deuxième remise est refusée sans remises multiples', function () {
+test('une deuxième remise est refusée sans remises multiples (paramètre TypeProjet)', function () {
     ['classe' => $classe, 'groupe' => $groupe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+
+    $typeProjet->update(['remises_multiples' => false]);
 
     ProjetRecherche::create([
         'groupe_id' => $groupe->id,
         'type_projet_id' => $typeProjet->id,
         'remis_le' => now(),
-        'remises_multiples' => false,
     ]);
 
     $this->actingAs($etudiant)
@@ -468,14 +469,15 @@ test('une deuxième remise est refusée sans remises multiples', function () {
         ->assertUnprocessable();
 });
 
-test('une deuxième remise est autorisée avec remises multiples', function () {
+test('une deuxième remise est autorisée avec remises multiples (paramètre TypeProjet)', function () {
     ['classe' => $classe, 'groupe' => $groupe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+
+    $typeProjet->update(['remises_multiples' => true]);
 
     ProjetRecherche::create([
         'groupe_id' => $groupe->id,
         'type_projet_id' => $typeProjet->id,
         'remis_le' => now()->subDay(),
-        'remises_multiples' => true,
     ]);
 
     $this->actingAs($etudiant)
@@ -484,33 +486,16 @@ test('une deuxième remise est autorisée avec remises multiples', function () {
         ->assertJson(['message' => 'remis']);
 });
 
-// ─── Paramètres de remise ──────────────────────────────────────────────────────
+// ─── Paramètres de remise — route supprimée (Sprint 10) ───────────────────────
 
-test("l'enseignant peut configurer la date de remise et les remises multiples", function () {
+test('la route parametres-remise est supprimée et retourne 404', function () {
     ['enseignant' => $enseignant, 'classe' => $classe, 'groupe' => $groupe, 'typeProjet' => $typeProjet] = creerScenario();
 
     $this->actingAs($enseignant)
         ->patchJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/parametres-remise", [
             'date_remise' => '2026-04-15',
-            'remises_multiples' => true,
         ])
-        ->assertOk()
-        ->assertJson(['message' => 'saved', 'remises_multiples' => true]);
-
-    $this->assertDatabaseHas('projets_recherche', [
-        'groupe_id' => $groupe->id,
-        'remises_multiples' => true,
-    ]);
-});
-
-test('un étudiant ne peut pas modifier les paramètres de remise', function () {
-    ['classe' => $classe, 'groupe' => $groupe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
-
-    $this->actingAs($etudiant)
-        ->patchJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/parametres-remise", [
-            'remises_multiples' => true,
-        ])
-        ->assertForbidden();
+        ->assertNotFound();
 });
 
 // ─── Publication des notes ─────────────────────────────────────────────────────

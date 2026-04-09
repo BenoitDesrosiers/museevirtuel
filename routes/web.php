@@ -6,6 +6,7 @@ use App\Http\Controllers\ClasseDocumentController;
 use App\Http\Controllers\ClasseEtudiantController;
 use App\Http\Controllers\EcheancierController;
 use App\Http\Controllers\EnseignantController;
+use App\Http\Controllers\EntrevueConceptController;
 use App\Http\Controllers\EtudiantController;
 use App\Http\Controllers\GrilleCorrectionController;
 use App\Http\Controllers\GroupeController;
@@ -341,9 +342,6 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin'])->group(function ()
     Route::post('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/remettre', [ProjetRechercheController::class, 'remettreTravail'])
         ->name('projets.remettre');
 
-    Route::patch('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/parametres-remise', [ProjetRechercheController::class, 'updateParametresRemise'])
-        ->name('projets.parametres-remise.update');
-
     Route::delete('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/annuler-remise', [ProjetRechercheController::class, 'annulerRemise'])
         ->name('projets.annulerRemise');
 
@@ -358,6 +356,28 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin'])->group(function ()
 
     Route::get('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/xml-notes', [ProjetRechercheController::class, 'exportXmlNotes'])
         ->name('projets.export.xml');
+
+    // Concepts d'entrevue — CRUD + réordonnancement + lignes
+    Route::post('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/concepts', [EntrevueConceptController::class, 'store'])
+        ->name('projets.sections.concepts.store');
+
+    Route::patch('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/concepts/reorder', [EntrevueConceptController::class, 'reorder'])
+        ->name('projets.sections.concepts.reorder');
+
+    Route::patch('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/concepts/{concept}', [EntrevueConceptController::class, 'update'])
+        ->name('projets.sections.concepts.update');
+
+    Route::delete('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/concepts/{concept}', [EntrevueConceptController::class, 'destroy'])
+        ->name('projets.sections.concepts.destroy');
+
+    Route::post('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/concepts/{concept}/lignes', [EntrevueConceptController::class, 'storeLigne'])
+        ->name('projets.sections.concepts.lignes.store');
+
+    Route::patch('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/concepts/{concept}/lignes/{ligne}', [EntrevueConceptController::class, 'updateLigne'])
+        ->name('projets.sections.concepts.lignes.update');
+
+    Route::delete('/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/concepts/{concept}/lignes/{ligne}', [EntrevueConceptController::class, 'destroyLigne'])
+        ->name('projets.sections.concepts.lignes.destroy');
 });
 
 require __DIR__.'/settings.php';

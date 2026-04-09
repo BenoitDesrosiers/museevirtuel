@@ -16,12 +16,18 @@ class TypeProjet extends Model
         'nom',
         'description',
         'accessible',
+        'date_remise',
+        'remises_multiples',
+        'retard_permis',
     ];
 
     protected function casts(): array
     {
         return [
             'accessible' => 'boolean',
+            'date_remise' => 'datetime',
+            'remises_multiples' => 'boolean',
+            'retard_permis' => 'boolean',
         ];
     }
 
