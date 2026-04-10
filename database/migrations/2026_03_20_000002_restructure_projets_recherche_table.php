@@ -14,12 +14,15 @@ return new class extends Migration
     public function up(): void
     {
         // Dédupliquer : conserver uniquement la ligne avec le plus petit id par groupe
+        // Alias intermédiaire nécessaire pour MySQL (impossible de DELETE et SELECT la même table directement)
         DB::statement('
             DELETE FROM projets_recherche
             WHERE id NOT IN (
-                SELECT MIN(id)
-                FROM projets_recherche
-                GROUP BY groupe_id
+                SELECT min_id FROM (
+                    SELECT MIN(id) AS min_id
+                    FROM projets_recherche
+                    GROUP BY groupe_id
+                ) AS tmp
             )
         ');
 

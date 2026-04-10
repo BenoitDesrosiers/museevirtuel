@@ -1,0 +1,36 @@
+# Dépendances (reconstruites dans Docker)
+node_modules/
+vendor/
+
+# Environnement (jamais dans l'image)
+.env
+.env.*
+!.env.example
+
+# Git et outils de dev
+.git/
+.gitignore
+.github/
+.claude/
+.editorconfig
+.idea/
+.vscode/
+
+# Logs et caches générés au runtime
+storage/logs/
+storage/framework/cache/
+storage/framework/sessions/
+storage/framework/views/
+storage/app/public/
+
+# Assets de dev (reconstruits dans le stage node-builder)
+# public/build/ est généré dans le Dockerfile multi-stage
+
+# Tests (inutiles en production)
+tests/
+phpunit.xml
+pest.xml
+.phpunit.result.cache
+
+# Documentation
+*.md

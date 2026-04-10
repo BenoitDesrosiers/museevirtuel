@@ -15,8 +15,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('projet_conclusions', function (Blueprint $table) {
+            // MySQL ne permet pas de supprimer un index composite qui sert de support à des FKs
+            $table->dropForeign(['projet_id']);
+            $table->dropForeign(['user_id']);
             $table->dropUnique(['projet_id', 'user_id']);
             $table->unique(['projet_id', 'user_id', 'section_id']);
+            $table->foreign('projet_id')->references('id')->on('projets_recherche')->cascadeOnDelete();
+            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
         });
     }
 
