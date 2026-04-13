@@ -26,7 +26,9 @@ class User extends Authenticatable
         'role',
         'locale',
         'statut',
+        'approuve_par_id',
         'description',
+        'provenance',
         'thematique_id',
         'theme_libre',
     ];
@@ -87,12 +89,33 @@ class User extends Authenticatable
         return $this->statut === 'en_attente';
     }
 
+    public function estRefuse(): bool
+    {
+        return $this->statut === 'refuse';
+    }
+
     /**
      * Filtre les utilisateurs dont le compte est en attente d'approbation.
      */
     public function scopeEnAttente(Builder $query): Builder
     {
         return $query->where('statut', 'en_attente');
+    }
+
+    /**
+     * Filtre les utilisateurs dont la demande a été refusée.
+     */
+    public function scopeRefuse(Builder $query): Builder
+    {
+        return $query->where('statut', 'refuse');
+    }
+
+    /**
+     * Filtre les utilisateurs dont le compte est actif.
+     */
+    public function scopeActif(Builder $query): Builder
+    {
+        return $query->where('statut', 'actif');
     }
 
     // Classes créées par l'enseignant
@@ -125,5 +148,17 @@ class User extends Authenticatable
     public function thematique(): BelongsTo
     {
         return $this->belongsTo(Thematique::class);
+    }
+
+    // Thématiques choisies par la personne âgée (pivot many-to-many)
+    public function thematiquesChoisies(): BelongsToMany
+    {
+        return $this->belongsToMany(Thematique::class, 'user_thematique');
+    }
+
+    // Enseignant ayant approuvé ce compte personne âgée
+    public function approuveParEnseignant(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approuve_par_id');
     }
 }

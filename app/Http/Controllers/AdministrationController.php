@@ -110,4 +110,19 @@ class AdministrationController extends Controller
 
         return back()->with('success', __('Le compte de '.$user->prenom.' '.$user->nom.' a été approuvé.'));
     }
+
+    /**
+     * Refuse l'inscription d'un témoin (personne âgée) en attente.
+     *
+     * @throws HttpException si la cible n'est pas une personne âgée en attente
+     */
+    public function declinerTemoin(User $user): RedirectResponse
+    {
+        abort_if($user->role !== 'personne_agee' || ! $user->estEnAttente(), 403);
+
+        $user->statut = 'refuse';
+        $user->save();
+
+        return back()->with('success', __('La demande de '.$user->prenom.' '.$user->nom.' a été déclinée.'));
+    }
 }

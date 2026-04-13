@@ -226,7 +226,29 @@
             "modal_thematic_description_placeholder": "Brève description",
             "modal_edit_thematic": "Modifier la thématique",
             "confirm_delete_class": "Supprimer la classe « {nom} » ?",
-            "confirm_delete_thematic": "Supprimer la thématique « {nom} » ?"
+            "confirm_delete_thematic": "Supprimer la thématique « {nom} » ?",
+            "confirm_decline_temoin": "Décliner la demande de {prenom} {nom} ?",
+            "temoins_show_approved": "Voir les approuvés",
+            "temoins_decline": "Décliner",
+            "temoins_no_approved": "Aucun témoin approuvé par vous.",
+            "temoins_filter_search_placeholder": "Rechercher par nom ou courriel…",
+            "temoins_filter_all_thematiques": "Toutes les thématiques"
+        },
+        "temoin_show": {
+            "page_title": "Fiche du témoin",
+            "back": "Retour",
+            "status_pending": "En attente",
+            "status_active": "Approuvé",
+            "status_refused": "Refusé",
+            "registered_on": "Inscrit le",
+            "provenance": "Provenance",
+            "free_theme": "Thème libre",
+            "no_free_theme": "Aucun thème libre renseigné",
+            "no_description": "Aucune description fournie",
+            "approve_btn": "Approuver ce témoin",
+            "decline_btn": "Décliner la demande",
+            "unapprove_btn": "Désapprouver",
+            "confirm_unapprove": "Remettre {prenom} {nom} en attente d'approbation ?"
         }
     },
     "administration": {

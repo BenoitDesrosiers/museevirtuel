@@ -170,9 +170,16 @@ class GroupeController extends Controller
             ->whereNotIn('users.id', $membreIds)
             ->get(['users.id', 'prenom', 'nom']);
 
+        $groupeThematiqueIds = $groupe->thematiques->pluck('id');
+
         $temoinsDisponibles = $estEnseignant || $user->isAdmin()
             ? User::where('role', 'personne_agee')
                 ->where('statut', 'actif')
+                ->when($groupeThematiqueIds->isNotEmpty(), function ($query) use ($groupeThematiqueIds) {
+                    $query->whereHas('thematiquesChoisies', function ($q) use ($groupeThematiqueIds) {
+                        $q->whereIn('thematiques.id', $groupeThematiqueIds);
+                    });
+                })
                 ->get(['id', 'prenom', 'nom'])
             : collect();
 

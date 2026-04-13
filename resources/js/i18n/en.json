@@ -227,7 +227,29 @@
             "modal_thematic_description_placeholder": "Brief description",
             "modal_edit_thematic": "Edit thematic area",
             "confirm_delete_class": "Delete class « {nom} »?",
-            "confirm_delete_thematic": "Delete thematic area « {nom} »?"
+            "confirm_delete_thematic": "Delete thematic area « {nom} »?",
+            "confirm_decline_temoin": "Decline the request from {prenom} {nom}?",
+            "temoins_show_approved": "Show approved",
+            "temoins_decline": "Decline",
+            "temoins_no_approved": "No witnesses approved by you.",
+            "temoins_filter_search_placeholder": "Search by name or email…",
+            "temoins_filter_all_thematiques": "All thematic areas"
+        },
+        "temoin_show": {
+            "page_title": "Witness Profile",
+            "back": "Back",
+            "status_pending": "Pending",
+            "status_active": "Approved",
+            "status_refused": "Declined",
+            "registered_on": "Registered on",
+            "provenance": "Background",
+            "free_theme": "Free theme",
+            "no_free_theme": "No free theme provided",
+            "no_description": "No description provided",
+            "approve_btn": "Approve this witness",
+            "decline_btn": "Decline request",
+            "unapprove_btn": "Revoke approval",
+            "confirm_unapprove": "Put {prenom} {nom} back to pending approval?"
         }
     },
     "administration": {

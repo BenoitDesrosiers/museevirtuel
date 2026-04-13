@@ -2,6 +2,7 @@
 
 use App\Models\Classe;
 use App\Models\Groupe;
+use App\Models\Thematique;
 use App\Models\User;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -108,4 +109,61 @@ test('un enseignant d\'une autre classe ne peut pas assigner de témoin', functi
             'personne_agee_id' => $ctx['temoin']->id,
         ])
         ->assertForbidden();
+});
+
+// ─── Filtrage des temoinsDisponibles par thématique ────────────────────────────
+
+test('show() retourne uniquement les témoins partageant une thématique avec le groupe', function () {
+    $ctx = creerContexteEchanges();
+
+    $thematique = Thematique::create(['nom' => 'La Nouvelle-France', 'enseignant_id' => $ctx['enseignant']->id]);
+    $ctx['groupe']->thematiques()->attach($thematique->id);
+
+    // Témoin avec la bonne thématique
+    $ctx['temoin']->thematiquesChoisies()->attach($thematique->id);
+
+    // Témoin sans aucune thématique commune
+    User::factory()->create(['role' => 'personne_agee', 'statut' => 'actif', 'email_verified_at' => now()]);
+
+    $this->actingAs($ctx['enseignant'])
+        ->get(route('groupes.show', [$ctx['classe'], $ctx['groupe']]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('temoinsDisponibles', 1)
+            ->where('temoinsDisponibles.0.id', $ctx['temoin']->id)
+        );
+});
+
+test('show() exclut les témoins dont la thématique ne correspond pas au groupe', function () {
+    $ctx = creerContexteEchanges();
+
+    $thematique = Thematique::create(['nom' => 'La Révolution tranquille', 'enseignant_id' => $ctx['enseignant']->id]);
+    $autreThematique = Thematique::create(['nom' => 'Les Premières Nations', 'enseignant_id' => $ctx['enseignant']->id]);
+    $ctx['groupe']->thematiques()->attach($thematique->id);
+
+    // Témoin avec une thématique différente
+    $ctx['temoin']->thematiquesChoisies()->attach($autreThematique->id);
+
+    $this->actingAs($ctx['enseignant'])
+        ->get(route('groupes.show', [$ctx['classe'], $ctx['groupe']]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('temoinsDisponibles', 0)
+        );
+});
+
+test('show() retourne tous les témoins actifs si le groupe n\'a aucune thématique', function () {
+    $ctx = creerContexteEchanges();
+
+    // Pas de thématique sur le groupe
+    User::factory()->create(['role' => 'personne_agee', 'statut' => 'actif', 'email_verified_at' => now()]);
+    User::factory()->create(['role' => 'personne_agee', 'statut' => 'actif', 'email_verified_at' => now()]);
+
+    // 3 PAs actives au total ($ctx['temoin'] + 2 ci-dessus)
+    $this->actingAs($ctx['enseignant'])
+        ->get(route('groupes.show', [$ctx['classe'], $ctx['groupe']]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('temoinsDisponibles', 3)
+        );
 });

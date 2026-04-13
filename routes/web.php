@@ -69,9 +69,12 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::delete('/administration/enseignants/{enseignant}', [AdministrationController::class, 'destroyEnseignant'])
         ->name('administration.enseignants.destroy');
 
-    // Approbation des témoins (personnes âgées) en attente
+    // Approbation / déclin des témoins (personnes âgées) en attente
     Route::put('/administration/temoins/{user}/approuver', [AdministrationController::class, 'approuverTemoin'])
         ->name('administration.temoins.approuver');
+
+    Route::put('/administration/temoins/{user}/decliner', [AdministrationController::class, 'declinerTemoin'])
+        ->name('administration.temoins.decliner');
 });
 
 // ─── Enseignant (+ Admin) ──────────────────────────────────────────────────────
@@ -129,6 +132,19 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
     // Assignation d'un témoin à un groupe (enseignant/admin)
     Route::put('/classes/{classe}/groupes/{groupe}/temoin', [GroupeController::class, 'assignerTemoin'])
         ->name('groupes.temoin.update');
+
+    // Fiche détail + approbation / déclin des témoins liés aux thématiques de l'enseignant
+    Route::get('/enseignant/temoins/{user}', [EnseignantController::class, 'showTemoin'])
+        ->name('enseignant.temoins.show');
+
+    Route::put('/enseignant/temoins/{user}/approuver', [EnseignantController::class, 'approuverTemoin'])
+        ->name('enseignant.temoins.approuver');
+
+    Route::put('/enseignant/temoins/{user}/decliner', [EnseignantController::class, 'declinerTemoin'])
+        ->name('enseignant.temoins.decliner');
+
+    Route::put('/enseignant/temoins/{user}/desapprouver', [EnseignantController::class, 'desapprouverTemoin'])
+        ->name('enseignant.temoins.desapprouver');
 
     // Types de projet (enseignant/admin)
     Route::get('/types-projets', [TypeProjetController::class, 'index'])

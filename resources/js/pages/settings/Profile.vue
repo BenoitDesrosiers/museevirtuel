@@ -168,7 +168,7 @@ const switchLocale = (locale: string) => {
                 </div>
             </div>
 
-            <DeleteUser v-if="user.role === 'admin'" />
+            <DeleteUser v-if="user.role === 'admin' || user.role === 'personne_agee'" />
         </SettingsLayout>
     </AppLayout>
 </template>

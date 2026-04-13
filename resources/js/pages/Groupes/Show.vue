@@ -310,7 +310,7 @@ function toggleToutesNotes(): void {
     }
 }
 
-// ─── Assigner un témoin (enseignant seulement) ────────────────────────────────
+// ─── Assigner / désassigner un témoin (enseignant seulement) ──────────────────
 const temoinForm = useForm({
     personne_agee_id: props.groupe.personne_agee_id as number | null,
 });
@@ -319,6 +319,11 @@ function submitTemoin() {
     temoinForm.put(`/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/temoin`, {
         preserveScroll: true,
     });
+}
+
+function desassignerTemoin() {
+    temoinForm.personne_agee_id = null;
+    submitTemoin();
 }
 
 // ─── Formatage ────────────────────────────────────────────────────────────────
@@ -391,11 +396,22 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                     <CardTitle>Témoin assigné</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div v-if="groupe.temoin" class="mb-4 flex items-center gap-3">
-                        <span class="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium">
-                            {{ groupe.temoin.prenom[0] }}{{ groupe.temoin.nom[0] }}
-                        </span>
-                        <span class="text-sm font-medium">{{ groupe.temoin.prenom }} {{ groupe.temoin.nom }}</span>
+                    <div v-if="groupe.temoin" class="mb-4 flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <span class="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium">
+                                {{ groupe.temoin.prenom[0] }}{{ groupe.temoin.nom[0] }}
+                            </span>
+                            <span class="text-sm font-medium">{{ groupe.temoin.prenom }} {{ groupe.temoin.nom }}</span>
+                        </div>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            :disabled="temoinForm.processing"
+                            @click="desassignerTemoin"
+                        >
+                            Désassigner
+                        </Button>
                     </div>
                     <p v-else class="text-muted-foreground mb-4 text-sm">Aucun témoin assigné à ce groupe.</p>
 
@@ -419,6 +435,12 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
+                            <p v-if="temoinsDisponibles.length === 0 && groupe.thematiques.length === 0" class="text-muted-foreground mt-1.5 text-xs">
+                                Aucun témoin disponible — sélectionnez d'abord une thématique pour ce groupe.
+                            </p>
+                            <p v-else-if="temoinsDisponibles.length === 0" class="text-muted-foreground mt-1.5 text-xs">
+                                Aucun témoin actif ne correspond aux thématiques de ce groupe.
+                            </p>
                         </div>
                         <Button type="submit" size="sm" :disabled="temoinForm.processing">
                             Enregistrer

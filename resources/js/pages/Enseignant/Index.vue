@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
-import { BookOpen, ExternalLink, Pencil, Plus, Send, Trash2 } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { BookOpen, ExternalLink, Pencil, Plus, Search, Send, Trash2, Users } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import FormDialog from '@/components/FormDialog.vue';
 import Heading from '@/components/Heading.vue';
@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { show as showTemoin } from '@/routes/enseignant/temoins';
 
 type Classe = {
     id: number;
@@ -40,13 +41,26 @@ type TravailRemis = {
     membres: { id: number; prenom: string; nom: string }[];
 };
 
+type TemoinEnAttente = {
+    id: number;
+    prenom: string;
+    nom: string;
+    email: string;
+    description: string;
+    created_at: string;
+    thematiques_choisies: { id: number; nom: string }[];
+};
+
+type TemoinApprouve = TemoinEnAttente;
+
 type Props = {
     classes: Classe[];
     thematiques: Thematique[];
     travauxRemis: TravailRemis[];
+    temoinsEnAttente: TemoinEnAttente[];
+    temoinsApprouves: TemoinApprouve[];
 };
 
-defineProps<Props>();
 const { t } = useI18n();
 
 // ─── Classes ──────────────────────────────────────────────────────────────────
@@ -159,6 +173,33 @@ return;
 }
 
     deleteThematiqueForm.delete(`/thematiques/${thematique.id}`);
+}
+
+// ─── Témoins ──────────────────────────────────────────────────────────────────
+const afficherApprouves = ref(false);
+const rechercheTexte = ref('');
+const filtreThematiqueId = ref<number | null>(null);
+
+const props = defineProps<Props>();
+
+function filtrerTemoins(liste: TemoinEnAttente[]): TemoinEnAttente[] {
+    const texte = rechercheTexte.value.trim().toLowerCase();
+    return liste.filter((t) => {
+        const matchTexte =
+            texte === '' ||
+            `${t.prenom} ${t.nom} ${t.email}`.toLowerCase().includes(texte);
+        const matchThematique =
+            filtreThematiqueId.value === null ||
+            t.thematiques_choisies.some((th) => th.id === filtreThematiqueId.value);
+        return matchTexte && matchThematique;
+    });
+}
+
+const temoinsEnAttenteFiltrés = computed(() => filtrerTemoins(props.temoinsEnAttente));
+const temoinsApprouvésFiltres = computed(() => filtrerTemoins(props.temoinsApprouves));
+
+function voirTemoin(temoin: TemoinEnAttente) {
+    router.visit(showTemoin.url(temoin.id));
 }
 </script>
 
@@ -305,6 +346,127 @@ return;
                     </div>
                 </CardContent>
             </Card>
+            <!-- ─── Témoins ───────────────────────────────────────── -->
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <Users class="h-5 w-5" />
+                        <CardTitle>{{ $t('administration.index.temoins_table') }}</CardTitle>
+                    </div>
+                    <!-- Toggle afficher approuvés -->
+                    <label class="flex cursor-pointer items-center gap-2 text-sm">
+                        <span class="text-muted-foreground">{{ $t('enseignant.index.temoins_show_approved') }}</span>
+                        <button
+                            type="button"
+                            role="switch"
+                            :aria-checked="afficherApprouves"
+                            class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                            :class="afficherApprouves ? 'bg-primary' : 'bg-input'"
+                            @click="afficherApprouves = !afficherApprouves"
+                        >
+                            <span
+                                class="inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform"
+                                :class="afficherApprouves ? 'translate-x-5' : 'translate-x-1'"
+                            />
+                        </button>
+                    </label>
+                </CardHeader>
+                <CardContent>
+                    <!-- Barre de filtre -->
+                    <div class="mb-4 flex flex-wrap gap-3">
+                        <div class="relative flex-1 min-w-48">
+                            <Search class="text-muted-foreground absolute left-2.5 top-2.5 h-4 w-4" />
+                            <Input
+                                v-model="rechercheTexte"
+                                class="pl-8"
+                                :placeholder="$t('enseignant.index.temoins_filter_search_placeholder')"
+                            />
+                        </div>
+                        <select
+                            v-model="filtreThematiqueId"
+                            class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus:ring-ring h-10 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
+                        >
+                            <option :value="null">{{ $t('enseignant.index.temoins_filter_all_thematiques') }}</option>
+                            <option v-for="th in props.thematiques" :key="th.id" :value="th.id">
+                                {{ th.nom }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <!-- Tableau : témoins en attente -->
+                        <table v-if="!afficherApprouves" class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b text-left">
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.temoins_header_first_name') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.temoins_header_last_name') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.temoins_header_email') }}</th>
+                                    <th class="pb-3 font-medium">{{ $t('administration.index.temoins_header_theme') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="temoin in temoinsEnAttenteFiltrés"
+                                    :key="temoin.id"
+                                    class="hover:bg-muted/50 cursor-pointer border-b last:border-0"
+                                    @click="voirTemoin(temoin)"
+                                >
+                                    <td class="py-3 pr-4">{{ temoin.prenom }}</td>
+                                    <td class="py-3 pr-4">{{ temoin.nom }}</td>
+                                    <td class="text-muted-foreground py-3 pr-4">{{ temoin.email }}</td>
+                                    <td class="py-3">
+                                        <span v-if="temoin.thematiques_choisies.length">
+                                            {{ temoin.thematiques_choisies.map(th => th.nom).join(', ') }}
+                                        </span>
+                                        <span v-else class="text-muted-foreground">—</span>
+                                    </td>
+                                </tr>
+                                <tr v-if="temoinsEnAttenteFiltrés.length === 0">
+                                    <td colspan="4" class="text-muted-foreground py-6 text-center">
+                                        {{ $t('administration.index.temoins_no_pending') }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- Tableau : témoins approuvés -->
+                        <table v-else class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b text-left">
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.temoins_header_first_name') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.temoins_header_last_name') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.temoins_header_email') }}</th>
+                                    <th class="pb-3 font-medium">{{ $t('administration.index.temoins_header_theme') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="temoin in temoinsApprouvésFiltres"
+                                    :key="temoin.id"
+                                    class="hover:bg-muted/50 cursor-pointer border-b last:border-0"
+                                    @click="voirTemoin(temoin)"
+                                >
+                                    <td class="py-3 pr-4">{{ temoin.prenom }}</td>
+                                    <td class="py-3 pr-4">{{ temoin.nom }}</td>
+                                    <td class="text-muted-foreground py-3 pr-4">{{ temoin.email }}</td>
+                                    <td class="py-3">
+                                        <span v-if="temoin.thematiques_choisies.length">
+                                            {{ temoin.thematiques_choisies.map(th => th.nom).join(', ') }}
+                                        </span>
+                                        <span v-else class="text-muted-foreground">—</span>
+                                    </td>
+                                </tr>
+                                <tr v-if="temoinsApprouvésFiltres.length === 0">
+                                    <td colspan="4" class="text-muted-foreground py-6 text-center">
+                                        {{ $t('enseignant.index.temoins_no_approved') }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </CardContent>
+            </Card>
+
             <!-- ─── Travaux remis récemment ────────────────────────────── -->
             <Card>
                 <CardHeader class="flex flex-row items-center gap-2">
