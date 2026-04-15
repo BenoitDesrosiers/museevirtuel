@@ -123,7 +123,8 @@
             "modal_csv_file": "CSV file",
             "modal_import": "Import",
             "confirm_remove_student": "Remove {prenom} {nom} from the class?",
-            "confirm_delete_document": "Delete \"{nom}\"?"
+            "confirm_delete_document": "Delete \"{nom}\"?",
+            "back_to_cours": "Back to course"
         },
         "groupes": {
             "page_title": "Groups",
@@ -143,7 +144,29 @@
             "modal_thematic": "Thematic areas",
             "modal_thematic_max": "(max 3 —",
             "modal_create": "Create",
+            "group_number": "Group {n}",
             "confirm_delete_group": "Delete Group {numero}?"
+        }
+    },
+    "cours": {
+        "index": {
+            "page_title": "My courses",
+            "heading_title": "My courses",
+            "heading_description": "Your enrolled courses for this session",
+            "no_courses": "You are not enrolled in any courses at the moment.",
+            "my_sections": "My sections"
+        },
+        "show": {
+            "classes_title": "Classes (sections)",
+            "no_classes": "No sections yet.",
+            "classes_see": "View"
+        },
+        "classes": {
+            "page_title": "My sections",
+            "back": "Back to my courses",
+            "no_classes": "You are not enrolled in any section of this course.",
+            "groups_count": "{n} group(s)",
+            "my_group": "My group"
         }
     },
     "groupes": {
@@ -183,16 +206,16 @@
         "index": {
             "page_title": "Teacher workspace",
             "heading_title": "My workspace",
-            "heading_description": "Manage your classes and thematic areas",
-            "my_classes": "My classes",
-            "new_class": "New class",
+            "heading_description": "Manage your courses and thematic areas",
+            "my_courses": "My courses",
+            "new_course": "New course",
             "table_header_code": "Code",
             "table_header_group": "Group",
             "table_header_course_name": "Course name",
             "table_header_hours": "H/week",
             "table_header_students": "Students",
             "table_header_actions": "Actions",
-            "no_classes": "No classes created. Click \"New class\" to get started.",
+            "no_courses": "No courses created. Click \"New course\" to get started.",
             "my_thematic": "My thematic areas",
             "new_thematic": "New thematic area",
             "table_header_thematic_name": "Name",
@@ -206,7 +229,7 @@
             "table_header_submitted_at": "Submitted on",
             "no_submissions": "No work submitted yet.",
             "view_project": "View",
-            "modal_create_class": "Create a class",
+            "modal_create_cours": "Create a course",
             "modal_course_code": "Course code",
             "modal_course_code_placeholder": "420-6N1-DM",
             "modal_group": "Group",
@@ -217,7 +240,7 @@
             "modal_hours_placeholder": "3",
             "modal_description": "Description",
             "modal_description_placeholder": "Description (optional)",
-            "modal_edit_class": "Edit class",
+            "modal_edit_cours": "Edit course",
             "modal_create_thematic": "Create a thematic area",
             "modal_thematic_name": "Name",
             "modal_thematic_name_placeholder": "Ex: Fishing, Agriculture…",
@@ -226,7 +249,7 @@
             "modal_thematic_description": "Description",
             "modal_thematic_description_placeholder": "Brief description",
             "modal_edit_thematic": "Edit thematic area",
-            "confirm_delete_class": "Delete class « {nom} »?",
+            "confirm_delete_course": "Delete course « {nom} »?",
             "confirm_delete_thematic": "Delete thematic area « {nom} »?",
             "confirm_decline_temoin": "Decline the request from {prenom} {nom}?",
             "temoins_show_approved": "Show approved",

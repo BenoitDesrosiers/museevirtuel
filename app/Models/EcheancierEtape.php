@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class EcheancierEtape extends Model
 {
     protected $fillable = [
-        'classe_id',
+        'cours_id',
         'semaine',
         'etape',
         'is_done',
@@ -31,11 +31,11 @@ class EcheancierEtape extends Model
     }
 
     /**
-     * Retourne la classe à laquelle appartient cette étape.
+     * Retourne le cours auquel appartient cette étape.
      */
-    public function classe(): BelongsTo
+    public function cours(): BelongsTo
     {
-        return $this->belongsTo(Classe::class);
+        return $this->belongsTo(Cours::class);
     }
 
     /**

@@ -59,11 +59,17 @@ type Media = {
     auteur: User;
 };
 
-type Classe = {
+type Cours = {
     id: number;
     nom_cours: string;
     code: string;
     groupe: string;
+};
+
+type Classe = {
+    id: number;
+    code: string;
+    cours_id: number;
 };
 
 type Groupe = {
@@ -72,7 +78,6 @@ type Groupe = {
     classe_id: number;
     created_by: number;
     personne_agee_id: number | null;
-    classe: Classe;
     membres: User[];
     thematiques: Thematique[];
     notes: Note[];
@@ -88,6 +93,8 @@ type EtudiantDispo = {
 
 type Props = {
     groupe: Groupe;
+    classe: Classe;
+    cours: Cours;
     estMembre: boolean;
     estEnseignant: boolean;
     estCreateur: boolean;
@@ -150,7 +157,7 @@ function submitMembres() {
             retirer: membresRetirer.value,
         }))
         .put(
-            `/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/membres`,
+            `/cours/${props.cours.id}/classes/${props.classe.id}/groupes/${props.groupe.id}/membres`,
             {
                 preserveScroll: true,
                 onSuccess: () => {

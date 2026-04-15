@@ -10,11 +10,11 @@ class GroupePolicy
     /**
      * Détermine si l'utilisateur peut consulter le groupe.
      *
-     * Accessible aux membres, à l'enseignant de la classe et aux admins.
+     * Accessible aux membres, au témoin, à l'enseignant du cours et aux admins.
      */
     public function view(User $user, Groupe $groupe): bool
     {
-        if ($user->isAdmin() || $groupe->classe->enseignant_id === $user->id) {
+        if ($user->isAdmin() || $groupe->classe->cours->enseignant_id === $user->id) {
             return true;
         }
 
@@ -24,7 +24,7 @@ class GroupePolicy
     /**
      * Détermine si l'utilisateur peut assigner un témoin au groupe.
      *
-     * Réservé à l'enseignant de la classe et aux admins.
+     * Réservé à l'enseignant du cours et aux admins.
      */
     public function assignerTemoin(User $user, Groupe $groupe): bool
     {
@@ -32,17 +32,17 @@ class GroupePolicy
             return true;
         }
 
-        return $user->isEnseignant() && $groupe->classe->enseignant_id === $user->id;
+        return $user->isEnseignant() && $groupe->classe->cours->enseignant_id === $user->id;
     }
 
     /**
      * Détermine si l'utilisateur peut accéder aux échanges du groupe.
      *
-     * Accessible aux membres, au témoin assigné, à l'enseignant de la classe et aux admins.
+     * Accessible aux membres, au témoin assigné, à l'enseignant du cours et aux admins.
      */
     public function echanges(User $user, Groupe $groupe): bool
     {
-        if ($user->isAdmin() || $groupe->classe->enseignant_id === $user->id) {
+        if ($user->isAdmin() || $groupe->classe->cours->enseignant_id === $user->id) {
             return true;
         }
 
@@ -84,9 +84,7 @@ class GroupePolicy
     /**
      * Détermine si l'utilisateur peut supprimer le groupe.
      *
-     * Réservé à l'enseignant de la classe et aux admins.
-     * Les étudiants ne peuvent plus supprimer de groupe car la suppression
-     * cascade sur le projet de recherche associé (risque élevé de perte de données).
+     * Réservé à l'enseignant du cours et aux admins.
      */
     public function delete(User $user, Groupe $groupe): bool
     {
@@ -95,7 +93,7 @@ class GroupePolicy
         }
 
         return $user->role === 'enseignant'
-            && $groupe->classe->enseignant_id === $user->id;
+            && $groupe->classe->cours->enseignant_id === $user->id;
     }
 
     /**
@@ -121,10 +119,10 @@ class GroupePolicy
     /**
      * Détermine si l'utilisateur peut supprimer un média du groupe.
      *
-     * L'auteur du média, l'enseignant de la classe et les admins peuvent supprimer.
+     * L'enseignant du cours et les admins peuvent supprimer.
      */
     public function deleteMedia(User $user, Groupe $groupe): bool
     {
-        return $user->isAdmin() || $groupe->classe->enseignant_id === $user->id;
+        return $user->isAdmin() || $groupe->classe->cours->enseignant_id === $user->id;
     }
 }

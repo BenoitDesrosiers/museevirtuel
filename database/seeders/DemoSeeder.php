@@ -3,12 +3,12 @@
 namespace Database\Seeders;
 
 use App\Models\Classe;
+use App\Models\Cours;
 use App\Models\EntrevueConcept;
 use App\Models\EntrevueLigne;
 use App\Models\GrilleCorrection;
 use App\Models\GrilleCritere;
 use App\Models\GrilleMalus;
-use App\Models\Groupe;
 use App\Models\ProjetConclusion;
 use App\Models\ProjetRecherche;
 use App\Models\ProjetSectionContenu;
@@ -80,13 +80,13 @@ class DemoSeeder extends Seeder
             ]
         );
 
-        // ─── Classe ───────────────────────────────────────────────────────────
-        /** @var Classe $classe */
-        $classe = Classe::firstOrCreate(
+        // ─── Cours ────────────────────────────────────────────────────────────
+        /** @var Cours $cours */
+        $cours = Cours::firstOrCreate(
             ['code' => '330-DEM-01', 'enseignant_id' => $prof->id],
             [
                 'nom_cours' => 'Histoire du Québec — Démo',
-                'description' => 'Classe de démonstration pour présentation.',
+                'description' => 'Cours de démonstration pour présentation.',
                 'code' => '330-DEM-01',
                 'groupe' => '00001',
                 'enseignant_id' => $prof->id,
@@ -116,28 +116,28 @@ class DemoSeeder extends Seeder
                 ]
             );
 
-            // Inscrire dans la classe si pas encore inscrit dans une quelconque classe
-            if (! $classe->etudiants()->whereKey($etudiant->id)->exists()
-                && ! $etudiant->classesInscrites()->exists()
+            // Inscrire dans le cours si pas encore inscrit dans un quelconque cours
+            if (! $cours->etudiants()->whereKey($etudiant->id)->exists()
+                && ! $etudiant->coursInscrits()->exists()
             ) {
-                $classe->etudiants()->attach($etudiant->id, ['statut_cours' => 'Actif']);
+                $cours->etudiants()->attach($etudiant->id, ['statut_cours' => 'Actif']);
             }
 
             $etudiants[] = $etudiant;
         }
 
-        // ─── Groupe ───────────────────────────────────────────────────────────
-        /** @var Groupe $groupe */
-        $groupe = $classe->groupes()->firstOrCreate(
+        // ─── Classe ───────────────────────────────────────────────────────────
+        /** @var Classe $classe */
+        $classe = $cours->classes()->firstOrCreate(
             ['created_by' => $etudiants[0]->id],
             [
-                'classe_id' => $classe->id,
+                'cours_id' => $cours->id,
                 'created_by' => $etudiants[0]->id,
             ]
         );
 
-        $groupe->membres()->syncWithoutDetaching(array_map(fn ($e) => $e->id, $etudiants));
-        $groupe->thematiques()->syncWithoutDetaching([$thematique->id]);
+        $classe->membres()->syncWithoutDetaching(array_map(fn ($e) => $e->id, $etudiants));
+        $classe->thematiques()->syncWithoutDetaching([$thematique->id]);
 
         // ─── TypeProjet ───────────────────────────────────────────────────────
         /** @var TypeProjet $typeProjet */
@@ -202,7 +202,7 @@ class DemoSeeder extends Seeder
         // ─── Projet de recherche ──────────────────────────────────────────────
         /** @var ProjetRecherche $projet */
         $projet = ProjetRecherche::firstOrCreate(
-            ['groupe_id' => $groupe->id, 'type_projet_id' => $typeProjet->id],
+            ['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id],
             ['titre_projet' => 'La Révolution tranquille : rupture ou continuité dans l\'histoire du Québec ?']
         );
 
@@ -340,10 +340,10 @@ class DemoSeeder extends Seeder
             }
         }
 
-        // Projet schéma d'entrevue pour le groupe démo
+        // Projet schéma d'entrevue pour la classe démo
         /** @var ProjetRecherche $projetEntrevue */
         $projetEntrevue = ProjetRecherche::updateOrCreate(
-            ['groupe_id' => $groupe->id, 'type_projet_id' => $typeProjetEntrevue->id],
+            ['classe_id' => $classe->id, 'type_projet_id' => $typeProjetEntrevue->id],
             ['titre_projet' => 'Entrevue avec un témoin de la Révolution tranquille']
         );
 

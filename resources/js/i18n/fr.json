@@ -123,7 +123,8 @@
             "modal_csv_file": "Fichier CSV",
             "modal_import": "Importer",
             "confirm_remove_student": "Retirer {prenom} {nom} de la classe ?",
-            "confirm_delete_document": "Supprimer \"{nom}\" ?"
+            "confirm_delete_document": "Supprimer \"{nom}\" ?",
+            "back_to_cours": "Retour au cours"
         },
         "groupes": {
             "page_title": "Groupes",
@@ -143,6 +144,27 @@
             "modal_thematic_max": "(max 3 —",
             "modal_create": "Créer",
             "confirm_delete_group": "Supprimer le Groupe {numero} ?"
+        }
+    },
+    "cours": {
+        "index": {
+            "page_title": "Mes cours",
+            "heading_title": "Mes cours",
+            "heading_description": "Vos cours inscrits pour cette session",
+            "no_courses": "Vous n'êtes inscrit à aucun cours pour l'instant.",
+            "my_sections": "Mes sections"
+        },
+        "show": {
+            "classes_title": "Classes (sections)",
+            "no_classes": "Aucune section pour l'instant.",
+            "classes_see": "Voir"
+        },
+        "classes": {
+            "page_title": "Mes sections",
+            "back": "Retour à mes cours",
+            "no_classes": "Vous n'êtes inscrit à aucune section de ce cours.",
+            "groups_count": "{n} groupe(s)",
+            "my_group": "Mon groupe"
         }
     },
     "groupes": {
@@ -182,16 +204,16 @@
         "index": {
             "page_title": "Espace enseignant",
             "heading_title": "Mon espace",
-            "heading_description": "Gérez vos classes et vos thématiques",
-            "my_classes": "Mes classes",
-            "new_class": "Nouvelle classe",
+            "heading_description": "Gérez vos cours et vos thématiques",
+            "my_courses": "Mes cours",
+            "new_course": "Nouveau cours",
             "table_header_code": "Code",
             "table_header_group": "Groupe",
             "table_header_course_name": "Nom du cours",
             "table_header_hours": "H/sem",
             "table_header_students": "Étudiants",
             "table_header_actions": "Actions",
-            "no_classes": "Aucune classe créée. Cliquez sur « Nouvelle classe » pour commencer.",
+            "no_courses": "Aucun cours créé. Cliquez sur « Nouveau cours » pour commencer.",
             "my_thematic": "Mes thématiques",
             "new_thematic": "Nouvelle thématique",
             "table_header_thematic_name": "Nom",
@@ -205,7 +227,7 @@
             "table_header_submitted_at": "Remis le",
             "no_submissions": "Aucun travail remis pour l'instant.",
             "view_project": "Voir",
-            "modal_create_class": "Créer une classe",
+            "modal_create_cours": "Créer un cours",
             "modal_course_code": "Code de cours",
             "modal_course_code_placeholder": "420-6N1-DM",
             "modal_group": "Groupe",
@@ -216,7 +238,7 @@
             "modal_hours_placeholder": "3",
             "modal_description": "Description",
             "modal_description_placeholder": "Description (optionnel)",
-            "modal_edit_class": "Modifier la classe",
+            "modal_edit_cours": "Modifier le cours",
             "modal_create_thematic": "Créer une thématique",
             "modal_thematic_name": "Nom",
             "modal_thematic_name_placeholder": "Ex: La pêche, L'agriculture…",
@@ -225,7 +247,7 @@
             "modal_thematic_description": "Description",
             "modal_thematic_description_placeholder": "Brève description",
             "modal_edit_thematic": "Modifier la thématique",
-            "confirm_delete_class": "Supprimer la classe « {nom} » ?",
+            "confirm_delete_course": "Supprimer le cours « {nom} » ?",
             "confirm_delete_thematic": "Supprimer la thématique « {nom} » ?",
             "confirm_decline_temoin": "Décliner la demande de {prenom} {nom} ?",
             "temoins_show_approved": "Voir les approuvés",

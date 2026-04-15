@@ -117,7 +117,15 @@
       "Bash(./vendor/bin/sail ps:*)",
       "Bash(docker ps:*)",
       "Bash(docker compose:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(docker-compose:*)",
+      "Bash(netstat:*)",
+      "Bash(sc query:*)",
+      "Bash(start \"\" \"C:\\\\Program Files\\\\Herd\\\\Herd.exe\")",
+      "Bash(py:*)",
+      "Bash(python3.exe:*)",
+      "Bash(/tmp/refactor_tests.py:*)",
+      "Bash(Get-Content \"C:/Users/Adam/Herd/Muse/resources/js/pages/Classes/Show.vue\")"
     ]
   },
   "enableAllProjectMcpServers": true,

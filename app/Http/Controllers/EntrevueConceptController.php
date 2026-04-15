@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Classe;
+use App\Models\Cours;
 use App\Models\EntrevueConcept;
 use App\Models\EntrevueLigne;
 use App\Models\Groupe;
@@ -20,9 +21,9 @@ class EntrevueConceptController extends Controller
      *
      * @throws HttpException
      */
-    public function store(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): JsonResponse
+    public function store(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): JsonResponse
     {
-        $this->autoriserEtVerifier($classe, $groupe, $typeProjet, $section);
+        $this->autoriserEtVerifier($cours, $classe, $groupe, $typeProjet, $section);
 
         $projet = ProjetRecherche::firstOrCreate([
             'groupe_id' => $groupe->id,
@@ -58,9 +59,9 @@ class EntrevueConceptController extends Controller
      *
      * @throws HttpException
      */
-    public function update(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, EntrevueConcept $concept): JsonResponse
+    public function update(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, EntrevueConcept $concept): JsonResponse
     {
-        $this->autoriserEtVerifier($classe, $groupe, $typeProjet, $section);
+        $this->autoriserEtVerifier($cours, $classe, $groupe, $typeProjet, $section);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
@@ -82,9 +83,9 @@ class EntrevueConceptController extends Controller
      *
      * @throws HttpException
      */
-    public function destroy(Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, EntrevueConcept $concept): JsonResponse
+    public function destroy(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, EntrevueConcept $concept): JsonResponse
     {
-        $this->autoriserEtVerifier($classe, $groupe, $typeProjet, $section);
+        $this->autoriserEtVerifier($cours, $classe, $groupe, $typeProjet, $section);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
@@ -109,9 +110,9 @@ class EntrevueConceptController extends Controller
      *
      * @throws HttpException
      */
-    public function reorder(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): JsonResponse
+    public function reorder(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): JsonResponse
     {
-        $this->autoriserEtVerifier($classe, $groupe, $typeProjet, $section);
+        $this->autoriserEtVerifier($cours, $classe, $groupe, $typeProjet, $section);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
@@ -137,9 +138,9 @@ class EntrevueConceptController extends Controller
      *
      * @throws HttpException
      */
-    public function storeLigne(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, EntrevueConcept $concept): JsonResponse
+    public function storeLigne(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, EntrevueConcept $concept): JsonResponse
     {
-        $this->autoriserEtVerifier($classe, $groupe, $typeProjet, $section);
+        $this->autoriserEtVerifier($cours, $classe, $groupe, $typeProjet, $section);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
@@ -168,9 +169,9 @@ class EntrevueConceptController extends Controller
      *
      * @throws HttpException
      */
-    public function updateLigne(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, EntrevueConcept $concept, EntrevueLigne $ligne): JsonResponse
+    public function updateLigne(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, EntrevueConcept $concept, EntrevueLigne $ligne): JsonResponse
     {
-        $this->autoriserEtVerifier($classe, $groupe, $typeProjet, $section);
+        $this->autoriserEtVerifier($cours, $classe, $groupe, $typeProjet, $section);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
@@ -196,9 +197,9 @@ class EntrevueConceptController extends Controller
      *
      * @throws HttpException
      */
-    public function destroyLigne(Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, EntrevueConcept $concept, EntrevueLigne $ligne): JsonResponse
+    public function destroyLigne(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, EntrevueConcept $concept, EntrevueLigne $ligne): JsonResponse
     {
-        $this->autoriserEtVerifier($classe, $groupe, $typeProjet, $section);
+        $this->autoriserEtVerifier($cours, $classe, $groupe, $typeProjet, $section);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
@@ -221,22 +222,24 @@ class EntrevueConceptController extends Controller
     /**
      * Vérifie les autorisations et la cohérence des paramètres d'URL.
      *
+     * - Classe appartient au cours
      * - Groupe appartient à la classe
-     * - TypeProjet appartient à l'enseignant de la classe (anti-IDOR)
+     * - TypeProjet appartient à l'enseignant du cours (anti-IDOR)
      * - Section appartient au TypeProjet
      * - Section est de type 'entrevue'
      * - L'utilisateur est membre du groupe ou enseignant
      *
      * @throws HttpException
      */
-    private function autoriserEtVerifier(Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): void
+    private function autoriserEtVerifier(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): void
     {
+        abort_if($classe->cours_id !== $cours->id, 404);
         abort_if($groupe->classe_id !== $classe->id, 404);
-        abort_if($typeProjet->enseignant_id !== $classe->enseignant_id, 404);
+        abort_if($typeProjet->enseignant_id !== $cours->enseignant_id, 404);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
         abort_if($section->type !== 'entrevue', 422, 'Cette section n\'est pas de type entrevue.');
 
-        $groupe->load('classe');
+        $groupe->loadMissing('classe.cours');
         $this->authorize('manageThematiques', $groupe);
     }
 

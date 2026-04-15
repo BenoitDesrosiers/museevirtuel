@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Classe;
+use App\Models\Cours;
 use App\Models\EcheancierEtape;
 use App\Models\EcheancierEtudiantProgress;
 use Illuminate\Http\RedirectResponse;
@@ -12,13 +12,13 @@ use Illuminate\Support\Facades\Gate;
 class EcheancierController extends Controller
 {
     /**
-     * Ajoute une nouvelle étape à l'échéancier d'une classe.
+     * Ajoute une nouvelle étape à l'échéancier d'un cours.
      *
-     * Réservé à l'enseignant de la classe et aux admins.
+     * Réservé à l'enseignant du cours et aux admins.
      */
-    public function store(Request $request, Classe $classe): RedirectResponse
+    public function store(Request $request, Cours $cours): RedirectResponse
     {
-        Gate::authorize('update', $classe);
+        Gate::authorize('update', $cours);
 
         $validated = $request->validate([
             'semaine' => ['required', 'integer', 'min:1', 'max:15'],
@@ -26,12 +26,12 @@ class EcheancierController extends Controller
         ]);
 
         // L'ordre est défini comme le prochain dans la semaine
-        $ordre = EcheancierEtape::where('classe_id', $classe->id)
+        $ordre = EcheancierEtape::where('cours_id', $cours->id)
             ->where('semaine', $validated['semaine'])
             ->max('ordre') ?? -1;
 
         EcheancierEtape::create([
-            'classe_id' => $classe->id,
+            'cours_id' => $cours->id,
             'semaine' => $validated['semaine'],
             'etape' => $validated['etape'],
             'is_done' => false,
@@ -44,12 +44,12 @@ class EcheancierController extends Controller
     /**
      * Met à jour le texte d'une étape de l'échéancier.
      *
-     * Réservé à l'enseignant de la classe et aux admins.
+     * Réservé à l'enseignant du cours et aux admins.
      */
-    public function update(Request $request, Classe $classe, EcheancierEtape $etape): RedirectResponse
+    public function update(Request $request, Cours $cours, EcheancierEtape $etape): RedirectResponse
     {
-        abort_if($etape->classe_id !== $classe->id, 404);
-        Gate::authorize('update', $classe);
+        abort_if($etape->cours_id !== $cours->id, 404);
+        Gate::authorize('update', $cours);
 
         $validated = $request->validate([
             'etape' => ['required', 'string', 'max:500'],
@@ -63,12 +63,12 @@ class EcheancierController extends Controller
     /**
      * Supprime une étape de l'échéancier.
      *
-     * Réservé à l'enseignant de la classe et aux admins.
+     * Réservé à l'enseignant du cours et aux admins.
      */
-    public function destroy(Classe $classe, EcheancierEtape $etape): RedirectResponse
+    public function destroy(Cours $cours, EcheancierEtape $etape): RedirectResponse
     {
-        abort_if($etape->classe_id !== $classe->id, 404);
-        Gate::authorize('update', $classe);
+        abort_if($etape->cours_id !== $cours->id, 404);
+        Gate::authorize('update', $cours);
 
         $etape->delete();
 
@@ -76,15 +76,15 @@ class EcheancierController extends Controller
     }
 
     /**
-     * Supprime toutes les étapes de l'échéancier d'une classe.
+     * Supprime toutes les étapes de l'échéancier d'un cours.
      *
-     * Réservé à l'enseignant de la classe et aux admins.
+     * Réservé à l'enseignant du cours et aux admins.
      */
-    public function destroyAll(Classe $classe): RedirectResponse
+    public function destroyAll(Cours $cours): RedirectResponse
     {
-        Gate::authorize('update', $classe);
+        Gate::authorize('update', $cours);
 
-        $classe->echeancierEtapes()->delete();
+        $cours->echeancierEtapes()->delete();
 
         return back();
     }
@@ -92,12 +92,12 @@ class EcheancierController extends Controller
     /**
      * Bascule l'état is_done d'une étape (fait / non fait).
      *
-     * Réservé à l'enseignant de la classe et aux admins.
+     * Réservé à l'enseignant du cours et aux admins.
      */
-    public function toggleDone(Classe $classe, EcheancierEtape $etape): RedirectResponse
+    public function toggleDone(Cours $cours, EcheancierEtape $etape): RedirectResponse
     {
-        abort_if($etape->classe_id !== $classe->id, 404);
-        Gate::authorize('update', $classe);
+        abort_if($etape->cours_id !== $cours->id, 404);
+        Gate::authorize('update', $cours);
 
         $etape->update(['is_done' => ! $etape->is_done]);
 
@@ -107,16 +107,16 @@ class EcheancierController extends Controller
     /**
      * Bascule la progression personnelle de l'étudiant connecté pour une étape.
      *
-     * Chaque étudiant inscrit dans la classe gère uniquement son propre avancement.
+     * Chaque étudiant inscrit au cours gère uniquement son propre avancement.
      */
-    public function toggleEtudiant(Classe $classe, EcheancierEtape $etape): RedirectResponse
+    public function toggleEtudiant(Cours $cours, EcheancierEtape $etape): RedirectResponse
     {
-        abort_if($etape->classe_id !== $classe->id, 404);
+        abort_if($etape->cours_id !== $cours->id, 404);
 
         $user = auth()->user();
 
-        // Vérification d'inscription à la classe
-        abort_unless($classe->etudiants()->where('users.id', $user->id)->exists(), 403);
+        // Vérification d'inscription au cours
+        abort_unless($cours->etudiants()->where('users.id', $user->id)->exists(), 403);
 
         $progression = EcheancierEtudiantProgress::firstOrCreate(
             ['echeancier_etape_id' => $etape->id, 'user_id' => $user->id],

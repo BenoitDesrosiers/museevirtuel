@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class GroupeNoteCorrection extends Model
 {
+    protected $table = 'groupe_note_corrections';
+
     protected $fillable = [
         'note_id',
         'commentaire_id',

@@ -16,11 +16,17 @@ import {
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 
-type Classe = {
+type Cours = {
     id: number;
     nom_cours: string;
     code: string;
     groupe: string;
+};
+
+type Classe = {
+    id: number;
+    code: string;
+    cours_id: number;
 };
 
 type Etudiant = {
@@ -59,6 +65,7 @@ type EcheancierEtape = {
 };
 
 type Props = {
+    cours: Cours;
     classe: Classe;
     monGroupe: Groupe | null;
     autresEtudiants: Etudiant[];
@@ -126,7 +133,7 @@ function submitCreate() {
         ...data,
         membres: membresSelectionnes.value,
         thematiques: thematiquesSelectionnees.value,
-    })).post(`/classes/${props.classe.id}/groupes`, {
+    })).post(`/cours/${props.cours.id}/classes/${props.classe.id}/groupes`, {
         onSuccess: () => {
             showCreateDialog.value = false;
             form.reset();
@@ -161,7 +168,7 @@ const toggleLoadingEtudiantId = ref<number | null>(null);
 function toggleEtapeEtudiant(etape: EcheancierEtape) {
     toggleLoadingEtudiantId.value = etape.id;
     router.patch(
-        `/classes/${props.classe.id}/echeancier/${etape.id}/toggle-etudiant`,
+        `/cours/${props.cours.id}/echeancier/${etape.id}/toggle-etudiant`,
         {},
         {
             preserveScroll: true,
@@ -175,13 +182,13 @@ function toggleEtapeEtudiant(etape: EcheancierEtape) {
 
 <template>
     <AppLayout>
-        <Head :title="`${$t('classes.groupes.heading')} — ${classe.nom_cours}`" />
+        <Head :title="`${$t('classes.groupes.heading')} — ${cours.nom_cours}`" />
 
         <div class="flex flex-col gap-6 p-6">
             <!-- Retour -->
             <div>
                 <Button variant="ghost" size="sm" as-child>
-                    <Link href="/classes">
+                    <Link :href="`/cours/${cours.id}/classes`">
                         <ArrowLeft class="mr-2 h-4 w-4" />
                         {{ $t('classes.groupes.back') }}
                     </Link>
@@ -190,8 +197,8 @@ function toggleEtapeEtudiant(etape: EcheancierEtape) {
 
             <!-- Heading -->
             <Heading
-                :title="`${$t('classes.groupes.heading')} — ${classe.nom_cours}`"
-                :description="`${classe.code} — Groupe ${classe.groupe}`"
+                :title="`${$t('classes.groupes.heading')} — ${cours.nom_cours}`"
+                :description="`${cours.code} — Groupe ${cours.groupe} · Section ${classe.code}`"
             />
 
             <!-- Mon groupe -->
@@ -204,7 +211,7 @@ function toggleEtapeEtudiant(etape: EcheancierEtape) {
                         </CardTitle>
                         <div class="flex gap-2">
                             <Button size="sm" as-child>
-                                <Link :href="`/classes/${props.classe.id}/groupes/${monGroupe.id}`">{{ $t('classes.groupes.access') }}</Link>
+                                <Link :href="`/cours/${props.cours.id}/classes/${props.classe.id}/groupes/${monGroupe.id}`">{{ $t('classes.groupes.access') }}</Link>
                             </Button>
                         </div>
                     </CardHeader>

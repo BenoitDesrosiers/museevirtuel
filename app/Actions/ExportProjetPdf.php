@@ -16,8 +16,8 @@ class ExportProjetPdf
      */
     public function execute(ProjetRecherche $projet, Groupe $groupe): Response
     {
-        $classe = $groupe->classe;
-        $enseignant = $classe->enseignant;
+        $cours = $groupe->classe->cours;
+        $enseignant = $cours->enseignant;
 
         // Noms des membres pour la page titre — chacun sur sa propre ligne dans la vue
         $membres = $groupe->membres->map(fn ($m) => "{$m->prenom} {$m->nom}")->values();
@@ -38,7 +38,7 @@ class ExportProjetPdf
         $pdf = Pdf::loadView('projets.export', [
             'projet' => $projet,
             'groupe' => $groupe,
-            'classe' => $classe,
+            'classe' => $cours,
             'enseignant' => $enseignant,
             'membres' => $membres,
             'sections' => $sectionsAvecContenu,

@@ -17,16 +17,14 @@ class StoreClasseRequest extends FormRequest
 
     /**
      * Retourne les règles de validation pour la création d'une classe.
+     * Le code est optionnel : s'il n'est pas fourni, il sera auto-généré par l'Observer.
      *
      * @return array<string, array<int, string>>
      */
     public function rules(): array
     {
         return [
-            'nom_cours' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'code' => ['required', 'string', 'max:20'],
-            'groupe' => ['required', 'string', 'max:20'],
+            'code' => ['nullable', 'string', 'max:20'],
         ];
     }
 }

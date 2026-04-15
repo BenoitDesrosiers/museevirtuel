@@ -29,8 +29,8 @@ class ExportProjetWord
      */
     public function execute(ProjetRecherche $projet, Groupe $groupe): StreamedResponse
     {
-        $classe = $groupe->classe;
-        $enseignant = $classe->enseignant;
+        $cours = $groupe->classe->cours;
+        $enseignant = $cours->enseignant;
 
         if (! $projet->relationLoaded('typeProjet')) {
             $projet->load(['typeProjet.sections', 'sectionContenus', 'sectionParagraphes', 'conclusions']);
@@ -47,8 +47,8 @@ class ExportProjetWord
             $this->addCenteredText($pageTitre, "{$membre->prenom} {$membre->nom}");
         }
 
-        $this->addCenteredText($pageTitre, $classe->nom_cours);
-        $this->addCenteredText($pageTitre, "{$classe->code} / Gr. {$classe->groupe}", 10);
+        $this->addCenteredText($pageTitre, $cours->nom_cours);
+        $this->addCenteredText($pageTitre, "{$cours->code} / Gr. {$cours->groupe}", 10);
         $pageTitre->addTextBreak(3);
         $this->addCenteredText($pageTitre, strtoupper($projet->titre_projet ?? 'Recherche documentaire'), 16, true);
         $this->addCenteredText($pageTitre, 'RECHERCHE DOCUMENTAIRE');

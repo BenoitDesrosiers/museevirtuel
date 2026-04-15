@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class GroupeEchange extends Model
 {
+    protected $table = 'groupe_echanges';
+
     protected $fillable = [
         'groupe_id',
         'auteur_id',

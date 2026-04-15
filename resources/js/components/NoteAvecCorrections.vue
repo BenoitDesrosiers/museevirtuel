@@ -26,6 +26,8 @@ type Note = {
 const props = defineProps<{
     note: Note;
     estEnseignant: boolean;
+    coursId: number | string;
+    classeId: number;
     groupeId: number;
 }>();
 
@@ -200,6 +202,8 @@ async function saveCorrection() {
 
     router.put(
         correctionsRoutes.upsert({
+            cours: props.coursId,
+            classe: props.classeId,
             groupe: props.groupeId,
             note: props.note.id,
         }).url,
@@ -270,6 +274,8 @@ function deleteCorrection(correction: Correction) {
 
     router.delete(
         correctionsRoutes.destroy({
+            cours: props.coursId,
+            classe: props.classeId,
             groupe: props.groupeId,
             note: props.note.id,
             correction: correction.id,

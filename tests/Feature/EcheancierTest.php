@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\Classe;
+use App\Models\Cours;
 use App\Models\EcheancierEtape;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -12,7 +12,7 @@ uses(RefreshDatabase::class);
 function creerContexteEcheancier(): array
 {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
-    $classe = Classe::create([
+    $cours = Cours::create([
         'nom_cours' => 'Histoire',
         'code' => 'HIS101',
         'groupe' => '01',
@@ -20,17 +20,17 @@ function creerContexteEcheancier(): array
     ]);
 
     $etudiant = User::factory()->create(['role' => 'etudiant']);
-    $classe->etudiants()->attach($etudiant->id);
+    $cours->etudiants()->attach($etudiant->id);
 
     $etape = EcheancierEtape::create([
-        'classe_id' => $classe->id,
+        'cours_id' => $cours->id,
         'semaine' => 1,
         'etape' => 'Lire le chapitre 1',
         'is_done' => false,
         'ordre' => 0,
     ]);
 
-    return compact('enseignant', 'classe', 'etudiant', 'etape');
+    return compact('enseignant', 'cours', 'etudiant', 'etape');
 }
 
 // ─── destroyAll() ─────────────────────────────────────────────────────────────
@@ -39,34 +39,34 @@ test('destroyAll() supprime toutes les étapes de la classe', function () {
     $ctx = creerContexteEcheancier();
 
     EcheancierEtape::create([
-        'classe_id' => $ctx['classe']->id,
+        'cours_id' => $ctx['cours']->id,
         'semaine' => 2,
         'etape' => 'Rédiger un résumé',
         'is_done' => false,
         'ordre' => 0,
     ]);
 
-    expect(EcheancierEtape::where('classe_id', $ctx['classe']->id)->count())->toBe(2);
+    expect(EcheancierEtape::where('cours_id', $ctx['cours']->id)->count())->toBe(2);
 
     $this->actingAs($ctx['enseignant'])
-        ->delete("/classes/{$ctx['classe']->id}/echeancier")
+        ->delete("/cours/{$ctx['cours']->id}/echeancier")
         ->assertRedirect();
 
-    expect(EcheancierEtape::where('classe_id', $ctx['classe']->id)->count())->toBe(0);
+    expect(EcheancierEtape::where('cours_id', $ctx['cours']->id)->count())->toBe(0);
 });
 
-test('destroyAll() ne supprime pas les étapes des autres classes', function () {
+test('destroyAll() ne supprime pas les étapes des autres cours', function () {
     $ctx = creerContexteEcheancier();
 
     $autreEnseignant = User::factory()->create(['role' => 'enseignant']);
-    $autreClasse = Classe::create([
+    $autreCours = Cours::create([
         'nom_cours' => 'Maths',
         'code' => 'MAT201',
         'groupe' => '01',
         'enseignant_id' => $autreEnseignant->id,
     ]);
     $etapeAutre = EcheancierEtape::create([
-        'classe_id' => $autreClasse->id,
+        'cours_id' => $autreCours->id,
         'semaine' => 1,
         'etape' => 'Exercices',
         'is_done' => false,
@@ -74,7 +74,7 @@ test('destroyAll() ne supprime pas les étapes des autres classes', function () 
     ]);
 
     $this->actingAs($ctx['enseignant'])
-        ->delete("/classes/{$ctx['classe']->id}/echeancier")
+        ->delete("/cours/{$ctx['cours']->id}/echeancier")
         ->assertRedirect();
 
     $this->assertDatabaseHas('echeancier_etapes', ['id' => $etapeAutre->id]);
@@ -86,7 +86,7 @@ test('toggleEtudiant() coche la progression personnelle de l\'étudiant', functi
     $ctx = creerContexteEcheancier();
 
     $this->actingAs($ctx['etudiant'])
-        ->patch("/classes/{$ctx['classe']->id}/echeancier/{$ctx['etape']->id}/toggle-etudiant")
+        ->patch("/cours/{$ctx['cours']->id}/echeancier/{$ctx['etape']->id}/toggle-etudiant")
         ->assertRedirect();
 
     $this->assertDatabaseHas('echeancier_etudiant_progress', [
@@ -101,11 +101,11 @@ test('toggleEtudiant() décoche si déjà coché', function () {
 
     // Premier toggle : coche
     $this->actingAs($ctx['etudiant'])
-        ->patch("/classes/{$ctx['classe']->id}/echeancier/{$ctx['etape']->id}/toggle-etudiant");
+        ->patch("/cours/{$ctx['cours']->id}/echeancier/{$ctx['etape']->id}/toggle-etudiant");
 
     // Deuxième toggle : décoche
     $this->actingAs($ctx['etudiant'])
-        ->patch("/classes/{$ctx['classe']->id}/echeancier/{$ctx['etape']->id}/toggle-etudiant")
+        ->patch("/cours/{$ctx['cours']->id}/echeancier/{$ctx['etape']->id}/toggle-etudiant")
         ->assertRedirect();
 
     $this->assertDatabaseHas('echeancier_etudiant_progress', [
@@ -118,11 +118,11 @@ test('toggleEtudiant() décoche si déjà coché', function () {
 test('toggleEtudiant() — la progression est isolée par utilisateur', function () {
     $ctx = creerContexteEcheancier();
     $autreEtudiant = User::factory()->create(['role' => 'etudiant']);
-    $ctx['classe']->etudiants()->attach($autreEtudiant->id);
+    $ctx['cours']->etudiants()->attach($autreEtudiant->id);
 
     // Alice coche
     $this->actingAs($ctx['etudiant'])
-        ->patch("/classes/{$ctx['classe']->id}/echeancier/{$ctx['etape']->id}/toggle-etudiant");
+        ->patch("/cours/{$ctx['cours']->id}/echeancier/{$ctx['etape']->id}/toggle-etudiant");
 
     // La progression de l'autre étudiant doit rester intacte (pas d'entrée)
     $this->assertDatabaseMissing('echeancier_etudiant_progress', [
@@ -131,11 +131,11 @@ test('toggleEtudiant() — la progression est isolée par utilisateur', function
     ]);
 });
 
-test('toggleEtudiant() refuse un étudiant non inscrit dans la classe (403)', function () {
+test('toggleEtudiant() refuse un étudiant non inscrit dans le cours (403)', function () {
     $ctx = creerContexteEcheancier();
     $etranger = User::factory()->create(['role' => 'etudiant']);
 
     $this->actingAs($etranger)
-        ->patch("/classes/{$ctx['classe']->id}/echeancier/{$ctx['etape']->id}/toggle-etudiant")
+        ->patch("/cours/{$ctx['cours']->id}/echeancier/{$ctx['etape']->id}/toggle-etudiant")
         ->assertForbidden();
 });

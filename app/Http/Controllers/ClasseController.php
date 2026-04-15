@@ -2,131 +2,137 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoreClasseRequest;
-use App\Http\Requests\UpdateClasseRequest;
 use App\Models\Classe;
-use App\Models\TypeProjet;
+use App\Models\Cours;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ClasseController extends Controller
 {
     /**
-     * Affiche la liste des classes dans lesquelles l'étudiant authentifié est inscrit.
+     * Affiche le détail d'une classe (section) avec ses groupes.
+     *
+     * Accessible aux étudiants inscrits, à l'enseignant et aux admins.
+     *
+     * @throws AuthorizationException
+     * @throws HttpException
      */
-    public function index(): Response
+    /**
+     * Liste les sections (classes) d'un cours dans lesquelles l'étudiant est inscrit.
+     *
+     * Réservé aux étudiants.
+     */
+    public function indexForStudent(Cours $cours): Response
     {
-        $classes = auth()->user()
-            ->classesInscrites()
-            ->with('enseignant:id,prenom,nom')
-            ->get();
+        $user = auth()->user();
 
-        return Inertia::render('Classes/Index', [
+        $classes = $cours->classes()
+            ->whereHas('etudiants', fn ($q) => $q->where('users.id', $user->id))
+            ->withCount('groupes')
+            ->orderBy('code')
+            ->get(['id', 'code', 'nom', 'cours_id']);
+
+        return Inertia::render('Cours/Classes', [
+            'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
             'classes' => $classes,
         ]);
     }
 
     /**
-     * Affiche le détail d'une classe avec ses étudiants, groupes et documents.
+     * Affiche le détail d'une classe (section) avec ses groupes.
      *
-     * Accessible aux enseignants propriétaires et aux admins (ClassePolicy::view).
+     * Accessible aux étudiants inscrits, à l'enseignant et aux admins.
+     *
+     * @throws AuthorizationException
+     * @throws HttpException
      */
-    public function show(Classe $classe): Response
+    public function show(Cours $cours, Classe $classe): Response
     {
+        abort_if($classe->cours_id !== $cours->id, 404);
+
+        $classe->load('cours');
         $this->authorize('view', $classe);
 
-        $etudiants = $classe->etudiants()
-            ->orderBy('nom')
-            ->get()
-            ->map(fn ($etudiant) => [
-                'id' => $etudiant->id,
-                'prenom' => $etudiant->prenom,
-                'nom' => $etudiant->nom,
-                'email' => $etudiant->email,
-                'no_da' => $etudiant->no_da,
-                'statut_cours' => $etudiant->pivot->statut_cours,
-            ]);
+        $user = auth()->user();
+        $estEnseignant = $cours->enseignant_id === $user->id;
 
-        $groupes = $classe->groupes()
-            ->with(['membres:id,prenom,nom', 'thematiques:id,nom', 'createur:id,prenom,nom'])
-            ->get();
-
-        $documents = $classe->documents()->get();
-
-        $echeancierEtapes = $classe->echeancierEtapes()
-            ->get()
-            ->map(fn ($etape) => [
-                'id' => $etape->id,
-                'semaine' => $etape->semaine,
-                'etape' => $etape->etape,
-                'is_done' => $etape->is_done,
-                'ordre' => $etape->ordre,
-            ]);
-
-        $typesProjets = TypeProjet::where('enseignant_id', auth()->id())
-            ->with(['grille:id,type_projet_id,nom', 'sections'])
-            ->orderBy('nom')
-            ->get();
+        $classe->load(['groupes.membres', 'groupes.thematiques', 'groupes.temoin', 'etudiants']);
 
         return Inertia::render('Classes/Show', [
+            'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
             'classe' => $classe,
-            'etudiants' => $etudiants,
-            'groupes' => $groupes,
-            'documents' => $documents,
-            'echeancierEtapes' => $echeancierEtapes,
-            'typesProjets' => $typesProjets->map(fn (TypeProjet $tp) => [
-                'id' => $tp->id,
-                'nom' => $tp->nom,
-                'description' => $tp->description,
-                'accessible' => $tp->accessible,
-                'grille' => $tp->grille ? ['id' => $tp->grille->id, 'nom' => $tp->grille->nom] : null,
-                'sections' => $tp->sections->map(fn ($s) => [
-                    'id' => $s->id,
-                    'label' => $s->label,
-                    'description' => $s->description,
-                    'ordre' => $s->ordre,
-                ])->values(),
-            ])->values(),
+            'estEnseignant' => $estEnseignant,
         ]);
     }
 
     /**
-     * Enregistre une nouvelle classe pour l'enseignant authentifié.
+     * Crée une nouvelle classe (section) dans un cours.
      *
-     * La validation et l'autorisation sont déléguées à StoreClasseRequest.
-     */
-    public function store(StoreClasseRequest $request): RedirectResponse
-    {
-        auth()->user()->classes()->create($request->validated());
-
-        return back()->with('success', __('classe.created'));
-    }
-
-    /**
-     * Met à jour une classe existante.
-     *
-     * La validation et l'autorisation (ClassePolicy::update) sont déléguées à UpdateClasseRequest.
-     */
-    public function update(UpdateClasseRequest $request, Classe $classe): RedirectResponse
-    {
-        $classe->update($request->validated());
-
-        return back()->with('success', __('classe.updated'));
-    }
-
-    /**
-     * Supprime une classe et toutes ses données associées.
+     * Réservé à l'enseignant du cours et aux admins.
      *
      * @throws AuthorizationException
      */
-    public function destroy(Classe $classe): RedirectResponse
+    public function store(Request $request, Cours $cours): RedirectResponse
     {
+        $this->authorize('update', $cours);
+
+        $validated = $request->validate([
+            'code' => ['nullable', 'string', 'max:20'],
+            'nom' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        Classe::create(array_merge(
+            ['cours_id' => $cours->id],
+            array_filter($validated, fn ($v) => $v !== null)
+        ));
+
+        return back()->with('success', 'Section créée.');
+    }
+
+    /**
+     * Met à jour une classe (section) : code et/ou nom.
+     *
+     * Réservé à l'enseignant du cours et aux admins.
+     *
+     * @throws AuthorizationException
+     * @throws HttpException
+     */
+    public function update(Request $request, Cours $cours, Classe $classe): RedirectResponse
+    {
+        abort_if($classe->cours_id !== $cours->id, 404);
+        $this->authorize('update', $classe);
+
+        $validated = $request->validate([
+            'code' => ['nullable', 'string', 'max:20'],
+            'nom' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $classe->update($validated);
+
+        return back()->with('success', 'Section mise à jour.');
+    }
+
+    /**
+     * Supprime une classe (section) — cascade sur les groupes et projets.
+     *
+     * Réservé à l'enseignant du cours et aux admins.
+     *
+     * @throws AuthorizationException
+     * @throws HttpException
+     */
+    public function destroy(Cours $cours, Classe $classe): RedirectResponse
+    {
+        abort_if($classe->cours_id !== $cours->id, 404);
+
+        $classe->load('cours');
         $this->authorize('delete', $classe);
 
         $classe->delete();
 
-        return to_route('enseignant.index')->with('success', __('classe.deleted'));
+        return redirect()->route('cours.show', $cours)->with('success', 'Section supprimée.');
     }
 }

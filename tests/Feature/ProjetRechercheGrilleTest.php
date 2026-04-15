@@ -1,10 +1,10 @@
 <?php
 
 use App\Models\Classe;
+use App\Models\Cours;
 use App\Models\GrilleCorrection;
 use App\Models\GrilleCritere;
 use App\Models\GrilleMalus;
-use App\Models\Groupe;
 use App\Models\ProjetGrilleMalus;
 use App\Models\ProjetGrilleNote;
 use App\Models\ProjetRecherche;
@@ -20,8 +20,8 @@ use App\Models\User;
  *
  * @return array{
  *     enseignant: User,
+ *     cours: Cours,
  *     classe: Classe,
- *     groupe: Groupe,
  *     etudiant: User,
  *     projet: ProjetRecherche,
  *     typeProjet: TypeProjet,
@@ -35,7 +35,7 @@ function creerContexteGrilleProjet(): array
 {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
 
-    $classe = Classe::create([
+    $cours = Cours::create([
         'nom_cours' => 'Histoire',
         'description' => 'Test',
         'code' => '330-G1',
@@ -44,13 +44,13 @@ function creerContexteGrilleProjet(): array
     ]);
 
     $etudiant = User::factory()->create(['role' => 'etudiant']);
-    $classe->etudiants()->attach($etudiant->id);
+    $cours->etudiants()->attach($etudiant->id);
 
-    $groupe = Groupe::create([
-        'classe_id' => $classe->id,
+    $classe = Classe::create([
+        'cours_id' => $cours->id,
         'created_by' => $etudiant->id,
     ]);
-    $groupe->membres()->attach($etudiant->id);
+    $classe->membres()->attach($etudiant->id);
 
     // La grille appartient au type de projet (et non à la classe directement)
     $typeProjet = TypeProjet::create([
@@ -66,11 +66,11 @@ function creerContexteGrilleProjet(): array
 
     // Le projet est rattaché au type de projet pour accéder à sa grille
     $projet = ProjetRecherche::create([
-        'groupe_id' => $groupe->id,
+        'classe_id' => $classe->id,
         'type_projet_id' => $typeProjet->id,
     ]);
 
-    return compact('enseignant', 'classe', 'groupe', 'etudiant', 'projet', 'typeProjet', 'grille', 'critere1', 'critere2')
+    return compact('enseignant', 'cours', 'classe', 'etudiant', 'projet', 'typeProjet', 'grille', 'critere1', 'critere2')
         + ['malus' => $malus];
 }
 
@@ -80,7 +80,7 @@ test("l'enseignant peut sauvegarder une note pour un critère de la grille", fun
     [
         'enseignant' => $enseignant,
         'classe' => $classe,
-        'groupe' => $groupe,
+        'cours' => $cours,
         'etudiant' => $etudiant,
         'projet' => $projet,
         'typeProjet' => $typeProjet,
@@ -88,7 +88,7 @@ test("l'enseignant peut sauvegarder une note pour un critère de la grille", fun
     ] = creerContexteGrilleProjet();
 
     $this->actingAs($enseignant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/grille/notes", [
+        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/grille/notes", [
             'critere_id' => $critere1->id,
             'note' => 4,
             'user_id' => $etudiant->id,
@@ -108,14 +108,14 @@ test('un double PUT sur le même critère/étudiant met à jour sans créer de d
     [
         'enseignant' => $enseignant,
         'classe' => $classe,
-        'groupe' => $groupe,
+        'cours' => $cours,
         'etudiant' => $etudiant,
         'projet' => $projet,
         'typeProjet' => $typeProjet,
         'critere1' => $critere1,
     ] = creerContexteGrilleProjet();
 
-    $url = "/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/grille/notes";
+    $url = "/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/grille/notes";
 
     $this->actingAs($enseignant)->putJson($url, ['critere_id' => $critere1->id, 'note' => 2, 'user_id' => $etudiant->id]);
     $this->actingAs($enseignant)->putJson($url, ['critere_id' => $critere1->id, 'note' => 4, 'user_id' => $etudiant->id])->assertOk();
@@ -134,7 +134,7 @@ test('un critère hors de la grille du type de projet est refusé (protection ID
     [
         'enseignant' => $enseignant,
         'classe' => $classe,
-        'groupe' => $groupe,
+        'cours' => $cours,
         'etudiant' => $etudiant,
         'typeProjet' => $typeProjet,
     ] = creerContexteGrilleProjet();
@@ -149,7 +149,7 @@ test('un critère hors de la grille du type de projet est refusé (protection ID
     $autreCritere = $autreGrille->criteres()->create(['label' => 'Hors grille', 'ponderation' => 100, 'ordre' => 0]);
 
     $this->actingAs($enseignant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/grille/notes", [
+        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/grille/notes", [
             'critere_id' => $autreCritere->id,
             'note' => 4,
             'user_id' => $etudiant->id,
@@ -161,16 +161,16 @@ test('noter un étudiant hors du groupe est refusé (protection IDOR)', function
     [
         'enseignant' => $enseignant,
         'classe' => $classe,
-        'groupe' => $groupe,
+        'cours' => $cours,
         'typeProjet' => $typeProjet,
         'critere1' => $critere1,
     ] = creerContexteGrilleProjet();
 
     $etudiantHors = User::factory()->create(['role' => 'etudiant']);
-    $classe->etudiants()->attach($etudiantHors->id);
+    $cours->etudiants()->attach($etudiantHors->id);
 
     $this->actingAs($enseignant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/grille/notes", [
+        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/grille/notes", [
             'critere_id' => $critere1->id,
             'note' => 3,
             'user_id' => $etudiantHors->id,
@@ -182,13 +182,13 @@ test('un étudiant ne peut pas sauvegarder une note grille', function () {
     [
         'etudiant' => $etudiant,
         'classe' => $classe,
-        'groupe' => $groupe,
+        'cours' => $cours,
         'typeProjet' => $typeProjet,
         'critere1' => $critere1,
     ] = creerContexteGrilleProjet();
 
     $this->actingAs($etudiant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/grille/notes", [
+        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/grille/notes", [
             'critere_id' => $critere1->id,
             'note' => 3,
             'user_id' => $etudiant->id,
@@ -200,14 +200,14 @@ it('accepte uniquement les notes 0, 2, 3 et 4 pour une note grille', function (i
     [
         'enseignant' => $enseignant,
         'classe' => $classe,
-        'groupe' => $groupe,
+        'cours' => $cours,
         'etudiant' => $etudiant,
         'typeProjet' => $typeProjet,
         'critere1' => $critere1,
     ] = creerContexteGrilleProjet();
 
     $this->actingAs($enseignant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/grille/notes", [
+        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/grille/notes", [
             'critere_id' => $critere1->id,
             'note' => $note,
             'user_id' => $etudiant->id,
@@ -221,7 +221,7 @@ test("l'enseignant peut appliquer un malus à un étudiant", function () {
     [
         'enseignant' => $enseignant,
         'classe' => $classe,
-        'groupe' => $groupe,
+        'cours' => $cours,
         'etudiant' => $etudiant,
         'projet' => $projet,
         'typeProjet' => $typeProjet,
@@ -229,7 +229,7 @@ test("l'enseignant peut appliquer un malus à un étudiant", function () {
     ] = creerContexteGrilleProjet();
 
     $this->actingAs($enseignant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/grille/malus", [
+        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/grille/malus", [
             'malus_id' => $malus->id,
             'user_id' => $etudiant->id,
             'applique' => true,
@@ -249,13 +249,13 @@ test("l'enseignant peut retirer un malus appliqué", function () {
     [
         'enseignant' => $enseignant,
         'classe' => $classe,
-        'groupe' => $groupe,
+        'cours' => $cours,
         'etudiant' => $etudiant,
         'typeProjet' => $typeProjet,
         'malus' => $malus,
     ] = creerContexteGrilleProjet();
 
-    $url = "/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/grille/malus";
+    $url = "/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/grille/malus";
 
     $this->actingAs($enseignant)->putJson($url, ['malus_id' => $malus->id, 'user_id' => $etudiant->id, 'applique' => true]);
 
@@ -274,7 +274,7 @@ test('un malus hors de la grille du type de projet est refusé (protection IDOR)
     [
         'enseignant' => $enseignant,
         'classe' => $classe,
-        'groupe' => $groupe,
+        'cours' => $cours,
         'etudiant' => $etudiant,
         'typeProjet' => $typeProjet,
     ] = creerContexteGrilleProjet();
@@ -288,7 +288,7 @@ test('un malus hors de la grille du type de projet est refusé (protection IDOR)
     $autreMalus = $autreGrille->malus()->create(['label' => 'Malus hors grille', 'deduction' => 5, 'ordre' => 0]);
 
     $this->actingAs($enseignant)
-        ->putJson("/classes/{$classe->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/grille/malus", [
+        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/grille/malus", [
             'malus_id' => $autreMalus->id,
             'user_id' => $etudiant->id,
             'applique' => true,

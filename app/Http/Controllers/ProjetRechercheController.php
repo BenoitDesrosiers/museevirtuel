@@ -8,6 +8,7 @@ use App\Helpers\HtmlHelper;
 use App\Http\Requests\UpsertProjetCommentaireRequest;
 use App\Http\Requests\UpsertProjetNoteRequest;
 use App\Models\Classe;
+use App\Models\Cours;
 use App\Models\EntrevueConcept;
 use App\Models\GrilleCorrection;
 use App\Models\Groupe;
@@ -45,24 +46,25 @@ class ProjetRechercheController extends Controller
     /**
      * Affiche toutes les cartes de projets disponibles pour ce groupe.
      *
-     * Retourne un tableau de TypeProjets accessibles de l'enseignant de la classe,
+     * Retourne un tableau de TypeProjets accessibles de l'enseignant du cours,
      * chacun accompagné du ProjetRecherche correspondant (ou null si non encore créé).
      *
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function index(Classe $classe, Groupe $groupe): Response
+    public function index(Cours $cours, Classe $classe, Groupe $groupe): Response
     {
+        abort_if($classe->cours_id !== $cours->id, 404);
         abort_if($groupe->classe_id !== $classe->id, 404);
 
-        $groupe->load(['membres', 'classe']);
+        $groupe->load(['membres', 'classe.cours']);
         $this->authorize('view', $groupe);
 
         $user = auth()->user();
-        $estEnseignant = $groupe->classe->enseignant_id === $user->id;
+        $estEnseignant = $cours->enseignant_id === $user->id;
 
-        // Charger les TypeProjets de l'enseignant de la classe
-        $query = TypeProjet::where('enseignant_id', $groupe->classe->enseignant_id);
+        // Charger les TypeProjets de l'enseignant du cours
+        $query = TypeProjet::where('enseignant_id', $cours->enseignant_id);
 
         // Les étudiants ne voient que les types rendus accessibles par l'enseignant
         if (! $estEnseignant && $user->role !== 'admin') {
@@ -102,8 +104,9 @@ class ProjetRechercheController extends Controller
         });
 
         return Inertia::render('Projets/Index', [
-            'groupe' => $groupe->only('id', 'nom', 'classe_id'),
-            'classe' => $classe->only('id', 'nom_cours', 'code', 'groupe'),
+            'groupe' => $groupe->only('id', 'code', 'classe_id'),
+            'classe' => $classe->only('id', 'code', 'cours_id'),
+            'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
             'projets' => $projets,
             'estEnseignant' => $estEnseignant,
         ]);
@@ -119,16 +122,18 @@ class ProjetRechercheController extends Controller
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function show(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): Response
+    public function show(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): Response
     {
+        abort_if($classe->cours_id !== $cours->id, 404);
         abort_if($groupe->classe_id !== $classe->id, 404);
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
 
-        $groupe->load(['membres', 'thematiques', 'classe.enseignant']);
+        $groupe->load(['membres', 'thematiques', 'classe.cours.enseignant']);
+        $cours->loadMissing('enseignant');
         $this->authorize('view', $groupe);
 
         $user = auth()->user();
-        $estEnseignant = $groupe->classe->enseignant_id === $user->id;
+        $estEnseignant = $cours->enseignant_id === $user->id;
 
         // Guard accessibilité : si le type de projet n'est pas accessible, les étudiants ne peuvent pas accéder
         if (! $estEnseignant && $user->role !== 'admin') {
@@ -185,7 +190,7 @@ class ProjetRechercheController extends Controller
                     ->values();
             });
 
-        $estMembre = ! $estEnseignant && $groupe->membres()->where('users.id', $user->id)->exists();
+        $estMembre = ! $estEnseignant && $groupe->membres->contains('id', $user->id);
 
         // Condition commune : membre + non verrouillé + remise encore possible
         $peutAgir = $estMembre && ! $projet->verrouille && $projet->peutEtreRemis();
@@ -221,8 +226,9 @@ class ProjetRechercheController extends Controller
 
         return Inertia::render('Projets/Show', [
             'groupe' => $groupe,
-            'classe' => $classe->only('id', 'nom_cours', 'code', 'groupe'),
-            'enseignant' => $groupe->classe->enseignant->only('id', 'prenom', 'nom'),
+            'classe' => $classe->only('id', 'code', 'cours_id'),
+            'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
+            'enseignant' => $cours->enseignant->only('id', 'prenom', 'nom'),
             'membres' => $groupe->membres->map->only('id', 'prenom', 'nom')->values(),
             'projet' => $projet,
             'typeProjet' => $typeProjet->only('id', 'nom'),
@@ -255,22 +261,23 @@ class ProjetRechercheController extends Controller
     /**
      * Affiche le projet en mode aperçu (lecture seule, sans annotations ni contrôles).
      *
-     * Accessible aux membres du groupe et à l'enseignant de la classe.
+     * Accessible aux membres du groupe et à l'enseignant du cours.
      * Rend les sections dynamiques des 3 types (texte, paragraphes, individuel).
      *
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function apercu(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): Response
+    public function apercu(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): Response
     {
+        abort_if($classe->cours_id !== $cours->id, 404);
         abort_if($groupe->classe_id !== $classe->id, 404);
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
 
-        $groupe->load(['membres', 'thematiques', 'classe']);
+        $groupe->load(['membres', 'thematiques', 'classe.cours']);
         $this->authorize('view', $groupe);
 
         $user = auth()->user();
-        $estEnseignant = $groupe->classe->enseignant_id === $user->id;
+        $estEnseignant = $cours->enseignant_id === $user->id;
 
         $projet = ProjetRecherche::where('groupe_id', $groupe->id)
             ->where('type_projet_id', $typeProjet->id)
@@ -310,7 +317,8 @@ class ProjetRechercheController extends Controller
 
         return Inertia::render('Projets/Apercu', [
             'groupe' => $groupe->only('id', 'numero', 'classe_id'),
-            'classe' => $classe->only('id', 'nom_cours', 'code', 'groupe'),
+            'classe' => $classe->only('id', 'code', 'cours_id'),
+            'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
             'thematiques' => $groupe->thematiques->map->only('id', 'nom'),
             'membres' => $groupe->membres->map->only('id', 'prenom', 'nom')->values(),
             'projet' => $projet
@@ -328,11 +336,12 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function updateSectionContenu(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): JsonResponse
+    public function updateSectionContenu(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): JsonResponse
     {
+        abort_if($classe->cours_id !== $cours->id, 404);
         abort_if($groupe->classe_id !== $classe->id, 404);
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $groupe->load('classe');
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $groupe->loadMissing('classe.cours');
         $this->authorize('manageThematiques', $groupe);
 
         // Vérifier que la section appartient au TypeProjet passé en URL — évite l'IDOR
@@ -367,12 +376,13 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function update(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
+    public function update(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
+        abort_if($classe->cours_id !== $cours->id, 404);
         abort_if($groupe->classe_id !== $classe->id, 404);
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
 
-        $groupe->load('classe');
+        $groupe->loadMissing('classe.cours');
         $this->authorize('manageThematiques', $groupe);
 
         $validated = $request->validate([
@@ -402,10 +412,10 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function storeDeveloppement(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
+    public function storeDeveloppement(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserMembreGroupe($classe, $groupe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserMembreGroupe($cours, $classe, $groupe);
 
         $projet = ProjetRecherche::firstOrCreate([
             'groupe_id' => $groupe->id,
@@ -436,10 +446,10 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function updateDeveloppement(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetDeveloppement $developpement): JsonResponse
+    public function updateDeveloppement(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetDeveloppement $developpement): JsonResponse
     {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserMembreGroupe($classe, $groupe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserMembreGroupe($cours, $classe, $groupe);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
@@ -475,10 +485,10 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function destroyDeveloppement(Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetDeveloppement $developpement): JsonResponse
+    public function destroyDeveloppement(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetDeveloppement $developpement): JsonResponse
     {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserMembreGroupe($classe, $groupe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserMembreGroupe($cours, $classe, $groupe);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
@@ -506,10 +516,10 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function reorderDeveloppements(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
+    public function reorderDeveloppements(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserMembreGroupe($classe, $groupe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserMembreGroupe($cours, $classe, $groupe);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
@@ -534,10 +544,10 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function storeSectionParagraphe(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): JsonResponse
+    public function storeSectionParagraphe(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): JsonResponse
     {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserMembreGroupe($classe, $groupe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserMembreGroupe($cours, $classe, $groupe);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
 
         $projet = ProjetRecherche::firstOrCreate([
@@ -571,10 +581,10 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function updateSectionParagraphe(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, ProjetSectionParagraphe $paragraphe): JsonResponse
+    public function updateSectionParagraphe(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, ProjetSectionParagraphe $paragraphe): JsonResponse
     {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserMembreGroupe($classe, $groupe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserMembreGroupe($cours, $classe, $groupe);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
@@ -608,10 +618,10 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function destroySectionParagraphe(Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, ProjetSectionParagraphe $paragraphe): JsonResponse
+    public function destroySectionParagraphe(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, ProjetSectionParagraphe $paragraphe): JsonResponse
     {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserMembreGroupe($classe, $groupe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserMembreGroupe($cours, $classe, $groupe);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
@@ -643,10 +653,10 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function reorderSectionParagraphes(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): JsonResponse
+    public function reorderSectionParagraphes(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): JsonResponse
     {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserMembreGroupe($classe, $groupe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserMembreGroupe($cours, $classe, $groupe);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
@@ -676,12 +686,13 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function updateConclusion(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
+    public function updateConclusion(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
+        abort_if($classe->cours_id !== $cours->id, 404);
         abort_if($groupe->classe_id !== $classe->id, 404);
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
 
-        $groupe->load(['classe', 'membres']);
+        $groupe->load(['classe.cours', 'membres']);
         $this->authorize('manageThematiques', $groupe);
 
         $validated = $request->validate([
@@ -721,10 +732,10 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function upsertCommentaire(UpsertProjetCommentaireRequest $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
+    public function upsertCommentaire(UpsertProjetCommentaireRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserEnseignant($classe, $groupe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserEnseignant($cours, $classe, $groupe);
 
         $projet = ProjetRecherche::firstOrCreate([
             'groupe_id' => $groupe->id,
@@ -748,10 +759,10 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function destroyCommentaire(Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetCommentaire $commentaire): JsonResponse
+    public function destroyCommentaire(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetCommentaire $commentaire): JsonResponse
     {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserEnseignant($classe, $groupe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserEnseignant($cours, $classe, $groupe);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
@@ -766,10 +777,10 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function upsertNote(UpsertProjetNoteRequest $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
+    public function upsertNote(UpsertProjetNoteRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserEnseignant($classe, $groupe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserEnseignant($cours, $classe, $groupe);
 
         $groupe->loadMissing('membres');
         abort_unless(
@@ -806,12 +817,12 @@ class ProjetRechercheController extends Controller
     /**
      * Crée ou met à jour une annotation inline sur un champ du projet.
      *
-     * @throws HttpException si l'utilisateur n'est pas l'enseignant de la classe
+     * @throws HttpException si l'utilisateur n'est pas l'enseignant du cours
      */
-    public function upsertAnnotation(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
+    public function upsertAnnotation(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserEnseignant($classe, $groupe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserEnseignant($cours, $classe, $groupe);
 
         $validated = $request->validate([
             'champ' => ['required', 'string', 'regex:'.self::CHAMP_ANNOTABLE_REGEX],
@@ -867,10 +878,10 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function destroyAnnotation(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetAnnotation $annotation): JsonResponse
+    public function destroyAnnotation(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetAnnotation $annotation): JsonResponse
     {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserEnseignant($classe, $groupe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserEnseignant($cours, $classe, $groupe);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
@@ -892,12 +903,13 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function remettreTravail(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
+    public function remettreTravail(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
+        abort_if($classe->cours_id !== $cours->id, 404);
         abort_if($groupe->classe_id !== $classe->id, 404);
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
 
-        $groupe->loadMissing('classe', 'membres');
+        $groupe->loadMissing('membres');
         abort_unless($groupe->membres->contains('id', auth()->id()), 403);
 
         $projet = ProjetRecherche::firstOrCreate([
@@ -924,10 +936,10 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function annulerRemise(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
+    public function annulerRemise(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserEnseignant($classe, $groupe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserEnseignant($cours, $classe, $groupe);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
@@ -946,10 +958,11 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function voterRemise(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
+    public function voterRemise(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
+        abort_if($classe->cours_id !== $cours->id, 404);
         abort_if($groupe->classe_id !== $classe->id, 404);
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
 
         $groupe->loadMissing('membres');
         abort_unless($groupe->membres->contains('id', auth()->id()), 403);
@@ -994,10 +1007,10 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function toggleCorrectionVisible(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
+    public function toggleCorrectionVisible(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserEnseignant($classe, $groupe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserEnseignant($cours, $classe, $groupe);
 
         $projet = ProjetRecherche::firstOrCreate([
             'groupe_id' => $groupe->id,
@@ -1017,10 +1030,10 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function toggleVerrouille(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
+    public function toggleVerrouille(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserEnseignant($classe, $groupe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserEnseignant($cours, $classe, $groupe);
 
         $projet = ProjetRecherche::firstOrCreate([
             'groupe_id' => $groupe->id,
@@ -1040,10 +1053,10 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function upsertNoteGrille(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
+    public function upsertNoteGrille(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserEnseignant($classe, $groupe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserEnseignant($cours, $classe, $groupe);
 
         $validated = $request->validate([
             'critere_id' => ['required', 'integer'],
@@ -1051,7 +1064,7 @@ class ProjetRechercheController extends Controller
             'user_id' => ['required', 'integer', 'exists:users,id'],
         ]);
 
-        [$grille, $projet] = $this->chargerContexteGrille($classe, $groupe, $typeProjet, $validated['user_id']);
+        [$grille, $projet] = $this->chargerContexteGrille($cours, $classe, $groupe, $typeProjet, $validated['user_id']);
 
         $request->validate([
             'critere_id' => [Rule::exists('grille_criteres', 'id')->where('grille_id', $grille->id)],
@@ -1074,10 +1087,10 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    public function toggleMalusGrille(Request $request, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
+    public function toggleMalusGrille(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
-        $this->autoriserEnseignant($classe, $groupe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserEnseignant($cours, $classe, $groupe);
 
         $validated = $request->validate([
             'malus_id' => ['required', 'integer'],
@@ -1085,7 +1098,7 @@ class ProjetRechercheController extends Controller
             'applique' => ['required', 'boolean'],
         ]);
 
-        [$grille, $projet] = $this->chargerContexteGrille($classe, $groupe, $typeProjet, $validated['user_id']);
+        [$grille, $projet] = $this->chargerContexteGrille($cours, $classe, $groupe, $typeProjet, $validated['user_id']);
 
         $request->validate([
             'malus_id' => [Rule::exists('grille_malus', 'id')->where('grille_id', $grille->id)],
@@ -1109,9 +1122,9 @@ class ProjetRechercheController extends Controller
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function exportPdf(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): HttpResponse
+    public function exportPdf(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): HttpResponse
     {
-        $projet = $this->chargerProjetPourExport($classe, $groupe, $typeProjet);
+        $projet = $this->chargerProjetPourExport($cours, $classe, $groupe, $typeProjet);
 
         return (new ExportProjetPdf)->execute($projet, $groupe);
     }
@@ -1122,9 +1135,9 @@ class ProjetRechercheController extends Controller
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function exportWord(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): StreamedResponse
+    public function exportWord(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): StreamedResponse
     {
-        $projet = $this->chargerProjetPourExport($classe, $groupe, $typeProjet);
+        $projet = $this->chargerProjetPourExport($cours, $classe, $groupe, $typeProjet);
 
         return (new ExportProjetWord)->execute($projet, $groupe);
     }
@@ -1135,17 +1148,18 @@ class ProjetRechercheController extends Controller
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function exportXmlNotes(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): HttpResponse
+    public function exportXmlNotes(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): HttpResponse
     {
+        abort_if($classe->cours_id !== $cours->id, 404);
         abort_if($groupe->classe_id !== $classe->id, 404);
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
 
-        $groupe->load(['membres', 'classe']);
+        $groupe->load(['membres', 'classe.cours']);
         $this->authorize('view', $groupe);
 
         $user = auth()->user();
         abort_unless(
-            $user->role === 'admin' || $groupe->classe->enseignant_id === $user->id,
+            $user->role === 'admin' || $cours->enseignant_id === $user->id,
             403,
         );
 
@@ -1197,12 +1211,13 @@ class ProjetRechercheController extends Controller
      * @throws HttpException
      * @throws AuthorizationException
      */
-    private function chargerProjetPourExport(Classe $classe, Groupe $groupe, TypeProjet $typeProjet): ProjetRecherche
+    private function chargerProjetPourExport(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): ProjetRecherche
     {
+        abort_if($classe->cours_id !== $cours->id, 404);
         abort_if($groupe->classe_id !== $classe->id, 404);
-        $this->verifierTypeProjetAppartientClasse($typeProjet, $classe);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
 
-        $groupe->load(['membres', 'thematiques', 'classe.enseignant']);
+        $groupe->load(['membres', 'thematiques', 'classe.cours.enseignant']);
         $this->authorize('view', $groupe);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
@@ -1212,15 +1227,15 @@ class ProjetRechercheController extends Controller
     }
 
     /**
-     * Vérifie que le TypeProjet appartient à l'enseignant de la classe.
+     * Vérifie que le TypeProjet appartient à l'enseignant du cours.
      *
      * Empêche l'accès à un TypeProjet d'un autre enseignant via manipulation d'URL (IDOR).
      *
      * @throws HttpException
      */
-    private function verifierTypeProjetAppartientClasse(TypeProjet $typeProjet, Classe $classe): void
+    private function verifierTypeProjetAppartientCours(TypeProjet $typeProjet, Cours $cours): void
     {
-        abort_if($typeProjet->enseignant_id !== $classe->enseignant_id, 404);
+        abort_if($typeProjet->enseignant_id !== $cours->enseignant_id, 404);
     }
 
     /**
@@ -1230,7 +1245,7 @@ class ProjetRechercheController extends Controller
      *
      * @throws HttpException
      */
-    private function chargerContexteGrille(Classe $classe, Groupe $groupe, TypeProjet $typeProjet, int $userId): array
+    private function chargerContexteGrille(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, int $userId): array
     {
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
@@ -1331,28 +1346,30 @@ class ProjetRechercheController extends Controller
     }
 
     /**
-     * Vérifie que le groupe appartient à la classe et autorise l'action manageThematiques.
+     * Vérifie que le groupe et la classe appartiennent au cours
+     * et autorise l'action manageThematiques.
      *
      * @throws HttpException
      */
-    private function autoriserMembreGroupe(Classe $classe, Groupe $groupe): void
+    private function autoriserMembreGroupe(Cours $cours, Classe $classe, Groupe $groupe): void
     {
+        abort_if($classe->cours_id !== $cours->id, 404);
         abort_if($groupe->classe_id !== $classe->id, 404);
-        $groupe->load('classe');
+        $groupe->loadMissing('classe.cours');
         $this->authorize('manageThematiques', $groupe);
     }
 
     /**
-     * Lève une exception si le groupe n'appartient pas à la classe
-     * ou si l'utilisateur authentifié n'est pas l'enseignant de cette classe.
+     * Lève une exception si la classe/groupe n'appartiennent pas au cours
+     * ou si l'utilisateur authentifié n'est pas l'enseignant de ce cours.
      *
      * @throws HttpException
      */
-    private function autoriserEnseignant(Classe $classe, Groupe $groupe): void
+    private function autoriserEnseignant(Cours $cours, Classe $classe, Groupe $groupe): void
     {
+        abort_if($classe->cours_id !== $cours->id, 404);
         abort_if($groupe->classe_id !== $classe->id, 404);
-        $groupe->loadMissing('classe');
-        abort_unless($groupe->classe->enseignant_id === auth()->id(), 403);
+        abort_unless($cours->enseignant_id === auth()->id(), 403);
     }
 
     /**

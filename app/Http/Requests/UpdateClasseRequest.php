@@ -9,7 +9,7 @@ class UpdateClasseRequest extends FormRequest
 {
     /**
      * Détermine si l'utilisateur est autorisé à modifier cette classe.
-     * Délègue à ClassePolicy::update().
+     * Délègue à ClassePolicy::update() — réservé à l'enseignant du cours.
      */
     public function authorize(): bool
     {
@@ -21,16 +21,14 @@ class UpdateClasseRequest extends FormRequest
 
     /**
      * Retourne les règles de validation pour la mise à jour d'une classe.
+     * Le code peut être modifié librement par le prof (max 20 caractères).
      *
      * @return array<string, array<int, string>>
      */
     public function rules(): array
     {
         return [
-            'nom_cours' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
             'code' => ['required', 'string', 'max:20'],
-            'groupe' => ['required', 'string', 'max:20'],
         ];
     }
 }

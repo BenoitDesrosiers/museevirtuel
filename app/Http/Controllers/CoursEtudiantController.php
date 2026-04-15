@@ -4,13 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Actions\CreateEtudiantAction;
 use App\Actions\ImportEtudiantsAction;
-use App\Models\Classe;
+use App\Models\Cours;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
-class ClasseEtudiantController extends Controller
+class CoursEtudiantController extends Controller
 {
     public function __construct(
         private readonly CreateEtudiantAction $createEtudiant,
@@ -18,14 +18,14 @@ class ClasseEtudiantController extends Controller
     ) {}
 
     /**
-     * Ajoute manuellement un étudiant à la classe.
+     * Ajoute manuellement un étudiant au cours.
      *
-     * Trouve ou crée l'étudiant via CreateEtudiantAction, puis l'attache à la classe
+     * Trouve ou crée l'étudiant via CreateEtudiantAction, puis l'attache au cours
      * si ce n'est pas déjà fait.
      */
-    public function store(Request $request, Classe $classe): RedirectResponse
+    public function store(Request $request, Cours $cours): RedirectResponse
     {
-        $this->authorize('update', $classe);
+        $this->authorize('update', $cours);
 
         $validated = $request->validate([
             'prenom' => ['required', 'string', 'max:255'],
@@ -42,12 +42,12 @@ class ClasseEtudiantController extends Controller
             $validated['email'] ?? null,
         );
 
-        // Un étudiant ne peut appartenir qu'à une seule classe
-        if ($etudiant->classesInscrites()->exists()) {
+        // Un étudiant ne peut appartenir qu'à un seul cours
+        if ($etudiant->coursInscrits()->exists()) {
             return back()->withErrors(['no_da' => __('etudiant.already_in_class')]);
         }
 
-        $classe->etudiants()->attach($etudiant->id, [
+        $cours->etudiants()->attach($etudiant->id, [
             'statut_cours' => $validated['statut_cours'] ?? null,
         ]);
 
@@ -55,11 +55,11 @@ class ClasseEtudiantController extends Controller
     }
 
     /**
-     * Met à jour les informations d'un étudiant dans la classe.
+     * Met à jour les informations d'un étudiant dans le cours.
      */
-    public function update(Request $request, Classe $classe, User $etudiant): RedirectResponse
+    public function update(Request $request, Cours $cours, User $etudiant): RedirectResponse
     {
-        $this->authorize('update', $classe);
+        $this->authorize('update', $cours);
 
         $validated = $request->validate([
             'prenom' => ['required', 'string', 'max:255'],
@@ -76,7 +76,7 @@ class ClasseEtudiantController extends Controller
             'no_da' => $validated['no_da'],
         ]);
 
-        $classe->etudiants()->updateExistingPivot($etudiant->id, [
+        $cours->etudiants()->updateExistingPivot($etudiant->id, [
             'statut_cours' => $validated['statut_cours'] ?? null,
         ]);
 
@@ -84,32 +84,30 @@ class ClasseEtudiantController extends Controller
     }
 
     /**
-     * Retire un étudiant de la classe (sans supprimer son compte).
+     * Retire un étudiant du cours (sans supprimer son compte).
      */
-    public function destroy(Classe $classe, User $etudiant): RedirectResponse
+    public function destroy(Cours $cours, User $etudiant): RedirectResponse
     {
-        $this->authorize('update', $classe);
+        $this->authorize('update', $cours);
 
-        $classe->etudiants()->detach($etudiant->id);
+        $cours->etudiants()->detach($etudiant->id);
 
         return back()->with('success', __('etudiant.removed'));
     }
 
     /**
-     * Importe des étudiants depuis un fichier CSV dans la classe.
-     *
-     * Délègue entièrement à ImportEtudiantsAction.
+     * Importe des étudiants depuis un fichier CSV dans le cours.
      */
-    public function import(Request $request, Classe $classe): RedirectResponse
+    public function import(Request $request, Cours $cours): RedirectResponse
     {
-        $this->authorize('update', $classe);
+        $this->authorize('update', $cours);
 
         $request->validate([
             'csv' => ['required', 'file', 'mimes:csv,txt'],
         ]);
 
         $content = file_get_contents($request->file('csv')->getPathname());
-        $created = $this->importEtudiants->execute($classe, $content);
+        $created = $this->importEtudiants->execute($cours, $content);
 
         return back()->with('success', __('etudiant.imported', ['count' => $created]));
     }

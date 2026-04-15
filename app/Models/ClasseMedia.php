@@ -6,13 +6,15 @@ use App\Concerns\HasPublicFile;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ClasseDocument extends Model
+class ClasseMedia extends Model
 {
     use HasPublicFile;
 
+    protected $table = 'classe_medias';
+
     protected $fillable = [
         'classe_id',
-        'enseignant_id',
+        'user_id',
         'nom_original',
         'file_path',
         'type',
@@ -26,13 +28,19 @@ class ClasseDocument extends Model
         return asset($this->file_path);
     }
 
+    /**
+     * Retourne la classe à laquelle appartient ce média.
+     */
     public function classe(): BelongsTo
     {
         return $this->belongsTo(Classe::class);
     }
 
-    public function enseignant(): BelongsTo
+    /**
+     * Retourne l'auteur du média.
+     */
+    public function auteur(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'enseignant_id');
+        return $this->belongsTo(User::class, 'user_id');
     }
 }

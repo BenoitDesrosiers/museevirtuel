@@ -1,47 +1,49 @@
 <?php
 
 use App\Models\Classe;
-use App\Models\Groupe;
-use App\Models\GroupeNote;
-use App\Models\GroupeNoteCorrection;
+use App\Models\ClasseNote;
+use App\Models\ClasseNoteCorrection;
+use App\Models\Cours;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Crée le contexte minimal : enseignant + classe + étudiant + groupe + note.
+ * Crée le contexte minimal : enseignant + cours + étudiant + classe + note.
  *
- * @return array{enseignant: User, classe: Classe, etudiant: User, groupe: Groupe, note: GroupeNote}
+ * @return array{enseignant: User, cours: Cours, etudiant: User, classe: Classe, note: ClasseNote}
  */
 function creerContexteCorrection(): array
 {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
 
-    $classe = Classe::create([
+    $cours = Cours::create([
         'nom_cours' => 'Cours test corrections',
         'description' => 'Test',
-        'heures_par_semaine' => 2,
         'code' => '330-CORR',
         'groupe' => 'A',
         'enseignant_id' => $enseignant->id,
     ]);
 
     $etudiant = User::factory()->create(['role' => 'etudiant']);
-    $classe->etudiants()->attach($etudiant->id);
+    $cours->etudiants()->attach($etudiant->id);
 
-    $groupe = Groupe::create([
-        'classe_id' => $classe->id,
+    $classe = Classe::create([
+        'cours_id' => $cours->id,
         'created_by' => $etudiant->id,
     ]);
-    $groupe->membres()->attach($etudiant->id);
+    $classe->membres()->attach($etudiant->id);
 
-    $note = GroupeNote::create([
-        'groupe_id' => $groupe->id,
+    $note = ClasseNote::create([
+        'classe_id' => $classe->id,
         'user_id' => $etudiant->id,
         'contenu' => 'Voici le texte de la note étudiant.',
     ]);
 
-    return compact('enseignant', 'classe', 'etudiant', 'groupe', 'note');
+    return compact('enseignant', 'cours', 'etudiant', 'classe', 'note');
 }
 
 // ─── upsertNoteCorrection() ────────────────────────────────────────────────────
@@ -52,14 +54,14 @@ test('upsertNoteCorrection() crée une correction et met à jour le HTML de la n
     $noteHtml = '<p>Voici le texte <mark data-comment-id="'.$commentaireId.'" class="comment-mark">de la</mark> note.</p>';
 
     $this->actingAs($ctx['enseignant'])
-        ->put("/groupes/{$ctx['groupe']->id}/notes/{$ctx['note']->id}/corrections", [
+        ->put("/cours/{$ctx['cours']->id}/classes/{$ctx['classe']->id}/notes/{$ctx['note']->id}/corrections", [
             'commentaire_id' => $commentaireId,
             'contenu' => 'Mauvaise formulation — à corriger.',
             'note_html' => $noteHtml,
         ])
         ->assertRedirect();
 
-    $this->assertDatabaseHas('groupe_note_corrections', [
+    $this->assertDatabaseHas('classe_note_corrections', [
         'note_id' => $ctx['note']->id,
         'commentaire_id' => $commentaireId,
         'contenu' => 'Mauvaise formulation — à corriger.',
@@ -73,7 +75,7 @@ test('upsertNoteCorrection() met à jour une correction existante sans doublon (
     $ctx = creerContexteCorrection();
     $commentaireId = '550e8400-e29b-41d4-a716-446655440001';
 
-    GroupeNoteCorrection::create([
+    ClasseNoteCorrection::create([
         'note_id' => $ctx['note']->id,
         'commentaire_id' => $commentaireId,
         'contenu' => 'Version initiale.',
@@ -81,7 +83,7 @@ test('upsertNoteCorrection() met à jour une correction existante sans doublon (
     ]);
 
     $this->actingAs($ctx['enseignant'])
-        ->put("/groupes/{$ctx['groupe']->id}/notes/{$ctx['note']->id}/corrections", [
+        ->put("/cours/{$ctx['cours']->id}/classes/{$ctx['classe']->id}/notes/{$ctx['note']->id}/corrections", [
             'commentaire_id' => $commentaireId,
             'contenu' => 'Version corrigée.',
             'note_html' => '<p>html mis à jour</p>',
@@ -89,38 +91,37 @@ test('upsertNoteCorrection() met à jour une correction existante sans doublon (
         ->assertRedirect();
 
     expect(
-        GroupeNoteCorrection::where('note_id', $ctx['note']->id)
+        ClasseNoteCorrection::where('note_id', $ctx['note']->id)
             ->where('commentaire_id', $commentaireId)
             ->count()
     )->toBe(1);
 
-    $this->assertDatabaseHas('groupe_note_corrections', [
+    $this->assertDatabaseHas('classe_note_corrections', [
         'commentaire_id' => $commentaireId,
         'contenu' => 'Version corrigée.',
     ]);
 });
 
-test('upsertNoteCorrection() refuse un étudiant (redirige — middleware rôle)', function () {
+test('upsertNoteCorrection() refuse un étudiant (redirigé — middleware rôle)', function () {
     $ctx = creerContexteCorrection();
 
-    // Le middleware EnsureRole redirige les rôles non autorisés vers /dashboard
     $this->actingAs($ctx['etudiant'])
-        ->put("/groupes/{$ctx['groupe']->id}/notes/{$ctx['note']->id}/corrections", [
+        ->put("/cours/{$ctx['cours']->id}/classes/{$ctx['classe']->id}/notes/{$ctx['note']->id}/corrections", [
             'commentaire_id' => 'uuid-quelconque',
             'contenu' => 'Tentative étudiante.',
             'note_html' => '<p>html</p>',
         ])
         ->assertRedirect();
 
-    $this->assertDatabaseMissing('groupe_note_corrections', ['note_id' => $ctx['note']->id]);
+    $this->assertDatabaseMissing('classe_note_corrections', ['note_id' => $ctx['note']->id]);
 });
 
-test("upsertNoteCorrection() refuse un enseignant d'une autre classe (403)", function () {
+test("upsertNoteCorrection() refuse un enseignant d'un autre cours (403)", function () {
     $ctx = creerContexteCorrection();
     $autreEnseignant = User::factory()->create(['role' => 'enseignant']);
 
     $this->actingAs($autreEnseignant)
-        ->put("/groupes/{$ctx['groupe']->id}/notes/{$ctx['note']->id}/corrections", [
+        ->put("/cours/{$ctx['cours']->id}/classes/{$ctx['classe']->id}/notes/{$ctx['note']->id}/corrections", [
             'commentaire_id' => 'uuid-quelconque',
             'contenu' => 'Correction non autorisée.',
             'note_html' => '<p>html</p>',
@@ -132,7 +133,7 @@ test('upsertNoteCorrection() rejette une requête sans contenu (validation)', fu
     $ctx = creerContexteCorrection();
 
     $this->actingAs($ctx['enseignant'])
-        ->put("/groupes/{$ctx['groupe']->id}/notes/{$ctx['note']->id}/corrections", [
+        ->put("/cours/{$ctx['cours']->id}/classes/{$ctx['classe']->id}/notes/{$ctx['note']->id}/corrections", [
             'commentaire_id' => 'uuid-valide',
             'contenu' => '',
             'note_html' => '<p>html</p>',
@@ -145,7 +146,7 @@ test('upsertNoteCorrection() rejette une requête sans contenu (validation)', fu
 test('destroyNoteCorrection() supprime la correction et met à jour le HTML de la note', function () {
     $ctx = creerContexteCorrection();
 
-    $correction = GroupeNoteCorrection::create([
+    $correction = ClasseNoteCorrection::create([
         'note_id' => $ctx['note']->id,
         'commentaire_id' => '550e8400-e29b-41d4-a716-446655440002',
         'contenu' => 'À supprimer.',
@@ -155,45 +156,44 @@ test('destroyNoteCorrection() supprime la correction et met à jour le HTML de l
     $htmlNettoyé = '<p>Voici le texte de la note étudiant.</p>';
 
     $this->actingAs($ctx['enseignant'])
-        ->delete("/groupes/{$ctx['groupe']->id}/notes/{$ctx['note']->id}/corrections/{$correction->id}", [
+        ->delete("/cours/{$ctx['cours']->id}/classes/{$ctx['classe']->id}/notes/{$ctx['note']->id}/corrections/{$correction->id}", [
             'note_html' => $htmlNettoyé,
         ])
         ->assertRedirect();
 
-    $this->assertDatabaseMissing('groupe_note_corrections', ['id' => $correction->id]);
+    $this->assertDatabaseMissing('classe_note_corrections', ['id' => $correction->id]);
     expect($ctx['note']->fresh()->contenu)->toBe($htmlNettoyé);
 });
 
-test('destroyNoteCorrection() refuse un étudiant (redirige — middleware rôle)', function () {
+test('destroyNoteCorrection() refuse un étudiant (redirigé — middleware rôle)', function () {
     $ctx = creerContexteCorrection();
 
-    $correction = GroupeNoteCorrection::create([
+    $correction = ClasseNoteCorrection::create([
         'note_id' => $ctx['note']->id,
         'commentaire_id' => '550e8400-e29b-41d4-a716-446655440003',
         'contenu' => 'Correction test.',
         'user_id' => $ctx['enseignant']->id,
     ]);
 
-    // Le middleware EnsureRole redirige les rôles non autorisés vers /dashboard
     $this->actingAs($ctx['etudiant'])
-        ->delete("/groupes/{$ctx['groupe']->id}/notes/{$ctx['note']->id}/corrections/{$correction->id}", [
+        ->delete("/cours/{$ctx['cours']->id}/classes/{$ctx['classe']->id}/notes/{$ctx['note']->id}/corrections/{$correction->id}", [
             'note_html' => '<p>html</p>',
         ])
         ->assertRedirect();
 
-    $this->assertDatabaseHas('groupe_note_corrections', ['id' => $correction->id]);
+    $this->assertDatabaseHas('classe_note_corrections', ['id' => $correction->id]);
 });
 
 test("destroyNoteCorrection() retourne 404 si la correction n'appartient pas à la note", function () {
     $ctx = creerContexteCorrection();
 
-    $autreNote = GroupeNote::create([
-        'groupe_id' => $ctx['groupe']->id,
+    $autreNote = ClasseNote::create([
+        'classe_id' => $ctx['classe']->id,
         'user_id' => $ctx['etudiant']->id,
         'contenu' => 'Autre note.',
     ]);
 
-    $correctionDAutreNote = GroupeNoteCorrection::create([
+    $correctionDAutreNote = ClasseNoteCorrection::create([
         'note_id' => $autreNote->id,
         'commentaire_id' => '550e8400-e29b-41d4-a716-446655440004',
         'contenu' => 'Correction sur autre note.',
@@ -201,7 +201,7 @@ test("destroyNoteCorrection() retourne 404 si la correction n'appartient pas à 
     ]);
 
     $this->actingAs($ctx['enseignant'])
-        ->delete("/groupes/{$ctx['groupe']->id}/notes/{$ctx['note']->id}/corrections/{$correctionDAutreNote->id}", [
+        ->delete("/cours/{$ctx['cours']->id}/classes/{$ctx['classe']->id}/notes/{$ctx['note']->id}/corrections/{$correctionDAutreNote->id}", [
             'note_html' => '<p>html</p>',
         ])
         ->assertNotFound();

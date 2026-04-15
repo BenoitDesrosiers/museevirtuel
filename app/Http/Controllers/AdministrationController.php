@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreEnseignantRequest;
 use App\Http\Requests\UpdateEnseignantRequest;
-use App\Models\Classe;
+use App\Models\Cours;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
@@ -21,13 +21,13 @@ class AdministrationController extends Controller
     public function index(): Response
     {
         $enseignants = User::where('role', 'enseignant')
-            ->withCount(['classes', 'thematiques'])
+            ->withCount(['cours', 'thematiques'])
             ->orderBy('nom')
             ->get();
 
         $stats = [
             'total_enseignants' => User::where('role', 'enseignant')->count(),
-            'total_classes' => Classe::count(),
+            'total_classes' => Cours::count(),
             'total_etudiants' => User::where('role', 'etudiant')->count(),
         ];
 

@@ -21,8 +21,8 @@ class EnseignantController extends Controller
     {
         $user = auth()->user();
 
-        $classes = $user->classes()
-            ->withCount('etudiants')
+        $cours = $user->cours()
+            ->withCount('classes')
             ->orderBy('nom_cours')
             ->get();
 
@@ -32,8 +32,8 @@ class EnseignantController extends Controller
 
         // Les 10 travaux les plus récemment remis parmi les groupes de ce prof
         $travauxRemis = ProjetRecherche::whereNotNull('remis_le')
-            ->whereHas('groupe.classe', fn ($q) => $q->where('enseignant_id', $user->id))
-            ->with(['groupe' => fn ($q) => $q->with(['membres', 'classe'])])
+            ->whereHas('groupe.classe.cours', fn ($q) => $q->where('enseignant_id', $user->id))
+            ->with(['groupe' => fn ($q) => $q->with(['membres', 'classe.cours'])])
             ->orderByDesc('remis_le')
             ->limit(10)
             ->get()
@@ -41,10 +41,10 @@ class EnseignantController extends Controller
                 'id' => $projet->id,
                 'titre_projet' => $projet->titre_projet,
                 'remis_le' => $projet->remis_le->toIso8601String(),
-                'groupe' => [
+                'classe' => [
                     'id' => $projet->groupe->id,
-                    'nom' => $projet->groupe->nom,
-                    'classe_id' => $projet->groupe->classe_id,
+                    'numero' => $projet->groupe->numero,
+                    'cours_id' => $projet->groupe->classe->cours_id,
                 ],
                 'membres' => $projet->groupe->membres
                     ->map->only('id', 'prenom', 'nom')
@@ -67,7 +67,7 @@ class EnseignantController extends Controller
             ->get(['id', 'prenom', 'nom', 'email', 'description', 'created_at']);
 
         return Inertia::render('Enseignant/Index', [
-            'classes' => $classes,
+            'cours' => $cours,
             'thematiques' => $thematiques,
             'travauxRemis' => $travauxRemis,
             'temoinsEnAttente' => $temoinsEnAttente,

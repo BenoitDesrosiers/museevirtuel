@@ -12,5 +12,5 @@ test('authenticated users are redirected from the dashboard according to their r
     $this->actingAs($user);
 
     $response = $this->get(route('dashboard'));
-    $response->assertRedirect(route('classes.index'));
+    $response->assertRedirect(route('cours.index'));
 });

@@ -9,41 +9,50 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Classe extends Model
 {
+    protected $table = 'classes';
+
     protected $fillable = [
-        'nom_cours',
-        'description',
+        'cours_id',
         'code',
-        'groupe',
-        'enseignant_id',
+        'nom',
     ];
 
-    public function enseignant(): BelongsTo
+    /**
+     * Génère automatiquement un code unique à la création si non fourni.
+     */
+    protected static function booted(): void
     {
-        return $this->belongsTo(User::class, 'enseignant_id');
+        static::creating(function (self $classe) {
+            if (empty($classe->code)) {
+                $n = static::where('cours_id', $classe->cours_id)->count() + 1;
+                $classe->code = sprintf('CL-%d-%02d', $classe->cours_id, $n);
+            }
+        });
     }
 
-    public function etudiants(): BelongsToMany
+    /**
+     * Retourne le cours auquel appartient cette classe (section).
+     */
+    public function cours(): BelongsTo
     {
-        return $this->belongsToMany(User::class, 'classe_etudiant')
-            ->withPivot(['statut_cours'])
-            ->withTimestamps();
+        return $this->belongsTo(Cours::class);
     }
 
+    /**
+     * Retourne les groupes d'étudiants dans cette classe.
+     */
     public function groupes(): HasMany
     {
         return $this->hasMany(Groupe::class);
     }
 
-    public function documents(): HasMany
-    {
-        return $this->hasMany(ClasseDocument::class)->orderByDesc('created_at');
-    }
-
     /**
-     * Retourne les étapes de l'échéancier de la classe, triées par semaine puis par ordre.
+     * Retourne les étudiants inscrits dans cette classe.
      */
-    public function echeancierEtapes(): HasMany
+    public function etudiants(): BelongsToMany
     {
-        return $this->hasMany(EcheancierEtape::class)->orderBy('semaine')->orderBy('ordre');
+        return $this->belongsToMany(User::class, 'classe_etudiant')
+            ->withPivot(['statut_cours'])
+            ->withTimestamps();
     }
 }

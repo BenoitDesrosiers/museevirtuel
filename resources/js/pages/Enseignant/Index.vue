@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { show as showTemoin } from '@/routes/enseignant/temoins';
 
-type Classe = {
+type Cours = {
     id: number;
     nom_cours: string;
     description: string | null;
@@ -33,10 +33,10 @@ type TravailRemis = {
     id: number;
     titre_projet: string | null;
     remis_le: string;
-    groupe: {
+    classe: {
         id: number;
-        nom: string;
-        classe_id: number;
+        numero: number;
+        cours_id: number;
     };
     membres: { id: number; prenom: string; nom: string }[];
 };
@@ -54,7 +54,7 @@ type TemoinEnAttente = {
 type TemoinApprouve = TemoinEnAttente;
 
 type Props = {
-    classes: Classe[];
+    cours: Cours[];
     thematiques: Thematique[];
     travauxRemis: TravailRemis[];
     temoinsEnAttente: TemoinEnAttente[];
@@ -63,61 +63,61 @@ type Props = {
 
 const { t } = useI18n();
 
-// ─── Classes ──────────────────────────────────────────────────────────────────
-const showCreateClasseDialog = ref(false);
-const showEditClasseDialog = ref(false);
-const editingClasseId = ref<number | null>(null);
+// ─── Cours ────────────────────────────────────────────────────────────────────
+const showCreateCoursDialog = ref(false);
+const showEditCoursDialog = ref(false);
+const editingCoursId = ref<number | null>(null);
 
-const classeForm = useForm({
+const coursForm = useForm({
     nom_cours: '',
     description: '',
     code: '',
     groupe: '',
 });
 
-function openCreateClasse() {
-    classeForm.reset();
-    showCreateClasseDialog.value = true;
+function openCreateCours() {
+    coursForm.reset();
+    showCreateCoursDialog.value = true;
 }
 
-function submitCreateClasse() {
-    classeForm.post('/classes', {
+function submitCreateCours() {
+    coursForm.post('/cours', {
         onSuccess: () => {
-            showCreateClasseDialog.value = false;
-            classeForm.reset();
+            showCreateCoursDialog.value = false;
+            coursForm.reset();
         },
     });
 }
 
-function openEditClasse(classe: Classe) {
-    editingClasseId.value = classe.id;
-    classeForm.nom_cours = classe.nom_cours;
-    classeForm.description = classe.description ?? '';
-    classeForm.code = classe.code;
-    classeForm.groupe = classe.groupe;
-    showEditClasseDialog.value = true;
+function openEditCours(unCours: Cours) {
+    editingCoursId.value = unCours.id;
+    coursForm.nom_cours = unCours.nom_cours;
+    coursForm.description = unCours.description ?? '';
+    coursForm.code = unCours.code;
+    coursForm.groupe = unCours.groupe;
+    showEditCoursDialog.value = true;
 }
 
-function submitEditClasse() {
-    if (!editingClasseId.value) {
+function submitEditCours() {
+    if (!editingCoursId.value) {
 return;
 }
 
-    classeForm.put(`/classes/${editingClasseId.value}`, {
+    coursForm.put(`/cours/${editingCoursId.value}`, {
         onSuccess: () => {
-            showEditClasseDialog.value = false;
+            showEditCoursDialog.value = false;
         },
     });
 }
 
-const deleteClasseForm = useForm({});
+const deleteCoursForm = useForm({});
 
-function deleteClasse(classe: Classe) {
-    if (!confirm(t('enseignant.index.confirm_delete_class', { nom: classe.nom_cours }))) {
+function deleteCours(unCours: Cours) {
+    if (!confirm(t('enseignant.index.confirm_delete_course', { nom: unCours.nom_cours }))) {
 return;
 }
 
-    deleteClasseForm.delete(`/classes/${classe.id}`);
+    deleteCoursForm.delete(`/cours/${unCours.id}`);
 }
 
 // ─── Thématiques ──────────────────────────────────────────────────────────────
@@ -213,13 +213,13 @@ function voirTemoin(temoin: TemoinEnAttente) {
                 :description="$t('enseignant.index.heading_description')"
             />
 
-            <!-- ─── Mes classes ─────────────────────────────────────────────── -->
+            <!-- ─── Mes cours ──────────────────────────────────────────────── -->
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle>{{ $t('enseignant.index.my_classes') }}</CardTitle>
-                    <Button size="sm" @click="openCreateClasse">
+                    <CardTitle>{{ $t('enseignant.index.my_courses') }}</CardTitle>
+                    <Button size="sm" @click="openCreateCours">
                         <Plus class="mr-2 h-4 w-4" />
-                        {{ $t('enseignant.index.new_class') }}
+                        {{ $t('enseignant.index.new_course') }}
                     </Button>
                 </CardHeader>
                 <CardContent>
@@ -236,41 +236,41 @@ function voirTemoin(temoin: TemoinEnAttente) {
                             </thead>
                             <tbody>
                                 <tr
-                                    v-for="classe in classes"
-                                    :key="classe.id"
+                                    v-for="unCours in cours"
+                                    :key="unCours.id"
                                     class="border-b last:border-0"
                                 >
-                                    <td class="py-3 pr-4 font-mono text-xs">{{ classe.code }}</td>
-                                    <td class="py-3 pr-4 font-mono text-xs">{{ classe.groupe }}</td>
-                                    <td class="py-3 pr-4">{{ classe.nom_cours }}</td>
-                                    <td class="py-3 pr-4 text-center">{{ classe.etudiants_count }}</td>
+                                    <td class="py-3 pr-4 font-mono text-xs">{{ unCours.code }}</td>
+                                    <td class="py-3 pr-4 font-mono text-xs">{{ unCours.groupe }}</td>
+                                    <td class="py-3 pr-4">{{ unCours.nom_cours }}</td>
+                                    <td class="py-3 pr-4 text-center">{{ unCours.etudiants_count }}</td>
                                     <td class="py-3">
                                         <div class="flex gap-2">
                                             <Button size="sm" variant="outline" as-child>
-                                                <Link :href="`/classes/${classe.id}`">
+                                                <Link :href="`/cours/${unCours.id}`">
                                                     <ExternalLink class="h-4 w-4" />
                                                 </Link>
                                             </Button>
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                @click="openEditClasse(classe)"
+                                                @click="openEditCours(unCours)"
                                             >
                                                 <Pencil class="h-4 w-4" />
                                             </Button>
                                             <Button
                                                 size="sm"
                                                 variant="destructive"
-                                                @click="deleteClasse(classe)"
+                                                @click="deleteCours(unCours)"
                                             >
                                                 <Trash2 class="h-4 w-4" />
                                             </Button>
                                         </div>
                                     </td>
                                 </tr>
-                                <tr v-if="classes.length === 0">
+                                <tr v-if="cours.length === 0">
                                     <td colspan="5" class="text-muted-foreground py-6 text-center">
-                                        {{ $t('enseignant.index.no_classes') }}
+                                        {{ $t('enseignant.index.no_courses') }}
                                     </td>
                                 </tr>
                             </tbody>
@@ -491,7 +491,7 @@ function voirTemoin(temoin: TemoinEnAttente) {
                                     :key="travail.id"
                                     class="border-b last:border-0"
                                 >
-                                    <td class="py-3 pr-4 font-medium">{{ travail.groupe.nom }}</td>
+                                    <td class="py-3 pr-4 font-medium">{{ $t('classes.groupes.group_number', { n: travail.classe.numero }) }}</td>
                                     <td class="text-muted-foreground py-3 pr-4">
                                         {{ travail.titre_projet ?? '—' }}
                                     </td>
@@ -503,7 +503,7 @@ function voirTemoin(temoin: TemoinEnAttente) {
                                     </td>
                                     <td class="py-3">
                                         <Button size="sm" variant="outline" as-child>
-                                            <Link :href="`/classes/${travail.groupe.classe_id}/groupes/${travail.groupe.id}/projets/edit`">
+                                            <Link :href="`/cours/${travail.classe.cours_id}/classes/${travail.classe.id}/projets`">
                                                 <ExternalLink class="h-4 w-4" />
                                                 {{ $t('enseignant.index.view_project') }}
                                             </Link>
@@ -522,66 +522,66 @@ function voirTemoin(temoin: TemoinEnAttente) {
             </Card>
         </div>
 
-        <!-- Modal : Créer classe -->
+        <!-- Modal : Créer cours -->
         <FormDialog
-            v-model:open="showCreateClasseDialog"
-            :title="$t('enseignant.index.modal_create_class')"
-            :is-loading="classeForm.processing"
+            v-model:open="showCreateCoursDialog"
+            :title="$t('enseignant.index.modal_create_cours')"
+            :is-loading="coursForm.processing"
             :submit-label="$t('common.add')"
-            @submit="submitCreateClasse"
+            @submit="submitCreateCours"
         >
             <div class="grid grid-cols-2 gap-4">
                 <div class="grid gap-2">
                     <Label for="code">{{ $t('enseignant.index.modal_course_code') }}</Label>
-                    <Input id="code" v-model="classeForm.code" :placeholder="$t('enseignant.index.modal_course_code_placeholder')" />
-                    <InputError :message="classeForm.errors.code" />
+                    <Input id="code" v-model="coursForm.code" :placeholder="$t('enseignant.index.modal_course_code_placeholder')" />
+                    <InputError :message="coursForm.errors.code" />
                 </div>
                 <div class="grid gap-2">
                     <Label for="groupe">{{ $t('enseignant.index.modal_group') }}</Label>
-                    <Input id="groupe" v-model="classeForm.groupe" :placeholder="$t('enseignant.index.modal_group_placeholder')" />
-                    <InputError :message="classeForm.errors.groupe" />
+                    <Input id="groupe" v-model="coursForm.groupe" :placeholder="$t('enseignant.index.modal_group_placeholder')" />
+                    <InputError :message="coursForm.errors.groupe" />
                 </div>
             </div>
             <div class="grid gap-2">
                 <Label for="nom_cours">{{ $t('enseignant.index.modal_course_name') }}</Label>
-                <Input id="nom_cours" v-model="classeForm.nom_cours" :placeholder="$t('enseignant.index.modal_course_name_placeholder')" />
-                <InputError :message="classeForm.errors.nom_cours" />
+                <Input id="nom_cours" v-model="coursForm.nom_cours" :placeholder="$t('enseignant.index.modal_course_name_placeholder')" />
+                <InputError :message="coursForm.errors.nom_cours" />
             </div>
             <div class="grid gap-2">
                 <Label for="description">{{ $t('enseignant.index.modal_description') }}</Label>
-                <Input id="description" v-model="classeForm.description" :placeholder="$t('enseignant.index.modal_description_placeholder')" />
-                <InputError :message="classeForm.errors.description" />
+                <Input id="description" v-model="coursForm.description" :placeholder="$t('enseignant.index.modal_description_placeholder')" />
+                <InputError :message="coursForm.errors.description" />
             </div>
         </FormDialog>
 
-        <!-- Modal : Modifier classe -->
+        <!-- Modal : Modifier cours -->
         <FormDialog
-            v-model:open="showEditClasseDialog"
-            :title="$t('enseignant.index.modal_edit_class')"
-            :is-loading="classeForm.processing"
-            @submit="submitEditClasse"
+            v-model:open="showEditCoursDialog"
+            :title="$t('enseignant.index.modal_edit_cours')"
+            :is-loading="coursForm.processing"
+            @submit="submitEditCours"
         >
             <div class="grid grid-cols-2 gap-4">
                 <div class="grid gap-2">
                     <Label>{{ $t('enseignant.index.modal_course_code') }}</Label>
-                    <Input v-model="classeForm.code" :placeholder="$t('enseignant.index.modal_course_code_placeholder')" />
-                    <InputError :message="classeForm.errors.code" />
+                    <Input v-model="coursForm.code" :placeholder="$t('enseignant.index.modal_course_code_placeholder')" />
+                    <InputError :message="coursForm.errors.code" />
                 </div>
                 <div class="grid gap-2">
                     <Label>{{ $t('enseignant.index.modal_group') }}</Label>
-                    <Input v-model="classeForm.groupe" :placeholder="$t('enseignant.index.modal_group_placeholder')" />
-                    <InputError :message="classeForm.errors.groupe" />
+                    <Input v-model="coursForm.groupe" :placeholder="$t('enseignant.index.modal_group_placeholder')" />
+                    <InputError :message="coursForm.errors.groupe" />
                 </div>
             </div>
             <div class="grid gap-2">
                 <Label>{{ $t('enseignant.index.modal_course_name') }}</Label>
-                <Input v-model="classeForm.nom_cours" :placeholder="$t('enseignant.index.modal_course_name_placeholder')" />
-                <InputError :message="classeForm.errors.nom_cours" />
+                <Input v-model="coursForm.nom_cours" :placeholder="$t('enseignant.index.modal_course_name_placeholder')" />
+                <InputError :message="coursForm.errors.nom_cours" />
             </div>
             <div class="grid gap-2">
                 <Label>{{ $t('enseignant.index.modal_description') }}</Label>
-                <Input v-model="classeForm.description" :placeholder="$t('enseignant.index.modal_description_placeholder')" />
-                <InputError :message="classeForm.errors.description" />
+                <Input v-model="coursForm.description" :placeholder="$t('enseignant.index.modal_description_placeholder')" />
+                <InputError :message="coursForm.errors.description" />
             </div>
         </FormDialog>
 

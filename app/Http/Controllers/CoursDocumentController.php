@@ -3,37 +3,36 @@
 namespace App\Http\Controllers;
 
 use App\Actions\StoreUploadedFile;
-use App\Models\Classe;
-use App\Models\ClasseDocument;
+use App\Models\Cours;
+use App\Models\CoursDocument;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
-class ClasseDocumentController extends Controller
+class CoursDocumentController extends Controller
 {
     /**
-     * Uploade un document et l'associe à la classe.
+     * Uploade un document et l'associe au cours.
      *
      * La validation MIME réelle (pas uniquement l'extension client) est assurée par Laravel.
-     * L'autorisation délègue à ClassePolicy::update().
+     * L'autorisation délègue à CoursPolicy::update().
      *
      * @throws AuthorizationException
      */
-    public function store(Request $request, Classe $classe): RedirectResponse
+    public function store(Request $request, Cours $cours): RedirectResponse
     {
-        $this->authorize('update', $classe);
+        $this->authorize('update', $cours);
 
         $request->validate([
-            // mimes: valide le contenu réel du fichier, pas seulement l'extension déclarée par le client
             'document' => ['required', 'file', 'max:10240', 'mimes:pdf,doc,docx'],
         ]);
 
         $meta = (new StoreUploadedFile)->execute(
             $request->file('document'),
-            "images/classes/{$classe->id}"
+            "images/cours/{$cours->id}"
         );
 
-        $classe->documents()->create([
+        $cours->documents()->create([
             'enseignant_id' => auth()->id(),
             'type' => strtolower($request->file('document')->getClientOriginalExtension()),
             ...$meta,
@@ -43,13 +42,13 @@ class ClasseDocumentController extends Controller
     }
 
     /**
-     * Supprime un document de la classe et son fichier physique.
+     * Supprime un document du cours et son fichier physique.
      *
      * @throws AuthorizationException
      */
-    public function destroy(Classe $classe, ClasseDocument $document): RedirectResponse
+    public function destroy(Cours $cours, CoursDocument $document): RedirectResponse
     {
-        $this->authorize('update', $classe);
+        $this->authorize('update', $cours);
 
         $document->deleteWithFile();
 

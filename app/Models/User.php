@@ -118,13 +118,23 @@ class User extends Authenticatable
         return $query->where('statut', 'actif');
     }
 
-    // Classes créées par l'enseignant
-    public function classes(): HasMany
+    /**
+     * Cours auxquels l'étudiant est inscrit via ses sections (Classe).
+     */
+    public function coursInscrits(): Builder
     {
-        return $this->hasMany(Classe::class, 'enseignant_id');
+        return Cours::whereHas('classes', function (Builder $q): void {
+            $q->whereHas('etudiants', fn (Builder $q2) => $q2->where('users.id', $this->id));
+        });
     }
 
-    // Classes dans lesquelles l'étudiant est inscrit
+    // Cours créés par l'enseignant
+    public function cours(): HasMany
+    {
+        return $this->hasMany(Cours::class, 'enseignant_id');
+    }
+
+    // Classes (sections) dans lesquelles l'étudiant est inscrit
     public function classesInscrites(): BelongsToMany
     {
         return $this->belongsToMany(Classe::class, 'classe_etudiant')
