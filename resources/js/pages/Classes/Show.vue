@@ -1,12 +1,22 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, ExternalLink, Trash2, Users } from 'lucide-vue-next';
+import { ArrowLeft, ExternalLink, Pencil, Trash2, Upload, Users } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
 import Heading from '@/components/Heading.vue';
+import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 type Membre = {
@@ -41,6 +51,10 @@ type Etudiant = {
     prenom: string;
     nom: string;
     email: string;
+    no_da: string | null;
+    pivot?: {
+        statut_cours: string | null;
+    };
 };
 
 type Cours = {
@@ -52,8 +66,11 @@ type Cours = {
 
 type Classe = {
     id: number;
+    numero: string;
     code: string;
     nom: string | null;
+    jour_semaine: string | null;
+    plage_horaire: string | null;
     cours_id: number;
     groupes: Groupe[];
     etudiants: Etudiant[];
@@ -67,6 +84,94 @@ type Props = {
 
 const props = defineProps<Props>();
 const { t } = useI18n();
+
+// ─── Gestion étudiants de la section ──────────────────────────────────────────
+const showAddEtudiantDialog = ref(false);
+const showEditEtudiantDialog = ref(false);
+const showImportDialog = ref(false);
+const editingEtudiantId = ref<number | null>(null);
+
+const addEtudiantForm = useForm({
+    prenom: '',
+    nom: '',
+    no_da: '',
+    statut_cours: '',
+    email: '',
+});
+
+const editEtudiantForm = useForm({
+    prenom: '',
+    nom: '',
+    email: '',
+    no_da: '',
+    statut_cours: '',
+});
+
+const importEtudiantForm = useForm({
+    csv: null as File | null,
+});
+
+const deleteEtudiantForm = useForm({});
+
+function openAddEtudiant(): void {
+    addEtudiantForm.reset();
+    showAddEtudiantDialog.value = true;
+}
+
+function submitAddEtudiant(): void {
+    addEtudiantForm.post(`/cours/${props.cours.id}/classes/${props.classe.id}/etudiants`, {
+        onSuccess: () => {
+            showAddEtudiantDialog.value = false;
+            addEtudiantForm.reset();
+        },
+    });
+}
+
+function openEditEtudiant(etudiant: Etudiant): void {
+    editingEtudiantId.value = etudiant.id;
+    editEtudiantForm.prenom = etudiant.prenom;
+    editEtudiantForm.nom = etudiant.nom;
+    editEtudiantForm.email = etudiant.email;
+    editEtudiantForm.no_da = etudiant.no_da ?? '';
+    editEtudiantForm.statut_cours = etudiant.pivot?.statut_cours ?? '';
+    showEditEtudiantDialog.value = true;
+}
+
+function submitEditEtudiant(): void {
+    if (!editingEtudiantId.value) {
+        return;
+    }
+
+    editEtudiantForm.put(`/cours/${props.cours.id}/classes/${props.classe.id}/etudiants/${editingEtudiantId.value}`, {
+        onSuccess: () => {
+            showEditEtudiantDialog.value = false;
+        },
+    });
+}
+
+function removeEtudiant(etudiant: Etudiant): void {
+    if (!confirm(t('classes.show.confirm_remove_student', { prenom: etudiant.prenom, nom: etudiant.nom }))) {
+        return;
+    }
+
+    deleteEtudiantForm.delete(`/cours/${props.cours.id}/classes/${props.classe.id}/etudiants/${etudiant.id}`);
+}
+
+function handleImportFileChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+        importEtudiantForm.csv = input.files[0];
+    }
+}
+
+function submitImportEtudiant(): void {
+    importEtudiantForm.post(`/cours/${props.cours.id}/classes/${props.classe.id}/etudiants/import`, {
+        onSuccess: () => {
+            showImportDialog.value = false;
+            importEtudiantForm.reset();
+        },
+    });
+}
 
 // ─── Supprimer un groupe ───────────────────────────────────────────────────────
 const groupeASupprimer = ref<Groupe | null>(null);
@@ -107,8 +212,8 @@ function executeDeleteGroupe() {
 
             <!-- Heading -->
             <Heading
-                :title="classe.nom ?? classe.code"
-                :description="`${cours.code} — Groupe ${cours.groupe} · ${cours.nom_cours}`"
+                :title="classe.nom ?? `Classe ${classe.numero}`"
+                :description="`${cours.code} · ${classe.numero}${classe.jour_semaine || classe.plage_horaire ? ` · ${[classe.jour_semaine, classe.plage_horaire].filter(Boolean).join(' ')}` : ''} · ${cours.nom_cours}`"
             />
 
             <!-- Groupes dans la section -->
@@ -210,15 +315,24 @@ function executeDeleteGroupe() {
                 </CardContent>
             </Card>
 
-            <!-- Étudiants inscrits -->
-            <Card v-if="estEnseignant">
-                <CardHeader>
+            <!-- Étudiants de la section -->
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between">
                     <CardTitle>
                         {{ $t('classes.show.students') }}
                         <span class="ml-2 text-sm font-normal text-muted-foreground">
                             ({{ classe.etudiants.length }})
                         </span>
                     </CardTitle>
+                    <div v-if="estEnseignant" class="flex gap-2">
+                        <Button size="sm" variant="outline" @click="showImportDialog = true">
+                            <Upload class="mr-2 h-4 w-4" />
+                            {{ $t('classes.show.import_csv') }}
+                        </Button>
+                        <Button size="sm" @click="openAddEtudiant">
+                            {{ $t('classes.show.add_student') }}
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <div
@@ -227,26 +341,48 @@ function executeDeleteGroupe() {
                     >
                         {{ $t('classes.show.no_students') }}
                     </div>
-                    <table v-else class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b text-left">
-                                <th class="pb-3 pr-4 font-medium">{{ $t('classes.show.table_header_first_name') }}</th>
-                                <th class="pb-3 pr-4 font-medium">{{ $t('classes.show.table_header_name') }}</th>
-                                <th class="pb-3 font-medium">{{ $t('classes.show.table_header_email') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr
-                                v-for="etudiant in classe.etudiants"
-                                :key="etudiant.id"
-                                class="border-b last:border-0"
-                            >
-                                <td class="py-2 pr-4">{{ etudiant.prenom }}</td>
-                                <td class="py-2 pr-4 font-medium">{{ etudiant.nom }}</td>
-                                <td class="py-2 text-muted-foreground">{{ etudiant.email }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div v-else class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b text-left">
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('classes.show.table_header_da') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('classes.show.table_header_name') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('classes.show.table_header_first_name') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('classes.show.table_header_email') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('classes.show.table_header_status') }}</th>
+                                    <th v-if="estEnseignant" class="pb-3 font-medium">{{ $t('classes.show.table_header_actions') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="etudiant in classe.etudiants"
+                                    :key="etudiant.id"
+                                    class="border-b last:border-0"
+                                >
+                                    <td class="py-3 pr-4 font-mono text-xs">{{ etudiant.no_da ?? '—' }}</td>
+                                    <td class="py-3 pr-4 font-medium">{{ etudiant.nom }}</td>
+                                    <td class="py-3 pr-4">{{ etudiant.prenom }}</td>
+                                    <td class="py-3 pr-4 text-xs text-muted-foreground">{{ etudiant.email }}</td>
+                                    <td class="py-3 pr-4">
+                                        <span v-if="etudiant.pivot?.statut_cours" class="rounded bg-muted px-2 py-0.5 text-xs">
+                                            {{ etudiant.pivot.statut_cours }}
+                                        </span>
+                                        <span v-else class="text-muted-foreground">—</span>
+                                    </td>
+                                    <td v-if="estEnseignant" class="py-3">
+                                        <div class="flex gap-2">
+                                            <Button size="sm" variant="outline" @click="openEditEtudiant(etudiant)">
+                                                <Pencil class="h-4 w-4" />
+                                            </Button>
+                                            <Button size="sm" variant="destructive" @click="removeEtudiant(etudiant)">
+                                                <Trash2 class="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </CardContent>
             </Card>
         </div>
@@ -259,5 +395,130 @@ function executeDeleteGroupe() {
             @update:open="(v) => { if (!v) groupeASupprimer = null; }"
             @confirm="executeDeleteGroupe"
         />
+
+        <Dialog v-model:open="showAddEtudiantDialog">
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{{ $t('classes.show.modal_add_student') }}</DialogTitle>
+                </DialogHeader>
+                <form class="space-y-4" @submit.prevent="submitAddEtudiant">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="grid gap-2">
+                            <Label for="add-prenom">{{ $t('classes.show.modal_first_name') }}</Label>
+                            <Input id="add-prenom" v-model="addEtudiantForm.prenom" />
+                            <InputError :message="addEtudiantForm.errors.prenom" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="add-nom">{{ $t('classes.show.modal_name') }}</Label>
+                            <Input id="add-nom" v-model="addEtudiantForm.nom" />
+                            <InputError :message="addEtudiantForm.errors.nom" />
+                        </div>
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="add-da">{{ $t('classes.show.modal_da_number') }}</Label>
+                        <Input id="add-da" v-model="addEtudiantForm.no_da" />
+                        <InputError :message="addEtudiantForm.errors.no_da" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="add-statut">{{ $t('classes.show.modal_course_status') }}</Label>
+                        <Input id="add-statut" v-model="addEtudiantForm.statut_cours" />
+                        <InputError :message="addEtudiantForm.errors.statut_cours" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="add-email">{{ $t('classes.show.modal_email') }}</Label>
+                        <Input id="add-email" v-model="addEtudiantForm.email" type="email" />
+                        <InputError :message="addEtudiantForm.errors.email" />
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" @click="showAddEtudiantDialog = false">
+                            {{ $t('classes.show.modal_cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="addEtudiantForm.processing">
+                            {{ $t('classes.show.modal_add') }}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog v-model:open="showEditEtudiantDialog">
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{{ $t('classes.show.modal_edit_student') }}</DialogTitle>
+                </DialogHeader>
+                <form class="space-y-4" @submit.prevent="submitEditEtudiant">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="grid gap-2">
+                            <Label>{{ $t('classes.show.modal_first_name') }}</Label>
+                            <Input v-model="editEtudiantForm.prenom" />
+                            <InputError :message="editEtudiantForm.errors.prenom" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label>{{ $t('classes.show.modal_name') }}</Label>
+                            <Input v-model="editEtudiantForm.nom" />
+                            <InputError :message="editEtudiantForm.errors.nom" />
+                        </div>
+                    </div>
+                    <div class="grid gap-2">
+                        <Label>{{ $t('classes.show.modal_email') }}</Label>
+                        <Input v-model="editEtudiantForm.email" type="email" />
+                        <InputError :message="editEtudiantForm.errors.email" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label>{{ $t('classes.show.modal_da_number') }}</Label>
+                        <Input v-model="editEtudiantForm.no_da" />
+                        <InputError :message="editEtudiantForm.errors.no_da" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label>{{ $t('classes.show.modal_course_status') }}</Label>
+                        <Input v-model="editEtudiantForm.statut_cours" />
+                        <InputError :message="editEtudiantForm.errors.statut_cours" />
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" @click="showEditEtudiantDialog = false">
+                            {{ $t('classes.show.modal_cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="editEtudiantForm.processing">
+                            {{ $t('classes.show.modal_save') }}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog v-model:open="showImportDialog">
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{{ $t('classes.show.modal_import_csv') }}</DialogTitle>
+                </DialogHeader>
+                <form class="space-y-4" @submit.prevent="submitImportEtudiant">
+                    <p class="text-sm text-muted-foreground">
+                        {{ $t('classes.show.modal_csv_format') }}
+                        <code>;</code>) :
+                    </p>
+                    <code class="block rounded bg-muted p-3 text-xs">
+                        {{ $t('classes.show.modal_csv_fields') }}
+                    </code>
+                    <div class="grid gap-2">
+                        <Label for="csv-file">{{ $t('classes.show.modal_csv_file') }}</Label>
+                        <Input
+                            id="csv-file"
+                            type="file"
+                            accept=".csv,.txt"
+                            @change="handleImportFileChange"
+                        />
+                        <InputError :message="importEtudiantForm.errors.csv" />
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" @click="showImportDialog = false">
+                            {{ $t('classes.show.modal_cancel') }}
+                        </Button>
+                        <Button type="submit" :disabled="importEtudiantForm.processing || !importEtudiantForm.csv">
+                            {{ $t('classes.show.modal_import') }}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>

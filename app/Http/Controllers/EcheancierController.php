@@ -115,8 +115,11 @@ class EcheancierController extends Controller
 
         $user = auth()->user();
 
-        // Vérification d'inscription au cours
-        abort_unless($cours->etudiants()->where('users.id', $user->id)->exists(), 403);
+        // Vérification d'inscription au cours via une section (classe_etudiant)
+        abort_unless(
+            $cours->classes()->whereHas('etudiants', fn ($q) => $q->where('users.id', $user->id))->exists(),
+            403
+        );
 
         $progression = EcheancierEtudiantProgress::firstOrCreate(
             ['echeancier_etape_id' => $etape->id, 'user_id' => $user->id],

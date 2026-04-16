@@ -21,9 +21,10 @@ const { t } = useI18n();
 type Props = {
     mustVerifyEmail: boolean;
     status?: string;
+    temoinAssocieAGroupe: boolean;
 };
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const breadcrumbItems = computed<BreadcrumbItem[]>(() => [
     {
@@ -58,7 +59,7 @@ const switchLocale = (locale: string) => {
                 />
 
                 <Form
-                    v-bind="ProfileController.update.form()"
+                    v-bind="ProfileController.update()"
                     class="space-y-6"
                     v-slot="{ errors, processing, recentlySuccessful }"
                 >
@@ -168,7 +169,14 @@ const switchLocale = (locale: string) => {
                 </div>
             </div>
 
-            <DeleteUser v-if="user.role === 'admin' || user.role === 'personne_agee'" />
+            <DeleteUser v-if="user.role === 'admin' || (user.role === 'personne_agee' && !props.temoinAssocieAGroupe)" />
+
+            <div
+                v-if="user.role === 'personne_agee' && props.temoinAssocieAGroupe"
+                class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-200/20 dark:bg-amber-800/10 dark:text-amber-300"
+            >
+                {{ $t('settings.delete_account.locked_by_groupe') }}
+            </div>
         </SettingsLayout>
     </AppLayout>
 </template>

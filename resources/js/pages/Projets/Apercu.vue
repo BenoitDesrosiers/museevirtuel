@@ -27,9 +27,8 @@ type Groupe = {
 
 type Classe = {
     id: number;
-    nom_cours: string;
     code: string;
-    groupe: string;
+    cours_id: number;
 };
 
 type Projet = {
@@ -71,7 +70,7 @@ const props = defineProps<{
 }>();
 
 /** Construit l'URL de base pour les routes du projet de ce groupe. */
-const baseUrl = `/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/projets`;
+const baseUrl = `/cours/${props.classe.cours_id}/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/projets`;
 
 /** Retrouve le nom d'un membre par son userId. */
 function nomMembre(userId: number): string {

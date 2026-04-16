@@ -2,6 +2,7 @@
 
 use App\Models\Classe;
 use App\Models\Cours;
+use App\Models\Groupe;
 use App\Models\ProjetAnnotation;
 use App\Models\ProjetConclusion;
 use App\Models\ProjetNote;
@@ -16,9 +17,9 @@ use Inertia\Testing\AssertableInertia;
 
 /**
  * Crée les entités nécessaires à un scénario de test :
- * un enseignant, un type de projet accessible, une classe, un groupe, et des étudiants membres.
+ * un enseignant, un type de projet accessible, une section de cours, un groupe et des étudiants membres.
  *
- * @return array{enseignant: User, typeProjet: TypeProjet, cours: Cours, classe: Classe, etudiant1: User, etudiant2: User}
+ * @return array{enseignant: User, typeProjet: TypeProjet, cours: Cours, classeSection: Classe, classe: Groupe, etudiant1: User, etudiant2: User}
  */
 function creerScenario(): array
 {
@@ -42,80 +43,78 @@ function creerScenario(): array
     $etudiant1 = User::factory()->create(['role' => 'etudiant']);
     $etudiant2 = User::factory()->create(['role' => 'etudiant']);
 
-    $cours->etudiants()->attach([$etudiant1->id, $etudiant2->id]);
+    $classeSection = Classe::create(['cours_id' => $cours->id]);
+    $classeSection->etudiants()->attach([$etudiant1->id, $etudiant2->id]);
 
-    $classe = Classe::create([
-        'nom' => 'Équipe A',
-        'cours_id' => $cours->id,
+    $classe = Groupe::create([
+        'classe_id' => $classeSection->id,
         'created_by' => $etudiant1->id,
     ]);
-
     $classe->membres()->attach([$etudiant1->id, $etudiant2->id]);
 
-    return compact('enseignant', 'typeProjet', 'cours', 'classe', 'etudiant1', 'etudiant2');
+    return compact('enseignant', 'typeProjet', 'cours', 'classeSection', 'classe', 'etudiant1', 'etudiant2');
 }
 
 // ─── Accès à l'index ──────────────────────────────────────────────────────────
 
 test("un membre du groupe peut accéder à l'index des projets", function () {
-    ['cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant] = creerScenario();
 
     $this->actingAs($etudiant)
-        ->get("/cours/{$cours->id}/classes/{$classe->id}/projets")
+        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets")
         ->assertOk();
 });
 
 test("l'enseignant de la classe peut accéder à l'index des projets", function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe] = creerScenario();
 
     $this->actingAs($enseignant)
-        ->get("/cours/{$cours->id}/classes/{$classe->id}/projets")
+        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets")
         ->assertOk();
 });
 
 test('un invité non authentifié est redirigé vers login', function () {
-    ['cours' => $cours, 'classe' => $classe] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe] = creerScenario();
 
-    $this->get("/cours/{$cours->id}/classes/{$classe->id}/projets")
+    $this->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets")
         ->assertRedirect(route('login'));
 });
 
 test("un étudiant extérieur au groupe ne peut pas accéder à l'index", function () {
-    ['cours' => $cours, 'classe' => $classe] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe] = creerScenario();
 
     $etranger = User::factory()->create(['role' => 'etudiant']);
-    $cours->etudiants()->attach($etranger->id);
 
     $this->actingAs($etranger)
-        ->get("/cours/{$cours->id}/classes/{$classe->id}/projets")
+        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets")
         ->assertForbidden();
 });
 
 // ─── Accès à la page show (projet partagé) ────────────────────────────────────
 
 test('un membre peut accéder à la page du projet partagé', function () {
-    ['cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
     $this->actingAs($etudiant)
-        ->get("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/edit")
+        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertOk();
 });
 
 test("l'enseignant peut consulter le projet partagé en lecture seule", function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
 
     $this->actingAs($enseignant)
-        ->get("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/edit")
+        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertOk();
 });
 
 // ─── Mise à jour du contenu partagé ───────────────────────────────────────────
 
 test('un membre peut enregistrer le contenu partagé du projet', function () {
-    ['cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
     $this->actingAs($etudiant)
-        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}", [
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}", [
             'titre_projet' => 'L\'agriculture québécoise',
             'introduction_amener' => '<p>Contexte général…</p>',
             'dev_1_titre' => 'Les origines',
@@ -125,29 +124,29 @@ test('un membre peut enregistrer le contenu partagé du projet', function () {
         ->assertJsonStructure(['message', 'completion']);
 
     $this->assertDatabaseHas('projets_recherche', [
-        'classe_id' => $classe->id,
+        'groupe_id' => $classe->id,
         'titre_projet' => 'L\'agriculture québécoise',
     ]);
 });
 
 test('un deuxième PUT met à jour sans créer de doublon', function () {
-    ['cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
-    $url = "/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}";
+    $url = "/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}";
 
     $this->actingAs($etudiant)->putJson($url, ['titre_projet' => 'Titre V1']);
     $this->actingAs($etudiant)->putJson($url, ['titre_projet' => 'Titre V2']);
 
     // Un seul projet par (groupe × typeProjet)
-    expect(ProjetRecherche::where('classe_id', $classe->id)->where('type_projet_id', $typeProjet->id)->count())->toBe(1);
+    expect(ProjetRecherche::where('groupe_id', $classe->id)->where('type_projet_id', $typeProjet->id)->count())->toBe(1);
     $this->assertDatabaseHas('projets_recherche', ['titre_projet' => 'Titre V2']);
 });
 
 test("l'enseignant ne peut pas modifier le contenu partagé", function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
 
     $this->actingAs($enseignant)
-        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}", [
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}", [
             'titre_projet' => 'Modification non autorisée',
         ])
         ->assertForbidden();
@@ -156,17 +155,17 @@ test("l'enseignant ne peut pas modifier le contenu partagé", function () {
 // ─── Conclusion individuelle ───────────────────────────────────────────────────
 
 test('un membre peut enregistrer sa conclusion individuelle', function () {
-    ['cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
     $this->actingAs($etudiant)
-        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/conclusion", [
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/conclusion", [
             'user_id' => $etudiant->id,
             'contenu' => '<p>Ma conclusion personnelle…</p>',
         ])
         ->assertOk()
         ->assertJson(['message' => 'saved']);
 
-    $projet = ProjetRecherche::where('classe_id', $classe->id)->first();
+    $projet = ProjetRecherche::where('groupe_id', $classe->id)->first();
     $this->assertDatabaseHas('projet_conclusions', [
         'projet_id' => $projet->id,
         'user_id' => $etudiant->id,
@@ -174,9 +173,9 @@ test('un membre peut enregistrer sa conclusion individuelle', function () {
 });
 
 test('un membre peut modifier la conclusion d\'un compagnon de groupe', function () {
-    ['cours' => $cours, 'classe' => $classe, 'etudiant1' => $e1, 'etudiant2' => $e2, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $e1, 'etudiant2' => $e2, 'typeProjet' => $typeProjet] = creerScenario();
 
-    $url = "/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/conclusion";
+    $url = "/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/conclusion";
 
     // E1 modifie la conclusion de E2
     $this->actingAs($e1)
@@ -186,7 +185,7 @@ test('un membre peut modifier la conclusion d\'un compagnon de groupe', function
         ])
         ->assertOk();
 
-    $projet = ProjetRecherche::where('classe_id', $classe->id)->first();
+    $projet = ProjetRecherche::where('groupe_id', $classe->id)->first();
     $this->assertDatabaseHas('projet_conclusions', [
         'projet_id' => $projet->id,
         'user_id' => $e2->id,
@@ -194,26 +193,25 @@ test('un membre peut modifier la conclusion d\'un compagnon de groupe', function
 });
 
 test('chaque membre a sa propre conclusion distincte', function () {
-    ['cours' => $cours, 'classe' => $classe, 'etudiant1' => $e1, 'etudiant2' => $e2, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $e1, 'etudiant2' => $e2, 'typeProjet' => $typeProjet] = creerScenario();
 
-    $url = "/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/conclusion";
+    $url = "/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/conclusion";
 
     $this->actingAs($e1)->putJson($url, ['user_id' => $e1->id, 'contenu' => '<p>Conclusion de E1</p>']);
     $this->actingAs($e2)->putJson($url, ['user_id' => $e2->id, 'contenu' => '<p>Conclusion de E2</p>']);
 
-    $projet = ProjetRecherche::where('classe_id', $classe->id)->first();
+    $projet = ProjetRecherche::where('groupe_id', $classe->id)->first();
 
     expect(ProjetConclusion::where('projet_id', $projet->id)->count())->toBe(2);
 });
 
 test('un étudiant extérieur ne peut pas enregistrer une conclusion', function () {
-    ['cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
 
     $etranger = User::factory()->create(['role' => 'etudiant']);
-    $cours->etudiants()->attach($etranger->id);
 
     $this->actingAs($etranger)
-        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/conclusion", [
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/conclusion", [
             'user_id' => $etranger->id,
             'contenu' => '<p>Intrusion</p>',
         ])
@@ -221,13 +219,12 @@ test('un étudiant extérieur ne peut pas enregistrer une conclusion', function 
 });
 
 test('un membre ne peut pas cibler un user_id hors de son groupe (422)', function () {
-    ['cours' => $cours, 'classe' => $classe, 'etudiant1' => $e1, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $e1, 'typeProjet' => $typeProjet] = creerScenario();
 
     $horsGroupe = User::factory()->create(['role' => 'etudiant']);
-    $cours->etudiants()->attach($horsGroupe->id);
 
     $this->actingAs($e1)
-        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/conclusion", [
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/conclusion", [
             'user_id' => $horsGroupe->id,
             'contenu' => '<p>Tentative IDOR</p>',
         ])
@@ -237,25 +234,25 @@ test('un membre ne peut pas cibler un user_id hors de son groupe (422)', functio
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 test('un membre peut exporter le projet de groupe en PDF', function () {
-    ['cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
     // Le controller fait firstOrFail() — il faut qu'un projet existe
-    ProjetRecherche::create(['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
+    ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
 
     $this->actingAs($etudiant)
-        ->get("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/pdf")
+        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/pdf")
         ->assertOk()
         ->assertHeader('Content-Type', 'application/pdf');
 });
 
 test('un membre peut exporter le projet de groupe en Word', function () {
-    ['cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
     // Le controller fait firstOrFail() — il faut qu'un projet existe
-    ProjetRecherche::create(['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
+    ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
 
     $this->actingAs($etudiant)
-        ->get("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/word")
+        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/word")
         ->assertOk()
         ->assertHeader(
             'Content-Type',
@@ -266,54 +263,54 @@ test('un membre peut exporter le projet de groupe en Word', function () {
 // ─── Verrouillage du document ──────────────────────────────────────────────────
 
 test("l'enseignant peut verrouiller un document", function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
 
     $this->actingAs($enseignant)
-        ->patchJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/verrouille")
+        ->patchJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/verrouille")
         ->assertOk()
         ->assertJson(['message' => 'toggled', 'verrouille' => true]);
 
-    $this->assertDatabaseHas('projets_recherche', ['classe_id' => $classe->id, 'verrouille' => true]);
+    $this->assertDatabaseHas('projets_recherche', ['groupe_id' => $classe->id, 'verrouille' => true]);
 });
 
 test('le toggle déverrouille un document déjà verrouillé', function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
 
-    ProjetRecherche::create(['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'verrouille' => true]);
+    ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'verrouille' => true]);
 
     $this->actingAs($enseignant)
-        ->patchJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/verrouille")
+        ->patchJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/verrouille")
         ->assertOk()
         ->assertJson(['verrouille' => false]);
 });
 
 test('un étudiant ne peut pas verrouiller un document', function () {
-    ['cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
     $this->actingAs($etudiant)
-        ->patchJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/verrouille")
+        ->patchJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/verrouille")
         ->assertForbidden();
 });
 
 test('un étudiant ne peut pas modifier un projet verrouillé', function () {
-    ['cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
-    ProjetRecherche::create(['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'verrouille' => true]);
+    ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'verrouille' => true]);
 
     $this->actingAs($etudiant)
-        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}", [
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}", [
             'titre_projet' => 'Modification bloquée',
         ])
         ->assertForbidden();
 });
 
 test('peutEditer est false quand le document est verrouillé', function () {
-    ['cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
-    ProjetRecherche::create(['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'verrouille' => true]);
+    ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'verrouille' => true]);
 
     $this->actingAs($etudiant)
-        ->get("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/edit")
+        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('peutEditer', false)
@@ -324,26 +321,26 @@ test('peutEditer est false quand le document est verrouillé', function () {
 // ─── Visibilité des corrections ────────────────────────────────────────────────
 
 test("l'enseignant peut activer la visibilité des corrections", function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
 
     $this->actingAs($enseignant)
-        ->patchJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/correction-visible")
+        ->patchJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/correction-visible")
         ->assertOk()
         ->assertJson(['message' => 'toggled', 'correction_visible' => true]);
 });
 
 test('un étudiant ne peut pas modifier la visibilité des corrections', function () {
-    ['cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
     $this->actingAs($etudiant)
-        ->patchJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/correction-visible")
+        ->patchJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/correction-visible")
         ->assertForbidden();
 });
 
 test('un étudiant ne voit pas les annotations de type correction si correction_visible est false', function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
-    $projet = ProjetRecherche::create(['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'correction_visible' => false]);
+    $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'correction_visible' => false]);
 
     ProjetAnnotation::create([
         'projet_id' => $projet->id,
@@ -364,7 +361,7 @@ test('un étudiant ne voit pas les annotations de type correction si correction_
     ]);
 
     $this->actingAs($etudiant)
-        ->get("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/edit")
+        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('annotationsParChamp.introduction_amener', 1)
@@ -373,9 +370,9 @@ test('un étudiant ne voit pas les annotations de type correction si correction_
 });
 
 test('un étudiant voit les corrections si correction_visible est true', function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
-    $projet = ProjetRecherche::create(['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'correction_visible' => true]);
+    $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'correction_visible' => true]);
 
     ProjetAnnotation::create([
         'projet_id' => $projet->id,
@@ -387,7 +384,7 @@ test('un étudiant voit les corrections si correction_visible est true', functio
     ]);
 
     $this->actingAs($etudiant)
-        ->get("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/edit")
+        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('annotationsParChamp.introduction_amener', 1)
@@ -396,9 +393,9 @@ test('un étudiant voit les corrections si correction_visible est true', functio
 });
 
 test("l'enseignant voit toujours toutes les annotations, peu importe correction_visible", function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
 
-    $projet = ProjetRecherche::create(['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'correction_visible' => false]);
+    $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'correction_visible' => false]);
 
     ProjetAnnotation::create([
         'projet_id' => $projet->id,
@@ -410,7 +407,7 @@ test("l'enseignant voit toujours toutes les annotations, peu importe correction_
     ]);
 
     $this->actingAs($enseignant)
-        ->get("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/edit")
+        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('annotationsParChamp.introduction_amener', 1)
@@ -420,68 +417,67 @@ test("l'enseignant voit toujours toutes les annotations, peu importe correction_
 // ─── Remise de travail ─────────────────────────────────────────────────────────
 
 test('un membre peut remettre son travail', function () {
-    ['cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
     $this->actingAs($etudiant)
-        ->postJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/remettre")
+        ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/remettre")
         ->assertOk()
         ->assertJsonStructure(['message', 'remis_le'])
         ->assertJson(['message' => 'remis']);
 
-    $projet = ProjetRecherche::where('classe_id', $classe->id)->first();
+    $projet = ProjetRecherche::where('groupe_id', $classe->id)->first();
     expect($projet->remis_le)->not->toBeNull();
 });
 
 test('un étudiant hors groupe ne peut pas remettre le travail', function () {
-    ['cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
 
     $etranger = User::factory()->create(['role' => 'etudiant']);
-    $cours->etudiants()->attach($etranger->id);
 
     $this->actingAs($etranger)
-        ->postJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/remettre")
+        ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/remettre")
         ->assertForbidden();
 });
 
 test('la remise est refusée si le document est verrouillé', function () {
-    ['cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
-    ProjetRecherche::create(['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'verrouille' => true]);
+    ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'verrouille' => true]);
 
     $this->actingAs($etudiant)
-        ->postJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/remettre")
+        ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/remettre")
         ->assertForbidden();
 });
 
 test('une deuxième remise est refusée sans remises multiples (paramètre TypeProjet)', function () {
-    ['cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
     $typeProjet->update(['remises_multiples' => false]);
 
     ProjetRecherche::create([
-        'classe_id' => $classe->id,
+        'groupe_id' => $classe->id,
         'type_projet_id' => $typeProjet->id,
         'remis_le' => now(),
     ]);
 
     $this->actingAs($etudiant)
-        ->postJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/remettre")
+        ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/remettre")
         ->assertUnprocessable();
 });
 
 test('une deuxième remise est autorisée avec remises multiples (paramètre TypeProjet)', function () {
-    ['cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
     $typeProjet->update(['remises_multiples' => true]);
 
     ProjetRecherche::create([
-        'classe_id' => $classe->id,
+        'groupe_id' => $classe->id,
         'type_projet_id' => $typeProjet->id,
         'remis_le' => now()->subDay(),
     ]);
 
     $this->actingAs($etudiant)
-        ->postJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/remettre")
+        ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/remettre")
         ->assertOk()
         ->assertJson(['message' => 'remis']);
 });
@@ -489,10 +485,10 @@ test('une deuxième remise est autorisée avec remises multiples (paramètre Typ
 // ─── Paramètres de remise — route supprimée (Sprint 10) ───────────────────────
 
 test('la route parametres-remise est supprimée et retourne 404', function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
 
     $this->actingAs($enseignant)
-        ->patchJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/parametres-remise", [
+        ->patchJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/parametres-remise", [
             'date_remise' => '2026-04-15',
         ])
         ->assertNotFound();
@@ -501,9 +497,9 @@ test('la route parametres-remise est supprimée et retourne 404', function () {
 // ─── Publication des notes ─────────────────────────────────────────────────────
 
 test('un étudiant ne voit pas sa note si correction_visible est false', function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
-    $projet = ProjetRecherche::create(['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'correction_visible' => false]);
+    $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'correction_visible' => false]);
 
     ProjetNote::create([
         'projet_id' => $projet->id,
@@ -513,7 +509,7 @@ test('un étudiant ne voit pas sa note si correction_visible est false', functio
     ]);
 
     $this->actingAs($etudiant)
-        ->get("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/edit")
+        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('correctionVisible', false)
@@ -522,9 +518,9 @@ test('un étudiant ne voit pas sa note si correction_visible est false', functio
 });
 
 test('un étudiant voit sa note quand correction_visible est true', function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
-    $projet = ProjetRecherche::create(['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'correction_visible' => true]);
+    $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'correction_visible' => true]);
 
     ProjetNote::create([
         'projet_id' => $projet->id,
@@ -534,7 +530,7 @@ test('un étudiant voit sa note quand correction_visible est true', function () 
     ]);
 
     $this->actingAs($etudiant)
-        ->get("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/edit")
+        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('correctionVisible', true)
@@ -543,9 +539,9 @@ test('un étudiant voit sa note quand correction_visible est true', function () 
 });
 
 test("l'enseignant voit toujours les notes même si correction_visible est false", function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
-    $projet = ProjetRecherche::create(['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'correction_visible' => false]);
+    $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'correction_visible' => false]);
 
     ProjetNote::create([
         'projet_id' => $projet->id,
@@ -555,7 +551,7 @@ test("l'enseignant voit toujours les notes même si correction_visible est false
     ]);
 
     $this->actingAs($enseignant)
-        ->get("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/edit")
+        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where("noteFinaleParEtudiant.{$etudiant->id}", 5) // 2/4 * 10 = 5
@@ -563,23 +559,23 @@ test("l'enseignant voit toujours les notes même si correction_visible est false
 });
 
 test('publier les corrections active correction_visible et le toggle le désactive', function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
 
     // Premier appel : active
     $this->actingAs($enseignant)
-        ->patchJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/correction-visible")
+        ->patchJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/correction-visible")
         ->assertJson(['correction_visible' => true]);
 
     // Second appel : désactive
     $this->actingAs($enseignant)
-        ->patchJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/correction-visible")
+        ->patchJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/correction-visible")
         ->assertJson(['correction_visible' => false]);
 });
 
 // ─── Annotations : position et mot_annote ──────────────────────────────────────
 
 test('upsertAnnotation persiste la position séquentielle et le mot annoté', function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
 
     $section = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Intro', 'ordre' => 1, 'type' => 'texte']);
     $champ = "section_{$section->id}";
@@ -588,7 +584,7 @@ test('upsertAnnotation persiste la position séquentielle et le mot annoté', fu
     $html = '<p>Voici <mark data-comment-id="'.$uuid.'" data-annotation-type="commentaire">société</mark> moderne.</p>';
 
     $this->actingAs($enseignant)
-        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/annotations", [
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/annotations", [
             'champ' => $champ,
             'commentaire_id' => $uuid,
             'contenu' => 'Attention à ce terme.',
@@ -606,7 +602,7 @@ test('upsertAnnotation persiste la position séquentielle et le mot annoté', fu
 });
 
 test('upsertAnnotation calcule la position correcte quand plusieurs marques existent', function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
 
     $section = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Intro', 'ordre' => 1, 'type' => 'texte']);
     $champ = "section_{$section->id}";
@@ -617,7 +613,7 @@ test('upsertAnnotation calcule la position correcte quand plusieurs marques exis
           .'<mark data-comment-id="'.$uuidB.'" data-annotation-type="commentaire">second</mark>.</p>';
 
     $this->actingAs($enseignant)
-        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/annotations", [
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/annotations", [
             'champ' => $champ,
             'commentaire_id' => $uuidB,
             'contenu' => 'Annotation sur le second mot.',
@@ -634,12 +630,12 @@ test('upsertAnnotation calcule la position correcte quand plusieurs marques exis
 });
 
 test('les annotations sont triées par position dans show()', function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
     $uuidA = Str::uuid()->toString();
     $uuidB = Str::uuid()->toString();
 
-    $projet = ProjetRecherche::create(['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
+    $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
 
     ProjetAnnotation::create([
         'projet_id' => $projet->id,
@@ -662,7 +658,7 @@ test('les annotations sont triées par position dans show()', function () {
     ]);
 
     $this->actingAs($etudiant)
-        ->get("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/edit")
+        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('annotationsParChamp.introduction_amener.0.commentaire_id', $uuidA)
@@ -671,12 +667,12 @@ test('les annotations sont triées par position dans show()', function () {
 });
 
 test('upsertAnnotation supprime les annotations orphelines du même champ', function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
 
     $section = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Intro', 'ordre' => 1, 'type' => 'texte']);
     $champ = "section_{$section->id}";
 
-    $projet = ProjetRecherche::create(['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
+    $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
     $uuidOrpheline = Str::uuid()->toString();
     $uuidNouvelle = Str::uuid()->toString();
 
@@ -693,7 +689,7 @@ test('upsertAnnotation supprime les annotations orphelines du même champ', func
     $html = '<p><mark data-comment-id="'.$uuidNouvelle.'" data-annotation-type="commentaire">nouveau</mark></p>';
 
     $this->actingAs($enseignant)
-        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/annotations", [
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/annotations", [
             'champ' => $champ,
             'commentaire_id' => $uuidNouvelle,
             'contenu' => 'Nouvelle annotation.',
@@ -707,12 +703,12 @@ test('upsertAnnotation supprime les annotations orphelines du même champ', func
 });
 
 test("la sauvegarde du contenu d'une section supprime les annotations orphelines", function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
     $section = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Intro', 'ordre' => 1, 'type' => 'texte']);
     $champ = "section_{$section->id}";
 
-    $projet = ProjetRecherche::create(['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
+    $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
     $uuid = Str::uuid()->toString();
 
     ProjetAnnotation::create([
@@ -726,7 +722,7 @@ test("la sauvegarde du contenu d'une section supprime les annotations orphelines
 
     // L'étudiant sauvegarde le contenu de la section sans la marque (mot effacé)
     $this->actingAs($etudiant)
-        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}", [
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}", [
             'contenu' => '<p>Texte sans marque.</p>',
         ])
         ->assertOk();
@@ -735,12 +731,12 @@ test("la sauvegarde du contenu d'une section supprime les annotations orphelines
 });
 
 test('destroyAnnotation ne supprime pas les autres annotations du même champ', function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
 
     $section = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Intro', 'ordre' => 1, 'type' => 'texte']);
     $champ = "section_{$section->id}";
 
-    $projet = ProjetRecherche::create(['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
+    $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
 
     $uuidA = Str::uuid()->toString();
     $uuidB = Str::uuid()->toString();
@@ -768,7 +764,7 @@ test('destroyAnnotation ne supprime pas les autres annotations du même champ', 
     $htmlApres = '<p><mark data-comment-id="'.$uuidB.'" data-annotation-type="commentaire">second</mark></p>';
 
     $this->actingAs($enseignant)
-        ->deleteJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/annotations/{$annotationA->id}", [
+        ->deleteJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/annotations/{$annotationA->id}", [
             'champ' => $champ,
             'html' => $htmlApres,
         ])

@@ -113,7 +113,7 @@ test('une personne âgée approuvée accède à sa page d\'accueil', function ()
     ]);
 
     $this->actingAs($pa)
-        ->get(route('personne-agee.index'))
+        ->get(route('temoin.index'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page->component('PersonneAgee/Index'));
 });
@@ -122,7 +122,7 @@ test('un étudiant ne peut pas accéder à la page personne âgée', function ()
     $etudiant = User::factory()->create(['role' => 'etudiant']);
 
     $this->actingAs($etudiant)
-        ->get(route('personne-agee.index'))
+        ->get(route('temoin.index'))
         ->assertRedirect(route('dashboard'));
 });
 
@@ -135,5 +135,5 @@ test('le dashboard redirige une PA approuvée vers sa page', function () {
 
     $this->actingAs($pa)
         ->get(route('dashboard'))
-        ->assertRedirect(route('personne-agee.index'));
+        ->assertRedirect(route('temoin.index'));
 });

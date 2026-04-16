@@ -59,9 +59,8 @@ type Thematique = {
 
 type Classe = {
     id: number;
-    nom_cours: string;
     code: string;
-    groupe: string;
+    cours_id: number;
 };
 
 type Groupe = {
@@ -277,7 +276,7 @@ const debounceDev = new Map<number, ReturnType<typeof setTimeout>>();
 
 const baseUrl = computed(
     () =>
-        `/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/projets/${props.typeProjet.id}`,
+        `/cours/${props.classe.cours_id}/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/projets/${props.typeProjet.id}`,
 );
 
 function scheduleSharedSave() {
@@ -1249,7 +1248,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <Button variant="ghost" size="sm" as-child>
                     <Link
-                        :href="`/classes/${groupe.classe_id}/groupes/${groupe.id}/projets`"
+                        :href="`/cours/${classe.cours_id}/classes/${groupe.classe_id}/groupes/${groupe.id}/projets`"
                     >
                         <ArrowLeft class="mr-2 h-4 w-4" />
                         {{ t('projets.show.back') }}

@@ -3,6 +3,7 @@
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\GrilleCorrection;
+use App\Models\Groupe;
 use App\Models\ProjetRecherche;
 use App\Models\ProjetSectionContenu;
 use App\Models\TypeProjet;
@@ -229,9 +230,10 @@ test("un étudiant ne peut pas accéder au show d'un projet si le type n'est pas
         'groupe' => '01',
         'enseignant_id' => $enseignant->id,
     ]);
-    $cours->etudiants()->attach($etudiant->id);
+    $classeSection = Classe::create(['cours_id' => $cours->id]);
+    $classeSection->etudiants()->attach($etudiant->id);
 
-    $classe = Classe::create(['cours_id' => $cours->id, 'created_by' => $etudiant->id]);
+    $classe = Groupe::create(['classe_id' => $classeSection->id, 'created_by' => $etudiant->id]);
     $classe->membres()->attach($etudiant->id);
 
     $typeProjet = TypeProjet::create([
@@ -241,12 +243,12 @@ test("un étudiant ne peut pas accéder au show d'un projet si le type n'est pas
     ]);
 
     ProjetRecherche::create([
-        'classe_id' => $classe->id,
+        'groupe_id' => $classe->id,
         'type_projet_id' => $typeProjet->id,
     ]);
 
     $this->actingAs($etudiant)
-        ->get("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/edit")
+        ->get("/cours/{$cours->id}/classes/{$classeSection->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertForbidden();
 });
 
@@ -341,13 +343,14 @@ test("la suppression d'une section cascade sur les contenus des projets", functi
         'nom_cours' => 'Hist', 'description' => 'T', 'code' => '330-T1',
         'groupe' => '01', 'enseignant_id' => $enseignant->id,
     ]);
-    $cours->etudiants()->attach($etudiant->id);
-    $classe = Classe::create(['cours_id' => $cours->id, 'created_by' => $etudiant->id]);
+    $classeSection = Classe::create(['cours_id' => $cours->id]);
+    $classeSection->etudiants()->attach($etudiant->id);
+    $classe = Groupe::create(['classe_id' => $classeSection->id, 'created_by' => $etudiant->id]);
 
     $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet', 'accessible' => false]);
     $section = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Intro', 'ordre' => 1]);
 
-    $projet = ProjetRecherche::create(['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
+    $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
     ProjetSectionContenu::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'contenu' => '<p>Texte</p>']);
 
     $this->actingAs($enseignant)
@@ -412,14 +415,15 @@ test("l'update supprime les sections retirées et leur contenu cascade", functio
     $etudiant = User::factory()->create(['role' => 'etudiant']);
 
     $cours = Cours::create(['nom_cours' => 'Hist', 'description' => 'T', 'code' => '330-T1', 'groupe' => '01', 'enseignant_id' => $enseignant->id]);
-    $cours->etudiants()->attach($etudiant->id);
-    $classe = Classe::create(['cours_id' => $cours->id, 'created_by' => $etudiant->id]);
+    $classeSection = Classe::create(['cours_id' => $cours->id]);
+    $classeSection->etudiants()->attach($etudiant->id);
+    $classe = Groupe::create(['classe_id' => $classeSection->id, 'created_by' => $etudiant->id]);
 
     $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet', 'accessible' => false]);
     $s1 = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'S1', 'ordre' => 1]);
     $s2 = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'S2', 'ordre' => 2]);
 
-    $projet = ProjetRecherche::create(['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
+    $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
     ProjetSectionContenu::create(['projet_id' => $projet->id, 'section_id' => $s2->id, 'contenu' => '<p>Texte</p>']);
 
     // Envoyer uniquement s1 — s2 doit être supprimé avec son contenu

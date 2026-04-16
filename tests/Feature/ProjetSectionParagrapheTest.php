@@ -2,6 +2,7 @@
 
 use App\Models\Classe;
 use App\Models\Cours;
+use App\Models\Groupe;
 use App\Models\ProjetConclusion;
 use App\Models\ProjetRecherche;
 use App\Models\ProjetSectionParagraphe;
@@ -17,7 +18,7 @@ uses(RefreshDatabase::class);
 /**
  * Crée un scénario avec une section de type 'paragraphes'.
  *
- * @return array{enseignant: User, etudiant: User, cours: Cours, classe: Classe, typeProjet: TypeProjet, projet: ProjetRecherche, section: TypeProjetSection}
+ * @return array{enseignant: User, etudiant: User, cours: Cours, classeSection: Classe, classe: Groupe, typeProjet: TypeProjet, projet: ProjetRecherche, section: TypeProjetSection}
  */
 function creerScenarioParagraphe(): array
 {
@@ -28,9 +29,11 @@ function creerScenarioParagraphe(): array
         'nom_cours' => 'Hist', 'description' => 'T', 'code' => '330-P1',
         'groupe' => '01', 'enseignant_id' => $enseignant->id,
     ]);
-    $cours->etudiants()->attach($etudiant->id);
 
-    $classe = Classe::create(['cours_id' => $cours->id, 'created_by' => $etudiant->id]);
+    $classeSection = Classe::create(['cours_id' => $cours->id]);
+    $classeSection->etudiants()->attach($etudiant->id);
+
+    $classe = Groupe::create(['classe_id' => $classeSection->id, 'created_by' => $etudiant->id]);
     $classe->membres()->attach($etudiant->id);
 
     $typeProjet = TypeProjet::create([
@@ -47,20 +50,20 @@ function creerScenarioParagraphe(): array
     ]);
 
     $projet = ProjetRecherche::create([
-        'classe_id' => $classe->id,
+        'groupe_id' => $classe->id,
         'type_projet_id' => $typeProjet->id,
     ]);
 
-    return compact('enseignant', 'etudiant', 'cours', 'classe', 'typeProjet', 'projet', 'section');
+    return compact('enseignant', 'etudiant', 'cours', 'classeSection', 'classe', 'typeProjet', 'projet', 'section');
 }
 
 // ─── storeSectionParagraphe ───────────────────────────────────────────────────
 
 test('un membre peut créer un paragraphe dans une section de type paragraphes', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
 
     $this->actingAs($etudiant)
-        ->postJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes")
+        ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes")
         ->assertCreated()
         ->assertJsonFragment(['message' => 'created'])
         ->assertJsonPath('paragraphe.ordre', 1);
@@ -73,17 +76,17 @@ test('un membre peut créer un paragraphe dans une section de type paragraphes',
 });
 
 test('le premier paragraphe a l\'ordre 1', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section] = creerScenarioParagraphe();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section] = creerScenarioParagraphe();
 
     $response = $this->actingAs($etudiant)
-        ->postJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes")
+        ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes")
         ->assertCreated();
 
     expect($response->json('paragraphe.ordre'))->toBe(1);
 });
 
 test('un deuxième paragraphe a l\'ordre 2', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
 
     ProjetSectionParagraphe::create([
         'projet_id' => $projet->id,
@@ -92,25 +95,24 @@ test('un deuxième paragraphe a l\'ordre 2', function () {
     ]);
 
     $response = $this->actingAs($etudiant)
-        ->postJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes")
+        ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes")
         ->assertCreated();
 
     expect($response->json('paragraphe.ordre'))->toBe(2);
 });
 
 test('un non-membre ne peut pas créer un paragraphe (403)', function () {
-    ['cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section] = creerScenarioParagraphe();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section] = creerScenarioParagraphe();
 
     $autre = User::factory()->create(['role' => 'etudiant']);
-    $cours->etudiants()->attach($autre->id);
 
     $this->actingAs($autre)
-        ->postJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes")
+        ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes")
         ->assertForbidden();
 });
 
 test('une section d\'un autre TypeProjet retourne 404', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenarioParagraphe();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenarioParagraphe();
 
     $autreType = TypeProjet::create([
         'enseignant_id' => User::factory()->create(['role' => 'enseignant'])->id,
@@ -124,24 +126,24 @@ test('une section d\'un autre TypeProjet retourne 404', function () {
     ]);
 
     $this->actingAs($etudiant)
-        ->postJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/sections/{$autreSection->id}/paragraphes")
+        ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$autreSection->id}/paragraphes")
         ->assertNotFound();
 });
 
 test('projet verrouillé interdit la création d\'un paragraphe (403)', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
 
     $projet->update(['verrouille' => true]);
 
     $this->actingAs($etudiant)
-        ->postJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes")
+        ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes")
         ->assertForbidden();
 });
 
 // ─── updateSectionParagraphe ──────────────────────────────────────────────────
 
 test('un membre peut modifier le titre et le contenu d\'un paragraphe', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
 
     $paragraphe = ProjetSectionParagraphe::create([
         'projet_id' => $projet->id,
@@ -150,7 +152,7 @@ test('un membre peut modifier le titre et le contenu d\'un paragraphe', function
     ]);
 
     $this->actingAs($etudiant)
-        ->patchJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes/{$paragraphe->id}", [
+        ->patchJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes/{$paragraphe->id}", [
             'titre' => 'Mon titre',
             'contenu' => '<p>Mon contenu</p>',
         ])
@@ -165,7 +167,7 @@ test('un membre peut modifier le titre et le contenu d\'un paragraphe', function
 });
 
 test('un paragraphe appartenant à un autre projet retourne 404', function () {
-    ['enseignant' => $enseignant, 'etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section] = creerScenarioParagraphe();
+    ['enseignant' => $enseignant, 'etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section] = creerScenarioParagraphe();
 
     // Autre projet dans le même groupe mais type différent
     $autreType = TypeProjet::create([
@@ -179,7 +181,7 @@ test('un paragraphe appartenant à un autre projet retourne 404', function () {
         'type' => 'paragraphes',
     ]);
     $autreProjet = ProjetRecherche::create([
-        'classe_id' => $classe->id,
+        'groupe_id' => $classe->id,
         'type_projet_id' => $autreType->id,
     ]);
     $paragrapheAutreProjet = ProjetSectionParagraphe::create([
@@ -189,14 +191,14 @@ test('un paragraphe appartenant à un autre projet retourne 404', function () {
     ]);
 
     $this->actingAs($etudiant)
-        ->patchJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes/{$paragrapheAutreProjet->id}", [
+        ->patchJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes/{$paragrapheAutreProjet->id}", [
             'titre' => 'Injection',
         ])
         ->assertNotFound();
 });
 
 test('projet verrouillé interdit la modification d\'un paragraphe (403)', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
 
     $paragraphe = ProjetSectionParagraphe::create([
         'projet_id' => $projet->id,
@@ -207,7 +209,7 @@ test('projet verrouillé interdit la modification d\'un paragraphe (403)', funct
     $projet->update(['verrouille' => true]);
 
     $this->actingAs($etudiant)
-        ->patchJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes/{$paragraphe->id}", [
+        ->patchJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes/{$paragraphe->id}", [
             'titre' => 'Bloqué',
         ])
         ->assertForbidden();
@@ -216,13 +218,13 @@ test('projet verrouillé interdit la modification d\'un paragraphe (403)', funct
 // ─── destroySectionParagraphe ─────────────────────────────────────────────────
 
 test('un membre peut supprimer un paragraphe s\'il en reste au moins 2', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
 
     $p1 = ProjetSectionParagraphe::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'ordre' => 1]);
     $p2 = ProjetSectionParagraphe::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'ordre' => 2]);
 
     $this->actingAs($etudiant)
-        ->deleteJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes/{$p1->id}")
+        ->deleteJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes/{$p1->id}")
         ->assertOk()
         ->assertJsonFragment(['message' => 'deleted']);
 
@@ -231,7 +233,7 @@ test('un membre peut supprimer un paragraphe s\'il en reste au moins 2', functio
 });
 
 test('impossible de supprimer le dernier paragraphe d\'une section (422)', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
 
     $paragraphe = ProjetSectionParagraphe::create([
         'projet_id' => $projet->id,
@@ -240,19 +242,19 @@ test('impossible de supprimer le dernier paragraphe d\'une section (422)', funct
     ]);
 
     $this->actingAs($etudiant)
-        ->deleteJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes/{$paragraphe->id}")
+        ->deleteJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes/{$paragraphe->id}")
         ->assertUnprocessable();
 });
 
 test('la suppression réordonne les paragraphes restants', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
 
     $p1 = ProjetSectionParagraphe::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'ordre' => 1]);
     $p2 = ProjetSectionParagraphe::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'ordre' => 2]);
     $p3 = ProjetSectionParagraphe::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'ordre' => 3]);
 
     $this->actingAs($etudiant)
-        ->deleteJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes/{$p1->id}")
+        ->deleteJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes/{$p1->id}")
         ->assertOk();
 
     $this->assertDatabaseHas('projet_section_paragraphes', ['id' => $p2->id, 'ordre' => 1]);
@@ -262,13 +264,13 @@ test('la suppression réordonne les paragraphes restants', function () {
 // ─── reorderSectionParagraphes ────────────────────────────────────────────────
 
 test('l\'ordre des paragraphes est mis à jour correctement', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
 
     $p1 = ProjetSectionParagraphe::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'ordre' => 1]);
     $p2 = ProjetSectionParagraphe::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'ordre' => 2]);
 
     $this->actingAs($etudiant)
-        ->patchJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes/reorder", [
+        ->patchJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes/reorder", [
             'ordre' => [$p2->id, $p1->id],
         ])
         ->assertOk()
@@ -279,10 +281,10 @@ test('l\'ordre des paragraphes est mis à jour correctement', function () {
 });
 
 test('un id inexistant dans reorder retourne 422', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section] = creerScenarioParagraphe();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section] = creerScenarioParagraphe();
 
     $this->actingAs($etudiant)
-        ->patchJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes/reorder", [
+        ->patchJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes/reorder", [
             'ordre' => [99999],
         ])
         ->assertUnprocessable();
@@ -291,7 +293,7 @@ test('un id inexistant dans reorder retourne 422', function () {
 // ─── show() retourne les sections avec paragraphes ────────────────────────────
 
 test('le show retourne les sections de type paragraphes avec leurs paragraphes', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
 
     ProjetSectionParagraphe::create([
         'projet_id' => $projet->id,
@@ -302,7 +304,7 @@ test('le show retourne les sections de type paragraphes avec leurs paragraphes',
     ]);
 
     $this->actingAs($etudiant)
-        ->get("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/edit")
+        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertInertia(fn ($page) => $page
             ->component('Projets/Show')
             ->has('sections', 1)
@@ -316,10 +318,10 @@ test('le show retourne les sections de type paragraphes avec leurs paragraphes',
 // ─── updateConclusion avec section_id ────────────────────────────────────────
 
 test('un membre peut sauvegarder une conclusion liée à une section', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
 
     $this->actingAs($etudiant)
-        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/conclusion", [
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/conclusion", [
             'user_id' => $etudiant->id,
             'section_id' => $section->id,
             'contenu' => '<p>Ma conclusion</p>',
@@ -336,7 +338,7 @@ test('un membre peut sauvegarder une conclusion liée à une section', function 
 });
 
 test('deux conclusions pour le même user mais sections différentes sont distinctes', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet] = creerScenarioParagraphe();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet] = creerScenarioParagraphe();
 
     $section2 = TypeProjetSection::create([
         'type_projet_id' => $typeProjet->id,
@@ -346,14 +348,14 @@ test('deux conclusions pour le même user mais sections différentes sont distin
     ]);
 
     $this->actingAs($etudiant)
-        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/conclusion", [
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/conclusion", [
             'user_id' => $etudiant->id,
             'contenu' => '<p>Sans section</p>',
         ])
         ->assertOk();
 
     $this->actingAs($etudiant)
-        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/conclusion", [
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/conclusion", [
             'user_id' => $etudiant->id,
             'section_id' => $section2->id,
             'contenu' => '<p>Avec section</p>',
@@ -372,9 +374,11 @@ test('le show retourne les conclusionsParMembre dans les sections de type indivi
         'nom_cours' => 'Hist', 'description' => 'T', 'code' => '330-P2',
         'groupe' => '01', 'enseignant_id' => $enseignant->id,
     ]);
-    $cours->etudiants()->attach($etudiant->id);
 
-    $classe = Classe::create(['cours_id' => $cours->id, 'created_by' => $etudiant->id]);
+    $classeSection = Classe::create(['cours_id' => $cours->id]);
+    $classeSection->etudiants()->attach($etudiant->id);
+
+    $classe = Groupe::create(['classe_id' => $classeSection->id, 'created_by' => $etudiant->id]);
     $classe->membres()->attach($etudiant->id);
 
     $typeProjet = TypeProjet::create([
@@ -391,7 +395,7 @@ test('le show retourne les conclusionsParMembre dans les sections de type indivi
     ]);
 
     $projet = ProjetRecherche::create([
-        'classe_id' => $classe->id,
+        'groupe_id' => $classe->id,
         'type_projet_id' => $typeProjet->id,
     ]);
 
@@ -403,7 +407,7 @@ test('le show retourne les conclusionsParMembre dans les sections de type indivi
     ]);
 
     $this->actingAs($etudiant)
-        ->get("/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/edit")
+        ->get("/cours/{$cours->id}/classes/{$classeSection->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertInertia(fn ($page) => $page
             ->component('Projets/Show')
             ->has('sections', 1)

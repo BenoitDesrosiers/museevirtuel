@@ -38,19 +38,13 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import typesProjetsRoutes from '@/routes/types-projets';
 
-type Etudiant = {
-    id: number;
-    prenom: string;
-    nom: string;
-    email: string;
-    no_da: string;
-    statut_cours: string | null;
-};
-
 type Classe = {
     id: number;
+    numero: string;
     code: string;
     nom: string | null;
+    jour_semaine: string | null;
+    plage_horaire: string | null;
     cours_id: number;
     etudiants_count: number;
     groupes_count: number;
@@ -100,7 +94,6 @@ type TypeProjet = {
 
 type Props = {
     cours: Cours;
-    etudiants: Etudiant[];
     classes: Classe[];
     documents: Document[];
     echeancierEtapes: EcheancierEtape[];
@@ -110,101 +103,21 @@ type Props = {
 const props = defineProps<Props>();
 const { t } = useI18n();
 
-// ─── Ajouter un étudiant ──────────────────────────────────────────────────────
-const showAddDialog = ref(false);
-const addForm = useForm({
-    prenom: '',
+// ─── Créer une classe ─────────────────────────────────────────────────────────
+const showCreateClasseDialog = ref(false);
+const createClasseForm = useForm({
+    numero: '',
     nom: '',
-    no_da: '',
-    statut_cours: '',
-    email: '',
+    jour_semaine: '',
+    plage_horaire: '',
 });
 
-function openAdd() {
-    addForm.reset();
-    showAddDialog.value = true;
-}
-
-function submitAdd() {
-    addForm.post(`/cours/${props.cours.id}/etudiants`, {
+function submitCreateClasse() {
+    createClasseForm.post(`/cours/${props.cours.id}/classes`, {
+        preserveScroll: true,
         onSuccess: () => {
-            showAddDialog.value = false;
-            addForm.reset();
-        },
-    });
-}
-
-// ─── Modifier un étudiant ─────────────────────────────────────────────────────
-const showEditDialog = ref(false);
-const editingEtudiantId = ref<number | null>(null);
-const editForm = useForm({
-    prenom: '',
-    nom: '',
-    email: '',
-    no_da: '',
-    statut_cours: '',
-});
-
-function openEdit(etudiant: Etudiant) {
-    editingEtudiantId.value = etudiant.id;
-    editForm.prenom = etudiant.prenom;
-    editForm.nom = etudiant.nom;
-    editForm.email = etudiant.email;
-    editForm.no_da = etudiant.no_da;
-    editForm.statut_cours = etudiant.statut_cours ?? '';
-    showEditDialog.value = true;
-}
-
-function submitEdit() {
-    if (!editingEtudiantId.value) {
-        return;
-    }
-
-    editForm.put(
-        `/cours/${props.cours.id}/etudiants/${editingEtudiantId.value}`,
-        {
-            onSuccess: () => {
-                showEditDialog.value = false;
-            },
-        },
-    );
-}
-
-// ─── Retirer un étudiant ──────────────────────────────────────────────────────
-const deleteForm = useForm({});
-
-function removeEtudiant(etudiant: Etudiant) {
-    if (
-        !confirm(
-            t('classes.show.confirm_remove_student', {
-                prenom: etudiant.prenom,
-                nom: etudiant.nom,
-            }),
-        )
-    ) {
-        return;
-    }
-
-    deleteForm.delete(`/cours/${props.cours.id}/etudiants/${etudiant.id}`);
-}
-
-// ─── Import CSV ───────────────────────────────────────────────────────────────
-const showImportDialog = ref(false);
-const importForm = useForm({ csv: null as File | null });
-
-function handleFileChange(e: Event) {
-    const input = e.target as HTMLInputElement;
-
-    if (input.files && input.files[0]) {
-        importForm.csv = input.files[0];
-    }
-}
-
-function submitImport() {
-    importForm.post(`/cours/${props.cours.id}/import`, {
-        onSuccess: () => {
-            showImportDialog.value = false;
-            importForm.reset();
+            showCreateClasseDialog.value = false;
+            createClasseForm.reset();
         },
     });
 }
@@ -451,76 +364,9 @@ function supprimerTp(tp: TypeProjet) {
                 </div>
             </div>
 
-            <!-- Liste des étudiants -->
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle>
-                        {{ $t('classes.show.students') }}
-                        <span class="ml-2 text-sm font-normal text-muted-foreground">
-                            ({{ etudiants.length }})
-                        </span>
-                    </CardTitle>
-                    <div class="flex gap-2">
-                        <Button size="sm" variant="outline" @click="showImportDialog = true">
-                            <Upload class="mr-2 h-4 w-4" />
-                            {{ $t('classes.show.import_csv') }}
-                        </Button>
-                        <Button size="sm" @click="openAdd">
-                            <Plus class="mr-2 h-4 w-4" />
-                            {{ $t('classes.show.add_student') }}
-                        </Button>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="border-b text-left">
-                                    <th class="pr-4 pb-3 font-medium">{{ $t('classes.show.table_header_da') }}</th>
-                                    <th class="pr-4 pb-3 font-medium">{{ $t('classes.show.table_header_name') }}</th>
-                                    <th class="pr-4 pb-3 font-medium">{{ $t('classes.show.table_header_first_name') }}</th>
-                                    <th class="pr-4 pb-3 font-medium">{{ $t('classes.show.table_header_email') }}</th>
-                                    <th class="pr-4 pb-3 font-medium">{{ $t('classes.show.table_header_status') }}</th>
-                                    <th class="pb-3 font-medium">{{ $t('classes.show.table_header_actions') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="etudiant in etudiants" :key="etudiant.id" class="border-b last:border-0">
-                                    <td class="py-3 pr-4 font-mono text-xs">{{ etudiant.no_da }}</td>
-                                    <td class="py-3 pr-4 font-medium">{{ etudiant.nom }}</td>
-                                    <td class="py-3 pr-4">{{ etudiant.prenom }}</td>
-                                    <td class="py-3 pr-4 text-xs text-muted-foreground">{{ etudiant.email }}</td>
-                                    <td class="py-3 pr-4">
-                                        <span v-if="etudiant.statut_cours" class="rounded bg-muted px-2 py-0.5 text-xs">
-                                            {{ etudiant.statut_cours }}
-                                        </span>
-                                        <span v-else class="text-muted-foreground">—</span>
-                                    </td>
-                                    <td class="py-3">
-                                        <div class="flex gap-2">
-                                            <Button size="sm" variant="outline" @click="openEdit(etudiant)">
-                                                <Pencil class="h-4 w-4" />
-                                            </Button>
-                                            <Button size="sm" variant="destructive" @click="removeEtudiant(etudiant)">
-                                                <Trash2 class="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr v-if="etudiants.length === 0">
-                                    <td colspan="6" class="py-6 text-center text-muted-foreground">
-                                        {{ $t('classes.show.no_students') }}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </CardContent>
-            </Card>
-
             <!-- Classes du cours -->
             <Card>
-                <CardHeader>
+                <CardHeader class="flex flex-row items-center justify-between">
                     <CardTitle>
                         <span class="flex items-center gap-2">
                             <Users class="h-5 w-5" />
@@ -530,6 +376,10 @@ function supprimerTp(tp: TypeProjet) {
                             </span>
                         </span>
                     </CardTitle>
+                    <Button size="sm" @click="showCreateClasseDialog = true">
+                        <Plus class="mr-2 h-4 w-4" />
+                        Classe
+                    </Button>
                 </CardHeader>
                 <CardContent>
                     <div v-if="classes.length === 0" class="py-4 text-center text-sm text-muted-foreground">
@@ -544,9 +394,12 @@ function supprimerTp(tp: TypeProjet) {
                             <div class="flex items-start justify-between gap-2">
                                 <div>
                                     <p class="text-sm font-medium">
-                                        {{ classe.nom ?? classe.code }}
+                                        {{ classe.nom ?? `Classe ${classe.numero}` }}
                                     </p>
-                                    <p class="font-mono text-xs text-muted-foreground">{{ classe.code }}</p>
+                                    <p class="font-mono text-xs text-muted-foreground">{{ classe.code }} · {{ classe.numero }}</p>
+                                    <p v-if="classe.jour_semaine || classe.plage_horaire" class="text-xs text-muted-foreground">
+                                        {{ [classe.jour_semaine, classe.plage_horaire].filter(Boolean).join(' · ') }}
+                                    </p>
                                 </div>
                                 <div class="flex shrink-0 gap-2">
                                     <Button size="sm" variant="outline" as-child>
@@ -873,127 +726,41 @@ function supprimerTp(tp: TypeProjet) {
             </DialogContent>
         </Dialog>
 
-        <!-- Modal : Ajouter étudiant -->
-        <Dialog v-model:open="showAddDialog">
+        <!-- Modal : Créer une classe -->
+        <Dialog v-model:open="showCreateClasseDialog">
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>{{ $t('classes.show.modal_add_student') }}</DialogTitle>
+                    <DialogTitle>Nouvelle classe</DialogTitle>
                 </DialogHeader>
-                <form class="space-y-4" @submit.prevent="submitAdd">
+                <form class="space-y-4" @submit.prevent="submitCreateClasse">
+                    <div class="grid gap-2">
+                        <Label for="classe-numero">Numero (obligatoire)</Label>
+                        <Input id="classe-numero" v-model="createClasseForm.numero" placeholder="Ex. 00001" maxlength="5" />
+                        <InputError :message="createClasseForm.errors.numero" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="classe-nom">Nom (optionnel)</Label>
+                        <Input id="classe-nom" v-model="createClasseForm.nom" placeholder="Ex. Classe du matin" />
+                        <InputError :message="createClasseForm.errors.nom" />
+                    </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="grid gap-2">
-                            <Label for="add-prenom">{{ $t('classes.show.modal_first_name') }}</Label>
-                            <Input
-                                id="add-prenom"
-                                v-model="addForm.prenom"
-                                :placeholder="$t('classes.show.modal_first_name')"
-                            />
-                            <InputError :message="addForm.errors.prenom" />
+                            <Label for="classe-jour">Jour (optionnel)</Label>
+                            <Input id="classe-jour" v-model="createClasseForm.jour_semaine" placeholder="Ex. Lundi" />
+                            <InputError :message="createClasseForm.errors.jour_semaine" />
                         </div>
                         <div class="grid gap-2">
-                            <Label for="add-nom">{{ $t('classes.show.modal_name') }}</Label>
-                            <Input
-                                id="add-nom"
-                                v-model="addForm.nom"
-                                :placeholder="$t('classes.show.modal_name')"
-                            />
-                            <InputError :message="addForm.errors.nom" />
+                            <Label for="classe-horaire">Plage horaire (optionnel)</Label>
+                            <Input id="classe-horaire" v-model="createClasseForm.plage_horaire" placeholder="Ex. 08:30 - 11:30" />
+                            <InputError :message="createClasseForm.errors.plage_horaire" />
                         </div>
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="add-da">{{ $t('classes.show.modal_da_number') }}</Label>
-                        <Input
-                            id="add-da"
-                            v-model="addForm.no_da"
-                            :placeholder="$t('classes.show.modal_da_number')"
-                        />
-                        <InputError :message="addForm.errors.no_da" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="add-statut">{{ $t('classes.show.modal_course_status') }}</Label>
-                        <Input
-                            id="add-statut"
-                            v-model="addForm.statut_cours"
-                            :placeholder="$t('classes.show.modal_course_status')"
-                        />
-                        <InputError :message="addForm.errors.statut_cours" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="add-email">
-                            {{ $t('classes.show.modal_email') }}
-                            <span class="text-xs font-normal text-muted-foreground">
-                                {{ $t('classes.show.modal_email_note') }}
-                            </span>
-                        </Label>
-                        <Input
-                            id="add-email"
-                            v-model="addForm.email"
-                            type="email"
-                            placeholder="prenom.nom@etu.cegepdrummond.ca"
-                        />
-                        <InputError :message="addForm.errors.email" />
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="outline" @click="showAddDialog = false">
-                            {{ $t('classes.show.modal_cancel') }}
+                        <Button type="button" variant="outline" @click="showCreateClasseDialog = false">
+                            Annuler
                         </Button>
-                        <Button type="submit" :disabled="addForm.processing">
-                            {{ $t('classes.show.modal_add') }}
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
-
-        <!-- Modal : Modifier étudiant -->
-        <Dialog v-model:open="showEditDialog">
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>{{ $t('classes.show.modal_edit_student') }}</DialogTitle>
-                </DialogHeader>
-                <form class="space-y-4" @submit.prevent="submitEdit">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="grid gap-2">
-                            <Label>{{ $t('classes.show.modal_first_name') }}</Label>
-                            <Input
-                                v-model="editForm.prenom"
-                                :placeholder="$t('classes.show.modal_first_name')"
-                            />
-                            <InputError :message="editForm.errors.prenom" />
-                        </div>
-                        <div class="grid gap-2">
-                            <Label>{{ $t('classes.show.modal_name') }}</Label>
-                            <Input
-                                v-model="editForm.nom"
-                                :placeholder="$t('classes.show.modal_name')"
-                            />
-                            <InputError :message="editForm.errors.nom" />
-                        </div>
-                    </div>
-                    <div class="grid gap-2">
-                        <Label>{{ $t('classes.show.modal_email') }}</Label>
-                        <Input v-model="editForm.email" type="email" />
-                        <InputError :message="editForm.errors.email" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label>{{ $t('classes.show.modal_da_number') }}</Label>
-                        <Input v-model="editForm.no_da" />
-                        <InputError :message="editForm.errors.no_da" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label>{{ $t('classes.show.modal_course_status') }}</Label>
-                        <Input
-                            v-model="editForm.statut_cours"
-                            :placeholder="$t('classes.show.modal_course_status')"
-                        />
-                        <InputError :message="editForm.errors.statut_cours" />
-                    </div>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" @click="showEditDialog = false">
-                            {{ $t('classes.show.modal_cancel') }}
-                        </Button>
-                        <Button type="submit" :disabled="editForm.processing">
-                            {{ $t('classes.show.modal_save') }}
+                        <Button type="submit" :disabled="createClasseForm.processing || createClasseForm.numero.length !== 5">
+                            Créer
                         </Button>
                     </DialogFooter>
                 </form>
@@ -1014,7 +781,7 @@ function supprimerTp(tp: TypeProjet) {
         <!-- Modal : Confirmer suppression classe -->
         <ConfirmationModal
             :open="classeASupprimer !== null"
-            :title="`Supprimer la ${$t('classes.groupes.group_number', { n: classeASupprimer?.numero ?? '' })}`"
+            :title="`Supprimer ${classeASupprimer?.nom ?? classeASupprimer?.code ?? 'la section'}`"
             description="Cette action supprimera également le projet de recherche associé et ne peut pas être annulée."
             :loading="deleteClasseForm.processing"
             @update:open="handleClasseDialogUpdate"
@@ -1107,40 +874,5 @@ function supprimerTp(tp: TypeProjet) {
             </DialogContent>
         </Dialog>
 
-        <!-- Modal : Import CSV -->
-        <Dialog v-model:open="showImportDialog">
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>{{ $t('classes.show.modal_import_csv') }}</DialogTitle>
-                </DialogHeader>
-                <form class="space-y-4" @submit.prevent="submitImport">
-                    <p class="text-sm text-muted-foreground">
-                        {{ $t('classes.show.modal_csv_format') }}
-                        <code>;</code>) :
-                    </p>
-                    <code class="block rounded bg-muted p-3 text-xs">
-                        {{ $t('classes.show.modal_csv_fields') }}
-                    </code>
-                    <div class="grid gap-2">
-                        <Label for="csv-file">{{ $t('classes.show.modal_csv_file') }}</Label>
-                        <Input
-                            id="csv-file"
-                            type="file"
-                            accept=".csv,.txt"
-                            @change="handleFileChange"
-                        />
-                        <InputError :message="importForm.errors.csv" />
-                    </div>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" @click="showImportDialog = false">
-                            {{ $t('classes.show.modal_cancel') }}
-                        </Button>
-                        <Button type="submit" :disabled="importForm.processing || !importForm.csv">
-                            {{ $t('classes.show.modal_import') }}
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
     </AppLayout>
 </template>

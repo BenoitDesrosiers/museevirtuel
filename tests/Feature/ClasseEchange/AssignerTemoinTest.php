@@ -2,6 +2,7 @@
 
 use App\Models\Classe;
 use App\Models\Cours;
+use App\Models\Groupe;
 use App\Models\Thematique;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,10 +24,12 @@ function creerContexteAssignerTemoin(): array
     ]);
 
     $etudiant = User::factory()->create(['role' => 'etudiant']);
-    $cours->etudiants()->attach($etudiant->id);
 
-    $classe = Classe::create([
-        'cours_id' => $cours->id,
+    $section = Classe::create(['cours_id' => $cours->id]);
+    $section->etudiants()->attach($etudiant->id);
+
+    $classe = Groupe::create([
+        'classe_id' => $section->id,
         'created_by' => $etudiant->id,
     ]);
     $classe->membres()->attach($etudiant->id);
@@ -37,7 +40,7 @@ function creerContexteAssignerTemoin(): array
         'email_verified_at' => now(),
     ]);
 
-    return compact('enseignant', 'cours', 'etudiant', 'classe', 'temoin');
+    return compact('enseignant', 'cours', 'etudiant', 'section', 'classe', 'temoin');
 }
 
 // ─── assignerTemoin() ─────────────────────────────────────────────────────────
@@ -46,7 +49,7 @@ test('un enseignant peut assigner un témoin actif à sa classe', function () {
     $ctx = creerContexteAssignerTemoin();
 
     $this->actingAs($ctx['enseignant'])
-        ->put(route('classes.temoin.update', [$ctx['cours'], $ctx['classe']]), [
+        ->put(route('groupes.temoin.update', [$ctx['cours'], $ctx['section'], $ctx['classe']]), [
             'personne_agee_id' => $ctx['temoin']->id,
         ])
         ->assertRedirect();
@@ -59,7 +62,7 @@ test('un enseignant peut désassigner un témoin (null)', function () {
     $ctx['classe']->update(['personne_agee_id' => $ctx['temoin']->id]);
 
     $this->actingAs($ctx['enseignant'])
-        ->put(route('classes.temoin.update', [$ctx['cours'], $ctx['classe']]), [
+        ->put(route('groupes.temoin.update', [$ctx['cours'], $ctx['section'], $ctx['classe']]), [
             'personne_agee_id' => null,
         ])
         ->assertRedirect();
@@ -72,7 +75,7 @@ test('un étudiant ne peut pas assigner de témoin (redirigé par EnsureRole)', 
 
     // EnsureRole redirige vers /dashboard pour les rôles non autorisés
     $this->actingAs($ctx['etudiant'])
-        ->put(route('classes.temoin.update', [$ctx['cours'], $ctx['classe']]), [
+        ->put(route('groupes.temoin.update', [$ctx['cours'], $ctx['section'], $ctx['classe']]), [
             'personne_agee_id' => $ctx['temoin']->id,
         ])
         ->assertRedirect(route('dashboard'));
@@ -83,7 +86,7 @@ test('on ne peut pas assigner un utilisateur dont le rôle n\'est pas personne_a
     $autreEtudiant = User::factory()->create(['role' => 'etudiant']);
 
     $this->actingAs($ctx['enseignant'])
-        ->put(route('classes.temoin.update', [$ctx['cours'], $ctx['classe']]), [
+        ->put(route('groupes.temoin.update', [$ctx['cours'], $ctx['section'], $ctx['classe']]), [
             'personne_agee_id' => $autreEtudiant->id,
         ])
         ->assertSessionHasErrors();
@@ -97,7 +100,7 @@ test('on ne peut pas assigner une personne âgée en attente', function () {
     ]);
 
     $this->actingAs($ctx['enseignant'])
-        ->put(route('classes.temoin.update', [$ctx['cours'], $ctx['classe']]), [
+        ->put(route('groupes.temoin.update', [$ctx['cours'], $ctx['section'], $ctx['classe']]), [
             'personne_agee_id' => $temoinEnAttente->id,
         ])
         ->assertSessionHasErrors();
@@ -108,7 +111,7 @@ test('un enseignant d\'un autre cours ne peut pas assigner de témoin', function
     $autreEnseignant = User::factory()->create(['role' => 'enseignant']);
 
     $this->actingAs($autreEnseignant)
-        ->put(route('classes.temoin.update', [$ctx['cours'], $ctx['classe']]), [
+        ->put(route('groupes.temoin.update', [$ctx['cours'], $ctx['section'], $ctx['classe']]), [
             'personne_agee_id' => $ctx['temoin']->id,
         ])
         ->assertForbidden();
@@ -129,7 +132,7 @@ test('show() retourne uniquement les témoins partageant une thématique avec la
     User::factory()->create(['role' => 'personne_agee', 'statut' => 'actif', 'email_verified_at' => now()]);
 
     $this->actingAs($ctx['enseignant'])
-        ->get(route('classes.show', [$ctx['cours'], $ctx['classe']]))
+        ->get(route('groupes.show', [$ctx['cours'], $ctx['section'], $ctx['classe']]))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->has('temoinsDisponibles', 1)
@@ -148,7 +151,7 @@ test('show() exclut les témoins dont la thématique ne correspond pas à la cla
     $ctx['temoin']->thematiquesChoisies()->attach($autreThematique->id);
 
     $this->actingAs($ctx['enseignant'])
-        ->get(route('classes.show', [$ctx['cours'], $ctx['classe']]))
+        ->get(route('groupes.show', [$ctx['cours'], $ctx['section'], $ctx['classe']]))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->has('temoinsDisponibles', 0)
@@ -164,7 +167,7 @@ test('show() retourne tous les témoins actifs si la classe n\'a aucune thémati
 
     // 3 PAs actives au total ($ctx['temoin'] + 2 ci-dessus)
     $this->actingAs($ctx['enseignant'])
-        ->get(route('classes.show', [$ctx['cours'], $ctx['classe']]))
+        ->get(route('groupes.show', [$ctx['cours'], $ctx['section'], $ctx['classe']]))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->has('temoinsDisponibles', 3)

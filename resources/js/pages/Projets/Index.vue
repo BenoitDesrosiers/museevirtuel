@@ -43,9 +43,8 @@ type Groupe = {
 
 type Classe = {
     id: number;
-    nom_cours: string;
     code: string;
-    groupe: string;
+    cours_id: number;
 };
 
 type Props = {
@@ -70,7 +69,7 @@ function completionBarClass(pct: number): string {
 }
 
 function projetUrl(typeProjetId: number): string {
-    return `/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/projets/${typeProjetId}/edit`;
+    return `/cours/${props.classe.cours_id}/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/projets/${typeProjetId}/edit`;
 }
 </script>
 
@@ -82,7 +81,7 @@ function projetUrl(typeProjetId: number): string {
             <!-- Retour au groupe -->
             <div>
                 <Button variant="ghost" size="sm" as-child>
-                    <Link :href="`/classes/${groupe.classe_id}/groupes/${groupe.id}`">
+                    <Link :href="`/cours/${classe.cours_id}/classes/${groupe.classe_id}/groupes/${groupe.id}`">
                         ← Retour au groupe
                     </Link>
                 </Button>

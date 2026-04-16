@@ -6,7 +6,6 @@ use App\Http\Requests\StoreCoursRequest;
 use App\Http\Requests\UpdateCoursRequest;
 use App\Models\Cours;
 use App\Models\TypeProjet;
-use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -39,23 +38,9 @@ class CoursController extends Controller
     {
         $this->authorize('view', $cours);
 
-        // Les étudiants sont maintenant inscrits par Classe (section), pas directement par Cours.
-        // On agrège tous les étudiants distincts des classes de ce cours.
-        $etudiants = User::whereHas('classesInscrites', fn ($q) => $q->where('cours_id', $cours->id))
-            ->orderBy('nom')
-            ->get()
-            ->map(fn ($etudiant) => [
-                'id' => $etudiant->id,
-                'prenom' => $etudiant->prenom,
-                'nom' => $etudiant->nom,
-                'email' => $etudiant->email,
-                'no_da' => $etudiant->no_da,
-                'statut_cours' => null, // statut désormais par Classe, voir classes ci-dessous
-            ]);
-
         $classes = $cours->classes()
             ->withCount(['etudiants', 'groupes'])
-            ->orderBy('code')
+            ->orderBy('numero')
             ->get();
 
         $documents = $cours->documents()->get();
@@ -77,7 +62,6 @@ class CoursController extends Controller
 
         return Inertia::render('Cours/Show', [
             'cours' => $cours,
-            'etudiants' => $etudiants,
             'classes' => $classes,
             'documents' => $documents,
             'echeancierEtapes' => $echeancierEtapes,

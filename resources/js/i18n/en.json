@@ -157,14 +157,17 @@
             "my_sections": "My sections"
         },
         "show": {
-            "classes_title": "Classes (sections)",
-            "no_classes": "No sections yet.",
+            "classes_title": "Classes",
+            "no_classes": "No classes yet.",
             "classes_see": "View"
         },
         "classes": {
             "page_title": "My sections",
             "back": "Back to my courses",
             "no_classes": "You are not enrolled in any section of this course.",
+            "schedule_title": "Course schedule",
+            "schedule_empty": "No steps in the schedule.",
+            "schedule_week": "Week {n}",
             "groups_count": "{n} group(s)",
             "my_group": "My group"
         }
@@ -419,7 +422,8 @@
             "password_label": "Password",
             "password_placeholder": "Password",
             "cancel": "Cancel",
-            "confirm": "Delete account"
+            "confirm": "Delete account",
+            "locked_by_groupe": "Your account cannot be deleted because you are currently assigned to an active group. Please contact an administrator to remove this association."
         }
     },
     "common": {

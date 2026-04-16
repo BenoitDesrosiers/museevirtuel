@@ -2,9 +2,9 @@
 
 use App\Http\Controllers\AdministrationController;
 use App\Http\Controllers\ClasseController;
+use App\Http\Controllers\ClasseEtudiantController;
 use App\Http\Controllers\CoursController;
 use App\Http\Controllers\CoursDocumentController;
-use App\Http\Controllers\CoursEtudiantController;
 use App\Http\Controllers\EcheancierController;
 use App\Http\Controllers\EnseignantController;
 use App\Http\Controllers\EntrevueConceptController;
@@ -45,15 +45,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return match ($user->role) {
             'admin' => redirect()->route('administration.index'),
             'enseignant' => redirect()->route('enseignant.index'),
-            'personne_agee' => redirect()->route('personne-agee.index'),
+            'personne_agee' => redirect()->route('temoin.index'),
             default => redirect()->route('cours.index'),
         };
     })->name('dashboard');
 
     // ─── Personne âgée ────────────────────────────────────────────────────────
-    Route::get('/personne-agee', [PersonneAgeeController::class, 'index'])
+    Route::get('/temoin', [PersonneAgeeController::class, 'index'])
         ->middleware('role:personne_agee')
-        ->name('personne-agee.index');
+        ->name('temoin.index');
 });
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
@@ -96,19 +96,6 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
     Route::delete('/cours/{cours}', [CoursController::class, 'destroy'])
         ->name('cours.destroy');
 
-    // Gestion des étudiants dans un cours
-    Route::post('/cours/{cours}/etudiants', [CoursEtudiantController::class, 'store'])
-        ->name('cours.etudiants.store');
-
-    Route::put('/cours/{cours}/etudiants/{etudiant}', [CoursEtudiantController::class, 'update'])
-        ->name('cours.etudiants.update');
-
-    Route::delete('/cours/{cours}/etudiants/{etudiant}', [CoursEtudiantController::class, 'destroy'])
-        ->name('cours.etudiants.destroy');
-
-    Route::post('/cours/{cours}/import', [CoursEtudiantController::class, 'import'])
-        ->name('cours.etudiants.import');
-
     // Documents du cours
     Route::post('/cours/{cours}/documents', [CoursDocumentController::class, 'store'])
         ->name('cours.documents.store');
@@ -135,6 +122,19 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
 
     Route::delete('/cours/{cours}/classes/{classe}', [ClasseController::class, 'destroy'])
         ->name('classes.destroy');
+
+    // Gestion des étudiants dans une section (classe)
+    Route::post('/cours/{cours}/classes/{classe}/etudiants', [ClasseEtudiantController::class, 'store'])
+        ->name('classes.etudiants.store');
+
+    Route::put('/cours/{cours}/classes/{classe}/etudiants/{etudiant}', [ClasseEtudiantController::class, 'update'])
+        ->name('classes.etudiants.update');
+
+    Route::delete('/cours/{cours}/classes/{classe}/etudiants/{etudiant}', [ClasseEtudiantController::class, 'destroy'])
+        ->name('classes.etudiants.destroy');
+
+    Route::post('/cours/{cours}/classes/{classe}/etudiants/import', [ClasseEtudiantController::class, 'import'])
+        ->name('classes.etudiants.import');
 
     // Assignation d'un témoin à un groupe (enseignant/admin)
     Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/temoin', [GroupeController::class, 'assignerTemoin'])

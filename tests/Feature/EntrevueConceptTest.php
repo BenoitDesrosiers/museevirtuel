@@ -4,6 +4,7 @@ use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\EntrevueConcept;
 use App\Models\EntrevueLigne;
+use App\Models\Groupe;
 use App\Models\ProjetRecherche;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetSection;
@@ -12,10 +13,10 @@ use App\Models\User;
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Crée un scénario : enseignant, classe, groupe, étudiant membre,
+ * Crée un scénario : enseignant, section de cours, groupe, étudiant membre,
  * typeProjet avec une section de type 'entrevue', et un projet.
  *
- * @return array{enseignant: User, etudiant: User, cours: Cours, classe: Classe, typeProjet: TypeProjet, section: TypeProjetSection, projet: ProjetRecherche}
+ * @return array{enseignant: User, etudiant: User, cours: Cours, classeSection: Classe, classe: Groupe, typeProjet: TypeProjet, section: TypeProjetSection, projet: ProjetRecherche}
  */
 function creerScenarioEntrevue(): array
 {
@@ -29,9 +30,11 @@ function creerScenarioEntrevue(): array
         'groupe' => '01',
         'enseignant_id' => $enseignant->id,
     ]);
-    $cours->etudiants()->attach($etudiant->id);
 
-    $classe = Classe::create(['cours_id' => $cours->id, 'created_by' => $etudiant->id]);
+    $classeSection = Classe::create(['cours_id' => $cours->id]);
+    $classeSection->etudiants()->attach($etudiant->id);
+
+    $classe = Groupe::create(['classe_id' => $classeSection->id, 'created_by' => $etudiant->id]);
     $classe->membres()->attach($etudiant->id);
 
     $typeProjet = TypeProjet::create([
@@ -48,28 +51,28 @@ function creerScenarioEntrevue(): array
     ]);
 
     $projet = ProjetRecherche::create([
-        'classe_id' => $classe->id,
+        'groupe_id' => $classe->id,
         'type_projet_id' => $typeProjet->id,
     ]);
 
-    return compact('enseignant', 'etudiant', 'cours', 'classe', 'typeProjet', 'section', 'projet');
+    return compact('enseignant', 'etudiant', 'cours', 'classeSection', 'classe', 'typeProjet', 'section', 'projet');
 }
 
 /**
  * Retourne l'URL de base pour les routes concepts.
  */
-function urlConcepts(Cours $cours, Classe $classe, TypeProjet $typeProjet, TypeProjetSection $section): string
+function urlConcepts(Cours $cours, Classe $classeSection, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): string
 {
-    return "/cours/{$cours->id}/classes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/concepts";
+    return "/cours/{$cours->id}/classes/{$classeSection->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/sections/{$section->id}/concepts";
 }
 
 // ─── store() — Créer un concept ───────────────────────────────────────────────
 
 test('un membre peut créer un concept dans une section entrevue', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section] = creerScenarioEntrevue();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section] = creerScenarioEntrevue();
 
     $response = $this->actingAs($etudiant)
-        ->postJson(urlConcepts($cours, $classe, $typeProjet, $section), ['label' => 'Pratique religieuse']);
+        ->postJson(urlConcepts($cours, $cs, $classe, $typeProjet, $section), ['label' => 'Pratique religieuse']);
 
     $response->assertCreated()
         ->assertJsonFragment(['message' => 'created'])
@@ -83,30 +86,29 @@ test('un membre peut créer un concept dans une section entrevue', function () {
 });
 
 test("l'ordre s'incrémente automatiquement", function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
 
     EntrevueConcept::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'label' => 'Premier', 'ordre' => 1]);
 
     $response = $this->actingAs($etudiant)
-        ->postJson(urlConcepts($cours, $classe, $typeProjet, $section), ['label' => 'Deuxième']);
+        ->postJson(urlConcepts($cours, $cs, $classe, $typeProjet, $section), ['label' => 'Deuxième']);
 
     $response->assertCreated()
         ->assertJsonPath('concept.ordre', 2);
 });
 
 test('un non-membre ne peut pas créer un concept (403)', function () {
-    ['cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section] = creerScenarioEntrevue();
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section] = creerScenarioEntrevue();
 
     $etranger = User::factory()->create(['role' => 'etudiant']);
-    $cours->etudiants()->attach($etranger->id);
 
     $this->actingAs($etranger)
-        ->postJson(urlConcepts($cours, $classe, $typeProjet, $section), ['label' => 'Tentative'])
+        ->postJson(urlConcepts($cours, $cs, $classe, $typeProjet, $section), ['label' => 'Tentative'])
         ->assertForbidden();
 });
 
 test('une section de type texte refuse la création de concepts (422)', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenarioEntrevue();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenarioEntrevue();
 
     $sectionTexte = TypeProjetSection::create([
         'type_projet_id' => $typeProjet->id,
@@ -116,29 +118,29 @@ test('une section de type texte refuse la création de concepts (422)', function
     ]);
 
     $this->actingAs($etudiant)
-        ->postJson(urlConcepts($cours, $classe, $typeProjet, $sectionTexte), ['label' => 'Tentative'])
+        ->postJson(urlConcepts($cours, $cs, $classe, $typeProjet, $sectionTexte), ['label' => 'Tentative'])
         ->assertUnprocessable();
 });
 
 test('un document verrouillé refuse la création de concepts (403)', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
 
     $projet->update(['verrouille' => true]);
 
     $this->actingAs($etudiant)
-        ->postJson(urlConcepts($cours, $classe, $typeProjet, $section), ['label' => 'Tentative'])
+        ->postJson(urlConcepts($cours, $cs, $classe, $typeProjet, $section), ['label' => 'Tentative'])
         ->assertForbidden();
 });
 
 // ─── update() — Mettre à jour le label ────────────────────────────────────────
 
 test("un membre peut mettre à jour le label d'un concept", function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
 
     $concept = EntrevueConcept::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'label' => 'Ancien label', 'ordre' => 1]);
 
     $this->actingAs($etudiant)
-        ->patchJson(urlConcepts($cours, $classe, $typeProjet, $section)."/{$concept->id}", ['label' => 'Nouveau label'])
+        ->patchJson(urlConcepts($cours, $cs, $classe, $typeProjet, $section)."/{$concept->id}", ['label' => 'Nouveau label'])
         ->assertOk()
         ->assertJsonFragment(['message' => 'saved']);
 
@@ -146,7 +148,7 @@ test("un membre peut mettre à jour le label d'un concept", function () {
 });
 
 test("un concept d'une autre section est refusé à la mise à jour (404)", function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
 
     $autreSection = TypeProjetSection::create([
         'type_projet_id' => $typeProjet->id,
@@ -159,19 +161,19 @@ test("un concept d'une autre section est refusé à la mise à jour (404)", func
 
     // Tente de modifier un concept qui n'appartient pas à la section passée en URL
     $this->actingAs($etudiant)
-        ->patchJson(urlConcepts($cours, $classe, $typeProjet, $section)."/{$conceptAutre->id}", ['label' => 'Hack'])
+        ->patchJson(urlConcepts($cours, $cs, $classe, $typeProjet, $section)."/{$conceptAutre->id}", ['label' => 'Hack'])
         ->assertNotFound();
 });
 
 // ─── destroy() — Supprimer un concept ─────────────────────────────────────────
 
 test('un membre peut supprimer un concept', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
 
     $concept = EntrevueConcept::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'label' => 'À supprimer', 'ordre' => 1]);
 
     $this->actingAs($etudiant)
-        ->deleteJson(urlConcepts($cours, $classe, $typeProjet, $section)."/{$concept->id}")
+        ->deleteJson(urlConcepts($cours, $cs, $classe, $typeProjet, $section)."/{$concept->id}")
         ->assertOk()
         ->assertJsonFragment(['message' => 'deleted']);
 
@@ -179,14 +181,14 @@ test('un membre peut supprimer un concept', function () {
 });
 
 test('supprimer un concept réordonne les suivants', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
 
     $c1 = EntrevueConcept::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'label' => 'C1', 'ordre' => 1]);
     $c2 = EntrevueConcept::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'label' => 'C2', 'ordre' => 2]);
     $c3 = EntrevueConcept::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'label' => 'C3', 'ordre' => 3]);
 
     $this->actingAs($etudiant)
-        ->deleteJson(urlConcepts($cours, $classe, $typeProjet, $section)."/{$c1->id}");
+        ->deleteJson(urlConcepts($cours, $cs, $classe, $typeProjet, $section)."/{$c1->id}");
 
     expect($c2->fresh()->ordre)->toBe(1)
         ->and($c3->fresh()->ordre)->toBe(2);
@@ -195,13 +197,13 @@ test('supprimer un concept réordonne les suivants', function () {
 // ─── reorder() ────────────────────────────────────────────────────────────────
 
 test('un membre peut réordonner les concepts', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
 
     $c1 = EntrevueConcept::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'label' => 'C1', 'ordre' => 1]);
     $c2 = EntrevueConcept::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'label' => 'C2', 'ordre' => 2]);
 
     $this->actingAs($etudiant)
-        ->patchJson(urlConcepts($cours, $classe, $typeProjet, $section).'/reorder', [
+        ->patchJson(urlConcepts($cours, $cs, $classe, $typeProjet, $section).'/reorder', [
             'ordre' => [$c2->id, $c1->id],
         ])
         ->assertOk()
@@ -214,12 +216,12 @@ test('un membre peut réordonner les concepts', function () {
 // ─── storeLigne() ─────────────────────────────────────────────────────────────
 
 test('un membre peut ajouter une ligne à un concept', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
 
     $concept = EntrevueConcept::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'label' => 'Concept', 'ordre' => 1]);
 
     $response = $this->actingAs($etudiant)
-        ->postJson(urlConcepts($cours, $classe, $typeProjet, $section)."/{$concept->id}/lignes");
+        ->postJson(urlConcepts($cours, $cs, $classe, $typeProjet, $section)."/{$concept->id}/lignes");
 
     $response->assertCreated()
         ->assertJsonFragment(['message' => 'created'])
@@ -231,14 +233,14 @@ test('un membre peut ajouter une ligne à un concept', function () {
 // ─── updateLigne() ────────────────────────────────────────────────────────────
 
 test('un membre peut mettre à jour une ligne (dimension/indicateur/questions)', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
 
     $concept = EntrevueConcept::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'label' => 'Concept', 'ordre' => 1]);
     $ligne = EntrevueLigne::create(['concept_id' => $concept->id, 'ordre' => 1, 'questions' => []]);
 
     $this->actingAs($etudiant)
         ->patchJson(
-            urlConcepts($cours, $classe, $typeProjet, $section)."/{$concept->id}/lignes/{$ligne->id}",
+            urlConcepts($cours, $cs, $classe, $typeProjet, $section)."/{$concept->id}/lignes/{$ligne->id}",
             [
                 'dimension' => 'Fréquence de pratique',
                 'indicateur' => 'Présence à la messe',
@@ -255,7 +257,7 @@ test('un membre peut mettre à jour une ligne (dimension/indicateur/questions)',
 });
 
 test('une ligne appartenant à un autre concept est refusée (404)', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
 
     $concept1 = EntrevueConcept::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'label' => 'C1', 'ordre' => 1]);
     $concept2 = EntrevueConcept::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'label' => 'C2', 'ordre' => 2]);
@@ -264,7 +266,7 @@ test('une ligne appartenant à un autre concept est refusée (404)', function ()
     // Tente de mettre à jour la ligne de concept2 via les routes de concept1
     $this->actingAs($etudiant)
         ->patchJson(
-            urlConcepts($cours, $classe, $typeProjet, $section)."/{$concept1->id}/lignes/{$ligne->id}",
+            urlConcepts($cours, $cs, $classe, $typeProjet, $section)."/{$concept1->id}/lignes/{$ligne->id}",
             ['dimension' => 'Hack']
         )
         ->assertNotFound();
@@ -273,13 +275,13 @@ test('une ligne appartenant à un autre concept est refusée (404)', function ()
 // ─── destroyLigne() ───────────────────────────────────────────────────────────
 
 test('un membre peut supprimer une ligne', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
 
     $concept = EntrevueConcept::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'label' => 'C', 'ordre' => 1]);
     $ligne = EntrevueLigne::create(['concept_id' => $concept->id, 'ordre' => 1, 'questions' => []]);
 
     $this->actingAs($etudiant)
-        ->deleteJson(urlConcepts($cours, $classe, $typeProjet, $section)."/{$concept->id}/lignes/{$ligne->id}")
+        ->deleteJson(urlConcepts($cours, $cs, $classe, $typeProjet, $section)."/{$concept->id}/lignes/{$ligne->id}")
         ->assertOk()
         ->assertJsonFragment(['message' => 'deleted']);
 
@@ -287,7 +289,7 @@ test('un membre peut supprimer une ligne', function () {
 });
 
 test('supprimer une ligne réordonne les suivantes', function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
 
     $concept = EntrevueConcept::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'label' => 'C', 'ordre' => 1]);
     $l1 = EntrevueLigne::create(['concept_id' => $concept->id, 'ordre' => 1, 'questions' => []]);
@@ -295,7 +297,7 @@ test('supprimer une ligne réordonne les suivantes', function () {
     $l3 = EntrevueLigne::create(['concept_id' => $concept->id, 'ordre' => 3, 'questions' => []]);
 
     $this->actingAs($etudiant)
-        ->deleteJson(urlConcepts($cours, $classe, $typeProjet, $section)."/{$concept->id}/lignes/{$l1->id}");
+        ->deleteJson(urlConcepts($cours, $cs, $classe, $typeProjet, $section)."/{$concept->id}/lignes/{$l1->id}");
 
     expect($l2->fresh()->ordre)->toBe(1)
         ->and($l3->fresh()->ordre)->toBe(2);
@@ -304,7 +306,7 @@ test('supprimer une ligne réordonne les suivantes', function () {
 // ─── Sécurité IDOR — TypeProjet d'un autre enseignant ─────────────────────────
 
 test("un type de projet d'un autre enseignant est refusé (404)", function () {
-    ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'section' => $section] = creerScenarioEntrevue();
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'section' => $section] = creerScenarioEntrevue();
 
     $autreEnseignant = User::factory()->create(['role' => 'enseignant']);
     $autreTypeProjet = TypeProjet::create([
@@ -315,7 +317,7 @@ test("un type de projet d'un autre enseignant est refusé (404)", function () {
 
     $this->actingAs($etudiant)
         ->postJson(
-            "/cours/{$cours->id}/classes/{$classe->id}/projets/{$autreTypeProjet->id}/sections/{$section->id}/concepts",
+            "/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$autreTypeProjet->id}/sections/{$section->id}/concepts",
             ['label' => 'IDOR']
         )
         ->assertNotFound();

@@ -206,7 +206,7 @@ function submitThematiques() {
             thematiques: thematiquesSelectionnees.value,
         }))
         .put(
-            `/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/thematiques`,
+            `/cours/${props.cours.id}/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/thematiques`,
             {
                 preserveScroll: true,
                 onSuccess: () => {
@@ -243,7 +243,7 @@ function handleMediaChange(e: Event) {
 
     if (input.files && input.files[0]) {
         mediaForm.fichier = input.files[0];
-        mediaForm.post(`/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/medias`, {
+        mediaForm.post(`/cours/${props.cours.id}/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/medias`, {
             onSuccess: () => {
                 mediaForm.reset();
 
@@ -264,7 +264,7 @@ return;
 }
 
     deleteMediaForm.delete(
-        `/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/medias/${media.id}`,
+        `/cours/${props.cours.id}/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/medias/${media.id}`,
     );
 }
 
@@ -323,7 +323,7 @@ const temoinForm = useForm({
 });
 
 function submitTemoin() {
-    temoinForm.put(`/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/temoin`, {
+    temoinForm.put(`/cours/${props.cours.id}/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/temoin`, {
         preserveScroll: true,
     });
 }
@@ -365,7 +365,7 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
             <!-- Retour -->
             <div>
                 <Button variant="ghost" size="sm" as-child>
-                    <Link :href="`/classes/${groupe.classe_id}/groupes`">
+                    <Link :href="`/cours/${cours.id}/classes/${groupe.classe_id}/groupes`">
                         <ArrowLeft class="mr-2 h-4 w-4" />
                         {{ $t('groupes.show.back') }}
                     </Link>
@@ -381,13 +381,13 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
             <!-- Liens rapides -->
             <div class="flex flex-wrap gap-2">
                 <Button variant="outline" as-child>
-                    <Link :href="`/classes/${groupe.classe_id}/groupes/${groupe.id}/projets`">
+                    <Link :href="`/cours/${cours.id}/classes/${groupe.classe_id}/groupes/${groupe.id}/projets`">
                         <BookOpen class="mr-2 h-4 w-4" />
                         Projets
                     </Link>
                 </Button>
                 <Button v-if="groupe.temoin || estMembre || estEnseignant" variant="outline" as-child>
-                    <Link :href="`/classes/${groupe.classe_id}/groupes/${groupe.id}/echanges`">
+                    <Link :href="`/cours/${cours.id}/classes/${groupe.classe_id}/groupes/${groupe.id}/echanges`">
                         <MessageSquare class="mr-2 h-4 w-4" />
                         Échanges avec le témoin
                         <span v-if="groupe.temoin" class="ml-1 text-xs text-muted-foreground">

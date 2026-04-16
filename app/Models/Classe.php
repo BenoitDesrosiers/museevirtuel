@@ -13,19 +13,27 @@ class Classe extends Model
 
     protected $fillable = [
         'cours_id',
+        'numero',
         'code',
         'nom',
+        'jour_semaine',
+        'plage_horaire',
     ];
 
     /**
-     * Génère automatiquement un code unique à la création si non fourni.
+     * Aligne automatiquement le code avec le cours et génère le numéro si absent.
      */
     protected static function booted(): void
     {
         static::creating(function (self $classe) {
-            if (empty($classe->code)) {
-                $n = static::where('cours_id', $classe->cours_id)->count() + 1;
-                $classe->code = sprintf('CL-%d-%02d', $classe->cours_id, $n);
+            $coursCode = Cours::query()->whereKey($classe->cours_id)->value('code');
+            if ($coursCode !== null) {
+                $classe->code = $coursCode;
+            }
+
+            if (empty($classe->numero)) {
+                $n = static::query()->where('cours_id', $classe->cours_id)->count() + 1;
+                $classe->numero = str_pad((string) $n, 5, '0', STR_PAD_LEFT);
             }
         });
     }

@@ -9,6 +9,7 @@ use App\Models\EntrevueLigne;
 use App\Models\GrilleCorrection;
 use App\Models\GrilleCritere;
 use App\Models\GrilleMalus;
+use App\Models\Groupe;
 use App\Models\ProjetConclusion;
 use App\Models\ProjetRecherche;
 use App\Models\ProjetSectionContenu;
@@ -104,7 +105,7 @@ class DemoSeeder extends Seeder
         /** @var User[] $etudiants */
         $etudiants = [];
         foreach ($etudiantsData as $data) {
-            $etudiant = User::updateOrCreate(
+            $etudiants[] = User::updateOrCreate(
                 ['email' => $data['email']],
                 [
                     'prenom' => $data['prenom'],
@@ -115,29 +116,36 @@ class DemoSeeder extends Seeder
                     'email_verified_at' => now(),
                 ]
             );
-
-            // Inscrire dans le cours si pas encore inscrit dans un quelconque cours
-            if (! $cours->etudiants()->whereKey($etudiant->id)->exists()
-                && ! $etudiant->coursInscrits()->exists()
-            ) {
-                $cours->etudiants()->attach($etudiant->id, ['statut_cours' => 'Actif']);
-            }
-
-            $etudiants[] = $etudiant;
         }
 
-        // ─── Classe ───────────────────────────────────────────────────────────
+        // ─── Classe (section du cours) ────────────────────────────────────────
         /** @var Classe $classe */
         $classe = $cours->classes()->firstOrCreate(
-            ['created_by' => $etudiants[0]->id],
+            ['numero' => '00001'],
             [
                 'cours_id' => $cours->id,
-                'created_by' => $etudiants[0]->id,
+                'numero' => '00001',
+                'code' => $cours->code,
+                'nom' => 'Classe 00001',
+                'jour_semaine' => 'Lundi',
+                'plage_horaire' => '08:30 - 11:30',
             ]
         );
 
-        $classe->membres()->syncWithoutDetaching(array_map(fn ($e) => $e->id, $etudiants));
-        $classe->thematiques()->syncWithoutDetaching([$thematique->id]);
+        // Inscrire les étudiants dans la section (classe_etudiant)
+        $classe->etudiants()->syncWithoutDetaching(
+            collect($etudiants)->mapWithKeys(fn ($e) => [$e->id => ['statut_cours' => 'Actif']])->all()
+        );
+
+        // ─── Groupe (équipe dans la section) ──────────────────────────────────
+        /** @var Groupe $groupe */
+        $groupe = $classe->groupes()->firstOrCreate(
+            ['created_by' => $etudiants[0]->id],
+            ['classe_id' => $classe->id, 'created_by' => $etudiants[0]->id]
+        );
+
+        $groupe->membres()->syncWithoutDetaching(array_map(fn ($e) => $e->id, $etudiants));
+        $groupe->thematiques()->syncWithoutDetaching([$thematique->id]);
 
         // ─── TypeProjet ───────────────────────────────────────────────────────
         /** @var TypeProjet $typeProjet */
@@ -202,7 +210,7 @@ class DemoSeeder extends Seeder
         // ─── Projet de recherche ──────────────────────────────────────────────
         /** @var ProjetRecherche $projet */
         $projet = ProjetRecherche::firstOrCreate(
-            ['classe_id' => $classe->id, 'type_projet_id' => $typeProjet->id],
+            ['groupe_id' => $groupe->id, 'type_projet_id' => $typeProjet->id],
             ['titre_projet' => 'La Révolution tranquille : rupture ou continuité dans l\'histoire du Québec ?']
         );
 
@@ -343,7 +351,7 @@ class DemoSeeder extends Seeder
         // Projet schéma d'entrevue pour la classe démo
         /** @var ProjetRecherche $projetEntrevue */
         $projetEntrevue = ProjetRecherche::updateOrCreate(
-            ['classe_id' => $classe->id, 'type_projet_id' => $typeProjetEntrevue->id],
+            ['groupe_id' => $groupe->id, 'type_projet_id' => $typeProjetEntrevue->id],
             ['titre_projet' => 'Entrevue avec un témoin de la Révolution tranquille']
         );
 

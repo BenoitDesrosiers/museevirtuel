@@ -15,7 +15,7 @@ type User = {
     nom: string;
 };
 
-type Classe = {
+type Cours = {
     id: number;
     nom_cours: string;
     code: string;
@@ -23,8 +23,11 @@ type Classe = {
 
 type GroupeAssigne = {
     id: number;
+    code: string;
     numero: number;
-    classe: Classe;
+    cours_id: number;
+    classe_id: number;
+    cours: Cours | null;
     membres: User[];
     nb_echanges: number;
 };
@@ -74,7 +77,7 @@ const user = computed(() => page.props.auth?.user as { prenom: string; nom: stri
                             {{ $t('personne_agee.group_number', { n: groupe.numero }) }}
                         </CardTitle>
                         <p class="text-muted-foreground text-sm">
-                            {{ groupe.classe.code }} — {{ groupe.classe.nom_cours }}
+                            {{ groupe.cours?.code }} — {{ groupe.cours?.nom_cours }}
                         </p>
                     </CardHeader>
                     <CardContent class="flex flex-1 flex-col gap-4">
@@ -101,7 +104,7 @@ const user = computed(() => page.props.auth?.user as { prenom: string; nom: stri
                         <!-- Bouton échanges -->
                         <div class="mt-auto">
                             <Button class="w-full" as-child>
-                                <Link :href="`/classes/${groupe.classe.id}/groupes/${groupe.id}/echanges`">
+                                <Link :href="`/cours/${groupe.cours_id}/classes/${groupe.classe_id}/groupes/${groupe.id}/echanges`">
                                     <MessageSquare class="mr-2 h-4 w-4" />
                                     {{ $t('personne_agee.see_exchanges') }}
                                     <span

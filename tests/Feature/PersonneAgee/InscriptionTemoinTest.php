@@ -161,5 +161,5 @@ test('une personne âgée approuvée peut se connecter et est redirigée vers sa
     $this->assertAuthenticated();
 
     $this->get(route('dashboard'))
-        ->assertRedirect(route('personne-agee.index'));
+        ->assertRedirect(route('temoin.index'));
 });

@@ -155,8 +155,8 @@
             "my_sections": "Mes sections"
         },
         "show": {
-            "classes_title": "Classes (sections)",
-            "no_classes": "Aucune section pour l'instant.",
+            "classes_title": "Classes",
+            "no_classes": "Aucune classe pour l'instant.",
             "classes_see": "Voir"
         },
         "classes": {
@@ -164,7 +164,10 @@
             "back": "Retour à mes cours",
             "no_classes": "Vous n'êtes inscrit à aucune section de ce cours.",
             "groups_count": "{n} groupe(s)",
-            "my_group": "Mon groupe"
+            "my_group": "Mon groupe",
+            "schedule_title": "Échéancier du cours",
+            "schedule_empty": "Aucune étape dans l'échéancier.",
+            "schedule_week": "Semaine {n}"
         }
     },
     "groupes": {
@@ -417,7 +420,8 @@
             "password_label": "Mot de passe",
             "password_placeholder": "Mot de passe",
             "cancel": "Annuler",
-            "confirm": "Supprimer le compte"
+            "confirm": "Supprimer le compte",
+            "locked_by_groupe": "La suppression de votre compte n'est pas possible car vous êtes actuellement assigné à un groupe actif. Contactez un administrateur pour retirer cette association."
         }
     },
     "common": {

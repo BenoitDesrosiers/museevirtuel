@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Classe;
 use App\Models\Cours;
+use App\Models\EcheancierEtudiantProgress;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -33,12 +35,28 @@ class ClasseController extends Controller
         $classes = $cours->classes()
             ->whereHas('etudiants', fn ($q) => $q->where('users.id', $user->id))
             ->withCount('groupes')
-            ->orderBy('code')
-            ->get(['id', 'code', 'nom', 'cours_id']);
+            ->orderBy('numero')
+            ->get(['id', 'numero', 'code', 'nom', 'jour_semaine', 'plage_horaire', 'cours_id']);
+
+        $etapes = $cours->echeancierEtapes()->get();
+
+        $progressions = EcheancierEtudiantProgress::whereIn('echeancier_etape_id', $etapes->pluck('id'))
+            ->where('user_id', $user->id)
+            ->pluck('is_done', 'echeancier_etape_id');
+
+        $echeancierEtapes = $etapes->map(fn ($etape) => [
+            'id' => $etape->id,
+            'semaine' => $etape->semaine,
+            'etape' => $etape->etape,
+            'is_done' => $etape->is_done,
+            'ordre' => $etape->ordre,
+            'etudiant_done' => (bool) ($progressions[$etape->id] ?? false),
+        ]);
 
         return Inertia::render('Cours/Classes', [
             'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
             'classes' => $classes,
+            'echeancierEtapes' => $echeancierEtapes,
         ]);
     }
 
@@ -60,7 +78,12 @@ class ClasseController extends Controller
         $user = auth()->user();
         $estEnseignant = $cours->enseignant_id === $user->id;
 
-        $classe->load(['groupes.membres', 'groupes.thematiques', 'groupes.temoin', 'etudiants']);
+        $classe->load([
+            'groupes.membres',
+            'groupes.thematiques',
+            'groupes.temoin',
+            'etudiants' => fn ($query) => $query->withPivot('statut_cours'),
+        ]);
 
         return Inertia::render('Classes/Show', [
             'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
@@ -81,16 +104,18 @@ class ClasseController extends Controller
         $this->authorize('update', $cours);
 
         $validated = $request->validate([
-            'code' => ['nullable', 'string', 'max:20'],
+            'numero' => ['required', 'string', 'size:5', 'regex:/^\d{5}$/', Rule::unique('classes')->where(fn ($q) => $q->where('cours_id', $cours->id))],
             'nom' => ['nullable', 'string', 'max:100'],
+            'jour_semaine' => ['nullable', 'string', 'max:20'],
+            'plage_horaire' => ['nullable', 'string', 'max:50'],
         ]);
 
         Classe::create(array_merge(
-            ['cours_id' => $cours->id],
+            ['cours_id' => $cours->id, 'code' => $cours->code],
             array_filter($validated, fn ($v) => $v !== null)
         ));
 
-        return back()->with('success', 'Section créée.');
+        return back()->with('success', 'Classe créée.');
     }
 
     /**
@@ -107,13 +132,15 @@ class ClasseController extends Controller
         $this->authorize('update', $classe);
 
         $validated = $request->validate([
-            'code' => ['nullable', 'string', 'max:20'],
+            'numero' => ['required', 'string', 'size:5', 'regex:/^\d{5}$/', Rule::unique('classes')->where(fn ($q) => $q->where('cours_id', $cours->id))->ignore($classe->id)],
             'nom' => ['nullable', 'string', 'max:100'],
+            'jour_semaine' => ['nullable', 'string', 'max:20'],
+            'plage_horaire' => ['nullable', 'string', 'max:50'],
         ]);
 
-        $classe->update($validated);
+        $classe->update(array_merge($validated, ['code' => $cours->code]));
 
-        return back()->with('success', 'Section mise à jour.');
+        return back()->with('success', 'Classe mise à jour.');
     }
 
     /**
@@ -133,6 +160,6 @@ class ClasseController extends Controller
 
         $classe->delete();
 
-        return redirect()->route('cours.show', $cours)->with('success', 'Section supprimée.');
+        return redirect()->route('cours.show', $cours)->with('success', 'Classe supprimée.');
     }
 }
