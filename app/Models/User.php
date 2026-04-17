@@ -27,6 +27,7 @@ class User extends Authenticatable
         'locale',
         'statut',
         'approuve_par_id',
+        'etablissement_id',
         'description',
         'provenance',
         'thematique_id',
@@ -170,5 +171,18 @@ class User extends Authenticatable
     public function approuveParEnseignant(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approuve_par_id');
+    }
+
+    // Établissement auquel appartient l'enseignant ou qu'a choisi la personne âgée
+    public function etablissement(): BelongsTo
+    {
+        return $this->belongsTo(Etablissement::class);
+    }
+
+    // Établissements choisis par la personne âgée lors de l'inscription (avec thème libre par cégep)
+    public function etablissementsChoisis(): BelongsToMany
+    {
+        return $this->belongsToMany(Etablissement::class, 'user_etablissement')
+            ->withPivot('theme_libre');
     }
 }

@@ -27,6 +27,14 @@ class TypeProjetController extends Controller
     }
 
     /**
+     * Affiche la page de création d'un type de projet.
+     */
+    public function create(): Response
+    {
+        return Inertia::render('TypeProjet/Create');
+    }
+
+    /**
      * Affiche la page d'édition dédiée d'un type de projet.
      */
     public function edit(TypeProjet $typeProjet): Response
@@ -53,6 +61,8 @@ class TypeProjetController extends Controller
             'date_remise' => ['nullable', 'date'],
             'remises_multiples' => ['boolean'],
             'retard_permis' => ['boolean'],
+            'generer_page_titre' => ['boolean'],
+            'generer_table_matieres' => ['boolean'],
             'sections' => ['nullable', 'array'],
             'sections.*.label' => ['required', 'string', 'max:200'],
             'sections.*.description' => ['nullable', 'string', 'max:1000'],
@@ -67,6 +77,8 @@ class TypeProjetController extends Controller
             'date_remise' => $data['date_remise'] ?? null,
             'remises_multiples' => $data['remises_multiples'] ?? false,
             'retard_permis' => $data['retard_permis'] ?? false,
+            'generer_page_titre' => $data['generer_page_titre'] ?? true,
+            'generer_table_matieres' => $data['generer_table_matieres'] ?? true,
         ]);
 
         foreach ($data['sections'] ?? [] as $index => $section) {
@@ -78,7 +90,8 @@ class TypeProjetController extends Controller
             ]);
         }
 
-        return back()->with('success', 'Type de projet créé.');
+        return redirect()->route('types-projets.edit', $typeProjet)
+            ->with('success', 'Type de projet créé.');
     }
 
     /**
@@ -99,6 +112,8 @@ class TypeProjetController extends Controller
             'date_remise' => ['nullable', 'date'],
             'remises_multiples' => ['boolean'],
             'retard_permis' => ['boolean'],
+            'generer_page_titre' => ['boolean'],
+            'generer_table_matieres' => ['boolean'],
             'sections' => ['nullable', 'array'],
             'sections.*.id' => ['nullable', 'integer'],
             'sections.*.label' => ['required', 'string', 'max:200'],
@@ -112,6 +127,8 @@ class TypeProjetController extends Controller
             'date_remise' => $data['date_remise'] ?? null,
             'remises_multiples' => $data['remises_multiples'] ?? false,
             'retard_permis' => $data['retard_permis'] ?? false,
+            'generer_page_titre' => $data['generer_page_titre'] ?? $typeProjet->generer_page_titre,
+            'generer_table_matieres' => $data['generer_table_matieres'] ?? $typeProjet->generer_table_matieres,
         ]);
 
         if ($request->has('sections')) {

@@ -19,26 +19,9 @@ const { t } = useI18n();
 type SectionType = 'texte' | 'paragraphes' | 'individuel' | 'entrevue';
 
 type SectionFormItem = {
-    id?: number;
     label: string;
     description: string;
     type: SectionType;
-};
-
-type TypeProjet = {
-    id: number;
-    nom: string;
-    description: string | null;
-    date_remise: string | null;
-    remises_multiples: boolean;
-    retard_permis: boolean;
-    generer_page_titre: boolean;
-    generer_table_matieres: boolean;
-    sections: { id: number; label: string; description: string | null; ordre: number; type: SectionType }[];
-};
-
-type Props = {
-    typeProjet: TypeProjet;
 };
 
 const sectionTypes = computed<{ value: SectionType; label: string; description: string }[]>(() => [
@@ -64,30 +47,15 @@ const sectionTypes = computed<{ value: SectionType; label: string; description: 
     },
 ]);
 
-const props = defineProps<Props>();
-
-/**
- * Convertit une date ISO en format attendu par datetime-local (YYYY-MM-DDTHH:mm).
- */
-function toDatetimeLocal(iso: string | null | undefined): string {
-    if (!iso) return '';
-    return iso.slice(0, 16);
-}
-
 const form = useForm({
-    nom: props.typeProjet.nom,
-    description: props.typeProjet.description ?? '',
-    date_remise: toDatetimeLocal(props.typeProjet.date_remise),
-    remises_multiples: props.typeProjet.remises_multiples,
-    retard_permis: props.typeProjet.retard_permis,
-    generer_page_titre: props.typeProjet.generer_page_titre,
-    generer_table_matieres: props.typeProjet.generer_table_matieres,
-    sections: props.typeProjet.sections.map<SectionFormItem>((s) => ({
-        id: s.id,
-        label: s.label,
-        description: s.description ?? '',
-        type: s.type ?? 'texte',
-    })),
+    nom: '',
+    description: '',
+    date_remise: '',
+    remises_multiples: false,
+    retard_permis: false,
+    generer_page_titre: true,
+    generer_table_matieres: true,
+    sections: [] as SectionFormItem[],
 });
 
 /**
@@ -105,20 +73,16 @@ function supprimerSection(idx: number) {
 }
 
 /**
- * Soumet le formulaire complet via PUT.
+ * Soumet le formulaire de création via POST.
  */
-function sauvegarder() {
-    form.put(typesProjets.update.url(props.typeProjet.id), {
-        onSuccess: () => {
-            // Reste sur la page — le flash success s'affiche via Inertia
-        },
-    });
+function creer() {
+    form.post(typesProjets.store.url());
 }
 </script>
 
 <template>
     <AppLayout>
-        <Head :title="`${$t('types_projet.edit.heading_title')} — ${props.typeProjet.nom}`" />
+        <Head :title="$t('types_projet.create.page_title')" />
 
         <div class="mx-auto flex max-w-2xl flex-col gap-6 p-6">
             <!-- En-tête -->
@@ -128,9 +92,9 @@ function sauvegarder() {
                     class="mb-3 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
                 >
                     <ArrowLeft class="h-3.5 w-3.5" />
-                    {{ $t('types_projet.edit.back') }}
+                    {{ $t('types_projet.create.back') }}
                 </Link>
-                <Heading :title="$t('types_projet.edit.heading_title')" />
+                <Heading :title="$t('types_projet.create.heading_title')" />
             </div>
 
             <!-- Informations générales -->
@@ -246,7 +210,7 @@ function sauvegarder() {
                 <!-- Liste des sections -->
                 <Card
                     v-for="(section, idx) in form.sections"
-                    :key="section.id ?? `new-${idx}`"
+                    :key="`new-${idx}`"
                     class="border"
                 >
                     <CardContent class="grid gap-4 pt-5">
@@ -306,10 +270,10 @@ function sauvegarder() {
                 </Card>
             </div>
 
-            <!-- Bouton enregistrer -->
+            <!-- Bouton créer -->
             <div class="flex justify-end">
-                <Button :disabled="form.processing" @click="sauvegarder">
-                    {{ form.processing ? $t('types_projet.edit.save_btn_saving') : $t('types_projet.edit.save_btn') }}
+                <Button :disabled="form.processing" @click="creer">
+                    {{ form.processing ? $t('types_projet.create.save_btn_saving') : $t('types_projet.create.save_btn') }}
                 </Button>
             </div>
         </div>

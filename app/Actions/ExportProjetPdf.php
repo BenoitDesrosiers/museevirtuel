@@ -35,6 +35,8 @@ class ExportProjetPdf
             'contenu' => HtmlHelper::stripAnnotationMarks($contenusParSection->get($s->id)?->contenu),
         ])->values();
 
+        $typeProjet = $projet->typeProjet;
+
         $pdf = Pdf::loadView('projets.export', [
             'projet' => $projet,
             'groupe' => $groupe,
@@ -42,6 +44,8 @@ class ExportProjetPdf
             'enseignant' => $enseignant,
             'membres' => $membres,
             'sections' => $sectionsAvecContenu,
+            'genererPageTitre' => $typeProjet?->generer_page_titre ?? true,
+            'genererTableMatieres' => $typeProjet?->generer_table_matieres ?? true,
             // Les conclusions sont chargées via $projet->conclusions (relation)
             // Closure exposée à la vue Blade pour nettoyer les marques d'annotation
             'stripMarks' => fn (?string $html): string => HtmlHelper::stripAnnotationMarks($html),

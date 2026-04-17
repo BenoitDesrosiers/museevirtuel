@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
         $this->call(DemoSeeder::class);
         $this->call(EcheancierEtapesSeeder::class);
         $this->call(GrilleCorrectionSeeder::class);
+        $this->call(EtablissementSeeder::class);
         $this->call(TemoinSeeder::class);
 
         $enseignant = User::where('role', 'enseignant')->first();

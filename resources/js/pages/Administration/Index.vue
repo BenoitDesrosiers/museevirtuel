@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3';
-import { CheckCircle, Pencil, Plus, Trash2, Users } from 'lucide-vue-next';
+import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Building2, CheckCircle, Pencil, Plus, Trash2, Users } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import FormDialog from '@/components/FormDialog.vue';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { approuver } from '@/routes/administration/temoins';
 
@@ -18,7 +19,17 @@ type Enseignant = {
     prenom: string;
     nom: string;
     email: string;
-    classes_count: number;
+    cours_count: number;
+    thematiques_count: number;
+    etablissement: { id: number; nom: string } | null;
+};
+
+type Etablissement = {
+    id: number;
+    nom: string;
+    ville: string;
+    code: string | null;
+    enseignants_count: number;
     thematiques_count: number;
 };
 
@@ -42,6 +53,7 @@ type TemoinEnAttente = {
 
 type Props = {
     enseignants: Enseignant[];
+    etablissements: Etablissement[];
     stats: Stats;
     temoinsEnAttente: TemoinEnAttente[];
 };
@@ -62,6 +74,7 @@ const createForm = useForm({
     prenom: '',
     nom: '',
     email: '',
+    etablissement_id: '' as string | number,
 });
 
 function openCreate() {
@@ -85,6 +98,7 @@ const editForm = useForm({
     prenom: '',
     nom: '',
     email: '',
+    etablissement_id: '' as string | number,
 });
 
 function openEdit(enseignant: Enseignant) {
@@ -92,13 +106,14 @@ function openEdit(enseignant: Enseignant) {
     editForm.prenom = enseignant.prenom;
     editForm.nom = enseignant.nom;
     editForm.email = enseignant.email;
+    editForm.etablissement_id = enseignant.etablissement?.id ?? '';
     showEditDialog.value = true;
 }
 
 function submitEdit() {
     if (!editingId.value) {
-return;
-}
+        return;
+    }
 
     editForm.put(`/administration/enseignants/${editingId.value}`, {
         onSuccess: () => {
@@ -108,14 +123,76 @@ return;
 }
 
 // ─── Supprimer un enseignant ──────────────────────────────────────────────────
-const deleteForm = useForm({});
+const deleteEnseignantForm = useForm({});
 
 function deleteEnseignant(enseignant: Enseignant) {
     if (!confirm(t('administration.index.confirm_delete_teacher', { prenom: enseignant.prenom, nom: enseignant.nom }))) {
-return;
+        return;
+    }
+
+    deleteEnseignantForm.delete(`/administration/enseignants/${enseignant.id}`);
 }
 
-    deleteForm.delete(`/administration/enseignants/${enseignant.id}`);
+// ─── Créer un établissement ───────────────────────────────────────────────────
+const showCreateEtablissementDialog = ref(false);
+const createEtablissementForm = useForm({
+    nom: '',
+    ville: '',
+    code: '',
+});
+
+function openCreateEtablissement() {
+    createEtablissementForm.reset();
+    showCreateEtablissementDialog.value = true;
+}
+
+function submitCreateEtablissement() {
+    createEtablissementForm.post('/administration/etablissements', {
+        onSuccess: () => {
+            showCreateEtablissementDialog.value = false;
+            createEtablissementForm.reset();
+        },
+    });
+}
+
+// ─── Modifier un établissement ────────────────────────────────────────────────
+const showEditEtablissementDialog = ref(false);
+const editingEtablissementId = ref<number | null>(null);
+const editEtablissementForm = useForm({
+    nom: '',
+    ville: '',
+    code: '',
+});
+
+function openEditEtablissement(etablissement: Etablissement) {
+    editingEtablissementId.value = etablissement.id;
+    editEtablissementForm.nom = etablissement.nom;
+    editEtablissementForm.ville = etablissement.ville;
+    editEtablissementForm.code = etablissement.code ?? '';
+    showEditEtablissementDialog.value = true;
+}
+
+function submitEditEtablissement() {
+    if (!editingEtablissementId.value) {
+        return;
+    }
+
+    editEtablissementForm.put(`/administration/etablissements/${editingEtablissementId.value}`, {
+        onSuccess: () => {
+            showEditEtablissementDialog.value = false;
+        },
+    });
+}
+
+// ─── Supprimer un établissement ───────────────────────────────────────────────
+const deleteEtablissementForm = useForm({});
+
+function deleteEtablissement(etablissement: Etablissement) {
+    if (!confirm(t('administration.index.confirm_delete_etablissement', { nom: etablissement.nom }))) {
+        return;
+    }
+
+    deleteEtablissementForm.delete(`/administration/etablissements/${etablissement.id}`);
 }
 </script>
 
@@ -160,6 +237,79 @@ return;
                 </Card>
             </div>
 
+            <!-- Cégeps / Établissements -->
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <CardTitle class="flex items-center gap-2">
+                        <Building2 class="h-5 w-5" />
+                        {{ $t('administration.index.etablissements_table') }}
+                    </CardTitle>
+                    <Button size="sm" @click="openCreateEtablissement">
+                        <Plus class="mr-2 h-4 w-4" />
+                        {{ $t('administration.index.add_etablissement') }}
+                    </Button>
+                </CardHeader>
+                <CardContent>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b text-left">
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.etablissement_header_nom') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.etablissement_header_ville') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.etablissement_header_code') }}</th>
+                                    <th class="pb-3 pr-4 text-center font-medium">{{ $t('administration.index.table_header_thematics') }}</th>
+                                    <th class="pb-3 pr-4 text-center font-medium">{{ $t('administration.index.table_header_classes') }}</th>
+                                    <th class="pb-3 font-medium">{{ $t('administration.index.table_header_actions') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="etablissement in etablissements"
+                                    :key="etablissement.id"
+                                    class="border-b last:border-0"
+                                >
+                                    <td class="py-3 pr-4">
+                                        <Link
+                                            :href="`/administration/etablissements/${etablissement.id}`"
+                                            class="font-medium underline-offset-4 hover:underline"
+                                        >
+                                            {{ etablissement.nom }}
+                                        </Link>
+                                    </td>
+                                    <td class="text-muted-foreground py-3 pr-4">{{ etablissement.ville }}</td>
+                                    <td class="text-muted-foreground py-3 pr-4">{{ etablissement.code ?? '—' }}</td>
+                                    <td class="py-3 pr-4 text-center">{{ etablissement.thematiques_count }}</td>
+                                    <td class="py-3 pr-4 text-center">{{ etablissement.enseignants_count }}</td>
+                                    <td class="py-3">
+                                        <div class="flex gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                @click="openEditEtablissement(etablissement)"
+                                            >
+                                                <Pencil class="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="destructive"
+                                                @click="deleteEtablissement(etablissement)"
+                                            >
+                                                <Trash2 class="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr v-if="etablissements.length === 0">
+                                    <td colspan="6" class="text-muted-foreground py-6 text-center">
+                                        {{ $t('administration.index.no_etablissements') }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </CardContent>
+            </Card>
+
             <!-- Liste des enseignants -->
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between">
@@ -177,8 +327,9 @@ return;
                                     <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.table_header_first_name') }}</th>
                                     <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.table_header_last_name') }}</th>
                                     <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.table_header_email') }}</th>
-                                    <th class="pb-3 pr-4 font-medium text-center">{{ $t('administration.index.table_header_classes') }}</th>
-                                    <th class="pb-3 pr-4 font-medium text-center">{{ $t('administration.index.table_header_thematics') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.etablissement_header_nom') }}</th>
+                                    <th class="pb-3 pr-4 text-center font-medium">{{ $t('administration.index.table_header_classes') }}</th>
+                                    <th class="pb-3 pr-4 text-center font-medium">{{ $t('administration.index.table_header_thematics') }}</th>
                                     <th class="pb-3 font-medium">{{ $t('administration.index.table_header_actions') }}</th>
                                 </tr>
                             </thead>
@@ -190,8 +341,9 @@ return;
                                 >
                                     <td class="py-3 pr-4">{{ enseignant.prenom }}</td>
                                     <td class="py-3 pr-4">{{ enseignant.nom }}</td>
-                                    <td class="py-3 pr-4 text-muted-foreground">{{ enseignant.email }}</td>
-                                    <td class="py-3 pr-4 text-center">{{ enseignant.classes_count }}</td>
+                                    <td class="text-muted-foreground py-3 pr-4">{{ enseignant.email }}</td>
+                                    <td class="text-muted-foreground py-3 pr-4">{{ enseignant.etablissement?.nom ?? '—' }}</td>
+                                    <td class="py-3 pr-4 text-center">{{ enseignant.cours_count }}</td>
                                     <td class="py-3 pr-4 text-center">{{ enseignant.thematiques_count }}</td>
                                     <td class="py-3">
                                         <div class="flex gap-2">
@@ -213,7 +365,7 @@ return;
                                     </td>
                                 </tr>
                                 <tr v-if="enseignants.length === 0">
-                                    <td colspan="6" class="text-muted-foreground py-6 text-center">
+                                    <td colspan="7" class="text-muted-foreground py-6 text-center">
                                         {{ $t('administration.index.no_teachers') }}
                                     </td>
                                 </tr>
@@ -249,14 +401,14 @@ return;
                                 >
                                     <td class="py-3 pr-4">{{ temoin.prenom }}</td>
                                     <td class="py-3 pr-4">{{ temoin.nom }}</td>
-                                    <td class="py-3 pr-4 text-muted-foreground">{{ temoin.email }}</td>
+                                    <td class="text-muted-foreground py-3 pr-4">{{ temoin.email }}</td>
                                     <td class="py-3 pr-4">
                                         <span v-if="temoin.thematique">{{ temoin.thematique.nom }}</span>
                                         <span v-else-if="temoin.theme_libre" class="italic">{{ temoin.theme_libre }}</span>
                                         <span v-else class="text-muted-foreground">—</span>
                                     </td>
                                     <td class="max-w-xs py-3 pr-4">
-                                        <p class="line-clamp-2 text-muted-foreground">{{ temoin.description }}</p>
+                                        <p class="text-muted-foreground line-clamp-2">{{ temoin.description }}</p>
                                     </td>
                                     <td class="py-3">
                                         <Button
@@ -306,6 +458,24 @@ return;
                 <Input id="create-email" v-model="createForm.email" type="email" :placeholder="$t('administration.index.modal_email_placeholder')" />
                 <InputError :message="createForm.errors.email" />
             </div>
+            <div class="grid gap-2">
+                <Label>{{ $t('administration.index.modal_etablissement') }}</Label>
+                <Select v-model="createForm.etablissement_id">
+                    <SelectTrigger>
+                        <SelectValue :placeholder="$t('administration.index.modal_etablissement_placeholder')" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem
+                            v-for="etab in etablissements"
+                            :key="etab.id"
+                            :value="etab.id"
+                        >
+                            {{ etab.nom }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+                <InputError :message="createForm.errors.etablissement_id" />
+            </div>
         </FormDialog>
 
         <!-- Modal : Modifier enseignant -->
@@ -329,6 +499,73 @@ return;
                 <Label for="edit-email">{{ $t('administration.index.modal_email') }}</Label>
                 <Input id="edit-email" v-model="editForm.email" type="email" :placeholder="$t('administration.index.modal_email_placeholder')" />
                 <InputError :message="editForm.errors.email" />
+            </div>
+            <div class="grid gap-2">
+                <Label>{{ $t('administration.index.modal_etablissement') }}</Label>
+                <Select v-model="editForm.etablissement_id">
+                    <SelectTrigger>
+                        <SelectValue :placeholder="$t('administration.index.modal_etablissement_placeholder')" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem
+                            v-for="etab in etablissements"
+                            :key="etab.id"
+                            :value="etab.id"
+                        >
+                            {{ etab.nom }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+                <InputError :message="editForm.errors.etablissement_id" />
+            </div>
+        </FormDialog>
+
+        <!-- Modal : Créer établissement -->
+        <FormDialog
+            v-model:open="showCreateEtablissementDialog"
+            :title="$t('administration.index.modal_add_etablissement')"
+            :is-loading="createEtablissementForm.processing"
+            :submit-label="$t('common.add')"
+            @submit="submitCreateEtablissement"
+        >
+            <div class="grid gap-2">
+                <Label for="etab-nom">{{ $t('administration.index.etablissement_header_nom') }}</Label>
+                <Input id="etab-nom" v-model="createEtablissementForm.nom" :placeholder="$t('administration.index.modal_etablissement_nom_placeholder')" />
+                <InputError :message="createEtablissementForm.errors.nom" />
+            </div>
+            <div class="grid gap-2">
+                <Label for="etab-ville">{{ $t('administration.index.etablissement_header_ville') }}</Label>
+                <Input id="etab-ville" v-model="createEtablissementForm.ville" :placeholder="$t('administration.index.modal_etablissement_ville_placeholder')" />
+                <InputError :message="createEtablissementForm.errors.ville" />
+            </div>
+            <div class="grid gap-2">
+                <Label for="etab-code">{{ $t('administration.index.etablissement_header_code') }}</Label>
+                <Input id="etab-code" v-model="createEtablissementForm.code" :placeholder="$t('administration.index.modal_etablissement_code_placeholder')" />
+                <InputError :message="createEtablissementForm.errors.code" />
+            </div>
+        </FormDialog>
+
+        <!-- Modal : Modifier établissement -->
+        <FormDialog
+            v-model:open="showEditEtablissementDialog"
+            :title="$t('administration.index.modal_edit_etablissement')"
+            :is-loading="editEtablissementForm.processing"
+            @submit="submitEditEtablissement"
+        >
+            <div class="grid gap-2">
+                <Label for="edit-etab-nom">{{ $t('administration.index.etablissement_header_nom') }}</Label>
+                <Input id="edit-etab-nom" v-model="editEtablissementForm.nom" :placeholder="$t('administration.index.modal_etablissement_nom_placeholder')" />
+                <InputError :message="editEtablissementForm.errors.nom" />
+            </div>
+            <div class="grid gap-2">
+                <Label for="edit-etab-ville">{{ $t('administration.index.etablissement_header_ville') }}</Label>
+                <Input id="edit-etab-ville" v-model="editEtablissementForm.ville" :placeholder="$t('administration.index.modal_etablissement_ville_placeholder')" />
+                <InputError :message="editEtablissementForm.errors.ville" />
+            </div>
+            <div class="grid gap-2">
+                <Label for="edit-etab-code">{{ $t('administration.index.etablissement_header_code') }}</Label>
+                <Input id="edit-etab-code" v-model="editEtablissementForm.code" :placeholder="$t('administration.index.modal_etablissement_code_placeholder')" />
+                <InputError :message="editEtablissementForm.errors.code" />
             </div>
         </FormDialog>
     </AppLayout>

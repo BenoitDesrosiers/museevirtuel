@@ -150,6 +150,7 @@
 <body>
 
     {{-- ─── Page titre ──────────────────────────────────────────────── --}}
+    @if($genererPageTitre ?? true)
     <div class="page-titre">
         {{-- Chaque membre sur sa propre ligne --}}
         @foreach($membres as $nom)
@@ -168,8 +169,10 @@
         <p class="ecole">Cégep de Drummondville</p>
         <p class="date">Le {{ now()->translatedFormat('j F Y') }}</p>
     </div>
+    @endif
 
     {{-- ─── Table des matières ────────────────────────────────────────── --}}
+    @if($genererTableMatieres ?? true)
     <div class="toc">
         <h2>Table des matières</h2>
 
@@ -195,6 +198,7 @@
             </div>
         @endforeach
     </div>
+    @endif
 
     {{-- ─── Sections dynamiques ou Introduction classique ─────────────── --}}
     @if($sections->isNotEmpty())

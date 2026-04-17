@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Etablissement;
 use App\Models\Thematique;
 use App\Models\User;
 
@@ -21,13 +22,15 @@ test('un utilisateur connecté peut quand même accéder à la page d\'inscripti
 // ─── Soumission valide ────────────────────────────────────────────────────────
 
 test('une inscription valide avec theme_libre crée un utilisateur en_attente', function () {
+    $cegep = Etablissement::create(['nom' => 'Cégep Test', 'ville' => 'Québec']);
+
     $this->post(route('inscription.temoin.store'), [
         'prenom' => 'Marguerite',
         'nom' => 'Beauchamp',
         'email' => 'marguerite@exemple.com',
         'password' => 'Motdepasse1!',
         'password_confirmation' => 'Motdepasse1!',
-        'theme_libre' => 'Les métiers d\'autrefois',
+        'choix' => [['etablissement_id' => $cegep->id, 'theme_libre' => 'Les métiers d\'autrefois']],
         'description' => 'Je suis née à Québec en 1945 et je souhaite partager mon vécu.',
     ])->assertRedirect(route('inscription.temoin'));
 
@@ -36,13 +39,16 @@ test('une inscription valide avec theme_libre crée un utilisateur en_attente', 
     expect($user)->not->toBeNull()
         ->and($user->role)->toBe('personne_agee')
         ->and($user->statut)->toBe('en_attente')
-        ->and($user->email_verified_at)->toBeNull()
-        ->and($user->theme_libre)->toBe('Les métiers d\'autrefois');
+        ->and($user->email_verified_at)->toBeNull();
+
+    $pivot = $user->etablissementsChoisis()->first();
+    expect($pivot->pivot->theme_libre)->toBe('Les métiers d\'autrefois');
 });
 
 test('une inscription valide avec une thématique existante crée un utilisateur en_attente', function () {
-    $enseignant = User::factory()->create(['role' => 'enseignant']);
-    $thematique = Thematique::factory()->create(['enseignant_id' => $enseignant->id]);
+    $cegep = Etablissement::create(['nom' => 'Cégep Test', 'ville' => 'Montréal']);
+    $enseignant = User::factory()->create(['role' => 'enseignant', 'etablissement_id' => $cegep->id]);
+    $thematique = Thematique::factory()->create(['enseignant_id' => $enseignant->id, 'etablissement_id' => $cegep->id]);
 
     $this->post(route('inscription.temoin.store'), [
         'prenom' => 'Marcel',
@@ -50,15 +56,16 @@ test('une inscription valide avec une thématique existante crée un utilisateur
         'email' => 'marcel@exemple.com',
         'password' => 'Motdepasse1!',
         'password_confirmation' => 'Motdepasse1!',
-        'thematique_id' => $thematique->id,
+        'choix' => [['etablissement_id' => $cegep->id, 'thematique_ids' => [$thematique->id]]],
         'description' => 'Je viens de la Mauricie et j\'ai beaucoup à raconter.',
     ])->assertRedirect(route('inscription.temoin'));
 
     $user = User::where('email', 'marcel@exemple.com')->first();
 
     expect($user)->not->toBeNull()
-        ->and($user->thematique_id)->toBe($thematique->id)
         ->and($user->statut)->toBe('en_attente');
+
+    expect($user->thematiquesChoisies()->where('thematiques.id', $thematique->id)->exists())->toBeTrue();
 });
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -95,26 +102,31 @@ test('les champs obligatoires sont validés', function (string $field) {
 })->with(['prenom', 'nom', 'email', 'password', 'description']);
 
 test('ni thematique_id ni theme_libre retourne une erreur', function () {
+    $cegep = Etablissement::create(['nom' => 'Cégep Test', 'ville' => 'Montréal']);
+
     $this->post(route('inscription.temoin.store'), [
         'prenom' => 'Lise',
         'nom' => 'Gagnon',
         'email' => 'lise@exemple.com',
         'password' => 'Motdepasse1!',
         'password_confirmation' => 'Motdepasse1!',
+        'choix' => [['etablissement_id' => $cegep->id]],
         'description' => 'Je suis de Montréal.',
-    ])->assertSessionHasErrors('theme_libre');
+    ])->assertSessionHasErrors('choix.0.theme_libre');
 });
 
 test('une thematique_id inexistante est rejetée', function () {
+    $cegep = Etablissement::create(['nom' => 'Cégep Test', 'ville' => 'Montréal']);
+
     $this->post(route('inscription.temoin.store'), [
         'prenom' => 'Lise',
         'nom' => 'Gagnon',
         'email' => 'lise@exemple.com',
         'password' => 'Motdepasse1!',
         'password_confirmation' => 'Motdepasse1!',
-        'thematique_id' => 9999,
+        'choix' => [['etablissement_id' => $cegep->id, 'thematique_ids' => [9999]]],
         'description' => 'Je suis de Montréal.',
-    ])->assertSessionHasErrors('thematique_id');
+    ])->assertSessionHasErrors('choix.0.thematique_ids.0');
 });
 
 test('les mots de passe non concordants sont rejetés', function () {

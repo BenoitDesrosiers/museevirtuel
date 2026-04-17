@@ -31,6 +31,7 @@ class UpdateEnseignantRequest extends FormRequest
             'prenom' => ['required', 'string', 'max:255'],
             'nom' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)->ignore($enseignant->id)],
+            'etablissement_id' => ['nullable', 'integer', 'exists:etablissements,id'],
         ];
     }
 }

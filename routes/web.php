@@ -8,6 +8,7 @@ use App\Http\Controllers\CoursDocumentController;
 use App\Http\Controllers\EcheancierController;
 use App\Http\Controllers\EnseignantController;
 use App\Http\Controllers\EntrevueConceptController;
+use App\Http\Controllers\EtablissementController;
 use App\Http\Controllers\EtudiantController;
 use App\Http\Controllers\GrilleCorrectionController;
 use App\Http\Controllers\GroupeController;
@@ -76,6 +77,19 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
     Route::put('/administration/temoins/{user}/decliner', [AdministrationController::class, 'declinerTemoin'])
         ->name('administration.temoins.decliner');
+
+    // Gestion des établissements (cégeps)
+    Route::get('/administration/etablissements/{etablissement}', [EtablissementController::class, 'show'])
+        ->name('administration.etablissements.show');
+
+    Route::post('/administration/etablissements', [EtablissementController::class, 'store'])
+        ->name('administration.etablissements.store');
+
+    Route::put('/administration/etablissements/{etablissement}', [EtablissementController::class, 'update'])
+        ->name('administration.etablissements.update');
+
+    Route::delete('/administration/etablissements/{etablissement}', [EtablissementController::class, 'destroy'])
+        ->name('administration.etablissements.destroy');
 });
 
 // ─── Enseignant (+ Admin) ──────────────────────────────────────────────────────
@@ -160,6 +174,9 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
     // Types de projet (enseignant/admin)
     Route::get('/types-projets', [TypeProjetController::class, 'index'])
         ->name('types-projets.index');
+
+    Route::get('/types-projets/create', [TypeProjetController::class, 'create'])
+        ->name('types-projets.create');
 
     Route::post('/types-projets', [TypeProjetController::class, 'store'])
         ->name('types-projets.store');

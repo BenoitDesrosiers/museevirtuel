@@ -26,7 +26,7 @@ class TemoinSeeder extends Seeder
             'Les Premières Nations du Québec' => ['periode_historique' => 'Préhistoire – aujourd\'hui', 'description' => 'Histoire, culture et luttes des nations autochtones du territoire québécois.'],
             'La Révolution industrielle au Québec' => ['periode_historique' => '1850 – 1950',  'description' => 'Industrialisation, urbanisation et transformation du monde ouvrier québécois.'],
             'La Seconde Guerre mondiale' => ['periode_historique' => '1939 – 1945',     'description' => 'Participation du Québec et du Canada au conflit mondial et impacts sur la société.'],
-            "L'art et la culture au Québec" => ['periode_historique' => 'XX\u{1D49} siècle',         'description' => 'Évolution des arts, de la littérature et de la culture populaire québécoise.'],
+            "L'art et la culture au Québec" => ['periode_historique' => 'XXᵉ siècle',         'description' => 'Évolution des arts, de la littérature et de la culture populaire québécoise.'],
             "L'immigration et la diversité culturelle" => ['periode_historique' => '1960 – aujourd\'hui', 'description' => 'Vagues migratoires, intégration et construction d\'une société pluriculturelle.'],
             'Le mouvement patriote de 1837-1838' => ['periode_historique' => '1837 – 1838',    'description' => 'Rébellions des Patriotes contre le pouvoir colonial britannique au Bas-Canada.'],
         ];

@@ -48,6 +48,38 @@ test('un étudiant est redirigé depuis la liste des types de projet', function 
         ->assertRedirect();
 });
 
+// ─── Create (page dédiée) ─────────────────────────────────────────────────────
+
+test("l'enseignant accède à la page de création d'un type de projet", function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+
+    $this->actingAs($enseignant)
+        ->get('/types-projets/create')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('TypeProjet/Create')
+        );
+});
+
+test('un étudiant est redirigé depuis la page de création de type de projet', function () {
+    $etudiant = User::factory()->create(['role' => 'etudiant']);
+
+    $this->actingAs($etudiant)
+        ->get('/types-projets/create')
+        ->assertRedirect();
+});
+
+test('la création redirige vers la page edit du nouveau type de projet', function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+
+    $this->actingAs($enseignant)
+        ->post('/types-projets', ['nom' => 'Nouveau projet'])
+        ->assertRedirect();
+
+    $typeProjet = TypeProjet::where('nom', 'Nouveau projet')->first();
+    expect($typeProjet)->not->toBeNull();
+});
+
 // ─── Store ────────────────────────────────────────────────────────────────────
 
 test("l'enseignant peut créer un type de projet", function () {
@@ -95,6 +127,83 @@ test("l'enseignant peut créer un type de projet avec des paramètres de remise"
         'nom' => 'Projet avec remise',
         'remises_multiples' => true,
         'retard_permis' => false,
+    ]);
+});
+
+// ─── Store — flags de génération ─────────────────────────────────────────────
+
+test('les flags de génération sont true par défaut lors de la création', function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+
+    $this->actingAs($enseignant)
+        ->post('/types-projets', ['nom' => 'Projet sans flags'])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('types_projets', [
+        'enseignant_id' => $enseignant->id,
+        'generer_page_titre' => true,
+        'generer_table_matieres' => true,
+    ]);
+});
+
+test("l'enseignant peut désactiver la page titre lors de la création", function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+
+    $this->actingAs($enseignant)
+        ->post('/types-projets', [
+            'nom' => 'Projet sans page titre',
+            'generer_page_titre' => false,
+            'generer_table_matieres' => true,
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('types_projets', [
+        'enseignant_id' => $enseignant->id,
+        'generer_page_titre' => false,
+        'generer_table_matieres' => true,
+    ]);
+});
+
+test("l'enseignant peut désactiver la table des matières lors de la création", function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+
+    $this->actingAs($enseignant)
+        ->post('/types-projets', [
+            'nom' => 'Projet sans TDM',
+            'generer_page_titre' => true,
+            'generer_table_matieres' => false,
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('types_projets', [
+        'enseignant_id' => $enseignant->id,
+        'generer_page_titre' => true,
+        'generer_table_matieres' => false,
+    ]);
+});
+
+test("l'enseignant peut modifier les flags de génération via update", function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $typeProjet = TypeProjet::create([
+        'enseignant_id' => $enseignant->id,
+        'nom' => 'Projet',
+        'accessible' => false,
+        'generer_page_titre' => true,
+        'generer_table_matieres' => true,
+    ]);
+
+    $this->actingAs($enseignant)
+        ->put("/types-projets/{$typeProjet->id}", [
+            'nom' => 'Projet',
+            'generer_page_titre' => false,
+            'generer_table_matieres' => false,
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('types_projets', [
+        'id' => $typeProjet->id,
+        'generer_page_titre' => false,
+        'generer_table_matieres' => false,
     ]);
 });
 

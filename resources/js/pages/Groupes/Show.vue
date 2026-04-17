@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { ArrowLeft, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Download, FileText, ImagePlus, MessageSquare, Music, Pencil, Trash2 } from 'lucide-vue-next';
+import { ArrowLeft, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Download, FileText, ImagePlus, MessageSquare, Music, Pencil, Search, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import FormDialog from '@/components/FormDialog.vue';
@@ -101,6 +101,7 @@ type Props = {
     thematiquesDispo: Thematique[];
     etudiantsDispo: EtudiantDispo[];
     temoinsDisponibles: User[];
+    tousLesTemoins: User[];
 };
 
 const props = defineProps<Props>();
@@ -333,6 +334,23 @@ function desassignerTemoin() {
     submitTemoin();
 }
 
+// Recherche manuelle de témoin par nom
+const rechercheTemoin = ref('');
+
+const resultsRecherche = computed(() => {
+    const q = rechercheTemoin.value.trim().toLowerCase();
+    if (!q) return [];
+    return props.tousLesTemoins.filter(
+        (t) => `${t.prenom} ${t.nom}`.toLowerCase().includes(q),
+    );
+});
+
+function selectionnerTemoinRecherche(temoin: User) {
+    temoinForm.personne_agee_id = temoin.id;
+    rechercheTemoin.value = '';
+    submitTemoin();
+}
+
 // ─── Formatage ────────────────────────────────────────────────────────────────
 function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString('fr-CA', {
@@ -422,37 +440,69 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                     </div>
                     <p v-else class="text-muted-foreground mb-4 text-sm">Aucun témoin assigné à ce groupe.</p>
 
-                    <form class="flex items-end gap-3" @submit.prevent="submitTemoin">
-                        <div class="flex-1">
-                            <Select
-                                :model-value="temoinForm.personne_agee_id ? String(temoinForm.personne_agee_id) : 'none'"
-                                @update:model-value="(v) => temoinForm.personne_agee_id = v === 'none' ? null : Number(v)"
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Sélectionner un témoin…" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">Aucun témoin</SelectItem>
-                                    <SelectItem
-                                        v-for="t in temoinsDisponibles"
-                                        :key="t.id"
-                                        :value="String(t.id)"
-                                    >
-                                        {{ t.prenom }} {{ t.nom }}
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <p v-if="temoinsDisponibles.length === 0 && groupe.thematiques.length === 0" class="text-muted-foreground mt-1.5 text-xs">
-                                Aucun témoin disponible — sélectionnez d'abord une thématique pour ce groupe.
-                            </p>
-                            <p v-else-if="temoinsDisponibles.length === 0" class="text-muted-foreground mt-1.5 text-xs">
-                                Aucun témoin actif ne correspond aux thématiques de ce groupe.
-                            </p>
+                    <!-- Témoins suggérés (correspondance thématiques) -->
+                    <div class="mb-4">
+                        <p class="text-muted-foreground mb-1.5 text-xs font-medium uppercase tracking-wide">Témoins suggérés</p>
+                        <form class="flex items-end gap-3" @submit.prevent="submitTemoin">
+                            <div class="flex-1">
+                                <Select
+                                    :model-value="temoinForm.personne_agee_id ? String(temoinForm.personne_agee_id) : 'none'"
+                                    @update:model-value="(v) => temoinForm.personne_agee_id = v === 'none' ? null : Number(v)"
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Sélectionner un témoin…" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">Aucun témoin</SelectItem>
+                                        <SelectItem
+                                            v-for="t in temoinsDisponibles"
+                                            :key="t.id"
+                                            :value="String(t.id)"
+                                        >
+                                            {{ t.prenom }} {{ t.nom }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p v-if="temoinsDisponibles.length === 0 && groupe.thematiques.length === 0" class="text-muted-foreground mt-1.5 text-xs">
+                                    Aucun témoin disponible — sélectionnez d'abord une thématique pour ce groupe.
+                                </p>
+                                <p v-else-if="temoinsDisponibles.length === 0" class="text-muted-foreground mt-1.5 text-xs">
+                                    Aucun témoin actif ne correspond aux thématiques de ce groupe.
+                                </p>
+                            </div>
+                            <Button type="submit" size="sm" :disabled="temoinForm.processing">
+                                Enregistrer
+                            </Button>
+                        </form>
+                    </div>
+
+                    <!-- Recherche manuelle par nom -->
+                    <div>
+                        <p class="text-muted-foreground mb-1.5 text-xs font-medium uppercase tracking-wide">Rechercher un autre témoin</p>
+                        <div class="relative">
+                            <Search class="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+                            <input
+                                v-model="rechercheTemoin"
+                                type="text"
+                                class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-md border py-2 pr-3 pl-9 text-sm focus-visible:ring-1 focus-visible:outline-none"
+                                placeholder="Rechercher par prénom ou nom…"
+                            />
                         </div>
-                        <Button type="submit" size="sm" :disabled="temoinForm.processing">
-                            Enregistrer
-                        </Button>
-                    </form>
+                        <ul v-if="resultsRecherche.length > 0" class="border-input mt-1 max-h-40 overflow-y-auto rounded-md border">
+                            <li
+                                v-for="t in resultsRecherche"
+                                :key="t.id"
+                                class="hover:bg-accent flex cursor-pointer items-center justify-between px-3 py-2 text-sm"
+                                @click="selectionnerTemoinRecherche(t)"
+                            >
+                                <span>{{ t.prenom }} {{ t.nom }}</span>
+                                <span class="text-muted-foreground text-xs">Assigner</span>
+                            </li>
+                        </ul>
+                        <p v-else-if="rechercheTemoin.trim().length > 0" class="text-muted-foreground mt-1 text-xs">
+                            Aucun témoin trouvé pour « {{ rechercheTemoin }} ».
+                        </p>
+                    </div>
 
                     <p v-if="temoinForm.errors.personne_agee_id" class="text-destructive mt-2 text-sm">
                         {{ temoinForm.errors.personne_agee_id }}

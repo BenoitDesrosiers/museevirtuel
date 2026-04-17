@@ -130,5 +130,7 @@ test('store retourne 403 pour un utilisateur non autorise', function () {
             'no_da' => '1234567',
             'statut_cours' => 'actif',
         ])
-        ->assertForbidden();
+        ->assertRedirect();
+
+    $this->assertDatabaseMissing('users', ['no_da' => '1234567']);
 });

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreEnseignantRequest;
 use App\Http\Requests\UpdateEnseignantRequest;
 use App\Models\Cours;
+use App\Models\Etablissement;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
@@ -22,6 +23,7 @@ class AdministrationController extends Controller
     {
         $enseignants = User::where('role', 'enseignant')
             ->withCount(['cours', 'thematiques'])
+            ->with('etablissement:id,nom')
             ->orderBy('nom')
             ->get();
 
@@ -37,10 +39,15 @@ class AdministrationController extends Controller
             ->orderBy('created_at')
             ->get(['id', 'prenom', 'nom', 'email', 'description', 'thematique_id', 'theme_libre', 'created_at']);
 
+        $etablissements = Etablissement::withCount(['enseignants', 'thematiques'])
+            ->orderBy('nom')
+            ->get();
+
         return Inertia::render('Administration/Index', [
             'enseignants' => $enseignants,
             'stats' => $stats,
             'temoinsEnAttente' => $temoinsEnAttente,
+            'etablissements' => $etablissements,
         ]);
     }
 

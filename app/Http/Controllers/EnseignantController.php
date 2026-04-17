@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ProjetRecherche;
+use App\Models\Thematique;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -26,7 +27,8 @@ class EnseignantController extends Controller
             ->orderBy('nom_cours')
             ->get();
 
-        $thematiques = $user->thematiques()
+        $thematiques = $this->thematiquesVisibles($user)
+            ->with('enseignant:id,prenom,nom')
             ->orderBy('nom')
             ->get();
 
@@ -51,8 +53,8 @@ class EnseignantController extends Controller
                     ->values(),
             ]);
 
-        // Témoins en attente liés à au moins une thématique de cet enseignant
-        $thematiqueIds = $user->thematiques()->pluck('id');
+        // Témoins en attente liés à au moins une thématique du cégep (ou de l'enseignant si sans cégep)
+        $thematiqueIds = $this->thematiquesVisibles($user)->pluck('id');
 
         $temoinsEnAttente = $this->queryTemoinsParThematiques($thematiqueIds)
             ->enAttente()
@@ -84,7 +86,7 @@ class EnseignantController extends Controller
     {
         abort_if($user->role !== 'personne_agee', 403);
 
-        $thematiqueIds = auth()->user()->thematiques()->pluck('id');
+        $thematiqueIds = $this->thematiquesVisibles(auth()->user())->pluck('id');
 
         abort_if(
             $user->thematiquesChoisies()->whereIn('thematiques.id', $thematiqueIds)->doesntExist(),
@@ -175,7 +177,7 @@ class EnseignantController extends Controller
     {
         abort_if($user->role !== 'personne_agee' || ! $user->estEnAttente(), 403);
 
-        $thematiqueIds = auth()->user()->thematiques()->pluck('id');
+        $thematiqueIds = $this->thematiquesVisibles(auth()->user())->pluck('id');
 
         abort_if(
             $user->thematiquesChoisies()->whereIn('thematiques.id', $thematiqueIds)->doesntExist(),
@@ -192,5 +194,19 @@ class EnseignantController extends Controller
             ->whereHas('thematiquesChoisies', fn ($q) => $q->whereIn('thematiques.id', $thematiqueIds))
             ->with('thematiquesChoisies:id,nom')
             ->orderBy('created_at');
+    }
+
+    /**
+     * Retourne les thématiques visibles par l'enseignant.
+     * Si l'enseignant appartient à un établissement, toutes les thématiques du cégep sont visibles.
+     * Sinon, seulement les siennes.
+     */
+    private function thematiquesVisibles(User $user): Builder
+    {
+        if ($user->etablissement_id) {
+            return Thematique::parEtablissement($user->etablissement_id);
+        }
+
+        return Thematique::where('enseignant_id', $user->id);
     }
 }

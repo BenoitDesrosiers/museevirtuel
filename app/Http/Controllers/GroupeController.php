@@ -170,16 +170,25 @@ class GroupeController extends Controller
 
         $groupeThematiqueIds = $groupe->thematiques->pluck('id');
 
-        $temoinsDisponibles = $estEnseignant || $user->isAdmin()
+        $peutGererTemoin = $estEnseignant || $user->isAdmin();
+
+        // Une seule requête : tous les témoins actifs avec leurs thématiques pour le filtre
+        $tousLesTemoins = $peutGererTemoin
             ? User::where('role', 'personne_agee')
                 ->where('statut', 'actif')
-                ->when($groupeThematiqueIds->isNotEmpty(), function ($query) use ($groupeThematiqueIds) {
-                    $query->whereHas('thematiquesChoisies', function ($q) use ($groupeThematiqueIds) {
-                        $q->whereIn('thematiques.id', $groupeThematiqueIds);
-                    });
-                })
+                ->with('thematiquesChoisies:id')
+                ->orderBy('nom')
                 ->get(['id', 'prenom', 'nom'])
             : collect();
+
+        // Témoins suggérés : filtrage PHP sur la collection déjà chargée
+        $temoinsDisponibles = ($peutGererTemoin && $groupeThematiqueIds->isNotEmpty())
+            ? $tousLesTemoins->filter(fn ($t) => $t->thematiquesChoisies->pluck('id')->intersect($groupeThematiqueIds)->isNotEmpty()
+            )->values()
+            : $tousLesTemoins;
+
+        $tousLesTemoins = $tousLesTemoins->makeHidden('thematiquesChoisies');
+        $temoinsDisponibles = $temoinsDisponibles->makeHidden('thematiquesChoisies');
 
         return Inertia::render('Groupes/Show', [
             'groupe' => $groupe,
@@ -191,6 +200,7 @@ class GroupeController extends Controller
             'thematiquesDispo' => $thematiquesDispo,
             'etudiantsDispo' => $etudiantsDispo,
             'temoinsDisponibles' => $temoinsDisponibles,
+            'tousLesTemoins' => $tousLesTemoins,
         ]);
     }
 

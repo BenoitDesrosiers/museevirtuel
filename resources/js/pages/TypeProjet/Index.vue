@@ -1,17 +1,12 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ChevronDown, ChevronRight, Grid2x2, Pencil, Plus, Trash2 } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import FormDialog from '@/components/FormDialog.vue';
 import Heading from '@/components/Heading.vue';
-import InputError from '@/components/InputError.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import typesProjets from '@/routes/types-projets';
 
@@ -50,31 +45,6 @@ type Props = {
 
 const props = defineProps<Props>();
 
-// ─── Création TypeProjet ──────────────────────────────────────────────────────
-const showCreateDialog = ref(false);
-const createForm = useForm({
-    nom: '',
-    description: '',
-    sections: [] as { label: string; description: string; type: SectionType }[],
-});
-
-function ajouterSectionCreate() {
-    createForm.sections.push({ label: '', description: '', type: 'texte' });
-}
-
-function supprimerSectionCreate(idx: number) {
-    createForm.sections.splice(idx, 1);
-}
-
-function creer() {
-    createForm.post(typesProjets.store.url(), {
-        onSuccess: () => {
-            showCreateDialog.value = false;
-            createForm.reset();
-        },
-    });
-}
-
 // ─── Toggle accessible ────────────────────────────────────────────────────────
 const toggleForm = useForm({});
 
@@ -103,9 +73,11 @@ function supprimer(tp: TypeProjet) {
                     :title="$t('types_projet.index.heading_title')"
                     :description="$t('types_projet.index.heading_description')"
                 />
-                <Button size="sm" @click="showCreateDialog = true">
-                    <Plus class="mr-2 h-4 w-4" />
-                    {{ $t('types_projet.index.new_type') }}
+                <Button size="sm" as-child>
+                    <Link :href="typesProjets.create.url()">
+                        <Plus class="mr-2 h-4 w-4" />
+                        {{ $t('types_projet.index.new_type') }}
+                    </Link>
                 </Button>
             </div>
 
@@ -208,96 +180,5 @@ function supprimer(tp: TypeProjet) {
                 </CardContent>
             </Card>
         </div>
-
-        <!-- ─── Dialog création ──────────────────────────────────────────────── -->
-        <FormDialog
-            v-model:open="showCreateDialog"
-            :title="$t('types_projet.index.modal_title')"
-            :is-loading="createForm.processing"
-            :submit-label="$t('types_projet.index.modal_create')"
-            scrollable
-            @submit="creer"
-        >
-            <div class="grid gap-4">
-                <div class="grid gap-2">
-                    <Label for="nom-create">{{ $t('types_projet.index.modal_name_label') }} <span class="text-destructive">*</span></Label>
-                    <Input
-                        id="nom-create"
-                        v-model="createForm.nom"
-                        :placeholder="$t('types_projet.index.modal_name_placeholder')"
-                        required
-                    />
-                    <InputError :message="createForm.errors.nom" />
-                </div>
-
-                <div class="grid gap-2">
-                    <Label for="desc-create">{{ $t('types_projet.index.modal_description_label') }}</Label>
-                    <Textarea
-                        id="desc-create"
-                        v-model="createForm.description"
-                        :placeholder="$t('types_projet.index.modal_description_placeholder')"
-                        rows="2"
-                    />
-                    <InputError :message="createForm.errors.description" />
-                </div>
-
-                <!-- Sections -->
-                <div class="grid gap-3 border-t pt-3">
-                    <div>
-                        <Label>{{ $t('types_projet.index.modal_sections_title') }}</Label>
-                        <p class="mt-1 text-xs text-muted-foreground">
-                            {{ $t('types_projet.index.modal_sections_hint') }}
-                        </p>
-                    </div>
-
-                    <div v-if="createForm.sections.length > 0" class="flex flex-col gap-2">
-                        <div
-                            v-for="(section, idx) in createForm.sections"
-                            :key="idx"
-                            class="flex items-start gap-2 rounded-md border bg-muted/30 p-3"
-                        >
-                            <span class="mt-2 w-5 shrink-0 text-center text-xs text-muted-foreground">
-                                {{ idx + 1 }}
-                            </span>
-                            <div class="flex-1 space-y-1.5">
-                                <Input
-                                    v-model="createForm.sections[idx].label"
-                                    :placeholder="$t('types_projet.index.modal_section_title_placeholder')"
-                                    required
-                                />
-                                <InputError :message="createForm.errors[`sections.${idx}.label`]" />
-                                <select
-                                    v-model="createForm.sections[idx].type"
-                                    class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring"
-                                >
-                                    <option v-for="(label, val) in sectionTypeLabels" :key="val" :value="val">
-                                        {{ label }}
-                                    </option>
-                                </select>
-                                <Input
-                                    v-model="createForm.sections[idx].description"
-                                    :placeholder="$t('types_projet.index.modal_section_instruction_placeholder')"
-                                />
-                            </div>
-                            <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                class="mt-0.5 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                                @click="supprimerSectionCreate(idx)"
-                            >
-                                <Trash2 class="h-3.5 w-3.5" />
-                            </Button>
-                        </div>
-                    </div>
-
-                    <Button type="button" size="sm" variant="outline" @click="ajouterSectionCreate">
-                        <Plus class="mr-2 h-4 w-4" />
-                        {{ $t('types_projet.index.modal_add_section') }}
-                    </Button>
-                </div>
-            </div>
-        </FormDialog>
-
     </AppLayout>
 </template>

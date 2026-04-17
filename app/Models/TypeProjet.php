@@ -19,6 +19,8 @@ class TypeProjet extends Model
         'date_remise',
         'remises_multiples',
         'retard_permis',
+        'generer_page_titre',
+        'generer_table_matieres',
     ];
 
     protected function casts(): array
@@ -28,6 +30,8 @@ class TypeProjet extends Model
             'date_remise' => 'datetime',
             'remises_multiples' => 'boolean',
             'retard_permis' => 'boolean',
+            'generer_page_titre' => 'boolean',
+            'generer_table_matieres' => 'boolean',
         ];
     }
 
