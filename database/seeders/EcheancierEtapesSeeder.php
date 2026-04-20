@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Classe;
+use App\Models\Cours;
 use App\Models\EcheancierEtape;
 use Illuminate\Database\Seeder;
 
@@ -71,39 +71,39 @@ class EcheancierEtapesSeeder extends Seeder
     ];
 
     /**
-     * Peuple la table `echeancier_etapes` pour toutes les classes existantes.
+     * Peuple la table `echeancier_etapes` pour tous les cours existants.
      *
-     * Si une classe possède déjà des étapes, elle est ignorée pour éviter les doublons.
+     * Si un cours possède déjà des étapes, il est ignoré pour éviter les doublons.
      */
     public function run(): void
     {
-        $classes = Classe::all();
+        $cours = Cours::all();
 
-        foreach ($classes as $classe) {
+        foreach ($cours as $c) {
             // Éviter les doublons si le seeder est relancé
-            if ($classe->echeancierEtapes()->exists()) {
+            if ($c->echeancierEtapes()->exists()) {
                 continue;
             }
 
-            $this->creerEtapesPourClasse($classe);
+            $this->creerEtapesPourCours($c);
         }
     }
 
     /**
-     * Crée toutes les étapes de l'échéancier pour une classe donnée.
+     * Crée toutes les étapes de l'échéancier pour un cours donné.
      */
-    public function creerEtapesPourClasse(Classe $classe): void
+    public function creerEtapesPourCours(Cours $cours): void
     {
         $inserts = [];
 
         foreach (self::ETAPES_PAR_SEMAINE as $semaine => $etapes) {
             foreach ($etapes as $ordre => $etape) {
                 $inserts[] = [
-                    'classe_id' => $classe->id,
-                    'semaine' => $semaine,
-                    'etape' => $etape,
-                    'is_done' => false,
-                    'ordre' => $ordre,
+                    'cours_id' => $cours->id,
+                    'semaine'  => $semaine,
+                    'etape'    => $etape,
+                    'is_done'  => false,
+                    'ordre'    => $ordre,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];

@@ -12,6 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         Schema::table('classes', function (Blueprint $table) {
             $table->string('numero', 5)->nullable()->after('cours_id');
             $table->string('jour_semaine', 20)->nullable()->after('nom');
@@ -38,6 +42,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         Schema::table('classes', function (Blueprint $table) {
             $table->dropUnique('classes_cours_id_numero_unique');
             $table->dropColumn(['numero', 'jour_semaine', 'plage_horaire']);
