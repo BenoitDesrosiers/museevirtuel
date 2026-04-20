@@ -34,7 +34,6 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import typesProjetsRoutes from '@/routes/types-projets';
 
@@ -293,31 +292,6 @@ function formatSize(bytes: number): string {
 }
 
 // ─── Types de projet ──────────────────────────────────────────────────────────
-const showCreateTpDialog = ref(false);
-const createTpForm = useForm({
-    nom: '',
-    description: '',
-    sections: [] as { label: string; description: string }[],
-});
-
-function ajouterSectionCreate() {
-    createTpForm.sections.push({ label: '', description: '' });
-}
-
-function supprimerSectionCreate(idx: number) {
-    createTpForm.sections.splice(idx, 1);
-}
-
-function creerTypeProjet() {
-    createTpForm.post(typesProjetsRoutes.store.url(), {
-        preserveScroll: true,
-        onSuccess: () => {
-            showCreateTpDialog.value = false;
-            createTpForm.reset();
-        },
-    });
-}
-
 const toggleTpForm = useForm({});
 
 function toggleAccessibleTp(tp: TypeProjet) {
@@ -500,9 +474,11 @@ function supprimerTp(tp: TypeProjet) {
                             </span>
                         </span>
                     </CardTitle>
-                    <Button size="sm" @click="showCreateTpDialog = true">
-                        <Plus class="mr-2 h-4 w-4" />
-                        Nouveau type
+                    <Button size="sm" as-child>
+                        <Link :href="typesProjetsRoutes.create.url()">
+                            <Plus class="mr-2 h-4 w-4" />
+                            Nouveau type
+                        </Link>
                     </Button>
                 </CardHeader>
                 <CardContent>
@@ -787,92 +763,6 @@ function supprimerTp(tp: TypeProjet) {
             @update:open="handleClasseDialogUpdate"
             @confirm="executeDeleteClasse"
         />
-
-        <!-- Modal : Créer un type de projet -->
-        <Dialog v-model:open="showCreateTpDialog">
-            <DialogContent class="max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle>Nouveau type de projet</DialogTitle>
-                </DialogHeader>
-                <form class="space-y-4" @submit.prevent="creerTypeProjet">
-                    <div class="grid gap-2">
-                        <Label for="tp-nom-create">Nom <span class="text-destructive">*</span></Label>
-                        <Input
-                            id="tp-nom-create"
-                            v-model="createTpForm.nom"
-                            placeholder="Ex. : Projet de recherche"
-                            required
-                        />
-                        <InputError :message="createTpForm.errors.nom" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="tp-desc-create">Description (optionnelle)</Label>
-                        <Textarea
-                            id="tp-desc-create"
-                            v-model="createTpForm.description"
-                            placeholder="Notes sur ce type de projet..."
-                            :rows="2"
-                        />
-                        <InputError :message="createTpForm.errors.description" />
-                    </div>
-
-                    <!-- Sections -->
-                    <div class="grid gap-3 border-t pt-3">
-                        <div>
-                            <Label>Sections du projet</Label>
-                            <p class="mt-1 text-xs text-muted-foreground">
-                                Définissez les parties que les étudiants devront rédiger.
-                            </p>
-                        </div>
-                        <div v-if="createTpForm.sections.length > 0" class="flex flex-col gap-2">
-                            <div
-                                v-for="(section, idx) in createTpForm.sections"
-                                :key="idx"
-                                class="flex items-start gap-2 rounded-md border bg-muted/30 p-3"
-                            >
-                                <span class="mt-2 w-5 shrink-0 text-center text-xs text-muted-foreground">
-                                    {{ idx + 1 }}
-                                </span>
-                                <div class="flex-1 space-y-1.5">
-                                    <Input
-                                        v-model="createTpForm.sections[idx].label"
-                                        placeholder="Titre de la section *"
-                                        required
-                                    />
-                                    <InputError :message="createTpForm.errors[`sections.${idx}.label`]" />
-                                    <Input
-                                        v-model="createTpForm.sections[idx].description"
-                                        placeholder="Consigne pour les étudiants (optionnelle)"
-                                    />
-                                </div>
-                                <Button
-                                    type="button"
-                                    size="icon"
-                                    variant="ghost"
-                                    class="mt-0.5 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                                    @click="supprimerSectionCreate(idx)"
-                                >
-                                    <Trash2 class="h-3.5 w-3.5" />
-                                </Button>
-                            </div>
-                        </div>
-                        <Button type="button" size="sm" variant="outline" @click="ajouterSectionCreate">
-                            <Plus class="mr-2 h-4 w-4" />
-                            Ajouter une section
-                        </Button>
-                    </div>
-
-                    <DialogFooter>
-                        <Button type="button" variant="outline" @click="showCreateTpDialog = false">
-                            Annuler
-                        </Button>
-                        <Button type="submit" :disabled="createTpForm.processing || !createTpForm.nom.trim()">
-                            Créer
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
 
     </AppLayout>
 </template>

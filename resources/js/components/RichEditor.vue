@@ -45,6 +45,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { AntidoteExtension, generateAntidoteGroupeId } from '@/extensions/AntidoteExtension';
 import { CommentMark } from '@/extensions/CommentMark';
+import { RenvoiMark } from '@/extensions/RenvoiMark';
 
 type Annotation = {
     id: number;
@@ -54,6 +55,8 @@ type Annotation = {
     user_id: number;
 };
 
+type RenvoiBase = { id: number; numero: number; contenu: string | null };
+
 const props = defineProps<{
     modelValue: string;
     placeholder?: string;
@@ -61,6 +64,8 @@ const props = defineProps<{
     readOnly?: boolean;
     estEnseignant?: boolean;
     corrections?: Annotation[];
+    /** Liste des renvois existants — si fournie, active le bouton ¹ dans la barre d'outils. */
+    renvois?: RenvoiBase[];
 }>();
 
 const emit = defineEmits<{
@@ -74,6 +79,8 @@ const emit = defineEmits<{
         },
     ];
     'delete-annotation': [payload: { correction: Annotation; html: string; htmlOriginal: string }];
+    /** Émis quand le bouton ¹ est cliqué — transmet la fonction d'insertion pour ce contexte d'éditeur. */
+    'demander-renvoi': [insertFn: (renvoiId: number, numero: number) => void];
 }>();
 
 // Identifiant de groupe unique partagé entre le DOM de l'éditeur et les boutons Antidote.
@@ -99,6 +106,7 @@ const extensions = [
     Placeholder.configure({ placeholder: props.placeholder ?? 'Rédigez ici…' }),
     CharacterCount.configure(props.maxLength ? { limit: props.maxLength } : {}),
     CommentMark,
+    RenvoiMark,
     AntidoteExtension.configure({ groupeId: antidoteGroupeId }),
 ];
 
@@ -280,6 +288,18 @@ function removeTextColor(): void {
 function removeHighlight(): void {
     editor.value?.chain().focus().unsetHighlight().run();
     showHighlightPicker.value = false;
+}
+
+// ─── Renvoi (endnote) ─────────────────────────────────────────────────────────
+
+/**
+ * Passe une fonction d'insertion au parent pour qu'il ouvre le sélecteur de renvoi.
+ * Le parent appelle insertFn(renvoiId, numero) lorsque le renvoi est sélectionné.
+ */
+function clickRenvoi(): void {
+    emit('demander-renvoi', (renvoiId: number, numero: number) => {
+        editor.value?.commands.insertRenvoi({ renvoiId, numero });
+    });
 }
 
 // ─── Lien ─────────────────────────────────────────────────────────────────────
@@ -668,6 +688,19 @@ function togglePanel(): void {
                     >
                         <SuperscriptIcon class="h-4 w-4" />
                     </button>
+
+                    <!-- Bouton renvoi (endnote) — visible uniquement si le parent fournit des renvois -->
+                    <template v-if="renvois !== undefined">
+                        <div class="sep" />
+                        <button
+                            type="button"
+                            class="tbtn font-bold text-blue-600 dark:text-blue-400"
+                            title="Insérer un renvoi (note de fin)"
+                            @click="clickRenvoi"
+                        >
+                            ¹
+                        </button>
+                    </template>
 
                     <div class="sep" />
 

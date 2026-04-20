@@ -44,6 +44,7 @@ class ExportProjetPdf
             'enseignant' => $enseignant,
             'membres' => $membres,
             'sections' => $sectionsAvecContenu,
+            'renvois' => $projet->renvois ?? collect(),
             'genererPageTitre' => $typeProjet?->generer_page_titre ?? true,
             'genererTableMatieres' => $typeProjet?->generer_table_matieres ?? true,
             // Les conclusions sont chargées via $projet->conclusions (relation)

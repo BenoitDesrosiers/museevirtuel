@@ -59,6 +59,12 @@ type Section = {
     conclusionsParMembre: ConclusionMembre[] | null;
 };
 
+type Renvoi = {
+    id: number;
+    numero: number;
+    contenu: string | null;
+};
+
 const props = defineProps<{
     groupe: Groupe;
     classe: Classe;
@@ -66,6 +72,7 @@ const props = defineProps<{
     membres: Membre[];
     projet: Projet | null;
     sections: Section[];
+    renvois: Renvoi[];
     estEnseignant: boolean;
 }>();
 
@@ -207,6 +214,24 @@ function nomMembre(userId: number): string {
                     </template>
                 </section>
             </template>
+
+            <!-- ─── Références (renvois / endnotes) ──────────────────────── -->
+            <section v-if="renvois.length > 0" class="space-y-3 border-t pt-6">
+                <h2 class="border-b pb-2 text-xl font-semibold">Références</h2>
+                <ol class="space-y-2 text-sm">
+                    <li
+                        v-for="renvoi in renvois"
+                        :id="`renvoi-${renvoi.numero}`"
+                        :key="renvoi.id"
+                        class="flex items-start gap-2"
+                    >
+                        <span class="min-w-[1.5rem] text-right font-bold text-blue-600 dark:text-blue-400">
+                            {{ renvoi.numero }}.
+                        </span>
+                        <span class="text-muted-foreground">{{ renvoi.contenu || '—' }}</span>
+                    </li>
+                </ol>
+            </section>
         </div>
     </AppLayout>
 </template>

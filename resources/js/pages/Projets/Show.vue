@@ -3,6 +3,7 @@ import { Head, Link, usePage, usePoll } from '@inertiajs/vue3';
 import axios from 'axios';
 import {
     ArrowLeft,
+    BookmarkPlus,
     CalendarDays,
     CheckCircle2,
     ChevronDown,
@@ -18,6 +19,7 @@ import {
     Plus,
     Send,
     Settings2,
+    SpellCheck,
     Square,
     Star,
     Trash2,
@@ -26,6 +28,8 @@ import {
 } from 'lucide-vue-next';
 import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import AntidoteGlobalModal from '@/components/AntidoteGlobalModal.vue';
+import type { GlobalSection } from '@/components/AntidoteGlobalModal.vue';
 import CommentaireEnseignant from '@/components/CommentaireEnseignant.vue';
 import Heading from '@/components/Heading.vue';
 import NotesGrillePersonnalisee from '@/components/NotesGrillePersonnalisee.vue';
@@ -146,6 +150,12 @@ type TypeProjetInfo = {
     nom: string;
 };
 
+type Renvoi = {
+    id: number;
+    numero: number;
+    contenu: string | null;
+};
+
 type Section = {
     id: number;
     label: string;
@@ -182,6 +192,8 @@ type Props = {
     typeProjet: TypeProjetInfo;
     /** Sections dynamiques définies par le professeur (vide si aucun type ou type sans sections) */
     sections: Section[];
+    /** Notes de renvoi (endnotes) triées par numéro */
+    renvois: Renvoi[];
     // Grille personnalisée (rattachée automatiquement à la classe)
     grillePersonnalisee: GrillePersonnalisee | null;
     /** notesGrilleParEtudiant[userId][critereId] = note */
@@ -436,6 +448,117 @@ return;
 }
 
 watch(form, scheduleSharedSave, { deep: true });
+
+// ─── Correction globale Antidote ──────────────────────────────────────────────
+
+const showAntidoteGlobal = ref(false);
+
+/**
+ * Annule tous les timers de sauvegarde en attente pour éviter qu'une ancienne
+ * version du contenu écrase les corrections appliquées par Antidote.
+ */
+function clearAllDebounces() {
+    if (debounceShared) clearTimeout(debounceShared);
+    debounceConclusions.forEach((t) => clearTimeout(t));
+    debounceSections.forEach((t) => clearTimeout(t));
+    debounceDev.forEach((t) => clearTimeout(t));
+    debounceSectionParagraphes.forEach((t) => clearTimeout(t));
+    debounceSectionConclusions.forEach((t) => clearTimeout(t));
+}
+
+/**
+ * Collecte toutes les sections éditables (type texte/paragraphes ou mode classique)
+ * en un tableau de GlobalSection pour la modale Antidote.
+ * Les sections de type 'individuel' et 'entrevue' sont exclues.
+ */
+function buildSectionsForAntidote(): GlobalSection[] {
+    const result: GlobalSection[] = [];
+
+    if (props.sections.length > 0) {
+        for (const section of props.sections) {
+            if (section.type === 'texte') {
+                result.push({
+                    id: `section_${section.id}`,
+                    label: section.label,
+                    html: sectionContenus[section.id] ?? '',
+                });
+            } else if (section.type === 'paragraphes') {
+                for (const para of sectionParagraphesLocaux[section.id] ?? []) {
+                    result.push({
+                        id: `para_${para.id}`,
+                        label: `${section.label} — §${para.ordre}`,
+                        html: para.contenu ?? '',
+                    });
+                }
+            }
+        }
+    } else {
+        result.push(
+            { id: 'intro_amener', label: 'Introduction — Amener', html: form.introduction_amener },
+            { id: 'intro_poser', label: 'Introduction — Poser', html: form.introduction_poser },
+            { id: 'intro_diviser', label: 'Introduction — Diviser', html: form.introduction_diviser },
+        );
+        for (const dev of developpements.value) {
+            result.push({
+                id: `dev_${dev.id}`,
+                label: `Développement ${dev.ordre}`,
+                html: dev.contenu ?? '',
+            });
+        }
+        for (const m of props.membres) {
+            result.push({
+                id: `concl_${m.id}`,
+                label: `Conclusion — ${m.prenom} ${m.nom}`,
+                html: conclusionsLocales[m.id] ?? '',
+            });
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Applique les sections corrigées par Antidote dans les refs locales,
+ * puis planifie la sauvegarde de chaque zone modifiée.
+ */
+function onSectionsCorrigees(corrigees: GlobalSection[]) {
+    clearAllDebounces();
+
+    for (const s of corrigees) {
+        if (s.id.startsWith('section_')) {
+            const id = Number(s.id.replace('section_', ''));
+            sectionContenus[id] = s.html;
+            scheduleSectionSave(id);
+        } else if (s.id.startsWith('para_')) {
+            const paraId = Number(s.id.replace('para_', ''));
+            for (const [rawSectionId, paragraphes] of Object.entries(sectionParagraphesLocaux)) {
+                const para = paragraphes.find((p) => p.id === paraId);
+                if (para) {
+                    para.contenu = s.html;
+                    scheduleSectionParagrapheSave(paraId, Number(rawSectionId));
+                    break;
+                }
+            }
+        } else if (s.id === 'intro_amener') {
+            form.introduction_amener = s.html;
+        } else if (s.id === 'intro_poser') {
+            form.introduction_poser = s.html;
+        } else if (s.id === 'intro_diviser') {
+            form.introduction_diviser = s.html;
+        } else if (s.id.startsWith('dev_')) {
+            const devId = Number(s.id.replace('dev_', ''));
+            const dev = developpements.value.find((d) => d.id === devId);
+            if (dev) {
+                dev.contenu = s.html;
+                scheduleDeveloppementSave(devId);
+            }
+        } else if (s.id.startsWith('concl_')) {
+            const membreId = Number(s.id.replace('concl_', ''));
+            conclusionsLocales[membreId] = s.html;
+            scheduleConclusionSave(membreId);
+        }
+    }
+}
 
 // ─── Paragraphes de développement dynamiques ─────────────────────────────────
 
@@ -1127,6 +1250,94 @@ async function supprimerAnnotation(
     }
 }
 
+// ─── Renvois (endnotes) ───────────────────────────────────────────────────────
+
+const renvoisLocaux = ref<Renvoi[]>([...props.renvois]);
+const renvoiModalOuvert = ref(false);
+const insertFnActif = ref<((id: number, numero: number) => void) | null>(null);
+const renvoiEnCours = ref(false);
+
+/**
+ * Ouvre le modal de sélection/création de renvoi en capturant la fonction d'insertion
+ * fournie par le RichEditor actif.
+ */
+function ouvrirModalRenvoi(insertFn: (renvoiId: number, numero: number) => void) {
+    insertFnActif.value = insertFn;
+    renvoiModalOuvert.value = true;
+}
+
+/**
+ * Insère un renvoi existant à la position du curseur dans l'éditeur actif.
+ */
+function insererRenvoiExistant(renvoi: Renvoi) {
+    insertFnActif.value?.(renvoi.id, renvoi.numero);
+    renvoiModalOuvert.value = false;
+    insertFnActif.value = null;
+}
+
+/**
+ * Crée un nouveau renvoi via l'API puis l'insère dans l'éditeur actif.
+ */
+async function creerEtInsererRenvoi() {
+    if (renvoiEnCours.value) return;
+    renvoiEnCours.value = true;
+    try {
+        const response = await axios.post(`${baseUrl.value}/renvois`, { contenu: null });
+        const renvoi = response.data.renvoi as Renvoi;
+        renvoisLocaux.value.push(renvoi);
+        insertFnActif.value?.(renvoi.id, renvoi.numero);
+        renvoiModalOuvert.value = false;
+        insertFnActif.value = null;
+    } finally {
+        renvoiEnCours.value = false;
+    }
+}
+
+/**
+ * Crée un renvoi sans l'insérer dans un éditeur (depuis la section Références).
+ */
+async function ajouterRenvoiSeul() {
+    if (renvoiEnCours.value) return;
+    renvoiEnCours.value = true;
+    try {
+        const response = await axios.post(`${baseUrl.value}/renvois`, { contenu: null });
+        renvoisLocaux.value.push(response.data.renvoi as Renvoi);
+    } finally {
+        renvoiEnCours.value = false;
+    }
+}
+
+const debounceRenvois = new Map<number, ReturnType<typeof setTimeout>>();
+
+/**
+ * Planifie la sauvegarde du contenu d'un renvoi après 1,5 s sans frappe.
+ */
+function scheduleRenvoiSave(renvoiId: number) {
+    if (!props.peutEditer) return;
+    const existing = debounceRenvois.get(renvoiId);
+    if (existing) clearTimeout(existing);
+    debounceRenvois.set(renvoiId, setTimeout(() => saveRenvoi(renvoiId), 1500));
+}
+
+async function saveRenvoi(renvoiId: number) {
+    const renvoi = renvoisLocaux.value.find((r) => r.id === renvoiId);
+    if (!renvoi) return;
+    try {
+        await axios.patch(`${baseUrl.value}/renvois/${renvoiId}`, { contenu: renvoi.contenu });
+    } catch {
+        saveStatus.value = 'error';
+    }
+}
+
+async function supprimerRenvoi(renvoiId: number) {
+    try {
+        await axios.delete(`${baseUrl.value}/renvois/${renvoiId}`);
+        renvoisLocaux.value = renvoisLocaux.value.filter((r) => r.id !== renvoiId);
+    } catch {
+        saveStatus.value = 'error';
+    }
+}
+
 // ─── Grille de correction personnalisée ───────────────────────────────────────
 
 const grillePersonnalisee = ref<GrillePersonnalisee | null>(props.grillePersonnalisee);
@@ -1328,6 +1539,16 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             <Download class="mr-2 h-4 w-4" />
                             Exporter XML
                         </a>
+                    </Button>
+                    <Button
+                        v-if="peutEditer && !verrouille"
+                        variant="outline"
+                        size="sm"
+                        class="border-green-300 text-green-700 hover:bg-green-50"
+                        @click="showAntidoteGlobal = true"
+                    >
+                        <SpellCheck class="mr-2 h-4 w-4" />
+                        Corriger tout avec Antidote
                     </Button>
                     <Button v-if="estEnseignant" variant="ghost" size="sm" as-child>
                         <Link href="/types-projets">
@@ -1595,9 +1816,11 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 :read-only="!peutEditer"
                                 :est-enseignant="estEnseignant"
                                 :corrections="annotations[`section_${section.id}`] ?? []"
+                                :renvois="renvoisLocaux"
                                 @update:model-value="scheduleSectionSave(section.id)"
                                 @save-annotation="(p) => sauvegarderAnnotation(`section_${section.id}`, p)"
                                 @delete-annotation="(p) => supprimerAnnotation(`section_${section.id}`, p)"
+                                @demander-renvoi="ouvrirModalRenvoi"
                             />
                             <CommentaireEnseignant
                                 :commentaire="commentaires[`section_${section.id}`]"
@@ -1666,9 +1889,11 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                     :read-only="!peutEditer"
                                     :est-enseignant="estEnseignant"
                                     :corrections="annotations[`section_paragraphe_${para.id}`] ?? []"
+                                    :renvois="renvoisLocaux"
                                     @update:model-value="(val: string) => { para.contenu = val; scheduleSectionParagrapheSave(para.id, section.id); }"
                                     @save-annotation="(p) => sauvegarderAnnotation(`section_paragraphe_${para.id}`, p)"
                                     @delete-annotation="(p) => supprimerAnnotation(`section_paragraphe_${para.id}`, p)"
+                                    @demander-renvoi="ouvrirModalRenvoi"
                                 />
                                 <CommentaireEnseignant
                                     :commentaire="commentaires[`section_paragraphe_${para.id}`]"
@@ -1723,11 +1948,13 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                         :model-value="sectionConclusionsLocales[section.id]?.[membre.id] ?? ''"
                                         placeholder="Rédigez votre partie…"
                                         :est-enseignant="estEnseignant"
+                                        :renvois="renvoisLocaux"
                                         @update:model-value="(val: string) => {
                                             if (!sectionConclusionsLocales[section.id]) sectionConclusionsLocales[section.id] = {};
                                             sectionConclusionsLocales[section.id][membre.id] = val;
                                             scheduleSectionConclusionSave(section.id, membre.id);
                                         }"
+                                        @demander-renvoi="ouvrirModalRenvoi"
                                     />
                                 </template>
                                 <template v-else>
@@ -1977,8 +2204,10 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :read-only="!peutEditer"
                             :est-enseignant="estEnseignant"
                             :corrections="annotations['introduction_amener'] ?? []"
+                            :renvois="renvoisLocaux"
                             @save-annotation="(p) => sauvegarderAnnotation('introduction_amener', p)"
                             @delete-annotation="(p) => supprimerAnnotation('introduction_amener', p)"
+                            @demander-renvoi="ouvrirModalRenvoi"
                         />
                         <CommentaireEnseignant
                             :commentaire="commentaires['introduction_amener']"
@@ -2015,8 +2244,10 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :read-only="!peutEditer"
                             :est-enseignant="estEnseignant"
                             :corrections="annotations['introduction_poser'] ?? []"
+                            :renvois="renvoisLocaux"
                             @save-annotation="(p) => sauvegarderAnnotation('introduction_poser', p)"
                             @delete-annotation="(p) => supprimerAnnotation('introduction_poser', p)"
+                            @demander-renvoi="ouvrirModalRenvoi"
                         />
                         <CommentaireEnseignant
                             :commentaire="commentaires['introduction_poser']"
@@ -2049,8 +2280,10 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :read-only="!peutEditer"
                             :est-enseignant="estEnseignant"
                             :corrections="annotations['introduction_diviser'] ?? []"
+                            :renvois="renvoisLocaux"
                             @save-annotation="(p) => sauvegarderAnnotation('introduction_diviser', p)"
                             @delete-annotation="(p) => supprimerAnnotation('introduction_diviser', p)"
+                            @demander-renvoi="ouvrirModalRenvoi"
                         />
                         <CommentaireEnseignant
                             :commentaire="commentaires['introduction_diviser']"
@@ -2143,9 +2376,11 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         :read-only="!peutEditer"
                         :est-enseignant="estEnseignant"
                         :corrections="annotations[`developpement_${dev.id}`] ?? []"
+                        :renvois="renvoisLocaux"
                         @update:model-value="(val: string) => { dev.contenu = val; scheduleDeveloppementSave(dev.id); }"
                         @save-annotation="(p) => sauvegarderAnnotation(`developpement_${dev.id}`, p)"
                         @delete-annotation="(p) => supprimerAnnotation(`developpement_${dev.id}`, p)"
+                        @demander-renvoi="ouvrirModalRenvoi"
                     />
 
                     <!-- Commentaire -->
@@ -2210,7 +2445,9 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :model-value="conclusionsLocales[item.etudiant.id]"
                             placeholder="Rédigez votre conclusion…"
                             :est-enseignant="estEnseignant"
+                            :renvois="renvoisLocaux"
                             @update:model-value="(val: string) => { conclusionsLocales[item.etudiant.id] = val; scheduleConclusionSave(item.etudiant.id); }"
+                            @demander-renvoi="ouvrirModalRenvoi"
                         />
                     </template>
                     <template v-else>
@@ -2267,6 +2504,66 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                 </CardContent>
             </Card>
             </template><!-- /legacy conclusions -->
+
+            <!-- ─── Références (renvois / endnotes) ──────────────────────────── -->
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <CardTitle class="flex items-center gap-2 text-base">
+                        <BookmarkPlus class="h-4 w-4 text-primary" />
+                        Références
+                    </CardTitle>
+                    <Button
+                        v-if="peutEditer"
+                        variant="outline"
+                        size="sm"
+                        :disabled="renvoiEnCours"
+                        @click="ajouterRenvoiSeul"
+                    >
+                        <Loader2 v-if="renvoiEnCours" class="mr-2 h-4 w-4 animate-spin" />
+                        <Plus v-else class="mr-2 h-4 w-4" />
+                        Ajouter une référence
+                    </Button>
+                </CardHeader>
+                <CardContent>
+                    <p v-if="renvoisLocaux.length === 0" class="text-sm text-muted-foreground italic">
+                        Aucune référence. Cliquez sur ¹ dans la barre d'un éditeur pour en insérer une.
+                    </p>
+                    <ol v-else class="space-y-2">
+                        <li
+                            v-for="renvoi in renvoisLocaux"
+                            :key="renvoi.id"
+                            class="flex items-start gap-2"
+                        >
+                            <span class="mt-2 min-w-[1.5rem] text-right text-xs font-bold text-blue-600 dark:text-blue-400">
+                                {{ renvoi.numero }}.
+                            </span>
+                            <div class="flex-1">
+                                <textarea
+                                    :value="renvoi.contenu ?? ''"
+                                    :disabled="!peutEditer"
+                                    rows="2"
+                                    placeholder="Texte de la référence…"
+                                    class="w-full resize-none rounded border border-input bg-background px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
+                                    @input="(e) => {
+                                        renvoi.contenu = (e.target as HTMLTextAreaElement).value;
+                                        scheduleRenvoiSave(renvoi.id);
+                                    }"
+                                />
+                            </div>
+                            <Button
+                                v-if="peutEditer"
+                                variant="ghost"
+                                size="icon"
+                                class="mt-1 h-7 w-7 shrink-0 text-destructive"
+                                title="Supprimer cette référence"
+                                @click="supprimerRenvoi(renvoi.id)"
+                            >
+                                <Trash2 class="h-3.5 w-3.5" />
+                            </Button>
+                        </li>
+                    </ol>
+                </CardContent>
+            </Card>
 
             <!-- ─── Remise de travail ──────────────────────────────────────────── -->
 
@@ -2450,6 +2747,57 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                 </p>
             </DialogScrollContent>
         </Dialog>
+
+        <!-- ─── Modal insertion de renvoi ────────────────────────────────── -->
+        <Dialog v-model:open="renvoiModalOuvert">
+            <DialogScrollContent class="max-w-md">
+                <DialogHeader>
+                    <DialogTitle class="flex items-center gap-2">
+                        <BookmarkPlus class="h-4 w-4" />
+                        Insérer un renvoi
+                    </DialogTitle>
+                </DialogHeader>
+
+                <div class="space-y-3 py-2">
+                    <!-- Références existantes -->
+                    <div v-if="renvoisLocaux.length > 0" class="space-y-1">
+                        <p class="text-xs font-medium text-muted-foreground">Références existantes</p>
+                        <button
+                            v-for="renvoi in renvoisLocaux"
+                            :key="renvoi.id"
+                            type="button"
+                            class="flex w-full items-start gap-2 rounded-md border px-3 py-2 text-left text-sm hover:bg-accent"
+                            @click="insererRenvoiExistant(renvoi)"
+                        >
+                            <span class="min-w-[1.5rem] font-bold text-blue-600 dark:text-blue-400">{{ renvoi.numero }}.</span>
+                            <span class="text-muted-foreground">{{ renvoi.contenu || '(sans texte)' }}</span>
+                        </button>
+                    </div>
+
+                    <div class="border-t pt-3">
+                        <Button
+                            :disabled="renvoiEnCours"
+                            class="w-full"
+                            @click="creerEtInsererRenvoi"
+                        >
+                            <Loader2 v-if="renvoiEnCours" class="mr-2 h-4 w-4 animate-spin" />
+                            <Plus v-else class="mr-2 h-4 w-4" />
+                            Créer un nouveau renvoi et l'insérer
+                        </Button>
+                    </div>
+                </div>
+            </DialogScrollContent>
+        </Dialog>
+
+        <!-- ─── Modale correction globale Antidote ────────────────────────── -->
+        <!-- Pas de v-if : le composant reste monté pour que le watcher réagisse
+             au passage de open=false → true et pré-charge le contenu dans l'éditeur. -->
+        <AntidoteGlobalModal
+            :open="showAntidoteGlobal"
+            :sections="buildSectionsForAntidote()"
+            @update:open="showAntidoteGlobal = $event"
+            @corrected="onSectionsCorrigees"
+        />
 
     </AppLayout>
 </template>

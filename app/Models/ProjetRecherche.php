@@ -183,6 +183,14 @@ class ProjetRecherche extends Model
     }
 
     /**
+     * Retourne les notes de renvoi (endnotes) du projet, triées par numéro.
+     */
+    public function renvois(): HasMany
+    {
+        return $this->hasMany(ProjetRenvoi::class, 'projet_id')->orderBy('numero');
+    }
+
+    /**
      * Calcule le pourcentage de complétion du contenu partagé (hors conclusions).
      *
      * Basé uniquement sur les sections de type 'texte' du TypeProjet.

@@ -20,6 +20,7 @@ use App\Models\ProjetGrilleMalus;
 use App\Models\ProjetGrilleNote;
 use App\Models\ProjetNote;
 use App\Models\ProjetRecherche;
+use App\Models\ProjetRenvoi;
 use App\Models\ProjetSectionContenu;
 use App\Models\ProjetSectionParagraphe;
 use App\Models\ProjetVoteRemise;
@@ -27,6 +28,7 @@ use App\Models\TypeProjet;
 use App\Models\TypeProjetSection;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -147,7 +149,7 @@ class ProjetRechercheController extends Controller
         ]);
 
         // Précharger en une seule requête chacune des relations — évite le N+1
-        $projet->load(['conclusions', 'commentaires', 'annotations', 'developpements', 'votes', 'notes', 'notesGrille.critere', 'malusAppliques.malus', 'typeProjet.grille.criteres', 'typeProjet.grille.malus', 'typeProjet.sections', 'sectionContenus', 'sectionParagraphes', 'entrevueConcepts.lignes']);
+        $projet->load(['conclusions', 'commentaires', 'annotations', 'developpements', 'votes', 'notes', 'notesGrille.critere', 'malusAppliques.malus', 'typeProjet.grille.criteres', 'typeProjet.grille.malus', 'typeProjet.sections', 'sectionContenus', 'sectionParagraphes', 'entrevueConcepts.lignes', 'renvois']);
 
         $conclusionsParMembre = $projet->conclusions->keyBy('user_id');
 
@@ -255,6 +257,7 @@ class ProjetRechercheController extends Controller
             'malusParEtudiant' => $malusParEtudiant,
             'noteFinaleGrilleParEtudiant' => $noteFinaleGrilleParEtudiant,
             'sections' => $this->construireSections($projet, $groupe->membres),
+            'renvois' => $projet->renvois->map->only('id', 'numero', 'contenu')->values(),
         ]);
     }
 
@@ -281,7 +284,7 @@ class ProjetRechercheController extends Controller
 
         $projet = ProjetRecherche::where('groupe_id', $groupe->id)
             ->where('type_projet_id', $typeProjet->id)
-            ->with(['typeProjet.sections', 'sectionContenus', 'sectionParagraphes', 'conclusions', 'entrevueConcepts.lignes'])
+            ->with(['typeProjet.sections', 'sectionContenus', 'sectionParagraphes', 'conclusions', 'entrevueConcepts.lignes', 'renvois'])
             ->first();
 
         $sections = $projet
@@ -325,6 +328,9 @@ class ProjetRechercheController extends Controller
                 ? ['id' => $projet->id, 'titre_projet' => $projet->titre_projet]
                 : null,
             'sections' => $sections,
+            'renvois' => $projet
+                ? $projet->renvois->map->only('id', 'numero', 'contenu')->values()
+                : collect(),
             'estEnseignant' => $estEnseignant,
         ]);
     }
@@ -349,8 +355,7 @@ class ProjetRechercheController extends Controller
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
-        abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
-        abort_if(! $projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
+        $this->verifierProjetModifiable($projet);
 
         $validated = $request->validate([
             'contenu' => ['nullable', 'string'],
@@ -422,8 +427,7 @@ class ProjetRechercheController extends Controller
             'type_projet_id' => $typeProjet->id,
         ]);
 
-        abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
-        abort_if(! $projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
+        $this->verifierProjetModifiable($projet);
 
         $ordre = ($projet->developpements()->max('ordre') ?? 0) + 1;
 
@@ -454,8 +458,7 @@ class ProjetRechercheController extends Controller
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($developpement->projet_id !== $projet->id, 404);
-        abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
-        abort_if(! $projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
+        $this->verifierProjetModifiable($projet);
 
         $validated = $request->validate([
             'titre' => ['nullable', 'string', 'max:500'],
@@ -493,8 +496,7 @@ class ProjetRechercheController extends Controller
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($developpement->projet_id !== $projet->id, 404);
-        abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
-        abort_if(! $projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
+        $this->verifierProjetModifiable($projet);
         abort_if($projet->developpements()->count() <= 1, 422, 'Le projet doit conserver au moins un paragraphe.');
 
         $developpement->delete();
@@ -555,8 +557,7 @@ class ProjetRechercheController extends Controller
             'type_projet_id' => $typeProjet->id,
         ]);
 
-        abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
-        abort_if(! $projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
+        $this->verifierProjetModifiable($projet);
 
         $ordre = (ProjetSectionParagraphe::where('projet_id', $projet->id)
             ->where('section_id', $section->id)
@@ -590,8 +591,7 @@ class ProjetRechercheController extends Controller
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($paragraphe->projet_id !== $projet->id || $paragraphe->section_id !== $section->id, 404);
-        abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
-        abort_if(! $projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
+        $this->verifierProjetModifiable($projet);
 
         $validated = $request->validate([
             'titre' => ['nullable', 'string', 'max:500'],
@@ -627,8 +627,7 @@ class ProjetRechercheController extends Controller
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($paragraphe->projet_id !== $projet->id || $paragraphe->section_id !== $section->id, 404);
-        abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
-        abort_if(! $projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
+        $this->verifierProjetModifiable($projet);
 
         $count = ProjetSectionParagraphe::where('projet_id', $projet->id)
             ->where('section_id', $section->id)
@@ -1184,6 +1183,105 @@ class ProjetRechercheController extends Controller
         ]);
     }
 
+    // ─── Renvois (endnotes) ───────────────────────────────────────────────────
+
+    /**
+     * Crée un nouveau renvoi (endnote) pour le projet.
+     *
+     * Le numéro est auto-incrémenté : max(numero) + 1 pour ce projet.
+     * Seuls les membres du groupe peuvent créer des renvois.
+     *
+     * @throws HttpException
+     */
+    public function storeRenvoi(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
+    {
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserMembreGroupe($cours, $classe, $groupe);
+
+        $projet = ProjetRecherche::firstOrCreate([
+            'groupe_id' => $groupe->id,
+            'type_projet_id' => $typeProjet->id,
+        ]);
+
+        $this->verifierProjetModifiable($projet);
+
+        $validated = $request->validate([
+            'contenu' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $numero = ($projet->renvois()->max('numero') ?? 0) + 1;
+
+        try {
+            $renvoi = ProjetRenvoi::create([
+                'projet_id' => $projet->id,
+                'numero' => $numero,
+                'contenu' => $validated['contenu'] ?? null,
+            ]);
+        } catch (QueryException) {
+            // Numéro en conflit (race condition) — on recalcule et on réessaie
+            $numero = ($projet->renvois()->max('numero') ?? 0) + 1;
+            $renvoi = ProjetRenvoi::create([
+                'projet_id' => $projet->id,
+                'numero' => $numero,
+                'contenu' => $validated['contenu'] ?? null,
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'created',
+            'renvoi' => $renvoi->only('id', 'numero', 'contenu'),
+        ], 201);
+    }
+
+    /**
+     * Met à jour le contenu textuel d'un renvoi existant.
+     *
+     * Vérifie que le renvoi appartient bien au projet du groupe (anti-IDOR).
+     *
+     * @throws HttpException
+     */
+    public function updateRenvoi(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetRenvoi $renvoi): JsonResponse
+    {
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserMembreGroupe($cours, $classe, $groupe);
+
+        $projet = $this->trouverProjet($groupe, $typeProjet);
+
+        abort_if($renvoi->projet_id !== $projet->id, 404);
+        $this->verifierProjetModifiable($projet);
+
+        $validated = $request->validate([
+            'contenu' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $renvoi->update(['contenu' => $validated['contenu']]);
+
+        return response()->json(['message' => 'saved']);
+    }
+
+    /**
+     * Supprime un renvoi du projet.
+     *
+     * Les exposants référençant ce numéro dans le texte deviennent orphelins —
+     * la détection visuelle (rouge) est gérée côté Vue via la liste renvois[].
+     *
+     * @throws HttpException
+     */
+    public function destroyRenvoi(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetRenvoi $renvoi): JsonResponse
+    {
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserMembreGroupe($cours, $classe, $groupe);
+
+        $projet = $this->trouverProjet($groupe, $typeProjet);
+
+        abort_if($renvoi->projet_id !== $projet->id, 404);
+        $this->verifierProjetModifiable($projet);
+
+        $renvoi->delete();
+
+        return response()->json(['message' => 'deleted']);
+    }
+
     // ─── Méthodes privées ─────────────────────────────────────────────────────
 
     /**
@@ -1200,6 +1298,19 @@ class ProjetRechercheController extends Controller
             ->where('type_projet_id', $typeProjet->id)
             ->with('typeProjet')
             ->firstOrFail();
+    }
+
+    /**
+     * Vérifie que le projet est modifiable : non-verrouillé et non encore remis.
+     *
+     * Factorise les deux guards répétés dans toutes les méthodes d'écriture.
+     *
+     * @throws HttpException
+     */
+    private function verifierProjetModifiable(ProjetRecherche $projet): void
+    {
+        abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
+        abort_if(! $projet->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
     }
 
     /**
@@ -1221,7 +1332,7 @@ class ProjetRechercheController extends Controller
         $this->authorize('view', $groupe);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
-        $projet->load(['conclusions.etudiant', 'developpements']);
+        $projet->load(['conclusions.etudiant', 'developpements', 'renvois']);
 
         return $projet;
     }

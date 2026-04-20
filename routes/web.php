@@ -402,6 +402,16 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin'])->group(function ()
     Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/voter-remise', [ProjetRechercheController::class, 'voterRemise'])
         ->name('projets.voterRemise');
 
+    // Renvois (endnotes) — accessibles aux membres du groupe
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/renvois', [ProjetRechercheController::class, 'storeRenvoi'])
+        ->name('projets.renvois.store');
+
+    Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/renvois/{renvoi}', [ProjetRechercheController::class, 'updateRenvoi'])
+        ->name('projets.renvois.update');
+
+    Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/renvois/{renvoi}', [ProjetRechercheController::class, 'destroyRenvoi'])
+        ->name('projets.renvois.destroy');
+
     Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/pdf', [ProjetRechercheController::class, 'exportPdf'])
         ->name('projets.export.pdf');
 

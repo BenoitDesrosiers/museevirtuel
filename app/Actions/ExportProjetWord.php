@@ -120,6 +120,20 @@ class ExportProjetWord
             $this->addHtmlContent($vide, null);
         }
 
+        // ─── Références (renvois / endnotes) ──────────────────────────────────
+        $renvois = $projet->renvois ?? collect();
+
+        if ($renvois->isNotEmpty()) {
+            $refsSection = $word->addSection();
+            $refsSection->addTitle('Références', 1);
+            $refsSection->addTextBreak(1);
+
+            foreach ($renvois as $renvoi) {
+                $texte = "{$renvoi->numero}.\t".($renvoi->contenu ?? '—');
+                $refsSection->addText(htmlspecialchars($texte), ['size' => 11]);
+            }
+        }
+
         // ─── Stream du fichier ────────────────────────────────────────────────
         $nomFichier = sprintf('projet_groupe_%d.docx', $groupe->id);
 

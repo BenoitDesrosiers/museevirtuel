@@ -145,6 +145,24 @@
         .prose strong { font-weight: bold; }
         .prose em { font-style: italic; }
         .prose u { text-decoration: underline; }
+
+        /* ─── Exposants de renvoi ─────────────────────────────── */
+        sup.renvoi {
+            vertical-align: super;
+            font-size: 0.75em;
+            font-weight: bold;
+            color: #1e40af;
+        }
+
+        /* ─── Section Références ──────────────────────────────── */
+        .references ol {
+            margin-left: 24px;
+            list-style-type: decimal;
+        }
+        .references li {
+            margin-bottom: 6pt;
+            font-size: 11pt;
+        }
     </style>
 </head>
 <body>
@@ -275,6 +293,18 @@
             </div>
         @endif
     @endforeach
+
+    {{-- ─── Références (renvois / endnotes) ───────────────────── --}}
+    @if(isset($renvois) && $renvois->isNotEmpty())
+    <div class="section references">
+        <h2>Références</h2>
+        <ol>
+            @foreach($renvois as $renvoi)
+                <li>{{ $renvoi->contenu ?? '—' }}</li>
+            @endforeach
+        </ol>
+    </div>
+    @endif
 
 </body>
 </html>
