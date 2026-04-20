@@ -187,8 +187,8 @@ class GroupeController extends Controller
             )->values()
             : $tousLesTemoins;
 
-        $tousLesTemoins = $tousLesTemoins->makeHidden('thematiquesChoisies');
-        $temoinsDisponibles = $temoinsDisponibles->makeHidden('thematiquesChoisies');
+        $tousLesTemoins->each(fn ($t) => $t->makeHidden('thematiquesChoisies'));
+        $temoinsDisponibles->each(fn ($t) => $t->makeHidden('thematiquesChoisies'));
 
         return Inertia::render('Groupes/Show', [
             'groupe' => $groupe,
