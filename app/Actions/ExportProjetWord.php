@@ -43,7 +43,7 @@ class ExportProjetWord
         $word->setDefaultFontSize(12);
 
         // ─── Page titre ───────────────────────────────────────────────────────
-        if ($typeProjet?->generer_page_titre ?? true) {
+        if ($typeProjet && $typeProjet->generer_page_titre) {
             $pageTitre = $word->addSection();
 
             foreach ($groupe->membres as $membre) {
@@ -62,10 +62,14 @@ class ExportProjetWord
             $this->addCenteredText($pageTitre, 'Département des sciences humaines', 10);
             $this->addCenteredText($pageTitre, $enseignant->etablissement?->nom ?? 'Cégep de Drummondville', 10);
             $this->addCenteredText($pageTitre, 'Le '.now()->translatedFormat('j F Y'), 10);
+        } elseif (! empty($projet->page_titre_contenu)) {
+            // Contenu rédigé manuellement par l'étudiant
+            $pageTitre = $word->addSection();
+            $this->addHtmlContent($pageTitre, $projet->page_titre_contenu);
         }
 
         // ─── Table des matières (champ TOC Word — Heading 1 & 2) ─────────────
-        if ($typeProjet?->generer_table_matieres ?? true) {
+        if ($typeProjet && $typeProjet->generer_table_matieres) {
             $tocSection = $word->addSection();
             $tocSection->addText(
                 'TABLE DES MATIÈRES',
@@ -75,6 +79,10 @@ class ExportProjetWord
             $tocSection->addTextBreak(1);
             // Champ TOC automatique : se met à jour à l'ouverture du fichier dans Word
             $tocSection->addTOC(['size' => 11], null, 1, 2);
+        } elseif (! empty($projet->table_matieres_contenu)) {
+            // Contenu rédigé manuellement par l'étudiant
+            $tocSection = $word->addSection();
+            $this->addHtmlContent($tocSection, $projet->table_matieres_contenu);
         }
 
         // ─── Sections dynamiques ──────────────────────────────────────────────

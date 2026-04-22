@@ -15,6 +15,7 @@
     "groupe.note_created": "Note published.",
     "groupe.note_deleted": "Note deleted.",
     "groupe.deleted": "Group deleted.",
+    "thematique.no_etablissement": "Your account is not linked to an institution. Please contact an administrator.",
     "thematique.created": "Theme created successfully.",
     "thematique.updated": "Theme updated.",
     "thematique.deleted": "Theme deleted.",

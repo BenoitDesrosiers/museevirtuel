@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\InscriptionTemoinController;
 use App\Models\Etablissement;
 use App\Models\Thematique;
 use App\Models\User;
@@ -144,6 +145,7 @@ test('enseignant ne voit pas les thematiques d_un autre cegep', function () {
 test('pa peut s_inscrire avec un etablissement valide', function () {
     $cegep = creerCegep(code: 'TEST-01');
 
+    // Étape 1 : infos personnelles + choix cégep → stockées en session
     $this->post('/inscription/temoin', [
         'prenom' => 'Marie',
         'nom' => 'Tremblay',
@@ -152,6 +154,13 @@ test('pa peut s_inscrire avec un etablissement valide', function () {
         'password_confirmation' => 'Motdepasse1!',
         'choix' => [['etablissement_id' => $cegep->id, 'theme_libre' => 'Les métiers d\'autrefois']],
         'description' => 'Je suis une personne âgée intéressée par l\'histoire.',
+    ])->assertRedirect(route('inscription.temoin.engagements'));
+
+    // Étape 2 : engagements + signature → crée le compte
+    $nbEngagements = InscriptionTemoinController::NB_ENGAGEMENTS;
+    $this->post('/inscription/temoin/engagements', [
+        'engagements' => array_fill(0, $nbEngagements, '1'),
+        'signature' => 'Marie Tremblay',
     ])->assertRedirect();
 
     $user = User::where('email', 'marie@test.com')->first();

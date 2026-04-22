@@ -36,6 +36,12 @@ Route::middleware('throttle:10,1')->group(function () {
 
     Route::post('/inscription/temoin', [InscriptionTemoinController::class, 'store'])
         ->name('inscription.temoin.store');
+
+    Route::get('/inscription/temoin/engagements', [InscriptionTemoinController::class, 'showEngagements'])
+        ->name('inscription.temoin.engagements');
+
+    Route::post('/inscription/temoin/engagements', [InscriptionTemoinController::class, 'storeEngagements'])
+        ->name('inscription.temoin.engagements.store');
 });
 
 // Redirection post-login selon le rôle

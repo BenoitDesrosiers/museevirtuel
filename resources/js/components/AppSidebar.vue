@@ -53,8 +53,8 @@ const mainNavItems = computed((): NavItem[] => {
     if (role === 'etudiant') {
         return [
             {
-                title: t('sidebar.my_classes'),
-                href: '/classes',
+                title: t('sidebar.my_class'),
+                href: '/etudiant',
                 icon: BookOpen,
             },
         ];

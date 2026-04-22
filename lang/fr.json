@@ -15,6 +15,7 @@
     "groupe.note_created": "Note publiée.",
     "groupe.note_deleted": "Note supprimée.",
     "groupe.deleted": "Groupe supprimé.",
+    "thematique.no_etablissement": "Votre compte n'est pas lié à un établissement. Contactez un administrateur.",
     "thematique.created": "Thématique créée avec succès.",
     "thematique.updated": "Thématique mise à jour.",
     "thematique.deleted": "Thématique supprimée.",

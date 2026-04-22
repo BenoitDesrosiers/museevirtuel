@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Etablissement;
 use App\Models\Thematique;
 use App\Models\User;
 
@@ -77,6 +78,86 @@ test('un invité est redirigé vers /login', function () {
 
     $this->get(route('enseignant.temoins.show', $pa))
         ->assertRedirect(route('login'));
+});
+
+test('la fiche du témoin expose les champs de consentement au professeur', function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $thematique = Thematique::create(['nom' => 'Consentement Test', 'enseignant_id' => $enseignant->id]);
+
+    $signedAt = now()->subDay();
+
+    $pa = User::factory()->create([
+        'role' => 'personne_agee',
+        'statut' => 'en_attente',
+        'engagements_acceptes_le' => $signedAt,
+        'signature_electronique' => 'Marguerite Beauchamp',
+    ]);
+    $pa->thematiquesChoisies()->attach($thematique->id);
+
+    $this->actingAs($enseignant)
+        ->get(route('enseignant.temoins.show', $pa))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Enseignant/TemoinShow')
+            ->where('temoin.signature_electronique', 'Marguerite Beauchamp')
+            ->has('temoin.engagements_acceptes_le')
+        );
+});
+
+test('la fiche du témoin expose des champs de consentement nuls si non signés', function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $thematique = Thematique::create(['nom' => 'Sans consentement', 'enseignant_id' => $enseignant->id]);
+
+    $pa = User::factory()->create([
+        'role' => 'personne_agee',
+        'statut' => 'en_attente',
+        'engagements_acceptes_le' => null,
+        'signature_electronique' => null,
+    ]);
+    $pa->thematiquesChoisies()->attach($thematique->id);
+
+    $this->actingAs($enseignant)
+        ->get(route('enseignant.temoins.show', $pa))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Enseignant/TemoinShow')
+            ->where('temoin.engagements_acceptes_le', null)
+            ->where('temoin.signature_electronique', null)
+        );
+});
+
+// ─── Theme libre depuis pivot ─────────────────────────────────────────────────
+
+test('la fiche témoin expose theme_libre depuis le pivot user_etablissement', function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $cegep = Etablissement::create(['nom' => 'Cégep Test', 'ville' => 'Québec']);
+    $thematique = Thematique::create(['nom' => 'La Nouvelle-France', 'enseignant_id' => $enseignant->id]);
+
+    $pa = User::factory()->create(['role' => 'personne_agee', 'statut' => 'en_attente']);
+    $pa->thematiquesChoisies()->attach($thematique->id);
+    $pa->etablissementsChoisis()->attach($cegep->id, ['theme_libre' => 'Vie rurale au XXe siècle']);
+
+    $this->actingAs($enseignant)
+        ->get(route('enseignant.temoins.show', $pa))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('temoin.theme_libre', 'Vie rurale au XXe siècle')
+        );
+});
+
+test('la fiche témoin expose theme_libre null si aucun thème libre dans les pivots', function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $thematique = Thematique::create(['nom' => 'Sans thème libre', 'enseignant_id' => $enseignant->id]);
+
+    $pa = User::factory()->create(['role' => 'personne_agee', 'statut' => 'en_attente']);
+    $pa->thematiquesChoisies()->attach($thematique->id);
+
+    $this->actingAs($enseignant)
+        ->get(route('enseignant.temoins.show', $pa))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('temoin.theme_libre', null)
+        );
 });
 
 // ─── Désapprobation ────────────────────────────────────────────────────────────

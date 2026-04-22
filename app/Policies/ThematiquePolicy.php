@@ -12,7 +12,7 @@ class ThematiquePolicy
      */
     public function update(User $user, Thematique $thematique): bool
     {
-        return $user->isAdmin() || $thematique->enseignant_id === $user->id;
+        return $user->isAdmin() || $thematique->etablissement_id === $user->etablissement_id;
     }
 
     /**
@@ -20,6 +20,6 @@ class ThematiquePolicy
      */
     public function delete(User $user, Thematique $thematique): bool
     {
-        return $user->isAdmin() || $thematique->enseignant_id === $user->id;
+        return $user->isAdmin() || $thematique->etablissement_id === $user->etablissement_id;
     }
 }

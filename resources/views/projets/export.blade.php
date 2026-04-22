@@ -168,7 +168,7 @@
 <body>
 
     {{-- ─── Page titre ──────────────────────────────────────────────── --}}
-    @if($genererPageTitre ?? true)
+    @if($genererPageTitre)
     <div class="page-titre">
         {{-- Chaque membre sur sa propre ligne --}}
         @foreach($membres as $nom)
@@ -187,10 +187,13 @@
         <p class="ecole">Cégep de Drummondville</p>
         <p class="date">Le {{ now()->translatedFormat('j F Y') }}</p>
     </div>
+    @elseif(!empty($pageTitreContenu))
+    {{-- Contenu rédigé manuellement par l'étudiant --}}
+    <div class="page-titre">{!! $stripMarks($pageTitreContenu) !!}</div>
     @endif
 
     {{-- ─── Table des matières ────────────────────────────────────────── --}}
-    @if($genererTableMatieres ?? true)
+    @if($genererTableMatieres)
     <div class="toc">
         <h2>Table des matières</h2>
 
@@ -216,6 +219,9 @@
             </div>
         @endforeach
     </div>
+    @elseif(!empty($tableMatieresContenu))
+    {{-- Contenu rédigé manuellement par l'étudiant --}}
+    <div class="toc">{!! $stripMarks($tableMatieresContenu) !!}</div>
     @endif
 
     {{-- ─── Sections dynamiques ou Introduction classique ─────────────── --}}

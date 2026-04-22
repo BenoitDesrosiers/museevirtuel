@@ -159,7 +159,7 @@ function creer() {
                         <Checkbox
                             id="generer_page_titre"
                             :checked="form.generer_page_titre"
-                            @update:checked="(v) => (form.generer_page_titre = v as boolean)"
+                            @update:checked="(v) => (form.generer_page_titre = v === true)"
                         />
                         <div class="grid gap-0.5">
                             <Label for="generer_page_titre" class="cursor-pointer">{{ $t('types_projet.edit.label_generer_page_titre') }}</Label>
@@ -173,7 +173,7 @@ function creer() {
                         <Checkbox
                             id="generer_table_matieres"
                             :checked="form.generer_table_matieres"
-                            @update:checked="(v) => (form.generer_table_matieres = v as boolean)"
+                            @update:checked="(v) => (form.generer_table_matieres = v === true)"
                         />
                         <div class="grid gap-0.5">
                             <Label for="generer_table_matieres" class="cursor-pointer">{{ $t('types_projet.edit.label_generer_table_matieres') }}</Label>

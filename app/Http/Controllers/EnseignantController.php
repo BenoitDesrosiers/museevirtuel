@@ -93,7 +93,7 @@ class EnseignantController extends Controller
             403
         );
 
-        $user->load('thematiquesChoisies:id,nom');
+        $user->load(['thematiquesChoisies:id,nom', 'etablissementsChoisis']);
 
         return Inertia::render('Enseignant/TemoinShow', [
             'temoin' => [
@@ -103,10 +103,12 @@ class EnseignantController extends Controller
                 'email' => $user->email,
                 'description' => $user->description,
                 'provenance' => $user->provenance,
-                'theme_libre' => $user->theme_libre,
+                'theme_libre' => $user->themeLibre(),
                 'statut' => $user->statut,
                 'created_at' => $user->created_at->toIso8601String(),
                 'thematiques_choisies' => $user->thematiquesChoisies->map->only('id', 'nom')->values(),
+                'engagements_acceptes_le' => $user->engagements_acceptes_le?->toIso8601String(),
+                'signature_electronique' => $user->signature_electronique,
             ],
         ]);
     }

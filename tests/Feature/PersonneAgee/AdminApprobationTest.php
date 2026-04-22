@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Etablissement;
+use App\Models\Thematique;
 use App\Models\User;
 
 // ─── Approbation ──────────────────────────────────────────────────────────────
@@ -136,4 +138,40 @@ test('le dashboard redirige une PA approuvée vers sa page', function () {
     $this->actingAs($pa)
         ->get(route('dashboard'))
         ->assertRedirect(route('temoin.index'));
+});
+
+// ─── Affichage des thématiques dans le panneau admin ─────────────────────────
+
+test('le panneau admin expose thematiques_choisies pour les PA en attente', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $cegep = Etablissement::create(['nom' => 'Cégep Admin Test', 'ville' => 'Québec']);
+    $enseignant = User::factory()->create(['role' => 'enseignant', 'etablissement_id' => $cegep->id]);
+    $thematique = Thematique::factory()->create(['enseignant_id' => $enseignant->id, 'etablissement_id' => $cegep->id]);
+
+    $pa = User::factory()->create(['role' => 'personne_agee', 'statut' => 'en_attente']);
+    $pa->thematiquesChoisies()->attach($thematique->id);
+
+    $this->actingAs($admin)
+        ->get(route('administration.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('temoinsEnAttente', 1)
+            ->has('temoinsEnAttente.0.thematiques_choisies', 1)
+            ->where('temoinsEnAttente.0.thematiques_choisies.0.nom', $thematique->nom)
+        );
+});
+
+test('le panneau admin expose theme_libre depuis le pivot user_etablissement', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $cegep = Etablissement::create(['nom' => 'Cégep Thème Libre', 'ville' => 'Montréal']);
+
+    $pa = User::factory()->create(['role' => 'personne_agee', 'statut' => 'en_attente']);
+    $pa->etablissementsChoisis()->attach($cegep->id, ['theme_libre' => 'Mon thème personnel']);
+
+    $this->actingAs($admin)
+        ->get(route('administration.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('temoinsEnAttente.0.theme_libre', 'Mon thème personnel')
+        );
 });

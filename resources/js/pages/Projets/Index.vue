@@ -78,11 +78,11 @@ function projetUrl(typeProjetId: number): string {
         <Head title="Projets" />
 
         <div class="flex flex-col gap-6 p-6">
-            <!-- Retour au groupe -->
+            <!-- Retour à la classe -->
             <div>
                 <Button variant="ghost" size="sm" as-child>
-                    <Link :href="`/cours/${classe.cours_id}/classes/${groupe.classe_id}/groupes/${groupe.id}`">
-                        ← Retour au groupe
+                    <Link :href="`/cours/${classe.cours_id}/classes/${classe.id}`">
+                        ← Retour à la classe
                     </Link>
                 </Button>
             </div>

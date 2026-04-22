@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { Head, useForm, usePage } from '@inertiajs/vue3';
-import { Plus, X } from 'lucide-vue-next';
+import { Check, Plus, X } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import InputError from '@/components/InputError.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -81,13 +80,16 @@ function retirerCegep(index: number) {
 }
 
 function toggleThematique(choixIndex: number, thematiqueId: number) {
-    const ids = form.choix[choixIndex].thematique_ids;
-    const idx = ids.indexOf(thematiqueId);
-    if (idx === -1) {
-        ids.push(thematiqueId);
-    } else {
-        ids.splice(idx, 1);
-    }
+    const current = form.choix[choixIndex].thematique_ids;
+    const idx = current.indexOf(thematiqueId);
+    const newIds = idx >= 0
+        ? current.filter((id) => id !== thematiqueId)
+        : [...current, thematiqueId];
+
+    // Remplacer form.choix entièrement pour déclencher la réactivité Vue sur le v-for
+    form.choix = form.choix.map((c, i) =>
+        i === choixIndex ? { ...c, thematique_ids: newIds } : c,
+    );
 }
 
 // ─── Soumission ───────────────────────────────────────────────────────────────
@@ -221,16 +223,18 @@ function submit() {
                             <div
                                 v-for="thematique in getEtablissement(choix.etablissement_id)?.thematiques"
                                 :key="thematique.id"
-                                class="flex items-center gap-2"
+                                class="flex cursor-pointer select-none items-center gap-2"
+                                @click="toggleThematique(index, thematique.id)"
                             >
-                                <Checkbox
-                                    :id="`thematique-${thematique.id}`"
-                                    :checked="choix.thematique_ids.includes(thematique.id)"
-                                    @update:checked="toggleThematique(index, thematique.id)"
-                                />
-                                <Label :for="`thematique-${thematique.id}`" class="cursor-pointer font-normal">
-                                    {{ thematique.nom }}
-                                </Label>
+                                <div
+                                    class="size-4 shrink-0 rounded-[4px] border shadow-xs flex items-center justify-center transition-colors"
+                                    :class="choix.thematique_ids.includes(thematique.id)
+                                        ? 'bg-primary border-primary text-primary-foreground'
+                                        : 'border-input bg-background'"
+                                >
+                                    <Check v-if="choix.thematique_ids.includes(thematique.id)" class="size-3.5" />
+                                </div>
+                                <span class="text-sm font-normal">{{ thematique.nom }}</span>
                             </div>
                         </div>
                         <p v-else class="text-muted-foreground mb-3 text-xs italic">
@@ -290,7 +294,7 @@ function submit() {
                     id="description"
                     v-model="form.description"
                     required
-                    rows="4"
+                    :rows="4"
                     :placeholder="$t('inscription_temoin.placeholder_description')"
                 />
                 <InputError :message="form.errors.description" />

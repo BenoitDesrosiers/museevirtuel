@@ -14,6 +14,8 @@ class ProjetRecherche extends Model
         'groupe_id',
         'type_projet_id',
         'titre_projet',
+        'page_titre_contenu',
+        'table_matieres_contenu',
         'correction_visible',
         'verrouille',
         'date_remise',

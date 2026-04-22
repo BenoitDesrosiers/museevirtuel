@@ -15,6 +15,10 @@ class ThematiqueController extends Controller
      */
     public function store(StoreThematiqueRequest $request): RedirectResponse
     {
+        if (is_null(auth()->user()->etablissement_id)) {
+            return back()->withErrors(['nom' => __('thematique.no_etablissement')])->withInput();
+        }
+
         auth()->user()->thematiques()->create(array_merge(
             $request->validated(),
             ['etablissement_id' => auth()->user()->etablissement_id],

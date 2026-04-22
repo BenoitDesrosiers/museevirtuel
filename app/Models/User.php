@@ -32,6 +32,8 @@ class User extends Authenticatable
         'provenance',
         'thematique_id',
         'theme_libre',
+        'engagements_acceptes_le',
+        'signature_electronique',
     ];
 
     protected $hidden = [
@@ -45,6 +47,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'engagements_acceptes_le' => 'datetime',
             'password' => 'hashed',
         ];
     }
@@ -83,6 +86,26 @@ class User extends Authenticatable
     public function isPersonneAgee(): bool
     {
         return $this->role === 'personne_agee';
+    }
+
+    /**
+     * Indique si la personne âgée a signé les engagements lors de son inscription.
+     */
+    public function aSigneLesEngagements(): bool
+    {
+        return ! is_null($this->engagements_acceptes_le);
+    }
+
+    /**
+     * Retourne le ou les thèmes libres saisis par la personne âgée pour ses cégeps,
+     * concaténés par une virgule. Requiert que la relation etablissementsChoisis soit chargée.
+     */
+    public function themeLibre(): ?string
+    {
+        return $this->etablissementsChoisis
+            ->pluck('pivot.theme_libre')
+            ->filter()
+            ->join(', ') ?: null;
     }
 
     public function estEnAttente(): bool

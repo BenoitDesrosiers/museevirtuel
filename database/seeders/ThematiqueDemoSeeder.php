@@ -2,15 +2,16 @@
 
 namespace Database\Seeders;
 
+use App\Models\Etablissement;
 use App\Models\Thematique;
-use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 class ThematiqueDemoSeeder extends Seeder
 {
     /**
-     * Vide la table thematiques et insère 8 thématiques pour chaque enseignant existant.
+     * Vide la table thematiques et insère 8 thématiques par établissement existant.
+     * Les thématiques appartiennent à l'établissement, pas à un enseignant individuel.
      */
     public function run(): void
     {
@@ -23,7 +24,6 @@ class ThematiqueDemoSeeder extends Seeder
             DB::table('thematiques')->truncate();
             DB::statement('SET FOREIGN_KEY_CHECKS=1');
         } else {
-            // SQLite : désactiver temporairement les FK et supprimer via DELETE
             DB::statement('PRAGMA foreign_keys = OFF');
             DB::table('groupe_thematique')->delete();
             DB::table('thematiques')->delete();
@@ -32,10 +32,10 @@ class ThematiqueDemoSeeder extends Seeder
 
         $this->command->info('Tables groupe_thematique et thematiques vidées.');
 
-        $enseignants = User::where('role', 'enseignant')->get();
+        $etablissements = Etablissement::all();
 
-        if ($enseignants->isEmpty()) {
-            $this->command->warn('Aucun enseignant trouvé dans la base de données.');
+        if ($etablissements->isEmpty()) {
+            $this->command->warn('Aucun établissement trouvé dans la base de données.');
 
             return;
         }
@@ -83,18 +83,18 @@ class ThematiqueDemoSeeder extends Seeder
             ],
         ];
 
-        foreach ($enseignants as $enseignant) {
+        foreach ($etablissements as $etablissement) {
             $count = 0;
 
             foreach ($themes as $theme) {
                 Thematique::create(array_merge($theme, [
-                    'enseignant_id' => $enseignant->id,
+                    'etablissement_id' => $etablissement->id,
                 ]));
                 $count++;
             }
 
             $this->command->info(
-                "✓ {$count} thématiques créées pour {$enseignant->prenom} {$enseignant->nom} (id={$enseignant->id})"
+                "✓ {$count} thématiques créées pour {$etablissement->nom} (id={$etablissement->id})"
             );
         }
 

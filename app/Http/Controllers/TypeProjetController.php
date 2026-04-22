@@ -127,8 +127,12 @@ class TypeProjetController extends Controller
             'date_remise' => $data['date_remise'] ?? null,
             'remises_multiples' => $data['remises_multiples'] ?? false,
             'retard_permis' => $data['retard_permis'] ?? false,
-            'generer_page_titre' => $data['generer_page_titre'] ?? $typeProjet->generer_page_titre,
-            'generer_table_matieres' => $data['generer_table_matieres'] ?? $typeProjet->generer_table_matieres,
+            'generer_page_titre' => array_key_exists('generer_page_titre', $data)
+                ? (bool) $data['generer_page_titre']
+                : $typeProjet->generer_page_titre,
+            'generer_table_matieres' => array_key_exists('generer_table_matieres', $data)
+                ? (bool) $data['generer_table_matieres']
+                : $typeProjet->generer_table_matieres,
         ]);
 
         if ($request->has('sections')) {

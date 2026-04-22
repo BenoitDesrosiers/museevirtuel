@@ -25,18 +25,18 @@ class TemoinSeeder extends Seeder
             'La Nouvelle-France' => ['periode_historique' => '1534 – 1763',     'description' => 'Colonisation française en Amérique du Nord, de la fondation à la Conquête britannique.'],
             'Les Premières Nations du Québec' => ['periode_historique' => 'Préhistoire – aujourd\'hui', 'description' => 'Histoire, culture et luttes des nations autochtones du territoire québécois.'],
             'La Révolution industrielle au Québec' => ['periode_historique' => '1850 – 1950',  'description' => 'Industrialisation, urbanisation et transformation du monde ouvrier québécois.'],
-            'La Seconde Guerre mondiale' => ['periode_historique' => '1939 – 1945',     'description' => 'Participation du Québec et du Canada au conflit mondial et impacts sur la société.'],
+            'La Seconde Guerre mondiale et le Québec' => ['periode_historique' => '1939 – 1945',     'description' => 'Participation du Québec et du Canada au conflit mondial et impacts sur la société.'],
             "L'art et la culture au Québec" => ['periode_historique' => 'XXᵉ siècle',         'description' => 'Évolution des arts, de la littérature et de la culture populaire québécoise.'],
             "L'immigration et la diversité culturelle" => ['periode_historique' => '1960 – aujourd\'hui', 'description' => 'Vagues migratoires, intégration et construction d\'une société pluriculturelle.'],
             'Le mouvement patriote de 1837-1838' => ['periode_historique' => '1837 – 1838',    'description' => 'Rébellions des Patriotes contre le pouvoir colonial britannique au Bas-Canada.'],
         ];
 
         // Créer les thématiques manquantes si un enseignant démo existe
-        if ($prof) {
+        if ($prof?->etablissement_id) {
             foreach ($thematiquesDef as $nom => $attrs) {
                 Thematique::firstOrCreate(
-                    ['nom' => $nom, 'enseignant_id' => $prof->id],
-                    array_merge($attrs, ['enseignant_id' => $prof->id]),
+                    ['nom' => $nom, 'etablissement_id' => $prof->etablissement_id],
+                    array_merge($attrs, ['etablissement_id' => $prof->etablissement_id]),
                 );
             }
         }
@@ -83,7 +83,7 @@ class TemoinSeeder extends Seeder
                 'email' => 'temoin5@demo.com',
                 'provenance' => 'Montréal',
                 'description' => 'Ma famille a traversé la Seconde Guerre mondiale. Mon père était vétéran et ma mère travaillait dans une usine de munitions à Montréal.',
-                'theme_noms' => ['La Seconde Guerre mondiale'],
+                'theme_noms' => ['La Seconde Guerre mondiale et le Québec'],
             ],
             [
                 'prenom' => 'Fernand',
@@ -128,6 +128,12 @@ class TemoinSeeder extends Seeder
         ];
 
         foreach ($temoins as $data) {
+            $ids = collect($data['theme_noms'])
+                ->map(fn ($nom) => $thematiques->get($nom))
+                ->filter()
+                ->values()
+                ->toArray();
+
             $user = User::updateOrCreate(
                 ['email' => $data['email']],
                 [
@@ -139,14 +145,9 @@ class TemoinSeeder extends Seeder
                     'email_verified_at' => now(),
                     'description' => $data['description'],
                     'provenance' => $data['provenance'],
+                    'thematique_id' => $ids[0] ?? null,
                 ]
             );
-
-            $ids = collect($data['theme_noms'])
-                ->map(fn ($nom) => $thematiques->get($nom))
-                ->filter()
-                ->values()
-                ->toArray();
 
             if (! empty($ids)) {
                 $user->thematiquesChoisies()->sync($ids);

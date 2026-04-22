@@ -100,10 +100,10 @@ class EcheancierEtapesSeeder extends Seeder
             foreach ($etapes as $ordre => $etape) {
                 $inserts[] = [
                     'cours_id' => $cours->id,
-                    'semaine'  => $semaine,
-                    'etape'    => $etape,
-                    'is_done'  => false,
-                    'ordre'    => $ordre,
+                    'semaine' => $semaine,
+                    'etape' => $etape,
+                    'is_done' => false,
+                    'ordre' => $ordre,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];

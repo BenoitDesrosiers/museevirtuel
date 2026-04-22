@@ -234,6 +234,10 @@ class ProjetRechercheController extends Controller
             'membres' => $groupe->membres->map->only('id', 'prenom', 'nom')->values(),
             'projet' => $projet,
             'typeProjet' => $typeProjet->only('id', 'nom'),
+            'genererPageTitre' => (bool) $typeProjet->generer_page_titre,
+            'genererTableMatieres' => (bool) $typeProjet->generer_table_matieres,
+            'pageTitreContenu' => $projet->page_titre_contenu,
+            'tableMatieresContenu' => $projet->table_matieres_contenu,
             'developpements' => $projet->developpements->map->only('id', 'ordre', 'titre', 'contenu')->values(),
             'conclusions' => $conclusions,
             'peutEditer' => $peutAgir,
@@ -377,7 +381,8 @@ class ProjetRechercheController extends Controller
     }
 
     /**
-     * Met à jour le titre du projet.
+     * Met à jour le titre du projet et, optionnellement, le contenu manuel de la page titre
+     * et de la table des matières (utilisés quand les flags de génération sont désactivés).
      *
      * @throws HttpException
      */
@@ -392,6 +397,8 @@ class ProjetRechercheController extends Controller
 
         $validated = $request->validate([
             'titre_projet' => ['nullable', 'string', 'max:500'],
+            'page_titre_contenu' => ['nullable', 'string'],
+            'table_matieres_contenu' => ['nullable', 'string'],
         ]);
 
         $existant = ProjetRecherche::where('groupe_id', $groupe->id)

@@ -74,10 +74,14 @@ class DatabaseSeeder extends Seeder
                 ],
             ];
 
+            // EtablissementSeeder a déjà tourné : $enseignant->etablissement_id est défini.
             foreach ($thematiques as $data) {
                 Thematique::firstOrCreate(
                     ['nom' => $data['nom'], 'enseignant_id' => $enseignant->id],
-                    array_merge($data, ['enseignant_id' => $enseignant->id])
+                    array_merge($data, [
+                        'enseignant_id' => $enseignant->id,
+                        'etablissement_id' => $enseignant->etablissement_id,
+                    ])
                 );
             }
         }

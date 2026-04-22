@@ -275,7 +275,11 @@
             "approve_btn": "Approve this witness",
             "decline_btn": "Decline request",
             "unapprove_btn": "Revoke approval",
-            "confirm_unapprove": "Put {prenom} {nom} back to pending approval?"
+            "confirm_unapprove": "Put {prenom} {nom} back to pending approval?",
+            "consent_title": "Consent",
+            "consent_accepted": "Commitments accepted on",
+            "consent_not_signed": "Commitments not signed",
+            "signature": "Signature"
         }
     },
     "administration": {
@@ -342,7 +346,8 @@
         "administration": "Administration",
         "teacher_space": "Teacher workspace",
         "my_space": "My workspace",
-        "my_classes": "My classes"
+        "my_classes": "My classes",
+        "my_class": "My class"
     },
     "settings": {
         "heading_title": "Settings",
@@ -495,6 +500,10 @@
             "comment_presentation": "Comment on presentation standards…",
             "notes_label": "Notes",
             "toc_card": "Table of contents (auto-generated)",
+            "page_titre_manuel_hint": "The title page is not auto-generated. Write it here — it will be included as-is in the export.",
+            "page_titre_manuel_placeholder": "Write your title page…",
+            "tdm_manuel_hint": "The table of contents is not auto-generated. Write it here — it will be included as-is in the export.",
+            "tdm_manuel_placeholder": "Write your table of contents…",
             "introduction": "Introduction",
             "dev_paragraph": "Development paragraph {n}",
             "conclusion_member": "Conclusion — {prenom} {nom}",
@@ -551,6 +560,25 @@
         "description_bio_hint": "Who are you? Where are you from? What brought you to this approach?",
         "placeholder_description": "I was born in…",
         "submit": "Submit my request"
+    },
+    "inscription_engagements": {
+        "page_title": "Commitments — Witness Registration",
+        "title": "Commitment Form",
+        "description": "Please read and accept each of the following commitments before finalizing your registration.",
+        "all_required": "All commitments below must be accepted to continue.",
+        "engagement_1": "I freely and voluntarily consent to participate in the intergenerational research project and to share my memories with students.",
+        "engagement_2": "I understand that my participation is voluntary and that I may withdraw at any time, without consequence and without having to justify my decision.",
+        "engagement_3": "I commit to respecting the confidentiality of exchanges conducted on the platform.",
+        "engagement_4": "I agree that my personal information will be used for educational purposes, solely within the scope of this project.",
+        "engagement_5": "I certify that the information I have provided in this form is accurate and truthful.",
+        "engagement_6": "I have read and accept the platform's terms of use.",
+        "label_signature": "Electronic signature",
+        "hint_signature": "Enter your first and last name as they will appear as your signature.",
+        "placeholder_signature": "First Last",
+        "signature_preview": "Signature preview",
+        "submit": "Confirm and submit my request",
+        "back": "← Back to the form",
+        "back_confirm": "Your information will be lost. Do you really want to go back to the form?"
     },
     "personne_agee": {
         "page_title": "Witness Space",

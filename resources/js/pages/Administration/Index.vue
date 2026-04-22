@@ -45,10 +45,9 @@ type TemoinEnAttente = {
     nom: string;
     email: string;
     description: string;
-    thematique_id: number | null;
     theme_libre: string | null;
     created_at: string;
-    thematique: { id: number; nom: string } | null;
+    thematiques_choisies: { id: number; nom: string }[];
 };
 
 type Props = {
@@ -403,7 +402,7 @@ function deleteEtablissement(etablissement: Etablissement) {
                                     <td class="py-3 pr-4">{{ temoin.nom }}</td>
                                     <td class="text-muted-foreground py-3 pr-4">{{ temoin.email }}</td>
                                     <td class="py-3 pr-4">
-                                        <span v-if="temoin.thematique">{{ temoin.thematique.nom }}</span>
+                                        <span v-if="temoin.thematiques_choisies.length">{{ temoin.thematiques_choisies.map(t => t.nom).join(', ') }}</span>
                                         <span v-else-if="temoin.theme_libre" class="italic">{{ temoin.theme_libre }}</span>
                                         <span v-else class="text-muted-foreground">—</span>
                                     </td>

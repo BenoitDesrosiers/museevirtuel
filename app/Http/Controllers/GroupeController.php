@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Classe;
 use App\Models\Cours;
-use App\Models\EcheancierEtudiantProgress;
 use App\Models\Groupe;
 use App\Models\GroupeNote;
 use App\Models\GroupeNoteCorrection;
@@ -21,11 +20,12 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class GroupeController extends Controller
 {
     /**
-     * Affiche la page de gestion des groupes d'un étudiant dans une classe (section).
+     * Redirige vers groupes.show si l'étudiant appartient déjà à un groupe,
+     * sinon affiche la page de création de groupe.
      *
      * @throws HttpException si l'étudiant n'est pas inscrit à la classe
      */
-    public function index(Cours $cours, Classe $classe): Response
+    public function index(Cours $cours, Classe $classe): Response|RedirectResponse
     {
         abort_if($classe->cours_id !== $cours->id, 404);
 
@@ -35,38 +35,26 @@ class GroupeController extends Controller
 
         $monGroupe = $classe->groupes()
             ->whereHas('membres', fn ($q) => $q->where('users.id', $user->id))
-            ->with(['membres', 'thematiques', 'createur'])
             ->first();
+
+        if ($monGroupe) {
+            return redirect()->route('groupes.show', [$cours, $classe, $monGroupe]);
+        }
+
+        $dejaGroupes = $this->membresDejaGroupes($classe);
 
         $autresEtudiants = $classe->etudiants()
             ->where('users.id', '!=', $user->id)
+            ->whereNotIn('users.id', $dejaGroupes)
             ->get(['users.id', 'prenom', 'nom']);
 
         $thematiques = $cours->enseignant->thematiques()->get(['id', 'nom', 'periode_historique']);
 
-        $documents = $cours->documents()->get();
-
-        $echeancierEtapes = $cours->echeancierEtapes()
-            ->orderBy('semaine')
-            ->orderBy('ordre')
-            ->get()
-            ->map(fn ($etape) => [
-                'id' => $etape->id,
-                'semaine' => $etape->semaine,
-                'etape' => $etape->etape,
-                'is_done_etudiant' => EcheancierEtudiantProgress::where('echeancier_etape_id', $etape->id)
-                    ->where('user_id', $user->id)
-                    ->value('is_done') ?? false,
-            ]);
-
         return Inertia::render('Classes/Groupes', [
             'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
             'classe' => $classe->only('id', 'code', 'cours_id'),
-            'monGroupe' => $monGroupe,
             'autresEtudiants' => $autresEtudiants,
             'thematiques' => $thematiques,
-            'documents' => $documents,
-            'echeancierEtapes' => $echeancierEtapes,
         ]);
     }
 
@@ -103,6 +91,9 @@ class GroupeController extends Controller
             ->pluck('users.id')
             ->map(fn ($id) => (int) $id)
             ->toArray();
+
+        // Exclure les membres déjà dans un autre groupe de la même classe
+        $membresInscrits = array_diff($membresInscrits, $this->membresDejaGroupes($classe));
 
         $thematiquesValides = $cours->enseignant
             ->thematiques()
@@ -164,8 +155,10 @@ class GroupeController extends Controller
             ->get(['id', 'nom', 'periode_historique']);
 
         $membreIds = $groupe->membres->pluck('id');
+
         $etudiantsDispo = $classe->etudiants()
             ->whereNotIn('users.id', $membreIds)
+            ->whereNotIn('users.id', $this->membresDejaGroupes($classe, $groupe->id))
             ->get(['users.id', 'prenom', 'nom']);
 
         $groupeThematiqueIds = $groupe->thematiques->pluck('id');
@@ -233,6 +226,9 @@ class GroupeController extends Controller
                     ->pluck('users.id')
                     ->map(fn ($id) => (int) $id)
                     ->toArray();
+
+                // Exclure les étudiants déjà dans un autre groupe de la même classe
+                $aAjouter = array_diff($aAjouter, $this->membresDejaGroupes($classe, $groupe->id));
 
                 if (! empty($aAjouter)) {
                     $groupe->membres()->syncWithoutDetaching($aAjouter);
@@ -419,6 +415,27 @@ class GroupeController extends Controller
         $groupe->delete();
 
         return redirect()->route('groupes.index', [$cours, $classe])->with('success', __('groupe.deleted'));
+    }
+
+    /**
+     * Retourne les IDs (int) des étudiants déjà dans un groupe de la classe.
+     * Exclut optionnellement le groupe courant (utile pour show/updateMembres).
+     *
+     * @return array<int>
+     */
+    private function membresDejaGroupes(Classe $classe, ?int $excludeGroupeId = null): array
+    {
+        $query = $classe->groupes()->with('membres:id');
+
+        if ($excludeGroupeId !== null) {
+            $query->where('id', '!=', $excludeGroupeId);
+        }
+
+        return $query->get()
+            ->flatMap(fn ($g) => $g->membres->pluck('id'))
+            ->unique()
+            ->map(fn ($id) => (int) $id)
+            ->toArray();
     }
 
     /**

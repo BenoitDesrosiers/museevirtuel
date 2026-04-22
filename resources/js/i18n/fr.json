@@ -273,7 +273,11 @@
             "approve_btn": "Approuver ce témoin",
             "decline_btn": "Décliner la demande",
             "unapprove_btn": "Désapprouver",
-            "confirm_unapprove": "Remettre {prenom} {nom} en attente d'approbation ?"
+            "confirm_unapprove": "Remettre {prenom} {nom} en attente d'approbation ?",
+            "consent_title": "Consentement",
+            "consent_accepted": "Engagements acceptés le",
+            "consent_not_signed": "Engagements non signés",
+            "signature": "Signature"
         }
     },
     "administration": {
@@ -340,7 +344,8 @@
         "administration": "Administration",
         "teacher_space": "Espace enseignant",
         "my_space": "Mon espace",
-        "my_classes": "Mes classes"
+        "my_classes": "Mes classes",
+        "my_class": "Ma classe"
     },
     "settings": {
         "heading_title": "Paramètres",
@@ -493,6 +498,10 @@
             "comment_presentation": "Commentaire sur les normes de présentation…",
             "notes_label": "Notes",
             "toc_card": "Table des matières (générée automatiquement)",
+            "page_titre_manuel_hint": "La page titre n'est pas générée automatiquement. Rédigez-la ici — elle sera incluse telle quelle dans l'export.",
+            "page_titre_manuel_placeholder": "Rédigez votre page titre…",
+            "tdm_manuel_hint": "La table des matières n'est pas générée automatiquement. Rédigez-la ici — elle sera incluse telle quelle dans l'export.",
+            "tdm_manuel_placeholder": "Rédigez votre table des matières…",
             "introduction": "Introduction",
             "dev_paragraph": "Paragraphe de développement {n}",
             "conclusion_member": "Conclusion — {prenom} {nom}",
@@ -549,6 +558,25 @@
         "description_bio_hint": "Qui êtes-vous ? D'où venez-vous ? Qu'est-ce qui vous a amené à cette démarche ?",
         "placeholder_description": "Je suis né(e) à…",
         "submit": "Soumettre ma demande"
+    },
+    "inscription_engagements": {
+        "page_title": "Engagements — Inscription Témoin",
+        "title": "Formulaire d'engagements",
+        "description": "Veuillez lire et accepter chacun des engagements suivants avant de finaliser votre inscription.",
+        "all_required": "Tous les engagements ci-dessous doivent être acceptés pour continuer.",
+        "engagement_1": "Je consens librement et bénévolement à participer au projet de recherche intergénérationnel et à partager mes souvenirs avec des étudiants.",
+        "engagement_2": "Je comprends que ma participation est volontaire et que je peux me retirer en tout temps, sans conséquence et sans avoir à me justifier.",
+        "engagement_3": "Je m'engage à respecter la confidentialité des échanges réalisés sur la plateforme.",
+        "engagement_4": "J'accepte que mes informations personnelles soient utilisées à des fins pédagogiques, uniquement dans le cadre de ce projet.",
+        "engagement_5": "Je certifie que les renseignements que j'ai fournis dans ce formulaire sont exacts et véridiques.",
+        "engagement_6": "J'ai pris connaissance des conditions d'utilisation de la plateforme et je les accepte.",
+        "label_signature": "Signature électronique",
+        "hint_signature": "Inscrivez votre prénom et votre nom tels qu'ils apparaîtront comme signature.",
+        "placeholder_signature": "Prénom Nom",
+        "signature_preview": "Aperçu de votre signature",
+        "submit": "Confirmer et envoyer ma demande",
+        "back": "← Retour au formulaire",
+        "back_confirm": "Vos informations seront perdues. Voulez-vous vraiment retourner au formulaire ?"
     },
     "personne_agee": {
         "page_title": "Espace Témoin",

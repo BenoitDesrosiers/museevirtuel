@@ -47,6 +47,8 @@ class ExportProjetPdf
             'renvois' => $projet->renvois ?? collect(),
             'genererPageTitre' => $typeProjet?->generer_page_titre ?? true,
             'genererTableMatieres' => $typeProjet?->generer_table_matieres ?? true,
+            'pageTitreContenu' => $projet->page_titre_contenu,
+            'tableMatieresContenu' => $projet->table_matieres_contenu,
             // Les conclusions sont chargées via $projet->conclusions (relation)
             // Closure exposée à la vue Blade pour nettoyer les marques d'annotation
             'stripMarks' => fn (?string $html): string => HtmlHelper::stripAnnotationMarks($html),

@@ -35,9 +35,20 @@ class AdministrationController extends Controller
 
         $temoinsEnAttente = User::enAttente()
             ->where('role', 'personne_agee')
-            ->with('thematique:id,nom')
+            ->with('thematiquesChoisies:id,nom')
+            ->with('etablissementsChoisis')
             ->orderBy('created_at')
-            ->get(['id', 'prenom', 'nom', 'email', 'description', 'thematique_id', 'theme_libre', 'created_at']);
+            ->get(['id', 'prenom', 'nom', 'email', 'description', 'created_at'])
+            ->map(fn (User $u) => [
+                'id' => $u->id,
+                'prenom' => $u->prenom,
+                'nom' => $u->nom,
+                'email' => $u->email,
+                'description' => $u->description,
+                'created_at' => $u->created_at,
+                'thematiques_choisies' => $u->thematiquesChoisies->map->only('id', 'nom')->values(),
+                'theme_libre' => $u->themeLibre(),
+            ]);
 
         $etablissements = Etablissement::withCount(['enseignants', 'thematiques'])
             ->orderBy('nom')

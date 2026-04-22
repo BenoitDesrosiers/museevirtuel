@@ -43,7 +43,7 @@ return new class extends Migration
         });
         DB::table('groupes')->orderBy('id')->each(function (object $groupe): void {
             DB::table('groupes')->where('id', $groupe->id)->update([
-                'code' => 'GR-' . str_pad((string) $groupe->id, 4, '0', STR_PAD_LEFT),
+                'code' => 'GR-'.str_pad((string) $groupe->id, 4, '0', STR_PAD_LEFT),
             ]);
         });
         Schema::table('groupes', function (Blueprint $table) {
@@ -75,11 +75,11 @@ return new class extends Migration
         // ── 7. Créer une Classe par défaut pour chaque Cours ──────────────────
         $index = 1;
         DB::table('cours')->orderBy('id')->each(function (object $c) use (&$index): void {
-            $code = ($c->groupe ?? '') !== '' ? $c->groupe : ('CL-' . str_pad((string) $c->id, 3, '0', STR_PAD_LEFT));
+            $code = ($c->groupe ?? '') !== '' ? $c->groupe : ('CL-'.str_pad((string) $c->id, 3, '0', STR_PAD_LEFT));
             DB::table('classes')->insert([
-                'cours_id'   => $c->id,
-                'code'       => $code,
-                'numero'     => str_pad((string) $index, 5, '0', STR_PAD_LEFT),
+                'cours_id' => $c->id,
+                'code' => $code,
+                'numero' => str_pad((string) $index, 5, '0', STR_PAD_LEFT),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);

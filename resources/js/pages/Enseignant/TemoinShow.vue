@@ -20,6 +20,8 @@ type Temoin = {
     statut: 'en_attente' | 'actif' | 'refuse';
     created_at: string;
     thematiques_choisies: { id: number; nom: string }[];
+    engagements_acceptes_le: string | null;
+    signature_electronique: string | null;
 };
 
 const props = defineProps<{ temoin: Temoin }>();
@@ -151,6 +153,39 @@ const statusVariant: Record<Temoin['statut'], 'default' | 'secondary' | 'destruc
                             <p class="mt-1 text-sm">
                                 {{ new Date(temoin.created_at).toLocaleDateString() }}
                             </p>
+                        </CardContent>
+                    </Card>
+
+                    <!-- Consentement -->
+                    <Card>
+                        <CardHeader>
+                            <CardTitle class="text-sm">{{ $t('enseignant.temoin_show.consent_title') }}</CardTitle>
+                        </CardHeader>
+                        <CardContent class="grid gap-3">
+                            <template v-if="temoin.engagements_acceptes_le">
+                                <div class="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
+                                    <CheckCircle class="h-4 w-4 shrink-0" />
+                                    <span>
+                                        {{ $t('enseignant.temoin_show.consent_accepted') }}
+                                        {{ new Date(temoin.engagements_acceptes_le).toLocaleDateString() }}
+                                    </span>
+                                </div>
+                                <div v-if="temoin.signature_electronique">
+                                    <p class="text-muted-foreground mb-1 text-xs font-medium uppercase tracking-wide">
+                                        {{ $t('enseignant.temoin_show.signature') }}
+                                    </p>
+                                    <p
+                                        class="rounded border border-dashed px-3 py-2 text-xl text-gray-700 dark:text-gray-300"
+                                        style="font-family: 'Brush Script MT', cursive, serif;"
+                                    >
+                                        {{ temoin.signature_electronique }}
+                                    </p>
+                                </div>
+                            </template>
+                            <div v-else class="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
+                                <XCircle class="h-4 w-4 shrink-0" />
+                                <span>{{ $t('enseignant.temoin_show.consent_not_signed') }}</span>
+                            </div>
                         </CardContent>
                     </Card>
 

@@ -71,6 +71,8 @@ class DemoSeeder extends Seeder
         );
 
         // ─── Thématique ───────────────────────────────────────────────────────
+        // On cherche par enseignant_id pour que EtablissementSeeder puisse
+        // backfiller etablissement_id via $prof->thematiques()->update().
         /** @var Thematique $thematique */
         $thematique = Thematique::firstOrCreate(
             ['nom' => 'La Révolution tranquille', 'enseignant_id' => $prof->id],

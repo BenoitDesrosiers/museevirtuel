@@ -202,6 +202,14 @@ type Props = {
     malusParEtudiant: Record<number, Record<number, boolean>>;
     /** noteFinaleGrilleParEtudiant[userId] = float | null */
     noteFinaleGrilleParEtudiant: Record<number, number | null>;
+    /** true = page titre auto-générée à l'export, false = étudiant la rédige manuellement */
+    genererPageTitre: boolean;
+    /** true = table des matières auto-générée à l'export, false = étudiant la rédige manuellement */
+    genererTableMatieres: boolean;
+    /** Contenu manuel de la page titre (utilisé quand genererPageTitre est false) */
+    pageTitreContenu: string | null;
+    /** Contenu manuel de la table des matières (utilisé quand genererTableMatieres est false) */
+    tableMatieresContenu: string | null;
 };
 
 const props = defineProps<Props>();
@@ -217,6 +225,8 @@ const form = reactive({
     introduction_amener: props.projet.introduction_amener ?? '',
     introduction_poser: props.projet.introduction_poser ?? '',
     introduction_diviser: props.projet.introduction_diviser ?? '',
+    page_titre_contenu: props.pageTitreContenu ?? '',
+    table_matieres_contenu: props.tableMatieresContenu ?? '',
 });
 
 // ─── Sections dynamiques ───────────────────────────────────────────────────────
@@ -1253,41 +1263,39 @@ async function supprimerAnnotation(
 // ─── Renvois (endnotes) ───────────────────────────────────────────────────────
 
 const renvoisLocaux = ref<Renvoi[]>([...props.renvois]);
-const renvoiModalOuvert = ref(false);
-const insertFnActif = ref<((id: number, numero: number) => void) | null>(null);
 const renvoiEnCours = ref(false);
 
-/**
- * Ouvre le modal de sélection/création de renvoi en capturant la fonction d'insertion
- * fournie par le RichEditor actif.
- */
-function ouvrirModalRenvoi(insertFn: (renvoiId: number, numero: number) => void) {
-    insertFnActif.value = insertFn;
-    renvoiModalOuvert.value = true;
-}
+/** Snapshot des renvoiId présents dans chaque éditeur, indexés par editorId. */
+const renvoisParEditor = ref(new Map<string, number[]>());
+let debounceOrphans: ReturnType<typeof setTimeout> | null = null;
 
 /**
- * Insère un renvoi existant à la position du curseur dans l'éditeur actif.
+ * Reçoit le snapshot des renvoiId utilisés par un éditeur.
+ * Après 800 ms de calme, supprime automatiquement les renvois absents de tous les éditeurs.
  */
-function insererRenvoiExistant(renvoi: Renvoi) {
-    insertFnActif.value?.(renvoi.id, renvoi.numero);
-    renvoiModalOuvert.value = false;
-    insertFnActif.value = null;
+function handleRenvoisUtilises(editorId: string, ids: number[]): void {
+    renvoisParEditor.value.set(editorId, ids);
+    if (debounceOrphans) clearTimeout(debounceOrphans);
+    debounceOrphans = setTimeout(() => {
+        const utilises = new Set([...renvoisParEditor.value.values()].flat());
+        renvoisLocaux.value
+            .filter((r) => !utilises.has(r.id))
+            .forEach((r) => supprimerRenvoi(r.id));
+    }, 800);
 }
 
 /**
  * Crée un nouveau renvoi via l'API puis l'insère dans l'éditeur actif.
+ * Appelé directement depuis chaque RichEditor sans passer par un modal.
  */
-async function creerEtInsererRenvoi() {
+async function creerEtInsererRenvoi(insertFn: (renvoiId: number, numero: number) => void) {
     if (renvoiEnCours.value) return;
     renvoiEnCours.value = true;
     try {
         const response = await axios.post(`${baseUrl.value}/renvois`, { contenu: null });
         const renvoi = response.data.renvoi as Renvoi;
         renvoisLocaux.value.push(renvoi);
-        insertFnActif.value?.(renvoi.id, renvoi.numero);
-        renvoiModalOuvert.value = false;
-        insertFnActif.value = null;
+        insertFn(renvoi.id, renvoi.numero);
     } finally {
         renvoiEnCours.value = false;
     }
@@ -1670,60 +1678,85 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     </Button>
                 </CardHeader>
                 <CardContent v-show="!collapsed.pageTitre">
-                    <div v-if="peutEditer" class="mb-4">
-                        <Label class="mb-1 block text-xs text-muted-foreground"
-                            >{{ t('projets.show.project_title_label') }}</Label
-                        >
-                        <Input
-                            v-model="form.titre_projet"
-                            placeholder="Ex. : L'agriculture québécoise à travers les époques"
-                            class="text-center font-semibold uppercase"
-                        />
-                    </div>
-
-                    <div
-                        class="space-y-1 rounded-lg border bg-white p-3 text-center font-serif text-sm dark:bg-zinc-900"
-                    >
-                        <p
-                            v-for="membre in membres"
-                            :key="membre.id"
-                            class="text-muted-foreground"
-                        >
-                            {{ membre.prenom }} {{ membre.nom }}
-                        </p>
-                        <p class="mt-2 text-muted-foreground">
-                            {{ classe.nom_cours }}
-                        </p>
-                        <p class="text-xs text-muted-foreground">
-                            {{ codeComplet }}
-                        </p>
-                        <div class="py-4">
-                            <p
-                                class="text-base font-semibold tracking-wide uppercase"
+                    <!-- Génération auto : prévisualisation de la page titre -->
+                    <template v-if="props.genererPageTitre">
+                        <div v-if="peutEditer" class="mb-4">
+                            <Label class="mb-1 block text-xs text-muted-foreground"
+                                >{{ t('projets.show.project_title_label') }}</Label
                             >
-                                {{ form.titre_projet || t('projets.show.project_title_placeholder') }}
+                            <Input
+                                v-model="form.titre_projet"
+                                placeholder="Ex. : L'agriculture québécoise à travers les époques"
+                                class="text-center font-semibold uppercase"
+                                @input="scheduleSharedSave"
+                            />
+                        </div>
+
+                        <div
+                            class="space-y-1 rounded-lg border bg-white p-3 text-center font-serif text-sm dark:bg-zinc-900"
+                        >
+                            <p
+                                v-for="membre in membres"
+                                :key="membre.id"
+                                class="text-muted-foreground"
+                            >
+                                {{ membre.prenom }} {{ membre.nom }}
                             </p>
-                            <p class="mt-1 text-muted-foreground">
-                                RECHERCHE DOCUMENTAIRE
+                            <p class="mt-2 text-muted-foreground">
+                                {{ classe.nom_cours }}
+                            </p>
+                            <p class="text-xs text-muted-foreground">
+                                {{ codeComplet }}
+                            </p>
+                            <div class="py-4">
+                                <p
+                                    class="text-base font-semibold tracking-wide uppercase"
+                                >
+                                    {{ form.titre_projet || t('projets.show.project_title_placeholder') }}
+                                </p>
+                                <p class="mt-1 text-muted-foreground">
+                                    RECHERCHE DOCUMENTAIRE
+                                </p>
+                            </div>
+                            <p class="text-muted-foreground">
+                                Travail présenté à<br />
+                                <span class="font-medium"
+                                    >{{ enseignant.prenom }}
+                                    {{ enseignant.nom }}</span
+                                >
+                            </p>
+                            <p class="text-xs text-muted-foreground">
+                                Département des sciences humaines
+                            </p>
+                            <p class="text-xs text-muted-foreground">
+                                Cégep de Drummondville
+                            </p>
+                            <p class="text-xs text-muted-foreground">
+                                Le {{ dateAujourd }}
                             </p>
                         </div>
-                        <p class="text-muted-foreground">
-                            Travail présenté à<br />
-                            <span class="font-medium"
-                                >{{ enseignant.prenom }}
-                                {{ enseignant.nom }}</span
-                            >
+                    </template>
+
+                    <!-- Rédaction manuelle : l'étudiant rédige sa propre page titre -->
+                    <template v-else>
+                        <p class="mb-3 text-xs text-muted-foreground">
+                            {{ t('projets.show.page_titre_manuel_hint') }}
                         </p>
-                        <p class="text-xs text-muted-foreground">
-                            Département des sciences humaines
-                        </p>
-                        <p class="text-xs text-muted-foreground">
-                            Cégep de Drummondville
-                        </p>
-                        <p class="text-xs text-muted-foreground">
-                            Le {{ dateAujourd }}
-                        </p>
-                    </div>
+                        <RichEditor
+                            v-model="form.page_titre_contenu"
+                            :placeholder="t('projets.show.page_titre_manuel_placeholder')"
+                            :read-only="!peutEditer"
+                            :est-enseignant="estEnseignant"
+                            :corrections="annotations['page_titre_contenu'] ?? []"
+                            :renvois="renvoisLocaux"
+                            editor-id="page-titre-contenu"
+                            @update:model-value="scheduleSharedSave"
+                            @save-annotation="(p) => sauvegarderAnnotation('page_titre_contenu', p)"
+                            @delete-annotation="(p) => supprimerAnnotation('page_titre_contenu', p)"
+                            @demander-renvoi="creerEtInsererRenvoi"
+                            @renvois-utilises="handleRenvoisUtilises"
+                        />
+                    </template>
 
                     <!-- Commentaire enseignant -->
                     <CommentaireEnseignant
@@ -1765,29 +1798,50 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     </Button>
                 </CardHeader>
                 <CardContent v-show="!collapsed.tdm">
-                    <div
-                        class="space-y-1 rounded-lg border bg-white p-3 font-serif text-sm dark:bg-zinc-900"
-                    >
-                        <p class="mb-4 text-center font-bold">
-                            TABLE DES MATIÈRES
-                        </p>
+                    <template v-if="props.genererTableMatieres">
                         <div
-                            v-for="(entree, i) in tocEntrees"
-                            :key="i"
-                            class="flex items-baseline gap-1"
+                            class="space-y-1 rounded-lg border bg-white p-3 font-serif text-sm dark:bg-zinc-900"
                         >
-                            <span
-                                v-if="entree.numero"
-                                class="w-4 shrink-0 text-xs text-muted-foreground"
-                                >{{ entree.numero }}.</span
+                            <p class="mb-4 text-center font-bold">
+                                TABLE DES MATIÈRES
+                            </p>
+                            <div
+                                v-for="(entree, i) in tocEntrees"
+                                :key="i"
+                                class="flex items-baseline gap-1"
                             >
-                            <span v-else class="w-4 shrink-0" />
-                            <span class="flex-1">{{ entree.label }}</span>
-                            <span class="shrink-0 text-muted-foreground"
-                                >…… p. X</span
-                            >
+                                <span
+                                    v-if="entree.numero"
+                                    class="w-4 shrink-0 text-xs text-muted-foreground"
+                                    >{{ entree.numero }}.</span
+                                >
+                                <span v-else class="w-4 shrink-0" />
+                                <span class="flex-1">{{ entree.label }}</span>
+                                <span class="shrink-0 text-muted-foreground"
+                                    >…… p. X</span
+                                >
+                            </div>
                         </div>
-                    </div>
+                    </template>
+                    <template v-else>
+                        <p class="mb-3 text-xs text-muted-foreground">
+                            {{ t('projets.show.tdm_manuel_hint') }}
+                        </p>
+                        <RichEditor
+                            v-model="form.table_matieres_contenu"
+                            :placeholder="t('projets.show.tdm_manuel_placeholder')"
+                            :read-only="!peutEditer"
+                            :est-enseignant="estEnseignant"
+                            :corrections="annotations['table_matieres_contenu'] ?? []"
+                            :renvois="renvoisLocaux"
+                            editor-id="table-matieres-contenu"
+                            @update:model-value="scheduleSharedSave"
+                            @save-annotation="(p) => sauvegarderAnnotation('table_matieres_contenu', p)"
+                            @delete-annotation="(p) => supprimerAnnotation('table_matieres_contenu', p)"
+                            @demander-renvoi="creerEtInsererRenvoi"
+                            @renvois-utilises="handleRenvoisUtilises"
+                        />
+                    </template>
                 </CardContent>
             </Card>
 
@@ -1817,10 +1871,12 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 :est-enseignant="estEnseignant"
                                 :corrections="annotations[`section_${section.id}`] ?? []"
                                 :renvois="renvoisLocaux"
+                                :editor-id="`section-${section.id}`"
                                 @update:model-value="scheduleSectionSave(section.id)"
                                 @save-annotation="(p) => sauvegarderAnnotation(`section_${section.id}`, p)"
                                 @delete-annotation="(p) => supprimerAnnotation(`section_${section.id}`, p)"
-                                @demander-renvoi="ouvrirModalRenvoi"
+                                @demander-renvoi="creerEtInsererRenvoi"
+                                @renvois-utilises="handleRenvoisUtilises"
                             />
                             <CommentaireEnseignant
                                 :commentaire="commentaires[`section_${section.id}`]"
@@ -1890,10 +1946,12 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                     :est-enseignant="estEnseignant"
                                     :corrections="annotations[`section_paragraphe_${para.id}`] ?? []"
                                     :renvois="renvoisLocaux"
+                                    :editor-id="`section-paragraphe-${para.id}`"
                                     @update:model-value="(val: string) => { para.contenu = val; scheduleSectionParagrapheSave(para.id, section.id); }"
                                     @save-annotation="(p) => sauvegarderAnnotation(`section_paragraphe_${para.id}`, p)"
                                     @delete-annotation="(p) => supprimerAnnotation(`section_paragraphe_${para.id}`, p)"
-                                    @demander-renvoi="ouvrirModalRenvoi"
+                                    @demander-renvoi="creerEtInsererRenvoi"
+                                    @renvois-utilises="handleRenvoisUtilises"
                                 />
                                 <CommentaireEnseignant
                                     :commentaire="commentaires[`section_paragraphe_${para.id}`]"
@@ -1949,12 +2007,14 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                         placeholder="Rédigez votre partie…"
                                         :est-enseignant="estEnseignant"
                                         :renvois="renvoisLocaux"
+                                        :editor-id="`section-conclusion-${section.id}-${membre.id}`"
                                         @update:model-value="(val: string) => {
                                             if (!sectionConclusionsLocales[section.id]) sectionConclusionsLocales[section.id] = {};
                                             sectionConclusionsLocales[section.id][membre.id] = val;
                                             scheduleSectionConclusionSave(section.id, membre.id);
                                         }"
-                                        @demander-renvoi="ouvrirModalRenvoi"
+                                        @demander-renvoi="creerEtInsererRenvoi"
+                                        @renvois-utilises="handleRenvoisUtilises"
                                     />
                                 </template>
                                 <template v-else>
@@ -2205,9 +2265,11 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :est-enseignant="estEnseignant"
                             :corrections="annotations['introduction_amener'] ?? []"
                             :renvois="renvoisLocaux"
+                            editor-id="introduction-amener"
                             @save-annotation="(p) => sauvegarderAnnotation('introduction_amener', p)"
                             @delete-annotation="(p) => supprimerAnnotation('introduction_amener', p)"
-                            @demander-renvoi="ouvrirModalRenvoi"
+                            @demander-renvoi="creerEtInsererRenvoi"
+                            @renvois-utilises="handleRenvoisUtilises"
                         />
                         <CommentaireEnseignant
                             :commentaire="commentaires['introduction_amener']"
@@ -2245,9 +2307,11 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :est-enseignant="estEnseignant"
                             :corrections="annotations['introduction_poser'] ?? []"
                             :renvois="renvoisLocaux"
+                            editor-id="introduction-poser"
                             @save-annotation="(p) => sauvegarderAnnotation('introduction_poser', p)"
                             @delete-annotation="(p) => supprimerAnnotation('introduction_poser', p)"
-                            @demander-renvoi="ouvrirModalRenvoi"
+                            @demander-renvoi="creerEtInsererRenvoi"
+                            @renvois-utilises="handleRenvoisUtilises"
                         />
                         <CommentaireEnseignant
                             :commentaire="commentaires['introduction_poser']"
@@ -2281,9 +2345,11 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :est-enseignant="estEnseignant"
                             :corrections="annotations['introduction_diviser'] ?? []"
                             :renvois="renvoisLocaux"
+                            editor-id="introduction-diviser"
                             @save-annotation="(p) => sauvegarderAnnotation('introduction_diviser', p)"
                             @delete-annotation="(p) => supprimerAnnotation('introduction_diviser', p)"
-                            @demander-renvoi="ouvrirModalRenvoi"
+                            @demander-renvoi="creerEtInsererRenvoi"
+                            @renvois-utilises="handleRenvoisUtilises"
                         />
                         <CommentaireEnseignant
                             :commentaire="commentaires['introduction_diviser']"
@@ -2377,10 +2443,12 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         :est-enseignant="estEnseignant"
                         :corrections="annotations[`developpement_${dev.id}`] ?? []"
                         :renvois="renvoisLocaux"
+                        :editor-id="`developpement-${dev.id}`"
                         @update:model-value="(val: string) => { dev.contenu = val; scheduleDeveloppementSave(dev.id); }"
                         @save-annotation="(p) => sauvegarderAnnotation(`developpement_${dev.id}`, p)"
                         @delete-annotation="(p) => supprimerAnnotation(`developpement_${dev.id}`, p)"
-                        @demander-renvoi="ouvrirModalRenvoi"
+                        @demander-renvoi="creerEtInsererRenvoi"
+                        @renvois-utilises="handleRenvoisUtilises"
                     />
 
                     <!-- Commentaire -->
@@ -2446,8 +2514,10 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             placeholder="Rédigez votre conclusion…"
                             :est-enseignant="estEnseignant"
                             :renvois="renvoisLocaux"
+                            :editor-id="`conclusion-${item.etudiant.id}`"
                             @update:model-value="(val: string) => { conclusionsLocales[item.etudiant.id] = val; scheduleConclusionSave(item.etudiant.id); }"
-                            @demander-renvoi="ouvrirModalRenvoi"
+                            @demander-renvoi="creerEtInsererRenvoi"
+                            @renvois-utilises="handleRenvoisUtilises"
                         />
                     </template>
                     <template v-else>
@@ -2745,47 +2815,6 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                 <p v-else class="text-sm text-muted-foreground">
                     Aucune grille personnalisée définie pour cette classe.
                 </p>
-            </DialogScrollContent>
-        </Dialog>
-
-        <!-- ─── Modal insertion de renvoi ────────────────────────────────── -->
-        <Dialog v-model:open="renvoiModalOuvert">
-            <DialogScrollContent class="max-w-md">
-                <DialogHeader>
-                    <DialogTitle class="flex items-center gap-2">
-                        <BookmarkPlus class="h-4 w-4" />
-                        Insérer un renvoi
-                    </DialogTitle>
-                </DialogHeader>
-
-                <div class="space-y-3 py-2">
-                    <!-- Références existantes -->
-                    <div v-if="renvoisLocaux.length > 0" class="space-y-1">
-                        <p class="text-xs font-medium text-muted-foreground">Références existantes</p>
-                        <button
-                            v-for="renvoi in renvoisLocaux"
-                            :key="renvoi.id"
-                            type="button"
-                            class="flex w-full items-start gap-2 rounded-md border px-3 py-2 text-left text-sm hover:bg-accent"
-                            @click="insererRenvoiExistant(renvoi)"
-                        >
-                            <span class="min-w-[1.5rem] font-bold text-blue-600 dark:text-blue-400">{{ renvoi.numero }}.</span>
-                            <span class="text-muted-foreground">{{ renvoi.contenu || '(sans texte)' }}</span>
-                        </button>
-                    </div>
-
-                    <div class="border-t pt-3">
-                        <Button
-                            :disabled="renvoiEnCours"
-                            class="w-full"
-                            @click="creerEtInsererRenvoi"
-                        >
-                            <Loader2 v-if="renvoiEnCours" class="mr-2 h-4 w-4 animate-spin" />
-                            <Plus v-else class="mr-2 h-4 w-4" />
-                            Créer un nouveau renvoi et l'insérer
-                        </Button>
-                    </div>
-                </div>
             </DialogScrollContent>
         </Dialog>
 

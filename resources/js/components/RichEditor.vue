@@ -66,6 +66,8 @@ const props = defineProps<{
     corrections?: Annotation[];
     /** Liste des renvois existants — si fournie, active le bouton ¹ dans la barre d'outils. */
     renvois?: RenvoiBase[];
+    /** Identifiant unique de cet éditeur — si fourni, émet 'renvois-utilises' à chaque changement. */
+    editorId?: string;
 }>();
 
 const emit = defineEmits<{
@@ -81,6 +83,8 @@ const emit = defineEmits<{
     'delete-annotation': [payload: { correction: Annotation; html: string; htmlOriginal: string }];
     /** Émis quand le bouton ¹ est cliqué — transmet la fonction d'insertion pour ce contexte d'éditeur. */
     'demander-renvoi': [insertFn: (renvoiId: number, numero: number) => void];
+    /** Émis à chaque changement de contenu si editorId est fourni — liste des renvoiId présents dans cet éditeur. */
+    'renvois-utilises': [editorId: string, ids: number[]];
 }>();
 
 // Identifiant de groupe unique partagé entre le DOM de l'éditeur et les boutons Antidote.
@@ -129,6 +133,13 @@ const editor = useEditor({
     // y compris après un rechargement de page où onUpdate ne se déclenche pas au démarrage.
     onCreate({ editor: e }) {
         currentHtml.value = e.getHTML();
+        if (props.editorId) {
+            const ids: number[] = [];
+            e.state.doc.descendants((node) => {
+                if (node.type.name === 'renvoiMark') ids.push(node.attrs.renvoiId as number);
+            });
+            emit('renvois-utilises', props.editorId, ids);
+        }
         // Délai court pour laisser Vue propager les props avant d'activer la détection.
         setTimeout(() => {
             editorMonte.value = true;
@@ -137,6 +148,13 @@ const editor = useEditor({
     onUpdate({ editor: e }) {
         currentHtml.value = e.getHTML();
         emit('update:modelValue', e.getHTML());
+        if (props.editorId) {
+            const ids: number[] = [];
+            e.state.doc.descendants((node) => {
+                if (node.type.name === 'renvoiMark') ids.push(node.attrs.renvoiId as number);
+            });
+            emit('renvois-utilises', props.editorId, ids);
+        }
     },
 });
 
