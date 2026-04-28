@@ -12,6 +12,7 @@ use App\Models\GrilleMalus;
 use App\Models\Groupe;
 use App\Models\ProjetConclusion;
 use App\Models\ProjetRecherche;
+use App\Models\ProjetRenvoi;
 use App\Models\ProjetSectionContenu;
 use App\Models\ProjetSectionParagraphe;
 use App\Models\Thematique;
@@ -286,6 +287,76 @@ class DemoSeeder extends Seeder
                 ['contenu' => $contenu]
             );
         }
+
+        // ─── Renvois de démonstration ─────────────────────────────────────────
+        // Suppression idempotente : on repart de zéro à chaque re-seed.
+        $projet->renvois()->delete();
+
+        // Renvois 1 et 2 → conclusion de Nathan Bouchard
+        $renvoi1 = ProjetRenvoi::create([
+            'projet_id' => $projet->id,
+            'numero' => 1,
+            'contenu' => 'Ronald Rudin, Making History in Twentieth-Century Quebec, Toronto, University of Toronto Press, 1997, 264 p.',
+        ]);
+
+        $renvoi2 = ProjetRenvoi::create([
+            'projet_id' => $projet->id,
+            'numero' => 2,
+            'contenu' => 'Gilles Bourque et Jules Duchastel, Restons traditionnels et progressifs, Montréal, Boréal, 1988.',
+        ]);
+
+        // Renvois 3 et 4 → dernier paragraphe du développement
+        $renvoi3 = ProjetRenvoi::create([
+            'projet_id' => $projet->id,
+            'numero' => 3,
+            'contenu' => 'Linteau, Paul-André, et al., Histoire du Québec contemporain, t. II : Le Québec depuis 1930, Montréal, Boréal compact, 1989, 834 p.',
+        ]);
+
+        $renvoi4 = ProjetRenvoi::create([
+            'projet_id' => $projet->id,
+            'numero' => 4,
+            'contenu' => 'McRoberts, Kenneth et Dale Posgate, Développement et modernisation du Québec, Montréal, Boréal Express, 1983.',
+        ]);
+
+        // ── Exposants pour la conclusion de Nathan Bouchard ──────────────────
+        $sup1 = '<sup class="renvoi text-blue-600 cursor-pointer font-bold text-xs align-super"'
+            .' data-renvoi-id="'.$renvoi1->id.'"'
+            .' data-renvoi-numero="1">1</sup>';
+        $sup2 = '<sup class="renvoi text-blue-600 cursor-pointer font-bold text-xs align-super"'
+            .' data-renvoi-id="'.$renvoi2->id.'"'
+            .' data-renvoi-numero="2">2</sup>';
+
+        ProjetConclusion::where([
+            'projet_id' => $projet->id,
+            'user_id' => $etudiants[3]->id,
+            'section_id' => $sectionConclusion->id,
+        ])->update([
+            'contenu' => '<p>Ma réflexion sur la Révolution tranquille porte principalement sur la question des limites de cette transformation.'
+                .' Si les acquis sont indéniables, les travaux d\'historiens comme Ronald Rudin'.$sup1
+                .' m\'ont conduit à questionner le mythe d\'un avant et après aussi tranché que le narratif officiel le suggère.'
+                .' Les analyses de Bourque et Duchastel'.$sup2
+                .' sur le régime Duplessis montrent par ailleurs que la période précédente était elle-même traversée de tensions modernisatrices souvent occultées.'
+                .' La croissance de l\'État a certes modernisé le Québec, mais elle a aussi créé des dépendances et des inefficacités bureaucratiques que la société québécoise paie encore aujourd\'hui.'
+                .' La Révolution tranquille est un succès, mais un succès inachevé qui mérite une lecture critique plutôt qu\'une admiration inconditionnelle.</p>',
+        ]);
+
+        // ── Exposants pour le dernier paragraphe du développement ────────────
+        $sup3 = '<sup class="renvoi text-blue-600 cursor-pointer font-bold text-xs align-super"'
+            .' data-renvoi-id="'.$renvoi3->id.'"'
+            .' data-renvoi-numero="3">3</sup>';
+        $sup4 = '<sup class="renvoi text-blue-600 cursor-pointer font-bold text-xs align-super"'
+            .' data-renvoi-id="'.$renvoi4->id.'"'
+            .' data-renvoi-numero="4">4</sup>';
+
+        ProjetSectionParagraphe::where('projet_id', $projet->id)
+            ->where('section_id', $sectionDev->id)
+            ->where('ordre', count($paragraphes))
+            ->update([
+                'contenu' => '<p>Si la Révolution tranquille a profondément transformé le Québec, son bilan est nuancé'.$sup3
+                    .'. D\'un côté, elle a permis la création d\'un État moderne, la démocratisation de l\'éducation et l\'affirmation de l\'identité francophone.'
+                    .' De l\'autre, la croissance rapide de l\'État a généré une dette publique significative et des bureaucraties parfois inefficaces'.$sup4
+                    .'. La Révolution tranquille reste néanmoins un moment fondateur dans la construction de l\'identité québécoise contemporaine.</p>',
+            ]);
 
         // ─── TypeProjet "Schéma d'entrevue" ───────────────────────────────────
         // Compatibilité : le TypeProjet peut exister sous l'ancien nom "Entrevue"

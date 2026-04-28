@@ -103,6 +103,21 @@ it('peut modifier le contenu d\'un renvoi', function () {
     expect($renvoi->fresh()->contenu)->toBe('Nouveau texte.');
 });
 
+it('peut modifier le numéro d\'un renvoi lors d\'une renumérotation', function () {
+    ['etudiant1' => $etudiant, 'projet' => $projet, 'baseUrl' => $url] = creerScenarioRenvoi();
+
+    // Simuler : refs 1, 2, 3 ; suppression de la 2 ; ref 3 doit devenir 2.
+    ProjetRenvoi::create(['projet_id' => $projet->id, 'numero' => 1, 'contenu' => 'Source A.']);
+    $renvoi3 = ProjetRenvoi::create(['projet_id' => $projet->id, 'numero' => 3, 'contenu' => 'Source C.']);
+
+    $this->actingAs($etudiant)
+        ->patchJson("{$url}/renvois/{$renvoi3->id}", ['numero' => 2])
+        ->assertOk()
+        ->assertJsonPath('message', 'saved');
+
+    expect($renvoi3->fresh()->numero)->toBe(2);
+});
+
 // ─── Suppression ──────────────────────────────────────────────────────────────
 
 it('peut supprimer un renvoi', function () {
@@ -162,6 +177,20 @@ it('le numéro repart de 1 pour un nouveau projet', function () {
 
     $response->assertCreated()
         ->assertJsonPath('renvoi.numero', 1);
+});
+
+it('le numéro est basé sur le maximum existant en base de données', function () {
+    ['etudiant1' => $etudiant, 'projet' => $projet, 'baseUrl' => $url] = creerScenarioRenvoi();
+
+    // Pré-insérer un renvoi avec un numéro non-séquentiel pour vérifier que
+    // le calcul est bien max(numero) + 1 et non count() + 1.
+    ProjetRenvoi::create(['projet_id' => $projet->id, 'numero' => 5, 'contenu' => 'Renvoi existant.']);
+
+    $response = $this->actingAs($etudiant)
+        ->postJson("{$url}/renvois", ['contenu' => 'Nouvelle source.']);
+
+    $response->assertCreated()
+        ->assertJsonPath('renvoi.numero', 6);
 });
 
 it('un projet sans renvoi retourne un tableau vide dans show()', function () {

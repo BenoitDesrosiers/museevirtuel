@@ -103,6 +103,12 @@
             color: #888;
         }
 
+        .toc-entry--sub {
+            padding-left: 20px;
+            font-size: 10.5pt;
+            color: #333;
+        }
+
         /* ─── Sections de contenu ─────────────────────────────── */
         .section {
             page-break-before: always;
@@ -197,27 +203,50 @@
     <div class="toc">
         <h2>Table des matières</h2>
 
-        <div class="toc-entry">
-            <span class="toc-label">Introduction</span>
-            <span class="toc-dots">………… p. 1</span>
-        </div>
-
-        @foreach($projet->developpements as $dev)
+        @if($sections->isNotEmpty())
+            {{-- TOC dynamique : reflète les sections TypeProjet --}}
+            @foreach($sections as $section)
+                <div class="toc-entry">
+                    <span class="toc-label">{{ $section['label'] }}</span>
+                    <span class="toc-dots">……………</span>
+                </div>
+                @if($section['type'] === 'paragraphes')
+                    @foreach($section['paragraphes'] as $para)
+                        <div class="toc-entry toc-entry--sub">
+                            <span class="toc-label">{{ $para['titre'] ?: '(sans titre)' }}</span>
+                            <span class="toc-dots">……………</span>
+                        </div>
+                    @endforeach
+                @elseif($section['type'] === 'individuel')
+                    @foreach($membresObjets as $membre)
+                        <div class="toc-entry toc-entry--sub">
+                            <span class="toc-label">{{ $membre->prenom }} {{ $membre->nom }}</span>
+                            <span class="toc-dots">……………</span>
+                        </div>
+                    @endforeach
+                @endif
+            @endforeach
+        @else
+            {{-- Ancien format : Introduction / Développements / Conclusions --}}
             <div class="toc-entry">
-                <span class="toc-label">
-                    {{ $loop->iteration }}. {{ $dev->titre ?: "Paragraphe de développement {$dev->ordre}" }}
-                </span>
-                <span class="toc-dots">………… p. {{ $loop->iteration + 1 }}</span>
+                <span class="toc-label">Introduction</span>
+                <span class="toc-dots">………… p. 1</span>
             </div>
-        @endforeach
-
-        {{-- Autant d'entrées de conclusion que de membres --}}
-        @foreach($membres as $nom)
-            <div class="toc-entry">
-                <span class="toc-label">Conclusion — {{ $nom }}</span>
-                <span class="toc-dots">………… p. {{ $loop->iteration + 7 }}</span>
-            </div>
-        @endforeach
+            @foreach($projet->developpements as $dev)
+                <div class="toc-entry">
+                    <span class="toc-label">
+                        {{ $loop->iteration }}. {{ $dev->titre ?: "Paragraphe de développement {$dev->ordre}" }}
+                    </span>
+                    <span class="toc-dots">………… p. {{ $loop->iteration + 1 }}</span>
+                </div>
+            @endforeach
+            @foreach($membres as $nom)
+                <div class="toc-entry">
+                    <span class="toc-label">Conclusion — {{ $nom }}</span>
+                    <span class="toc-dots">………… p. {{ $loop->iteration + 7 }}</span>
+                </div>
+            @endforeach
+        @endif
     </div>
     @elseif(!empty($tableMatieresContenu))
     {{-- Contenu rédigé manuellement par l'étudiant --}}
@@ -229,7 +258,38 @@
         @foreach($sections as $section)
             <div class="section">
                 <h2>{{ $section['label'] }}</h2>
-                @if(!empty($section['contenu']) && trim(strip_tags($section['contenu'])) !== '')
+                @if(($section['type'] ?? 'texte') === 'paragraphes')
+                    {{-- Sections de type paragraphes : chaque paragraphe est une sous-section --}}
+                    @if($section['paragraphes']->isEmpty())
+                        <p style="color: #999; font-style: italic;">(Section non rédigée)</p>
+                    @else
+                        @foreach($section['paragraphes'] as $para)
+                            <div class="subsection">
+                                @if(!empty($para['titre']))
+                                    <h3>{{ $para['titre'] }}</h3>
+                                @endif
+                                @if(!empty($para['contenu']) && trim(strip_tags($para['contenu'])) !== '')
+                                    <div class="prose">{!! $para['contenu'] !!}</div>
+                                @else
+                                    <p style="color: #999; font-style: italic;">(Paragraphe non rédigé)</p>
+                                @endif
+                            </div>
+                        @endforeach
+                    @endif
+                @elseif(($section['type'] ?? 'texte') === 'individuel')
+                    {{-- Sections de type individuel : une sous-section par membre --}}
+                    @foreach($membresObjets as $membre)
+                        @php $contenuMembre = $section['membres_conclusions'][$membre->id] ?? null; @endphp
+                        <div class="subsection">
+                            <h3>{{ $membre->prenom }} {{ $membre->nom }}</h3>
+                            @if($contenuMembre && trim(strip_tags($contenuMembre)) !== '')
+                                <div class="prose">{!! $contenuMembre !!}</div>
+                            @else
+                                <p style="color: #999; font-style: italic;">(Non rédigée)</p>
+                            @endif
+                        </div>
+                    @endforeach
+                @elseif(!empty($section['contenu']) && trim(strip_tags($section['contenu'])) !== '')
                     <div class="prose">{!! $section['contenu'] !!}</div>
                 @else
                     <p style="color: #999; font-style: italic;">(Section non rédigée)</p>
@@ -263,42 +323,45 @@
         </div>
     @endif
 
-    {{-- ─── Paragraphes de développement (dynamiques) ─────────────── --}}
-    @foreach($projet->developpements as $dev)
-        <div class="section">
-            <h2>{{ $dev->titre ?: "Paragraphe de développement {$dev->ordre}" }}</h2>
-            @if($dev->contenu && trim(strip_tags($dev->contenu)) !== '')
-                <div class="prose">{!! $stripMarks($dev->contenu) !!}</div>
-            @else
-                <p style="color: #999; font-style: italic;">(Section non rédigée)</p>
-            @endif
-        </div>
-    @endforeach
-
-    {{-- ─── Conclusions individuelles (une par membre) ─────────────── --}}
-    @foreach($projet->conclusions->sortBy(fn($c) => $c->user_id) as $conclusion)
-        <div class="section">
-            <h2>Conclusion — {{ $conclusion->etudiant->prenom }} {{ $conclusion->etudiant->nom }}</h2>
-            @if($conclusion->contenu && trim(strip_tags($conclusion->contenu)) !== '')
-                <div class="prose">{!! $stripMarks($conclusion->contenu) !!}</div>
-            @else
-                <p style="color: #999; font-style: italic;">(Section non rédigée)</p>
-            @endif
-        </div>
-    @endforeach
-
-    {{-- Membres sans conclusion --}}
-    @foreach($membres as $nomMembre)
-        @php
-            $aConclusion = $projet->conclusions->contains(fn($c) => "{$c->etudiant->prenom} {$c->etudiant->nom}" === $nomMembre);
-        @endphp
-        @if(! $aConclusion)
+    {{-- ─── Ancien format (sans TypeProjet) : développements + conclusions ─── --}}
+    @if($sections->isEmpty())
+        @foreach($projet->developpements as $dev)
             <div class="section">
-                <h2>Conclusion — {{ $nomMembre }}</h2>
-                <p style="color: #999; font-style: italic;">(Section non rédigée)</p>
+                <h2>{{ $dev->titre ?: "Paragraphe de développement {$dev->ordre}" }}</h2>
+                @if($dev->contenu && trim(strip_tags($dev->contenu)) !== '')
+                    <div class="prose">{!! $stripMarks($dev->contenu) !!}</div>
+                @else
+                    <p style="color: #999; font-style: italic;">(Section non rédigée)</p>
+                @endif
             </div>
-        @endif
-    @endforeach
+        @endforeach
+
+        @foreach($projet->conclusions->filter(fn($c) => is_null($c->section_id))->sortBy('user_id') as $conclusion)
+            <div class="section">
+                <h2>Conclusion — {{ $conclusion->etudiant->prenom }} {{ $conclusion->etudiant->nom }}</h2>
+                @if($conclusion->contenu && trim(strip_tags($conclusion->contenu)) !== '')
+                    <div class="prose">{!! $stripMarks($conclusion->contenu) !!}</div>
+                @else
+                    <p style="color: #999; font-style: italic;">(Section non rédigée)</p>
+                @endif
+            </div>
+        @endforeach
+
+        {{-- Membres sans conclusion standalone --}}
+        @foreach($membres as $nomMembre)
+            @php
+                $aConclusion = $projet->conclusions
+                    ->filter(fn($c) => is_null($c->section_id))
+                    ->contains(fn($c) => "{$c->etudiant->prenom} {$c->etudiant->nom}" === $nomMembre);
+            @endphp
+            @if(! $aConclusion)
+                <div class="section">
+                    <h2>Conclusion — {{ $nomMembre }}</h2>
+                    <p style="color: #999; font-style: italic;">(Section non rédigée)</p>
+                </div>
+            @endif
+        @endforeach
+    @endif
 
     {{-- ─── Références (renvois / endnotes) ───────────────────── --}}
     @if(isset($renvois) && $renvois->isNotEmpty())

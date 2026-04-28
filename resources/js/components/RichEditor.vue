@@ -5,7 +5,27 @@ import Highlight from '@tiptap/extension-highlight';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import Subscript from '@tiptap/extension-subscript';
-import Superscript from '@tiptap/extension-superscript';
+import SuperscriptBase from '@tiptap/extension-superscript';
+
+/**
+ * Extension Superscript personnalisée qui refuse les <sup data-renvoi-id>.
+ * Sans cela, ProseMirror classe les marks avant les nodes dans schemaRules() —
+ * Superscript (mark, tag: 'sup') consomme les <sup data-renvoi-id> avant que
+ * RenvoiMark (node) ne les voie, les parsant comme du texte en exposant ordinaire.
+ */
+const Superscript = SuperscriptBase.extend({
+    parseHTML() {
+        return [
+            {
+                tag: 'sup',
+                getAttrs: (node) => {
+                    if ((node as HTMLElement).hasAttribute('data-renvoi-id')) return false;
+                    return null;
+                },
+            },
+        ];
+    },
+});
 import TextAlign from '@tiptap/extension-text-align';
 import { TextStyle } from '@tiptap/extension-text-style';
 import Typography from '@tiptap/extension-typography';
@@ -68,6 +88,11 @@ const props = defineProps<{
     renvois?: RenvoiBase[];
     /** Identifiant unique de cet éditeur — si fourni, émet 'renvois-utilises' à chaque changement. */
     editorId?: string;
+    /**
+     * Compteur de synchronisation forcée — incrémenté dans Show.vue après chaque supprimerRenvoi.
+     * Garantit que le watcher se déclenche même si Vue rate une mutation profonde sur renvois.
+     */
+    renvoisSyncVersion?: number;
 }>();
 
 const emit = defineEmits<{
@@ -171,6 +196,24 @@ watch(
 watch(
     () => props.readOnly,
     (val) => editor.value?.setEditable(!val),
+);
+
+/**
+ * Synchronise les nœuds RenvoiMark avec la liste des renvois du parent.
+ * - Renvoi supprimé → exposant retiré du texte.
+ * - Numéro changé (renumérotation) → attrs mis à jour.
+ *
+ * Surveille AUSSI `editor` pour se déclencher dès que TipTap est prêt au montage,
+ * ce qui corrige les exposants orphelins ou mal numérotés du HTML stocké en base.
+ */
+watch(
+    [() => props.renvois, () => props.renvoisSyncVersion, editor] as const,
+    ([newRenvois, , newEditor]) => {
+        if (!newEditor || newRenvois === undefined) return;
+        const map = new Map(newRenvois.map((r) => [r.id, r.numero]));
+        newEditor.commands.syncRenvois(map);
+    },
+    { deep: true, immediate: true },
 );
 
 // Détecte les marques supprimées par édition de texte (ex. : mot surligné effacé).

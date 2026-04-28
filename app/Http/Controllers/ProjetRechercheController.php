@@ -1241,7 +1241,12 @@ class ProjetRechercheController extends Controller
     }
 
     /**
-     * Met à jour le contenu textuel d'un renvoi existant.
+     * Met à jour le contenu textuel et/ou le numéro d'un renvoi existant.
+     *
+     * Le champ `numero` est optionnel et utilisé lors de la renumérotation automatique
+     * après suppression d'un renvoi. La contrainte unique (projet_id, numero) est respectée
+     * car la renumérotation est effectuée dans l'ordre croissant (les trous sont comblés
+     * avant d'assigner un numéro déjà existant).
      *
      * Vérifie que le renvoi appartient bien au projet du groupe (anti-IDOR).
      *
@@ -1259,9 +1264,10 @@ class ProjetRechercheController extends Controller
 
         $validated = $request->validate([
             'contenu' => ['nullable', 'string', 'max:2000'],
+            'numero' => ['sometimes', 'integer', 'min:1'],
         ]);
 
-        $renvoi->update(['contenu' => $validated['contenu']]);
+        $renvoi->update($validated);
 
         return response()->json(['message' => 'saved']);
     }

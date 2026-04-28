@@ -5,6 +5,12 @@ declare module '@tiptap/core' {
         renvoiMark: {
             /** Insère un exposant de renvoi (endnote) à la position courante du curseur. */
             insertRenvoi: (attrs: { renvoiId: number; numero: number }) => ReturnType;
+            /**
+             * Synchronise tous les nœuds renvoiMark du document avec la liste courante des renvois.
+             * - Si un renvoiId est absent de la map → le nœud est supprimé du texte.
+             * - Si le numéro a changé → les attrs du nœud sont mis à jour.
+             */
+            syncRenvois: (renvoisMap: Map<number, number>) => ReturnType;
         };
     }
 }
@@ -23,6 +29,7 @@ declare module '@tiptap/core' {
  */
 export const RenvoiMark = Node.create({
     name: 'renvoiMark',
+    priority: 1000,
 
     group: 'inline',
     inline: true,
@@ -81,6 +88,43 @@ export const RenvoiMark = Node.create({
                             numero: attrs.numero,
                         },
                     }),
+
+            syncRenvois:
+                (renvoisMap: Map<number, number>) =>
+                ({ tr, dispatch }) => {
+                    const toDelete: number[] = [];
+                    const toUpdate: Array<{ pos: number; attrs: { renvoiId: number; numero: number } }> = [];
+
+                    tr.doc.descendants((node, pos) => {
+                        if (node.type.name !== 'renvoiMark') return;
+                        const renvoiId = node.attrs.renvoiId as number;
+                        const newNumero = renvoisMap.get(renvoiId);
+                        if (newNumero === undefined) {
+                            toDelete.push(pos);
+                        } else if (node.attrs.numero !== newNumero) {
+                            toUpdate.push({ pos, attrs: { renvoiId, numero: newNumero } });
+                        }
+                    });
+
+                    if (!dispatch || (toDelete.length === 0 && toUpdate.length === 0)) {
+                        return toDelete.length > 0 || toUpdate.length > 0;
+                    }
+
+                    // Mettre à jour les attrs en premier (ne change pas les positions)
+                    toUpdate.forEach(({ pos, attrs }) => {
+                        tr.setNodeMarkup(pos, undefined, attrs);
+                    });
+
+                    // Supprimer en ordre inverse pour ne pas décaler les positions
+                    toDelete
+                        .sort((a, b) => b - a)
+                        .forEach((pos) => {
+                            tr.delete(pos, pos + 1);
+                        });
+
+                    dispatch(tr);
+                    return true;
+                },
         };
     },
 });

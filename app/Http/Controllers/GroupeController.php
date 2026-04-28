@@ -7,8 +7,10 @@ use App\Models\Cours;
 use App\Models\Groupe;
 use App\Models\GroupeNote;
 use App\Models\GroupeNoteCorrection;
+use App\Models\Thematique;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -48,7 +50,8 @@ class GroupeController extends Controller
             ->whereNotIn('users.id', $dejaGroupes)
             ->get(['users.id', 'prenom', 'nom']);
 
-        $thematiques = $cours->enseignant->thematiques()->get(['id', 'nom', 'periode_historique']);
+        $thematiques = $this->thematiquesVisibles($cours->enseignant)
+            ->get(['id', 'nom', 'periode_historique']);
 
         return Inertia::render('Classes/Groupes', [
             'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
@@ -95,8 +98,7 @@ class GroupeController extends Controller
         // Exclure les membres déjà dans un autre groupe de la même classe
         $membresInscrits = array_diff($membresInscrits, $this->membresDejaGroupes($classe));
 
-        $thematiquesValides = $cours->enseignant
-            ->thematiques()
+        $thematiquesValides = $this->thematiquesVisibles($cours->enseignant)
             ->whereIn('id', $validated['thematiques'] ?? [])
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
@@ -150,8 +152,7 @@ class GroupeController extends Controller
             'temoin',
         ]);
 
-        $thematiquesDispo = $cours->enseignant
-            ->thematiques()
+        $thematiquesDispo = $this->thematiquesVisibles($cours->enseignant)
             ->get(['id', 'nom', 'periode_historique']);
 
         $membreIds = $groupe->membres->pluck('id');
@@ -266,8 +267,7 @@ class GroupeController extends Controller
             'thematiques.*' => ['integer', 'exists:thematiques,id'],
         ]);
 
-        $thematiquesValides = $cours->enseignant
-            ->thematiques()
+        $thematiquesValides = $this->thematiquesVisibles($cours->enseignant)
             ->whereIn('id', $validated['thematiques'] ?? [])
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
@@ -415,6 +415,20 @@ class GroupeController extends Controller
         $groupe->delete();
 
         return redirect()->route('groupes.index', [$cours, $classe])->with('success', __('groupe.deleted'));
+    }
+
+    /**
+     * Retourne un query builder pour les thématiques visibles par un enseignant :
+     * les siennes + celles de son établissement (si applicable).
+     */
+    private function thematiquesVisibles(User $enseignant): Builder
+    {
+        return Thematique::where(function ($q) use ($enseignant) {
+            $q->where('enseignant_id', $enseignant->id);
+            if ($enseignant->etablissement_id) {
+                $q->orWhere('etablissement_id', $enseignant->etablissement_id);
+            }
+        });
     }
 
     /**

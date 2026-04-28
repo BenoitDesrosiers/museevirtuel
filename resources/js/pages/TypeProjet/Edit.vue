@@ -168,8 +168,7 @@ function sauvegarder() {
                     <div class="flex items-center gap-3">
                         <Checkbox
                             id="remises_multiples"
-                            :checked="form.remises_multiples"
-                            @update:checked="(v) => (form.remises_multiples = v as boolean)"
+                            v-model="form.remises_multiples"
                         />
                         <div class="grid gap-0.5">
                             <Label for="remises_multiples" class="cursor-pointer">{{ $t('types_projet.edit.label_multiple_submissions') }}</Label>
@@ -180,8 +179,7 @@ function sauvegarder() {
                     <div class="flex items-center gap-3">
                         <Checkbox
                             id="retard_permis"
-                            :checked="form.retard_permis"
-                            @update:checked="(v) => (form.retard_permis = v as boolean)"
+                            v-model="form.retard_permis"
                         />
                         <div class="grid gap-0.5">
                             <Label for="retard_permis" class="cursor-pointer">{{ $t('types_projet.edit.label_late_submission') }}</Label>
@@ -194,13 +192,12 @@ function sauvegarder() {
                     <div class="flex items-start gap-3">
                         <Checkbox
                             id="generer_page_titre"
-                            :checked="form.generer_page_titre"
-                            @update:checked="(v) => (form.generer_page_titre = v === true)"
+                            v-model="form.generer_page_titre"
                         />
                         <div class="grid gap-0.5">
                             <Label for="generer_page_titre" class="cursor-pointer">{{ $t('types_projet.edit.label_generer_page_titre') }}</Label>
                             <p class="text-xs text-muted-foreground">
-                                {{ form.generer_page_titre ? $t('types_projet.edit.hint_auto') : $t('types_projet.edit.hint_manuel') }}
+                                {{ form.generer_page_titre ? $t('types_projet.edit.hint_auto') : '' }}
                             </p>
                         </div>
                     </div>
@@ -208,13 +205,12 @@ function sauvegarder() {
                     <div class="flex items-start gap-3">
                         <Checkbox
                             id="generer_table_matieres"
-                            :checked="form.generer_table_matieres"
-                            @update:checked="(v) => (form.generer_table_matieres = v === true)"
+                            v-model="form.generer_table_matieres"
                         />
                         <div class="grid gap-0.5">
                             <Label for="generer_table_matieres" class="cursor-pointer">{{ $t('types_projet.edit.label_generer_table_matieres') }}</Label>
                             <p class="text-xs text-muted-foreground">
-                                {{ form.generer_table_matieres ? $t('types_projet.edit.hint_auto') : $t('types_projet.edit.hint_manuel') }}
+                                {{ form.generer_table_matieres ? $t('types_projet.edit.hint_auto') : '' }}
                             </p>
                         </div>
                     </div>

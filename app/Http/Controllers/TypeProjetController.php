@@ -77,8 +77,8 @@ class TypeProjetController extends Controller
             'date_remise' => $data['date_remise'] ?? null,
             'remises_multiples' => $data['remises_multiples'] ?? false,
             'retard_permis' => $data['retard_permis'] ?? false,
-            'generer_page_titre' => $data['generer_page_titre'] ?? true,
-            'generer_table_matieres' => $data['generer_table_matieres'] ?? true,
+            'generer_page_titre' => $request->boolean('generer_page_titre', true),
+            'generer_table_matieres' => $request->boolean('generer_table_matieres', true),
         ]);
 
         foreach ($data['sections'] ?? [] as $index => $section) {
@@ -121,19 +121,23 @@ class TypeProjetController extends Controller
             'sections.*.type' => ['nullable', 'string', 'in:texte,paragraphes,individuel,entrevue'],
         ]);
 
+        $wasGeneratingPageTitre = (bool) $typeProjet->generer_page_titre;
+        $willGeneratePageTitre = $request->boolean('generer_page_titre', $typeProjet->generer_page_titre);
+
         $typeProjet->update([
             'nom' => $data['nom'],
             'description' => $data['description'] ?? null,
             'date_remise' => $data['date_remise'] ?? null,
-            'remises_multiples' => $data['remises_multiples'] ?? false,
-            'retard_permis' => $data['retard_permis'] ?? false,
-            'generer_page_titre' => array_key_exists('generer_page_titre', $data)
-                ? (bool) $data['generer_page_titre']
-                : $typeProjet->generer_page_titre,
-            'generer_table_matieres' => array_key_exists('generer_table_matieres', $data)
-                ? (bool) $data['generer_table_matieres']
-                : $typeProjet->generer_table_matieres,
+            'remises_multiples' => $request->boolean('remises_multiples', $typeProjet->remises_multiples),
+            'retard_permis' => $request->boolean('retard_permis', $typeProjet->retard_permis),
+            'generer_page_titre' => $willGeneratePageTitre,
+            'generer_table_matieres' => $request->boolean('generer_table_matieres', $typeProjet->generer_table_matieres),
         ]);
+
+        // Vider le contenu auto-généré quand le flag passe de auto → manuel
+        if ($wasGeneratingPageTitre && ! $willGeneratePageTitre) {
+            $typeProjet->projets()->update(['page_titre_contenu' => null]);
+        }
 
         if ($request->has('sections')) {
             $sections = $data['sections'] ?? [];

@@ -26,7 +26,7 @@ import {
     Users,
     XCircle,
 } from 'lucide-vue-next';
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import AntidoteGlobalModal from '@/components/AntidoteGlobalModal.vue';
 import type { GlobalSection } from '@/components/AntidoteGlobalModal.vue';
@@ -477,6 +477,54 @@ function clearAllDebounces() {
 }
 
 /**
+ * Annule tous les timers en attente et exécute immédiatement toutes les sauvegardes.
+ *
+ * Utilisé après une opération critique sur les renvois (insertion, suppression) pour
+ * garantir que le HTML des sections — incluant les nœuds renvoiMark mis à jour —
+ * est persisté en base avant une éventuelle navigation. Sans ce flush, un départ
+ * rapide de la page (< 1,5 s) laisserait la DB sans le <sup> inséré, désynchronisant
+ * la liste de références et les exposants au prochain chargement.
+ */
+async function flushAllPendingSaves(): Promise<void> {
+    if (!props.peutEditer) return;
+
+    const saves: Promise<void>[] = [];
+
+    // Champs partagés (introduction, page titre, table des matières)
+    if (debounceShared) {
+        clearTimeout(debounceShared);
+        debounceShared = null;
+        saves.push(saveShared());
+    }
+
+    // Sections de type texte
+    for (const sectionId of [...debounceSections.keys()]) {
+        clearTimeout(debounceSections.get(sectionId)!);
+        debounceSections.delete(sectionId);
+        saves.push(saveSection(sectionId));
+    }
+
+    // Paragraphes de sections dynamiques
+    for (const [paragrapheId, { sectionId }] of [...debounceSectionParagraphesData.entries()]) {
+        const timer = debounceSectionParagraphes.get(paragrapheId);
+        if (timer) clearTimeout(timer);
+        debounceSectionParagraphes.delete(paragrapheId);
+        saves.push(saveSectionParagraphe(paragrapheId, sectionId));
+    }
+    debounceSectionParagraphesData.clear();
+
+    // Conclusions de sections individuelles (clé = "${sectionId}_${userId}")
+    for (const key of [...debounceSectionConclusions.keys()]) {
+        const [sectionIdStr, userIdStr] = key.split('_');
+        clearTimeout(debounceSectionConclusions.get(key)!);
+        debounceSectionConclusions.delete(key);
+        saves.push(saveSectionConclusion(Number(sectionIdStr), Number(userIdStr)));
+    }
+
+    await Promise.all(saves);
+}
+
+/**
  * Collecte toutes les sections éditables (type texte/paragraphes ou mode classique)
  * en un tableau de GlobalSection pour la modale Antidote.
  * Les sections de type 'individuel' et 'entrevue' sont exclues.
@@ -613,6 +661,8 @@ return;
 // ─── Paragraphes de sections dynamiques (type 'paragraphes') ─────────────────
 
 const debounceSectionParagraphes = new Map<number, ReturnType<typeof setTimeout>>();
+/** Stocke le sectionId associé à chaque paragrapheId pour permettre le flush immédiat. */
+const debounceSectionParagraphesData = new Map<number, { sectionId: number }>();
 const sectionParagrapheEnCours = reactive<Record<number, boolean>>({});
 
 function scheduleSectionParagrapheSave(paragrapheId: number, sectionId: number) {
@@ -621,6 +671,7 @@ function scheduleSectionParagrapheSave(paragrapheId: number, sectionId: number) 
     const existing = debounceSectionParagraphes.get(paragrapheId);
     if (existing) clearTimeout(existing);
     debounceSectionParagraphes.set(paragrapheId, setTimeout(() => saveSectionParagraphe(paragrapheId, sectionId), 1500));
+    debounceSectionParagraphesData.set(paragrapheId, { sectionId });
 }
 
 async function saveSectionParagraphe(paragrapheId: number, sectionId: number) {
@@ -869,9 +920,45 @@ const dateAujourd = computed(() =>
     }),
 );
 
-const codeComplet = computed(
-    () => `${props.classe.code} / Gr. ${props.classe.groupe}`,
-);
+const codeComplet = computed(() => {
+    const cours = (props as any).cours as { code?: string; groupe?: string } | undefined;
+    return `${cours?.code ?? props.classe.code} / Gr. ${cours?.groupe ?? ''}`;
+});
+
+/**
+ * Génère le HTML du gabarit de page titre à partir des données disponibles.
+ * Appelé une seule fois (onMounted) quand genererPageTitre = true et que le contenu est vide.
+ */
+function genererContenuPageTitre(): string {
+    const cours = (props as any).cours as { nom_cours?: string } | undefined;
+    const lignesMembres = props.membres
+        .map((m) => `<p>${m.prenom} ${m.nom}</p>`)
+        .join('');
+
+    return [
+        lignesMembres,
+        `<p>${cours?.nom_cours ?? ''}</p>`,
+        `<p>${codeComplet.value}</p>`,
+        '<p>&nbsp;</p>',
+        '<p><strong>[Titre du projet]</strong></p>',
+        '<p>RECHERCHE DOCUMENTAIRE</p>',
+        '<p>&nbsp;</p>',
+        '<p>Travail présenté à</p>',
+        `<p><strong>${props.enseignant.prenom} ${props.enseignant.nom}</strong></p>`,
+        '<p>&nbsp;</p>',
+        '<p>Département des sciences humaines</p>',
+        '<p>Cégep de Drummondville</p>',
+        `<p>Le ${dateAujourd.value}</p>`,
+    ].join('');
+}
+
+// ─── Pré-remplissage page titre en mode auto ──────────────────────────────────
+
+onMounted(() => {
+    if (props.genererPageTitre && !form.page_titre_contenu) {
+        form.page_titre_contenu = genererContenuPageTitre();
+    }
+});
 
 // ─── Table des matières ───────────────────────────────────────────────────────
 
@@ -1265,28 +1352,51 @@ async function supprimerAnnotation(
 const renvoisLocaux = ref<Renvoi[]>([...props.renvois]);
 const renvoiEnCours = ref(false);
 
+/**
+ * Incrémenté après chaque supprimerRenvoi pour forcer le watcher syncRenvois
+ * dans tous les RichEditor, même si Vue rate une mutation profonde sur renvoisLocaux.
+ */
+const renvoisSyncVersion = ref(0);
+
 /** Snapshot des renvoiId présents dans chaque éditeur, indexés par editorId. */
 const renvoisParEditor = ref(new Map<string, number[]>());
-let debounceOrphans: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Éditeurs ayant déjà émis au moins un rapport depuis ce chargement de page.
+ * Empêche la suppression automatique lors du premier rapport (initialisation TipTap).
+ */
+const editorsInitialises = ref(new Set<string>());
 
 /**
  * Reçoit le snapshot des renvoiId utilisés par un éditeur.
- * Après 800 ms de calme, supprime automatiquement les renvois absents de tous les éditeurs.
+ *
+ * - Premier rapport (montage de l'éditeur) : pas de suppression — les autres éditeurs
+ *   n'ont pas encore eu le temps de signaler leurs IDs, ce qui provoquerait des faux positifs.
+ * - Rapports suivants : si un renvoiId disparaît de TOUS les éditeurs, sa référence est supprimée.
  */
 function handleRenvoisUtilises(editorId: string, ids: number[]): void {
+    const isFirstReport = !editorsInitialises.value.has(editorId);
+    const previousIds = renvoisParEditor.value.get(editorId) ?? [];
+
     renvoisParEditor.value.set(editorId, ids);
-    if (debounceOrphans) clearTimeout(debounceOrphans);
-    debounceOrphans = setTimeout(() => {
-        const utilises = new Set([...renvoisParEditor.value.values()].flat());
-        renvoisLocaux.value
-            .filter((r) => !utilises.has(r.id))
-            .forEach((r) => supprimerRenvoi(r.id));
-    }, 800);
+    editorsInitialises.value.add(editorId);
+
+    if (isFirstReport) return;
+
+    // IDs retirés de cet éditeur ET absents de tous les autres éditeurs → supprimer la référence
+    const tousLesIds = new Set([...renvoisParEditor.value.values()].flat());
+    const aSupprimer = previousIds.filter((id) => !tousLesIds.has(id));
+    aSupprimer.forEach((id) => supprimerRenvoi(id));
 }
 
 /**
  * Crée un nouveau renvoi via l'API puis l'insère dans l'éditeur actif.
  * Appelé directement depuis chaque RichEditor sans passer par un modal.
+ *
+ * Le flush immédiat après insertFn est critique : TipTap émet onUpdate de façon
+ * synchrone, ce qui déclenche scheduleSectionSave, mais le debounce de 1,5 s
+ * serait perdu si l'utilisateur naviguait avant son expiration. On sauvegarde
+ * donc immédiatement pour garantir la persistance du nœud renvoiMark inséré.
  */
 async function creerEtInsererRenvoi(insertFn: (renvoiId: number, numero: number) => void) {
     if (renvoiEnCours.value) return;
@@ -1296,24 +1406,14 @@ async function creerEtInsererRenvoi(insertFn: (renvoiId: number, numero: number)
         const renvoi = response.data.renvoi as Renvoi;
         renvoisLocaux.value.push(renvoi);
         insertFn(renvoi.id, renvoi.numero);
+        // TipTap → onUpdate → emit update:modelValue → scheduleSectionSave : tout synchrone.
+        // On flush immédiatement plutôt que d'attendre le debounce.
+        await flushAllPendingSaves();
     } finally {
         renvoiEnCours.value = false;
     }
 }
 
-/**
- * Crée un renvoi sans l'insérer dans un éditeur (depuis la section Références).
- */
-async function ajouterRenvoiSeul() {
-    if (renvoiEnCours.value) return;
-    renvoiEnCours.value = true;
-    try {
-        const response = await axios.post(`${baseUrl.value}/renvois`, { contenu: null });
-        renvoisLocaux.value.push(response.data.renvoi as Renvoi);
-    } finally {
-        renvoiEnCours.value = false;
-    }
-}
 
 const debounceRenvois = new Map<number, ReturnType<typeof setTimeout>>();
 
@@ -1338,11 +1438,42 @@ async function saveRenvoi(renvoiId: number) {
 }
 
 async function supprimerRenvoi(renvoiId: number) {
+    const cible = renvoisLocaux.value.find((r) => r.id === renvoiId);
+    if (!cible) return;
+    const numeroCible = cible.numero;
+    const url = `${baseUrl.value}/renvois/${renvoiId}`;
     try {
-        await axios.delete(`${baseUrl.value}/renvois/${renvoiId}`);
+        await axios.delete(url);
         renvoisLocaux.value = renvoisLocaux.value.filter((r) => r.id !== renvoiId);
+        await renumeroterapresSupression(numeroCible);
+        // Force le déclenchement du watcher syncRenvois dans tous les RichEditor,
+        // même si Vue a raté une mutation profonde sur renvoisLocaux.
+        renvoisSyncVersion.value++;
+        // Attendre que Vue flush les watchers syncRenvois (async) → onUpdate → scheduleSectionSave,
+        // puis sauvegarder immédiatement pour ne pas perdre le HTML corrigé si l'utilisateur navigue.
+        await nextTick();
+        await flushAllPendingSaves();
     } catch {
         saveStatus.value = 'error';
+    }
+}
+
+/**
+ * Décrémente le numéro de tous les renvois dont le numéro dépasse celui du renvoi supprimé,
+ * met à jour renvoisLocaux réactivement (ce qui déclenche le watcher dans RichEditor),
+ * puis persiste les nouveaux numéros en base via PATCH séquentiels.
+ *
+ * Les PATCHes sont envoyés en ordre croissant de numéro et un par un — la contrainte
+ * unique (projet_id, numero) interdit les mises à jour parallèles : si #4→3 et #5→4
+ * s'exécutent simultanément, la DB rejette #5→4 tant que #4 n'est pas encore à 3.
+ */
+async function renumeroterapresSupression(numeroSupprime: number) {
+    const affectees = renvoisLocaux.value
+        .filter((r) => r.numero > numeroSupprime)
+        .sort((a, b) => a.numero - b.numero);
+    affectees.forEach((r) => { r.numero -= 1; });
+    for (const r of affectees) {
+        await axios.patch(`${baseUrl.value}/renvois/${r.id}`, { numero: r.numero });
     }
 }
 
@@ -1657,8 +1788,8 @@ function setOngletActif(section: string, membreId: number | 'tous') {
             </div>
             </div>
 
-            <!-- ─── Page titre ─────────────────────────────────────────────── -->
-            <Card>
+            <!-- ─── Page titre ────────────────────────────────────────────── -->
+            <Card v-if="genererPageTitre">
                 <CardHeader class="flex flex-row items-center justify-between">
                     <CardTitle
                         class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
@@ -1678,93 +1809,27 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     </Button>
                 </CardHeader>
                 <CardContent v-show="!collapsed.pageTitre">
-                    <!-- Génération auto : prévisualisation de la page titre -->
-                    <template v-if="props.genererPageTitre">
-                        <div v-if="peutEditer" class="mb-4">
-                            <Label class="mb-1 block text-xs text-muted-foreground"
-                                >{{ t('projets.show.project_title_label') }}</Label
-                            >
-                            <Input
-                                v-model="form.titre_projet"
-                                placeholder="Ex. : L'agriculture québécoise à travers les époques"
-                                class="text-center font-semibold uppercase"
-                                @input="scheduleSharedSave"
-                            />
-                        </div>
-
-                        <div
-                            class="space-y-1 rounded-lg border bg-white p-3 text-center font-serif text-sm dark:bg-zinc-900"
-                        >
-                            <p
-                                v-for="membre in membres"
-                                :key="membre.id"
-                                class="text-muted-foreground"
-                            >
-                                {{ membre.prenom }} {{ membre.nom }}
-                            </p>
-                            <p class="mt-2 text-muted-foreground">
-                                {{ classe.nom_cours }}
-                            </p>
-                            <p class="text-xs text-muted-foreground">
-                                {{ codeComplet }}
-                            </p>
-                            <div class="py-4">
-                                <p
-                                    class="text-base font-semibold tracking-wide uppercase"
-                                >
-                                    {{ form.titre_projet || t('projets.show.project_title_placeholder') }}
-                                </p>
-                                <p class="mt-1 text-muted-foreground">
-                                    RECHERCHE DOCUMENTAIRE
-                                </p>
-                            </div>
-                            <p class="text-muted-foreground">
-                                Travail présenté à<br />
-                                <span class="font-medium"
-                                    >{{ enseignant.prenom }}
-                                    {{ enseignant.nom }}</span
-                                >
-                            </p>
-                            <p class="text-xs text-muted-foreground">
-                                Département des sciences humaines
-                            </p>
-                            <p class="text-xs text-muted-foreground">
-                                Cégep de Drummondville
-                            </p>
-                            <p class="text-xs text-muted-foreground">
-                                Le {{ dateAujourd }}
-                            </p>
-                        </div>
-                    </template>
-
-                    <!-- Rédaction manuelle : l'étudiant rédige sa propre page titre -->
-                    <template v-else>
-                        <p class="mb-3 text-xs text-muted-foreground">
-                            {{ t('projets.show.page_titre_manuel_hint') }}
-                        </p>
-                        <RichEditor
-                            v-model="form.page_titre_contenu"
-                            :placeholder="t('projets.show.page_titre_manuel_placeholder')"
-                            :read-only="!peutEditer"
-                            :est-enseignant="estEnseignant"
-                            :corrections="annotations['page_titre_contenu'] ?? []"
-                            :renvois="renvoisLocaux"
-                            editor-id="page-titre-contenu"
-                            @update:model-value="scheduleSharedSave"
-                            @save-annotation="(p) => sauvegarderAnnotation('page_titre_contenu', p)"
-                            @delete-annotation="(p) => supprimerAnnotation('page_titre_contenu', p)"
-                            @demander-renvoi="creerEtInsererRenvoi"
-                            @renvois-utilises="handleRenvoisUtilises"
-                        />
-                    </template>
+                    <RichEditor
+                        v-model="form.page_titre_contenu"
+                        :placeholder="t('projets.show.page_titre_manuel_placeholder')"
+                        :read-only="!peutEditer"
+                        :est-enseignant="estEnseignant"
+                        :corrections="annotations['page_titre_contenu'] ?? []"
+                        :renvois="renvoisLocaux"
+                        :renvois-sync-version="renvoisSyncVersion"
+                        editor-id="page-titre-contenu"
+                        @update:model-value="scheduleSharedSave"
+                        @save-annotation="(p) => sauvegarderAnnotation('page_titre_contenu', p)"
+                        @delete-annotation="(p) => supprimerAnnotation('page_titre_contenu', p)"
+                        @demander-renvoi="creerEtInsererRenvoi"
+                        @renvois-utilises="handleRenvoisUtilises"
+                    />
 
                     <!-- Commentaire enseignant -->
                     <CommentaireEnseignant
                         :commentaire="commentaires['normes_presentation']"
                         :brouillon="getBrouillon('normes_presentation')"
-                        :est-reduit="
-                            !!commentairesReduits['normes_presentation']
-                        "
+                        :est-reduit="!!commentairesReduits['normes_presentation']"
                         :is-saving="!!commentairesSaving['normes_presentation']"
                         :est-enseignant="estEnseignant"
                         :placeholder="t('projets.show.comment_presentation')"
@@ -1772,11 +1837,64 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         @toggle="toggleCommentaire('normes_presentation')"
                         @save="sauvegarderCommentaire('normes_presentation')"
                         @delete="supprimerCommentaire('normes_presentation')"
-                        @update:brouillon="
-                            (v) => setBrouillon('normes_presentation', v)
-                        "
+                        @update:brouillon="(v) => setBrouillon('normes_presentation', v)"
+                    />
+                </CardContent>
+            </Card>
+            <Card v-else>
+                <!-- ─── Page titre (mode manuel) ──────────────────────────────── -->
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <CardTitle
+                        class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
+                    >
+                        {{ t('projets.show.page_titre_manuel_card') }}
+                    </CardTitle>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        @click="toggleSection('pageTitre')"
+                    >
+                        <ChevronUp
+                            v-if="!collapsed.pageTitre"
+                            class="h-4 w-4"
+                        />
+                        <ChevronDown v-else class="h-4 w-4" />
+                    </Button>
+                </CardHeader>
+                <CardContent v-show="!collapsed.pageTitre">
+                    <p class="mb-3 text-xs text-muted-foreground">
+                        {{ t('projets.show.page_titre_manuel_hint') }}
+                    </p>
+                    <RichEditor
+                        v-model="form.page_titre_contenu"
+                        :placeholder="t('projets.show.page_titre_manuel_placeholder')"
+                        :read-only="!peutEditer"
+                        :est-enseignant="estEnseignant"
+                        :corrections="annotations['page_titre_contenu'] ?? []"
+                        :renvois="renvoisLocaux"
+                        :renvois-sync-version="renvoisSyncVersion"
+                        editor-id="page-titre-contenu"
+                        @update:model-value="scheduleSharedSave"
+                        @save-annotation="(p) => sauvegarderAnnotation('page_titre_contenu', p)"
+                        @delete-annotation="(p) => supprimerAnnotation('page_titre_contenu', p)"
+                        @demander-renvoi="creerEtInsererRenvoi"
+                        @renvois-utilises="handleRenvoisUtilises"
                     />
 
+                    <!-- Commentaire enseignant -->
+                    <CommentaireEnseignant
+                        :commentaire="commentaires['normes_presentation']"
+                        :brouillon="getBrouillon('normes_presentation')"
+                        :est-reduit="!!commentairesReduits['normes_presentation']"
+                        :is-saving="!!commentairesSaving['normes_presentation']"
+                        :est-enseignant="estEnseignant"
+                        :placeholder="t('projets.show.comment_presentation')"
+                        class="mt-4"
+                        @toggle="toggleCommentaire('normes_presentation')"
+                        @save="sauvegarderCommentaire('normes_presentation')"
+                        @delete="supprimerCommentaire('normes_presentation')"
+                        @update:brouillon="(v) => setBrouillon('normes_presentation', v)"
+                    />
                 </CardContent>
             </Card>
 
@@ -1786,7 +1904,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     <CardTitle
                         class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
                     >
-                        {{ t('projets.show.toc_card') }}
+                        {{ genererTableMatieres ? t('projets.show.toc_card') : t('projets.show.toc_manuel_card') }}
                     </CardTitle>
                     <Button
                         variant="ghost"
@@ -1798,31 +1916,11 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     </Button>
                 </CardHeader>
                 <CardContent v-show="!collapsed.tdm">
-                    <template v-if="props.genererTableMatieres">
-                        <div
-                            class="space-y-1 rounded-lg border bg-white p-3 font-serif text-sm dark:bg-zinc-900"
-                        >
-                            <p class="mb-4 text-center font-bold">
-                                TABLE DES MATIÈRES
-                            </p>
-                            <div
-                                v-for="(entree, i) in tocEntrees"
-                                :key="i"
-                                class="flex items-baseline gap-1"
-                            >
-                                <span
-                                    v-if="entree.numero"
-                                    class="w-4 shrink-0 text-xs text-muted-foreground"
-                                    >{{ entree.numero }}.</span
-                                >
-                                <span v-else class="w-4 shrink-0" />
-                                <span class="flex-1">{{ entree.label }}</span>
-                                <span class="shrink-0 text-muted-foreground"
-                                    >…… p. X</span
-                                >
-                            </div>
-                        </div>
-                    </template>
+                    <!-- Mode automatique : notice informative, pas d'éditeur -->
+                    <p v-if="genererTableMatieres" class="text-sm italic text-muted-foreground">
+                        {{ t('projets.show.toc_auto_notice') }}
+                    </p>
+                    <!-- Mode manuel : hint + éditeur -->
                     <template v-else>
                         <p class="mb-3 text-xs text-muted-foreground">
                             {{ t('projets.show.tdm_manuel_hint') }}
@@ -1834,6 +1932,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :est-enseignant="estEnseignant"
                             :corrections="annotations['table_matieres_contenu'] ?? []"
                             :renvois="renvoisLocaux"
+                            :renvois-sync-version="renvoisSyncVersion"
                             editor-id="table-matieres-contenu"
                             @update:model-value="scheduleSharedSave"
                             @save-annotation="(p) => sauvegarderAnnotation('table_matieres_contenu', p)"
@@ -1871,6 +1970,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 :est-enseignant="estEnseignant"
                                 :corrections="annotations[`section_${section.id}`] ?? []"
                                 :renvois="renvoisLocaux"
+                                :renvois-sync-version="renvoisSyncVersion"
                                 :editor-id="`section-${section.id}`"
                                 @update:model-value="scheduleSectionSave(section.id)"
                                 @save-annotation="(p) => sauvegarderAnnotation(`section_${section.id}`, p)"
@@ -1946,6 +2046,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                     :est-enseignant="estEnseignant"
                                     :corrections="annotations[`section_paragraphe_${para.id}`] ?? []"
                                     :renvois="renvoisLocaux"
+                                    :renvois-sync-version="renvoisSyncVersion"
                                     :editor-id="`section-paragraphe-${para.id}`"
                                     @update:model-value="(val: string) => { para.contenu = val; scheduleSectionParagrapheSave(para.id, section.id); }"
                                     @save-annotation="(p) => sauvegarderAnnotation(`section_paragraphe_${para.id}`, p)"
@@ -2007,6 +2108,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                         placeholder="Rédigez votre partie…"
                                         :est-enseignant="estEnseignant"
                                         :renvois="renvoisLocaux"
+                                        :renvois-sync-version="renvoisSyncVersion"
                                         :editor-id="`section-conclusion-${section.id}-${membre.id}`"
                                         @update:model-value="(val: string) => {
                                             if (!sectionConclusionsLocales[section.id]) sectionConclusionsLocales[section.id] = {};
@@ -2265,6 +2367,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :est-enseignant="estEnseignant"
                             :corrections="annotations['introduction_amener'] ?? []"
                             :renvois="renvoisLocaux"
+                            :renvois-sync-version="renvoisSyncVersion"
                             editor-id="introduction-amener"
                             @save-annotation="(p) => sauvegarderAnnotation('introduction_amener', p)"
                             @delete-annotation="(p) => supprimerAnnotation('introduction_amener', p)"
@@ -2307,6 +2410,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :est-enseignant="estEnseignant"
                             :corrections="annotations['introduction_poser'] ?? []"
                             :renvois="renvoisLocaux"
+                            :renvois-sync-version="renvoisSyncVersion"
                             editor-id="introduction-poser"
                             @save-annotation="(p) => sauvegarderAnnotation('introduction_poser', p)"
                             @delete-annotation="(p) => supprimerAnnotation('introduction_poser', p)"
@@ -2345,6 +2449,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :est-enseignant="estEnseignant"
                             :corrections="annotations['introduction_diviser'] ?? []"
                             :renvois="renvoisLocaux"
+                            :renvois-sync-version="renvoisSyncVersion"
                             editor-id="introduction-diviser"
                             @save-annotation="(p) => sauvegarderAnnotation('introduction_diviser', p)"
                             @delete-annotation="(p) => supprimerAnnotation('introduction_diviser', p)"
@@ -2443,6 +2548,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         :est-enseignant="estEnseignant"
                         :corrections="annotations[`developpement_${dev.id}`] ?? []"
                         :renvois="renvoisLocaux"
+                        :renvois-sync-version="renvoisSyncVersion"
                         :editor-id="`developpement-${dev.id}`"
                         @update:model-value="(val: string) => { dev.contenu = val; scheduleDeveloppementSave(dev.id); }"
                         @save-annotation="(p) => sauvegarderAnnotation(`developpement_${dev.id}`, p)"
@@ -2514,6 +2620,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             placeholder="Rédigez votre conclusion…"
                             :est-enseignant="estEnseignant"
                             :renvois="renvoisLocaux"
+                            :renvois-sync-version="renvoisSyncVersion"
                             :editor-id="`conclusion-${item.etudiant.id}`"
                             @update:model-value="(val: string) => { conclusionsLocales[item.etudiant.id] = val; scheduleConclusionSave(item.etudiant.id); }"
                             @demander-renvoi="creerEtInsererRenvoi"
@@ -2577,22 +2684,11 @@ function setOngletActif(section: string, membreId: number | 'tous') {
 
             <!-- ─── Références (renvois / endnotes) ──────────────────────────── -->
             <Card>
-                <CardHeader class="flex flex-row items-center justify-between">
+                <CardHeader>
                     <CardTitle class="flex items-center gap-2 text-base">
                         <BookmarkPlus class="h-4 w-4 text-primary" />
                         Références
                     </CardTitle>
-                    <Button
-                        v-if="peutEditer"
-                        variant="outline"
-                        size="sm"
-                        :disabled="renvoiEnCours"
-                        @click="ajouterRenvoiSeul"
-                    >
-                        <Loader2 v-if="renvoiEnCours" class="mr-2 h-4 w-4 animate-spin" />
-                        <Plus v-else class="mr-2 h-4 w-4" />
-                        Ajouter une référence
-                    </Button>
                 </CardHeader>
                 <CardContent>
                     <p v-if="renvoisLocaux.length === 0" class="text-sm text-muted-foreground italic">
