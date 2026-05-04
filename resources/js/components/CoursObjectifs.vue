@@ -86,7 +86,6 @@ function supprimerObjectif(objectif: Objectif) {
 }
 
 // ─── Réordonnancement (drag-and-drop simplifié) ───────────────────────────────
-const draggingId = ref<number | null>(null);
 
 /**
  * Déplace un objectif vers le haut dans la liste.

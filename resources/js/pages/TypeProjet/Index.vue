@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
-import typesProjets from '@/routes/types-projets';
+import typesProjetsRoutes from '@/routes/types-projets';
 
 const { t } = useI18n();
 
@@ -56,7 +56,7 @@ const props = defineProps<Props>();
 const toggleForm = useForm({});
 
 function toggleAccessible(tp: TypeProjet) {
-    toggleForm.patch(typesProjets.toggleAccessible.url({ cours: props.cours.id, typeProjet: tp.id }));
+    toggleForm.patch(typesProjetsRoutes.toggleAccessible.url({ cours: props.cours.id, typeProjet: tp.id }));
 }
 
 // ─── Suppression TypeProjet ───────────────────────────────────────────────────
@@ -66,7 +66,7 @@ function supprimer(tp: TypeProjet) {
     if (!confirm(t('types_projet.index.confirm_delete', { nom: tp.nom }))) {
         return;
     }
-    deleteForm.delete(typesProjets.destroy.url({ cours: props.cours.id, typeProjet: tp.id }));
+    deleteForm.delete(typesProjetsRoutes.destroy.url({ cours: props.cours.id, typeProjet: tp.id }));
 }
 </script>
 
@@ -81,7 +81,7 @@ function supprimer(tp: TypeProjet) {
                     :description="$t('types_projet.index.heading_description')"
                 />
                 <Button size="sm" as-child>
-                    <Link :href="typesProjets.create.url(cours.id)">
+                    <Link :href="typesProjetsRoutes.create.url(cours.id)">
                         <Plus class="mr-2 h-4 w-4" />
                         {{ $t('types_projet.index.new_type') }}
                     </Link>
@@ -132,7 +132,7 @@ function supprimer(tp: TypeProjet) {
                             </Button>
 
                             <Button size="icon" variant="ghost" class="h-8 w-8" as-child>
-                                <Link :href="typesProjets.edit.url({ cours: cours.id, typeProjet: tp.id })" :title="$t('common.edit')">
+                                <Link :href="typesProjetsRoutes.edit.url({ cours: cours.id, typeProjet: tp.id })" :title="$t('common.edit')">
                                     <Pencil class="h-4 w-4" />
                                 </Link>
                             </Button>
@@ -156,7 +156,7 @@ function supprimer(tp: TypeProjet) {
                         <Grid2x2 class="h-4 w-4 text-muted-foreground" />
                         <span class="text-sm text-muted-foreground">{{ $t('types_projet.index.grille_label') }}</span>
                         <a
-                            :href="typesProjets.grille.edit.url({ cours: cours.id, typeProjet: tp.id })"
+                            :href="typesProjetsRoutes.grille.edit.url({ cours: cours.id, typeProjet: tp.id })"
                             class="text-sm font-medium text-primary hover:underline"
                         >
                             {{ tp.grille ? tp.grille.nom : $t('types_projet.index.configure_grille') }}

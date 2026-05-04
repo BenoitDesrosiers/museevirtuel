@@ -964,12 +964,6 @@ function toggleConclusion(id: number) {
 type IntroTab = 'amener' | 'poser' | 'diviser';
 const introTab = ref<IntroTab>('amener');
 
-const introTabCritere: Record<IntroTab, string> = {
-    amener: 'introduction_amener',
-    poser: 'introduction_poser',
-    diviser: 'introduction_diviser',
-};
-
 // ─── Données pour la page titre ──────────────────────────────────────────────
 
 const dateAujourd = computed(() =>
@@ -1018,26 +1012,6 @@ onMounted(() => {
     if (props.genererPageTitre && !form.page_titre_contenu) {
         form.page_titre_contenu = genererContenuPageTitre();
     }
-});
-
-// ─── Table des matières ───────────────────────────────────────────────────────
-
-const tocEntrees = computed(() => {
-    if (props.sections.length > 0) {
-        return props.sections.map((s) => ({ label: s.label, numero: s.ordre }));
-    }
-
-    return [
-        { label: t('projets.show.introduction'), numero: null },
-        ...developpements.value.map((dev) => ({
-            label: dev.titre || t('projets.show.dev_paragraph', { n: dev.ordre }),
-            numero: dev.ordre,
-        })),
-        ...props.membres.map((m) => ({
-            label: t('projets.show.conclusion_member', { prenom: m.prenom, nom: m.nom }),
-            numero: null,
-        })),
-    ];
 });
 
 // ─── Commentaires de l'enseignant ─────────────────────────────────────────────
@@ -1643,13 +1617,6 @@ const notesGrille = reactive<Record<number, Record<number, number | undefined>>>
     ),
 );
 
-
-/** Applique ou retire un malus sur tous les membres du groupe. */
-async function toggleMalusGrillePourTous(malusId: number, applique: boolean): Promise<void> {
-    for (const membre of props.membres) {
-        await toggleMalusGrille(malusId, membre.id, applique);
-    }
-}
 
 // malusGrille[userId][malusId] = applique
 const malusGrille = reactive<Record<number, Record<number, boolean>>>(

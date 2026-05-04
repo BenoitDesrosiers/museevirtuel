@@ -2,15 +2,12 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { ArrowLeft, Send } from 'lucide-vue-next';
 import { computed, nextTick, onMounted, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { Auth } from '@/types/auth';
-
-const { t } = useI18n();
 
 type User = {
     id: number;

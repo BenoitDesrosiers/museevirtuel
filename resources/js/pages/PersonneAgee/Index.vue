@@ -2,12 +2,9 @@
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { MessageSquare, Users } from 'lucide-vue-next';
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
-
-const { t } = useI18n();
 
 type User = {
     id: number;
@@ -36,7 +33,7 @@ type Props = {
     groupes: GroupeAssigne[];
 };
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user as { prenom: string; nom: string } | undefined);
