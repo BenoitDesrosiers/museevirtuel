@@ -39,7 +39,14 @@ type TypeProjet = {
     sections: Section[];
 };
 
+type Cours = {
+    id: number;
+    nom_cours: string;
+    code: string;
+};
+
 type Props = {
+    cours: Cours;
     typesProjets: TypeProjet[];
 };
 
@@ -49,7 +56,7 @@ const props = defineProps<Props>();
 const toggleForm = useForm({});
 
 function toggleAccessible(tp: TypeProjet) {
-    toggleForm.patch(typesProjets.toggleAccessible.url(tp.id));
+    toggleForm.patch(typesProjets.toggleAccessible.url({ cours: props.cours.id, typeProjet: tp.id }));
 }
 
 // ─── Suppression TypeProjet ───────────────────────────────────────────────────
@@ -59,7 +66,7 @@ function supprimer(tp: TypeProjet) {
     if (!confirm(t('types_projet.index.confirm_delete', { nom: tp.nom }))) {
         return;
     }
-    deleteForm.delete(typesProjets.destroy.url(tp.id));
+    deleteForm.delete(typesProjets.destroy.url({ cours: props.cours.id, typeProjet: tp.id }));
 }
 </script>
 
@@ -74,7 +81,7 @@ function supprimer(tp: TypeProjet) {
                     :description="$t('types_projet.index.heading_description')"
                 />
                 <Button size="sm" as-child>
-                    <Link :href="typesProjets.create.url()">
+                    <Link :href="typesProjets.create.url(cours.id)">
                         <Plus class="mr-2 h-4 w-4" />
                         {{ $t('types_projet.index.new_type') }}
                     </Link>
@@ -125,7 +132,7 @@ function supprimer(tp: TypeProjet) {
                             </Button>
 
                             <Button size="icon" variant="ghost" class="h-8 w-8" as-child>
-                                <Link :href="typesProjets.edit.url(tp.id)" :title="$t('common.edit')">
+                                <Link :href="typesProjets.edit.url({ cours: cours.id, typeProjet: tp.id })" :title="$t('common.edit')">
                                     <Pencil class="h-4 w-4" />
                                 </Link>
                             </Button>
@@ -149,7 +156,7 @@ function supprimer(tp: TypeProjet) {
                         <Grid2x2 class="h-4 w-4 text-muted-foreground" />
                         <span class="text-sm text-muted-foreground">{{ $t('types_projet.index.grille_label') }}</span>
                         <a
-                            :href="typesProjets.grille.edit.url(tp.id)"
+                            :href="typesProjets.grille.edit.url({ cours: cours.id, typeProjet: tp.id })"
                             class="text-sm font-medium text-primary hover:underline"
                         >
                             {{ tp.grille ? tp.grille.nom : $t('types_projet.index.configure_grille') }}

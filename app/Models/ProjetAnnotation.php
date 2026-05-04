@@ -16,6 +16,8 @@ class ProjetAnnotation extends Model
         'position',
         'mot_annote',
         'user_id',
+        'cible_user_id',
+        'points_malus',
     ];
 
     /**
@@ -32,5 +34,13 @@ class ProjetAnnotation extends Model
     public function auteur(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Retourne l'étudiant visé par la déduction de points (annotations de correction uniquement).
+     */
+    public function cible(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cible_user_id');
     }
 }

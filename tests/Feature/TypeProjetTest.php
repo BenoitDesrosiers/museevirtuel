@@ -11,40 +11,76 @@ use App\Models\TypeProjetSection;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia;
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Crée un cours minimal pour l'enseignant donné.
+ */
+function creerCours(User $enseignant): Cours
+{
+    return Cours::create([
+        'nom_cours' => 'Cours test',
+        'code' => '330-T1',
+        'groupe' => '01',
+        'enseignant_id' => $enseignant->id,
+    ]);
+}
+
 // ─── Index ────────────────────────────────────────────────────────────────────
 
-test("l'enseignant voit la liste de ses types de projet", function () {
+test("l'enseignant voit la liste des types de projet de son cours", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignant);
 
-    TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet A', 'accessible' => false]);
-    TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet B', 'accessible' => true]);
+    TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Projet A', 'accessible' => false]);
+    TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Projet B', 'accessible' => true]);
 
     $this->actingAs($enseignant)
-        ->get('/types-projets')
+        ->get("/cours/{$cours->id}/types-projets")
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('TypeProjet/Index')
             ->has('typesProjets', 2)
         );
 });
 
-test("l'enseignant ne voit pas les types de projet des autres enseignants", function () {
+test("les types de projet d'un autre cours ne sont pas visibles depuis un cours différent", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
     $autre = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignant);
+    $autresCours = Cours::create([
+        'nom_cours' => 'Autre cours', 'code' => '330-T2', 'groupe' => '01',
+        'enseignant_id' => $autre->id,
+    ]);
 
-    TypeProjet::create(['enseignant_id' => $autre->id, 'nom' => 'Type de A', 'accessible' => false]);
+    TypeProjet::create(['enseignant_id' => $autre->id, 'cours_id' => $autresCours->id, 'nom' => 'Type de A', 'accessible' => false]);
 
     $this->actingAs($enseignant)
-        ->get('/types-projets')
+        ->get("/cours/{$cours->id}/types-projets")
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('typesProjets', 0)
         );
 });
 
+test("un enseignant ne peut pas voir les types de projet d'un cours qui ne lui appartient pas (IDOR)", function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $autre = User::factory()->create(['role' => 'enseignant']);
+    $autresCours = Cours::create([
+        'nom_cours' => 'Autre cours', 'code' => '330-T2', 'groupe' => '01',
+        'enseignant_id' => $autre->id,
+    ]);
+
+    $this->actingAs($enseignant)
+        ->get("/cours/{$autresCours->id}/types-projets")
+        ->assertForbidden();
+});
+
 test('un étudiant est redirigé depuis la liste des types de projet', function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
     $etudiant = User::factory()->create(['role' => 'etudiant']);
+    $cours = creerCours($enseignant);
 
     $this->actingAs($etudiant)
-        ->get('/types-projets')
+        ->get("/cours/{$cours->id}/types-projets")
         ->assertRedirect();
 });
 
@@ -52,9 +88,10 @@ test('un étudiant est redirigé depuis la liste des types de projet', function 
 
 test("l'enseignant accède à la page de création d'un type de projet", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignant);
 
     $this->actingAs($enseignant)
-        ->get('/types-projets/create')
+        ->get("/cours/{$cours->id}/types-projets/create")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('TypeProjet/Create')
@@ -62,18 +99,21 @@ test("l'enseignant accède à la page de création d'un type de projet", functio
 });
 
 test('un étudiant est redirigé depuis la page de création de type de projet', function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
     $etudiant = User::factory()->create(['role' => 'etudiant']);
+    $cours = creerCours($enseignant);
 
     $this->actingAs($etudiant)
-        ->get('/types-projets/create')
+        ->get("/cours/{$cours->id}/types-projets/create")
         ->assertRedirect();
 });
 
 test('la création redirige vers la page edit du nouveau type de projet', function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignant);
 
     $this->actingAs($enseignant)
-        ->post('/types-projets', ['nom' => 'Nouveau projet'])
+        ->post("/cours/{$cours->id}/types-projets", ['nom' => 'Nouveau projet'])
         ->assertRedirect();
 
     $typeProjet = TypeProjet::where('nom', 'Nouveau projet')->first();
@@ -84,9 +124,10 @@ test('la création redirige vers la page edit du nouveau type de projet', functi
 
 test("l'enseignant peut créer un type de projet", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignant);
 
     $this->actingAs($enseignant)
-        ->post('/types-projets', [
+        ->post("/cours/{$cours->id}/types-projets", [
             'nom' => 'Projet de recherche',
             'description' => 'Un projet sympa',
         ])
@@ -94,6 +135,7 @@ test("l'enseignant peut créer un type de projet", function () {
 
     $this->assertDatabaseHas('types_projets', [
         'enseignant_id' => $enseignant->id,
+        'cours_id' => $cours->id,
         'nom' => 'Projet de recherche',
         'accessible' => false,
     ]);
@@ -101,9 +143,10 @@ test("l'enseignant peut créer un type de projet", function () {
 
 test('le nom est obligatoire lors de la création', function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignant);
 
     $this->actingAs($enseignant)
-        ->postJson('/types-projets', ['nom' => ''])
+        ->postJson("/cours/{$cours->id}/types-projets", ['nom' => ''])
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['nom']);
 });
@@ -112,9 +155,10 @@ test('le nom est obligatoire lors de la création', function () {
 
 test("l'enseignant peut créer un type de projet avec des paramètres de remise", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignant);
 
     $this->actingAs($enseignant)
-        ->post('/types-projets', [
+        ->post("/cours/{$cours->id}/types-projets", [
             'nom' => 'Projet avec remise',
             'date_remise' => '2026-05-01T23:59',
             'remises_multiples' => true,
@@ -134,9 +178,10 @@ test("l'enseignant peut créer un type de projet avec des paramètres de remise"
 
 test('les flags de génération sont true par défaut lors de la création', function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignant);
 
     $this->actingAs($enseignant)
-        ->post('/types-projets', ['nom' => 'Projet sans flags'])
+        ->post("/cours/{$cours->id}/types-projets", ['nom' => 'Projet sans flags'])
         ->assertRedirect();
 
     $this->assertDatabaseHas('types_projets', [
@@ -148,9 +193,10 @@ test('les flags de génération sont true par défaut lors de la création', fun
 
 test("l'enseignant peut désactiver la page titre lors de la création", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignant);
 
     $this->actingAs($enseignant)
-        ->post('/types-projets', [
+        ->post("/cours/{$cours->id}/types-projets", [
             'nom' => 'Projet sans page titre',
             'generer_page_titre' => false,
             'generer_table_matieres' => true,
@@ -166,9 +212,10 @@ test("l'enseignant peut désactiver la page titre lors de la création", functio
 
 test("l'enseignant peut désactiver la table des matières lors de la création", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignant);
 
     $this->actingAs($enseignant)
-        ->post('/types-projets', [
+        ->post("/cours/{$cours->id}/types-projets", [
             'nom' => 'Projet sans TDM',
             'generer_page_titre' => true,
             'generer_table_matieres' => false,
@@ -184,8 +231,10 @@ test("l'enseignant peut désactiver la table des matières lors de la création"
 
 test("l'enseignant peut modifier les flags de génération via update", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignant);
     $typeProjet = TypeProjet::create([
         'enseignant_id' => $enseignant->id,
+        'cours_id' => $cours->id,
         'nom' => 'Projet',
         'accessible' => false,
         'generer_page_titre' => true,
@@ -193,7 +242,7 @@ test("l'enseignant peut modifier les flags de génération via update", function
     ]);
 
     $this->actingAs($enseignant)
-        ->put("/types-projets/{$typeProjet->id}", [
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
             'nom' => 'Projet',
             'generer_page_titre' => false,
             'generer_table_matieres' => false,
@@ -211,10 +260,11 @@ test("l'enseignant peut modifier les flags de génération via update", function
 
 test("l'enseignant peut modifier son type de projet", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Ancien nom', 'accessible' => false]);
+    $cours = creerCours($enseignant);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Ancien nom', 'accessible' => false]);
 
     $this->actingAs($enseignant)
-        ->put("/types-projets/{$typeProjet->id}", [
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
             'nom' => 'Nouveau nom',
             'description' => 'Nouvelle description',
         ])
@@ -228,10 +278,11 @@ test("l'enseignant peut modifier son type de projet", function () {
 
 test("l'enseignant peut configurer les paramètres de remise via update", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet', 'accessible' => false]);
+    $cours = creerCours($enseignant);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Projet', 'accessible' => false]);
 
     $this->actingAs($enseignant)
-        ->put("/types-projets/{$typeProjet->id}", [
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
             'nom' => 'Projet',
             'date_remise' => '2026-06-15T23:59',
             'remises_multiples' => true,
@@ -249,11 +300,12 @@ test("l'enseignant peut configurer les paramètres de remise via update", functi
 test("un enseignant ne peut pas modifier le type de projet d'un autre enseignant (IDOR)", function () {
     $enseignantA = User::factory()->create(['role' => 'enseignant']);
     $enseignantB = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignantA);
 
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignantA->id, 'nom' => 'Type de A', 'accessible' => false]);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignantA->id, 'cours_id' => $cours->id, 'nom' => 'Type de A', 'accessible' => false]);
 
     $this->actingAs($enseignantB)
-        ->put("/types-projets/{$typeProjet->id}", ['nom' => 'Piraté'])
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", ['nom' => 'Piraté'])
         ->assertForbidden();
 
     $this->assertDatabaseHas('types_projets', ['id' => $typeProjet->id, 'nom' => 'Type de A']);
@@ -263,16 +315,17 @@ test("un enseignant ne peut pas modifier le type de projet d'un autre enseignant
 
 test("l'enseignant peut basculer l'accessibilité de son type de projet", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Type X', 'accessible' => false]);
+    $cours = creerCours($enseignant);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Type X', 'accessible' => false]);
 
     $this->actingAs($enseignant)
-        ->patch("/types-projets/{$typeProjet->id}/toggle-accessible")
+        ->patch("/cours/{$cours->id}/types-projets/{$typeProjet->id}/toggle-accessible")
         ->assertRedirect();
 
     $this->assertDatabaseHas('types_projets', ['id' => $typeProjet->id, 'accessible' => true]);
 
     $this->actingAs($enseignant)
-        ->patch("/types-projets/{$typeProjet->id}/toggle-accessible");
+        ->patch("/cours/{$cours->id}/types-projets/{$typeProjet->id}/toggle-accessible");
 
     $this->assertDatabaseHas('types_projets', ['id' => $typeProjet->id, 'accessible' => false]);
 });
@@ -280,11 +333,12 @@ test("l'enseignant peut basculer l'accessibilité de son type de projet", functi
 test("un enseignant ne peut pas toggler l'accessibilité du type de projet d'un autre (IDOR)", function () {
     $enseignantA = User::factory()->create(['role' => 'enseignant']);
     $enseignantB = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignantA);
 
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignantA->id, 'nom' => 'Type de A', 'accessible' => false]);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignantA->id, 'cours_id' => $cours->id, 'nom' => 'Type de A', 'accessible' => false]);
 
     $this->actingAs($enseignantB)
-        ->patch("/types-projets/{$typeProjet->id}/toggle-accessible")
+        ->patch("/cours/{$cours->id}/types-projets/{$typeProjet->id}/toggle-accessible")
         ->assertForbidden();
 });
 
@@ -292,10 +346,11 @@ test("un enseignant ne peut pas toggler l'accessibilité du type de projet d'un 
 
 test("l'enseignant peut supprimer son type de projet", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'À supprimer', 'accessible' => false]);
+    $cours = creerCours($enseignant);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'À supprimer', 'accessible' => false]);
 
     $this->actingAs($enseignant)
-        ->delete("/types-projets/{$typeProjet->id}")
+        ->delete("/cours/{$cours->id}/types-projets/{$typeProjet->id}")
         ->assertRedirect();
 
     $this->assertDatabaseMissing('types_projets', ['id' => $typeProjet->id]);
@@ -303,11 +358,12 @@ test("l'enseignant peut supprimer son type de projet", function () {
 
 test('la suppression du type de projet cascade sur la grille de correction', function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Avec grille', 'accessible' => false]);
+    $cours = creerCours($enseignant);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Avec grille', 'accessible' => false]);
     $grille = GrilleCorrection::create(['type_projet_id' => $typeProjet->id, 'nom' => 'Grille à supprimer']);
 
     $this->actingAs($enseignant)
-        ->delete("/types-projets/{$typeProjet->id}")
+        ->delete("/cours/{$cours->id}/types-projets/{$typeProjet->id}")
         ->assertRedirect();
 
     $this->assertDatabaseMissing('grilles_correction', ['id' => $grille->id]);
@@ -316,11 +372,12 @@ test('la suppression du type de projet cascade sur la grille de correction', fun
 test("un enseignant ne peut pas supprimer le type de projet d'un autre enseignant (IDOR)", function () {
     $enseignantA = User::factory()->create(['role' => 'enseignant']);
     $enseignantB = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignantA);
 
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignantA->id, 'nom' => 'Type de A', 'accessible' => false]);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignantA->id, 'cours_id' => $cours->id, 'nom' => 'Type de A', 'accessible' => false]);
 
     $this->actingAs($enseignantB)
-        ->delete("/types-projets/{$typeProjet->id}")
+        ->delete("/cours/{$cours->id}/types-projets/{$typeProjet->id}")
         ->assertForbidden();
 
     $this->assertDatabaseHas('types_projets', ['id' => $typeProjet->id]);
@@ -347,8 +404,9 @@ test("un étudiant ne peut pas accéder au show d'un projet si le type n'est pas
 
     $typeProjet = TypeProjet::create([
         'enseignant_id' => $enseignant->id,
+        'cours_id' => $cours->id,
         'nom' => 'Type non accessible',
-        'accessible' => false, // non accessible
+        'accessible' => false,
     ]);
 
     ProjetRecherche::create([
@@ -365,10 +423,11 @@ test("un étudiant ne peut pas accéder au show d'un projet si le type n'est pas
 
 test("l'enseignant peut ajouter une section à son type de projet", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet', 'accessible' => false]);
+    $cours = creerCours($enseignant);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Projet', 'accessible' => false]);
 
     $this->actingAs($enseignant)
-        ->post("/types-projets/{$typeProjet->id}/sections", [
+        ->post("/cours/{$cours->id}/types-projets/{$typeProjet->id}/sections", [
             'label' => 'Introduction',
             'description' => 'Présentez le sujet',
         ])
@@ -384,12 +443,13 @@ test("l'enseignant peut ajouter une section à son type de projet", function () 
 
 test("l'ordre des sections est incrémenté automatiquement", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet', 'accessible' => false]);
+    $cours = creerCours($enseignant);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Projet', 'accessible' => false]);
 
     $this->actingAs($enseignant)
-        ->post("/types-projets/{$typeProjet->id}/sections", ['label' => 'Section A']);
+        ->post("/cours/{$cours->id}/types-projets/{$typeProjet->id}/sections", ['label' => 'Section A']);
     $this->actingAs($enseignant)
-        ->post("/types-projets/{$typeProjet->id}/sections", ['label' => 'Section B']);
+        ->post("/cours/{$cours->id}/types-projets/{$typeProjet->id}/sections", ['label' => 'Section B']);
 
     $this->assertDatabaseHas('type_projet_sections', ['label' => 'Section A', 'ordre' => 1]);
     $this->assertDatabaseHas('type_projet_sections', ['label' => 'Section B', 'ordre' => 2]);
@@ -397,11 +457,12 @@ test("l'ordre des sections est incrémenté automatiquement", function () {
 
 test("l'enseignant peut modifier une section de son type de projet", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet', 'accessible' => false]);
+    $cours = creerCours($enseignant);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Projet', 'accessible' => false]);
     $section = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Ancien label', 'ordre' => 1]);
 
     $this->actingAs($enseignant)
-        ->put("/types-projets/{$typeProjet->id}/sections/{$section->id}", [
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}/sections/{$section->id}", [
             'label' => 'Nouveau label',
             'description' => 'Nouvelle consigne',
         ])
@@ -417,12 +478,13 @@ test("l'enseignant peut modifier une section de son type de projet", function ()
 test("un enseignant ne peut pas modifier la section d'un autre enseignant (IDOR)", function () {
     $enseignantA = User::factory()->create(['role' => 'enseignant']);
     $enseignantB = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignantA);
 
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignantA->id, 'nom' => 'Projet A', 'accessible' => false]);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignantA->id, 'cours_id' => $cours->id, 'nom' => 'Projet A', 'accessible' => false]);
     $section = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Section de A', 'ordre' => 1]);
 
     $this->actingAs($enseignantB)
-        ->put("/types-projets/{$typeProjet->id}/sections/{$section->id}", ['label' => 'Piraté'])
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}/sections/{$section->id}", ['label' => 'Piraté'])
         ->assertForbidden();
 
     $this->assertDatabaseHas('type_projet_sections', ['id' => $section->id, 'label' => 'Section de A']);
@@ -430,13 +492,14 @@ test("un enseignant ne peut pas modifier la section d'un autre enseignant (IDOR)
 
 test("l'enseignant peut supprimer une section et les ordres sont renumérotés", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet', 'accessible' => false]);
+    $cours = creerCours($enseignant);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Projet', 'accessible' => false]);
     $s1 = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'S1', 'ordre' => 1]);
     $s2 = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'S2', 'ordre' => 2]);
     $s3 = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'S3', 'ordre' => 3]);
 
     $this->actingAs($enseignant)
-        ->delete("/types-projets/{$typeProjet->id}/sections/{$s2->id}")
+        ->delete("/cours/{$cours->id}/types-projets/{$typeProjet->id}/sections/{$s2->id}")
         ->assertRedirect();
 
     $this->assertDatabaseMissing('type_projet_sections', ['id' => $s2->id]);
@@ -456,14 +519,14 @@ test("la suppression d'une section cascade sur les contenus des projets", functi
     $classeSection->etudiants()->attach($etudiant->id);
     $classe = Groupe::create(['classe_id' => $classeSection->id, 'created_by' => $etudiant->id]);
 
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet', 'accessible' => false]);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Projet', 'accessible' => false]);
     $section = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Intro', 'ordre' => 1]);
 
     $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
     ProjetSectionContenu::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'contenu' => '<p>Texte</p>']);
 
     $this->actingAs($enseignant)
-        ->delete("/types-projets/{$typeProjet->id}/sections/{$section->id}")
+        ->delete("/cours/{$cours->id}/types-projets/{$typeProjet->id}/sections/{$section->id}")
         ->assertRedirect();
 
     $this->assertDatabaseMissing('projet_section_contenus', ['section_id' => $section->id]);
@@ -473,9 +536,10 @@ test("la suppression d'une section cascade sur les contenus des projets", functi
 
 test("l'enseignant peut créer un type de projet avec des sections inline", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignant);
 
     $this->actingAs($enseignant)
-        ->post('/types-projets', [
+        ->post("/cours/{$cours->id}/types-projets", [
             'nom' => 'Projet avec sections',
             'sections' => [
                 ['label' => 'Introduction', 'description' => 'Présentez le sujet'],
@@ -503,10 +567,11 @@ test("l'enseignant peut créer un type de projet avec des sections inline", func
 
 test("l'enseignant peut ajouter des sections via update", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet', 'accessible' => false]);
+    $cours = creerCours($enseignant);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Projet', 'accessible' => false]);
 
     $this->actingAs($enseignant)
-        ->put("/types-projets/{$typeProjet->id}", [
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
             'nom' => 'Projet',
             'sections' => [
                 ['label' => 'Section A'],
@@ -528,7 +593,7 @@ test("l'update supprime les sections retirées et leur contenu cascade", functio
     $classeSection->etudiants()->attach($etudiant->id);
     $classe = Groupe::create(['classe_id' => $classeSection->id, 'created_by' => $etudiant->id]);
 
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet', 'accessible' => false]);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Projet', 'accessible' => false]);
     $s1 = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'S1', 'ordre' => 1]);
     $s2 = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'S2', 'ordre' => 2]);
 
@@ -537,7 +602,7 @@ test("l'update supprime les sections retirées et leur contenu cascade", functio
 
     // Envoyer uniquement s1 — s2 doit être supprimé avec son contenu
     $this->actingAs($enseignant)
-        ->put("/types-projets/{$typeProjet->id}", [
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
             'nom' => 'Projet',
             'sections' => [
                 ['id' => $s1->id, 'label' => 'S1 modifiée'],
@@ -552,11 +617,12 @@ test("l'update supprime les sections retirées et leur contenu cascade", functio
 
 test("l'update sans clé sections ne modifie pas les sections existantes", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet', 'accessible' => false]);
+    $cours = creerCours($enseignant);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Projet', 'accessible' => false]);
     TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Intro', 'ordre' => 1]);
 
     $this->actingAs($enseignant)
-        ->put("/types-projets/{$typeProjet->id}", ['nom' => 'Nouveau nom'])
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", ['nom' => 'Nouveau nom'])
         ->assertRedirect();
 
     expect(TypeProjetSection::where('type_projet_id', $typeProjet->id)->count())->toBe(1);
@@ -566,11 +632,12 @@ test("l'update sans clé sections ne modifie pas les sections existantes", funct
 
 test("l'enseignant accède à la page d'édition de son type de projet", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet X', 'accessible' => false]);
+    $cours = creerCours($enseignant);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Projet X', 'accessible' => false]);
     TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Introduction', 'ordre' => 1, 'type' => 'texte']);
 
     $this->actingAs($enseignant)
-        ->get("/types-projets/{$typeProjet->id}/edit")
+        ->get("/cours/{$cours->id}/types-projets/{$typeProjet->id}/edit")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('TypeProjet/Edit')
@@ -586,20 +653,22 @@ test("l'enseignant accède à la page d'édition de son type de projet", functio
 test("un enseignant ne peut pas accéder à la page d'édition d'un autre enseignant", function () {
     $enseignantA = User::factory()->create(['role' => 'enseignant']);
     $enseignantB = User::factory()->create(['role' => 'enseignant']);
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignantA->id, 'nom' => 'Projet A', 'accessible' => false]);
+    $cours = creerCours($enseignantA);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignantA->id, 'cours_id' => $cours->id, 'nom' => 'Projet A', 'accessible' => false]);
 
     $this->actingAs($enseignantB)
-        ->get("/types-projets/{$typeProjet->id}/edit")
+        ->get("/cours/{$cours->id}/types-projets/{$typeProjet->id}/edit")
         ->assertForbidden();
 });
 
 test("un étudiant est redirigé depuis la page d'édition d'un type de projet", function () {
     $etudiant = User::factory()->create(['role' => 'etudiant']);
     $enseignant = User::factory()->create(['role' => 'enseignant']);
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet', 'accessible' => false]);
+    $cours = creerCours($enseignant);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Projet', 'accessible' => false]);
 
     $this->actingAs($etudiant)
-        ->get("/types-projets/{$typeProjet->id}/edit")
+        ->get("/cours/{$cours->id}/types-projets/{$typeProjet->id}/edit")
         ->assertRedirect();
 });
 
@@ -607,13 +676,14 @@ test("un étudiant est redirigé depuis la page d'édition d'un type de projet",
 
 test("l'enseignant peut réordonner les sections", function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'nom' => 'Projet', 'accessible' => false]);
+    $cours = creerCours($enseignant);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Projet', 'accessible' => false]);
     $s1 = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'S1', 'ordre' => 1]);
     $s2 = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'S2', 'ordre' => 2]);
     $s3 = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'S3', 'ordre' => 3]);
 
     $this->actingAs($enseignant)
-        ->put("/types-projets/{$typeProjet->id}/sections/reorder", [
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}/sections/reorder", [
             'ordre' => [$s3->id, $s1->id, $s2->id],
         ])
         ->assertRedirect();

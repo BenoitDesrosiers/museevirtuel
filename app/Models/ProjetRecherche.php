@@ -193,6 +193,30 @@ class ProjetRecherche extends Model
     }
 
     /**
+     * Retourne les médias de section (vidéo/audio) du projet.
+     */
+    public function sectionMedias(): HasMany
+    {
+        return $this->hasMany(ProjetSectionMedia::class, 'projet_id');
+    }
+
+    /**
+     * Retourne les questions choisies par l'équipe dans la banque de questions.
+     */
+    public function questionsChoisies(): HasMany
+    {
+        return $this->hasMany(ProjetQuestionChoisie::class, 'projet_id');
+    }
+
+    /**
+     * Retourne les schémas visuels du projet (sections de type schema_visuel).
+     */
+    public function schemaVisuels(): HasMany
+    {
+        return $this->hasMany(ProjetSchemaVisuel::class, 'projet_id');
+    }
+
+    /**
      * Calcule le pourcentage de complétion du contenu partagé (hors conclusions).
      *
      * Basé uniquement sur les sections de type 'texte' du TypeProjet.

@@ -560,6 +560,8 @@
         "label_description": "Parlez-nous de vous",
         "description_bio_hint": "Qui êtes-vous ? D'où venez-vous ? Qu'est-ce qui vous a amené à cette démarche ?",
         "placeholder_description": "Je suis né(e) à…",
+        "label_disponible_appel_distance": "Disponible pour un appel vidéo à distance",
+        "hint_disponible_appel_distance": "Cochez cette case si vous acceptez de rencontrer les étudiants par visioconférence.",
         "submit": "Soumettre ma demande"
     },
     "inscription_engagements": {
@@ -712,5 +714,26 @@
         "section_not_written": "(Section non rédigée)",
         "no_paragraphs": "(Aucun paragraphe rédigé)",
         "no_conclusions": "(Aucune conclusion rédigée)"
+    },
+    "signature": {
+        "clear": "Effacer",
+        "hint": "Signez dans le cadre ci-dessus"
+    },
+    "consentement": {
+        "title": "Consentement vidéo",
+        "description": "En signant, vous consentez à être filmé(e) dans le cadre de ce projet.",
+        "accept": "J'accepte d'être filmé(e)",
+        "save": "Enregistrer le consentement",
+        "signed_on": "Signé le {date}",
+        "not_signed": "Non signé"
+    },
+    "media": {
+        "add_video": "Ajouter une vidéo",
+        "add_audio": "Ajouter un audio",
+        "url_placeholder": "https://...",
+        "upload_label": "Fichier",
+        "source_url": "Lien URL",
+        "source_upload": "Télécharger un fichier",
+        "delete_confirm": "Supprimer ce média ?"
     }
 }

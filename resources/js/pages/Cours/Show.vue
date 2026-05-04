@@ -2,6 +2,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     ArrowLeft,
+    BookOpen,
     Calendar,
     Check,
     ChevronDown,
@@ -15,12 +16,15 @@ import {
     Trash2,
     Upload,
     Users,
+    Video,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
+import CoursObjectifs from '@/components/CoursObjectifs.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
+import VisioSession from '@/components/VisioSession.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -68,8 +72,15 @@ type Cours = {
 type EcheancierEtape = {
     id: number;
     semaine: number;
+    periode: number | null;
     etape: string;
     is_done: boolean;
+    ordre: number;
+};
+
+type Objectif = {
+    id: number;
+    contenu: string;
     ordre: number;
 };
 
@@ -91,12 +102,27 @@ type TypeProjet = {
     sections: TypeProjetSection[];
 };
 
+type VisioConference = {
+    id: number;
+    cours_id: number;
+    groupe_id: number | null;
+    jitsi_room: string;
+    titre: string;
+    scheduled_at: string | null;
+    started_at: string | null;
+    ended_at: string | null;
+    recording_url: string | null;
+    animateur: { id: number; prenom: string; nom: string };
+};
+
 type Props = {
     cours: Cours;
     classes: Classe[];
     documents: Document[];
     echeancierEtapes: EcheancierEtape[];
+    objectifs: Objectif[];
     typesProjets: TypeProjet[];
+    visioConferences: VisioConference[];
 };
 
 const props = defineProps<Props>();
@@ -157,7 +183,7 @@ function toggleEtape(etape: EcheancierEtape) {
 }
 
 const showAddEtapeDialog = ref(false);
-const addEtapeForm = useForm({ semaine: 1, etape: '' });
+const addEtapeForm = useForm({ semaine: 1, periode: null as number | null, etape: '' });
 
 function submitAddEtape() {
     addEtapeForm.post(`/cours/${props.cours.id}/echeancier`, {
@@ -170,11 +196,12 @@ function submitAddEtape() {
 }
 
 const editingEtape = ref<EcheancierEtape | null>(null);
-const editEtapeForm = useForm({ etape: '' });
+const editEtapeForm = useForm({ etape: '', periode: null as number | null });
 
 function openEditEtape(etape: EcheancierEtape) {
     editingEtape.value = etape;
     editEtapeForm.etape = etape.etape;
+    editEtapeForm.periode = etape.periode ?? null;
 }
 
 function submitEditEtape() {
@@ -295,7 +322,7 @@ function formatSize(bytes: number): string {
 const toggleTpForm = useForm({});
 
 function toggleAccessibleTp(tp: TypeProjet) {
-    toggleTpForm.patch(typesProjetsRoutes.toggleAccessible.url(tp.id), {
+    toggleTpForm.patch(typesProjetsRoutes.toggleAccessible.url({ cours: props.cours.id, typeProjet: tp.id }), {
         preserveScroll: true,
     });
 }
@@ -306,8 +333,26 @@ function supprimerTp(tp: TypeProjet) {
     if (!confirm(`Supprimer « ${tp.nom} » ? Cette action supprimera également la grille de correction associée et ne peut pas être annulée.`)) {
         return;
     }
-    deleteTpForm.delete(typesProjetsRoutes.destroy.url(tp.id), {
+    deleteTpForm.delete(typesProjetsRoutes.destroy.url({ cours: props.cours.id, typeProjet: tp.id }), {
         preserveScroll: true,
+    });
+}
+
+// ─── Visioconférences ─────────────────────────────────────────────────────────
+const showVisioDialog = ref(false);
+const visioForm = useForm({
+    titre: '',
+    groupe_id: null as number | null,
+    scheduled_at: '',
+});
+
+function submitVisio() {
+    visioForm.post(`/cours/${props.cours.id}/visio`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showVisioDialog.value = false;
+            visioForm.reset();
+        },
     });
 }
 </script>
@@ -462,6 +507,24 @@ function supprimerTp(tp: TypeProjet) {
                 </CardContent>
             </Card>
 
+            <!-- Objectifs pédagogiques -->
+            <Card>
+                <CardHeader>
+                    <CardTitle>
+                        <span class="flex items-center gap-2">
+                            <BookOpen class="h-5 w-5" />
+                            Objectifs pédagogiques
+                            <span class="text-sm font-normal text-muted-foreground">
+                                ({{ objectifs.length }})
+                            </span>
+                        </span>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <CoursObjectifs :cours-id="cours.id" :objectifs="objectifs" />
+                </CardContent>
+            </Card>
+
             <!-- Types de projet -->
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between">
@@ -475,7 +538,7 @@ function supprimerTp(tp: TypeProjet) {
                         </span>
                     </CardTitle>
                     <Button size="sm" as-child>
-                        <Link :href="typesProjetsRoutes.create.url()">
+                        <Link :href="typesProjetsRoutes.create.url(cours.id)">
                             <Plus class="mr-2 h-4 w-4" />
                             Nouveau type
                         </Link>
@@ -510,7 +573,7 @@ function supprimerTp(tp: TypeProjet) {
                                     <Grid2x2 class="h-3.5 w-3.5" />
                                     <span>Grille :</span>
                                     <Link
-                                        :href="typesProjetsRoutes.grille.edit.url(tp.id)"
+                                        :href="typesProjetsRoutes.grille.edit.url({ cours: cours.id, typeProjet: tp.id })"
                                         class="text-primary hover:underline"
                                     >
                                         {{ tp.grille ? tp.grille.nom : 'Configurer la grille' }}
@@ -530,7 +593,7 @@ function supprimerTp(tp: TypeProjet) {
                                     {{ tp.accessible ? 'Masquer' : 'Rendre accessible' }}
                                 </Button>
                                 <Button size="icon" variant="ghost" class="h-7 w-7" as-child>
-                                    <Link :href="typesProjetsRoutes.edit.url(tp.id)" title="Modifier">
+                                    <Link :href="typesProjetsRoutes.edit.url({ cours: cours.id, typeProjet: tp.id })" title="Modifier">
                                         <Pencil class="h-3.5 w-3.5" />
                                     </Link>
                                 </Button>
@@ -601,13 +664,21 @@ function supprimerTp(tp: TypeProjet) {
                                         @click.prevent="toggleEtape(etape)"
                                     />
                                     <template v-if="editingEtape?.id === etape.id">
-                                        <div class="flex flex-1 items-center gap-2">
+                                        <div class="flex flex-1 flex-wrap items-center gap-2">
                                             <Input
                                                 v-model="editEtapeForm.etape"
-                                                class="h-7 text-sm"
+                                                class="h-7 flex-1 text-sm"
                                                 @keydown.enter.prevent="submitEditEtape"
                                                 @keydown.escape="editingEtape = null"
                                             />
+                                            <select
+                                                v-model="editEtapeForm.periode"
+                                                class="h-7 rounded-md border border-input bg-background px-2 text-xs focus:outline-none"
+                                            >
+                                                <option :value="null">—</option>
+                                                <option :value="1">P1</option>
+                                                <option :value="2">P2</option>
+                                            </select>
                                             <Button
                                                 size="sm"
                                                 variant="ghost"
@@ -622,10 +693,14 @@ function supprimerTp(tp: TypeProjet) {
                                     <template v-else>
                                         <label
                                             :for="`etape-${etape.id}`"
-                                            class="flex-1 cursor-pointer text-sm leading-snug"
+                                            class="flex flex-1 cursor-pointer items-baseline gap-2 text-sm leading-snug"
                                             :class="etape.is_done ? 'text-muted-foreground line-through' : ''"
                                         >
                                             {{ etape.etape }}
+                                            <span
+                                                v-if="etape.periode"
+                                                class="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground no-underline"
+                                            >P{{ etape.periode }}</span>
                                         </label>
                                         <div class="flex shrink-0 gap-1">
                                             <Button
@@ -653,7 +728,91 @@ function supprimerTp(tp: TypeProjet) {
                     </div>
                 </CardContent>
             </Card>
+
+            <!-- Visioconférences -->
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <CardTitle>
+                        <span class="flex items-center gap-2">
+                            <Video class="h-5 w-5" />
+                            Visioconférences
+                        </span>
+                    </CardTitle>
+                    <Button size="sm" @click="showVisioDialog = true">
+                        <Plus class="mr-1.5 h-4 w-4" />
+                        Planifier
+                    </Button>
+                </CardHeader>
+                <CardContent>
+                    <div v-if="visioConferences.length === 0" class="text-sm text-muted-foreground">
+                        Aucune visioconférence planifiée.
+                    </div>
+                    <div v-else class="flex flex-col gap-3">
+                        <VisioSession
+                            v-for="visio in visioConferences"
+                            :key="visio.id"
+                            :visio="visio"
+                            :can-manage="true"
+                        />
+                    </div>
+                </CardContent>
+            </Card>
         </div>
+
+        <!-- Modal : Planifier une visioconférence -->
+        <Dialog v-model:open="showVisioDialog">
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Planifier une visioconférence</DialogTitle>
+                </DialogHeader>
+                <form class="space-y-4" @submit.prevent="submitVisio">
+                    <div class="grid gap-2">
+                        <Label for="visio-titre">Titre</Label>
+                        <Input
+                            id="visio-titre"
+                            v-model="visioForm.titre"
+                            placeholder="Ex. Rencontre de lancement"
+                            required
+                        />
+                        <p v-if="visioForm.errors.titre" class="text-sm text-destructive">
+                            {{ visioForm.errors.titre }}
+                        </p>
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="visio-scheduled">Date planifiée (optionnel)</Label>
+                        <Input
+                            id="visio-scheduled"
+                            v-model="visioForm.scheduled_at"
+                            type="datetime-local"
+                        />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="visio-groupe">Groupe ciblé (optionnel)</Label>
+                        <select
+                            id="visio-groupe"
+                            v-model="visioForm.groupe_id"
+                            class="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        >
+                            <option :value="null">Tous les groupes du cours</option>
+                            <template v-for="classe in classes" :key="classe.id">
+                                <!-- Les groupes ne sont pas chargés ici, cette option est disponible via texte libre -->
+                            </template>
+                        </select>
+                        <p class="text-xs text-muted-foreground">
+                            Laissez vide pour une session ouverte à tous les groupes.
+                        </p>
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" @click="showVisioDialog = false">
+                            Annuler
+                        </Button>
+                        <Button type="submit" :disabled="visioForm.processing || !visioForm.titre.trim()">
+                            Créer
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
 
         <!-- Modal : Ajouter une étape à l'échéancier -->
         <Dialog v-model:open="showAddEtapeDialog">
@@ -662,18 +821,32 @@ function supprimerTp(tp: TypeProjet) {
                     <DialogTitle>Ajouter une étape</DialogTitle>
                 </DialogHeader>
                 <form class="space-y-4" @submit.prevent="submitAddEtape">
-                    <div class="grid gap-2">
-                        <Label for="add-semaine">Semaine</Label>
-                        <Input
-                            id="add-semaine"
-                            v-model.number="addEtapeForm.semaine"
-                            type="number"
-                            min="1"
-                            max="15"
-                        />
-                        <p v-if="addEtapeForm.errors.semaine" class="text-sm text-destructive">
-                            {{ addEtapeForm.errors.semaine }}
-                        </p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="grid gap-2">
+                            <Label for="add-semaine">Semaine</Label>
+                            <Input
+                                id="add-semaine"
+                                v-model.number="addEtapeForm.semaine"
+                                type="number"
+                                min="1"
+                                max="15"
+                            />
+                            <p v-if="addEtapeForm.errors.semaine" class="text-sm text-destructive">
+                                {{ addEtapeForm.errors.semaine }}
+                            </p>
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="add-periode">Période (optionnel)</Label>
+                            <select
+                                id="add-periode"
+                                v-model="addEtapeForm.periode"
+                                class="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                            >
+                                <option :value="null">—</option>
+                                <option :value="1">Période 1</option>
+                                <option :value="2">Période 2</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="grid gap-2">
                         <Label for="add-etape-texte">Description de l'étape</Label>

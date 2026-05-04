@@ -23,6 +23,8 @@ class DatabaseSeeder extends Seeder
         );
 
         $this->call(DemoSeeder::class);
+        $this->call(DepDemoSeeder::class);
+        $this->call(CoursComplementaireDemoSeeder::class);
         $this->call(EcheancierEtapesSeeder::class);
         $this->call(GrilleCorrectionSeeder::class);
         $this->call(EtablissementSeeder::class);

@@ -41,4 +41,20 @@ class TypeProjetSection extends Model
     {
         return $this->hasMany(ProjetSectionParagraphe::class, 'section_id');
     }
+
+    /**
+     * Retourne les questions de la banque définies par l'enseignant pour cette section.
+     */
+    public function questionsBanque(): HasMany
+    {
+        return $this->hasMany(QuestionBanque::class, 'section_id')->orderBy('ordre');
+    }
+
+    /**
+     * Retourne les médias uploadés pour cette section dans les projets.
+     */
+    public function medias(): HasMany
+    {
+        return $this->hasMany(ProjetSectionMedia::class, 'section_id');
+    }
 }

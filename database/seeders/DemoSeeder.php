@@ -94,8 +94,12 @@ class DemoSeeder extends Seeder
                 'code' => '330-DEM-01',
                 'groupe' => '00001',
                 'enseignant_id' => $prof->id,
+                'type_cours' => 'cours_complet',
             ]
         );
+
+        // S'assurer que le type est bien à jour si le cours existait déjà
+        $cours->update(['type_cours' => 'cours_complet']);
 
         // ─── Étudiants ────────────────────────────────────────────────────────
         $etudiantsData = [
@@ -159,6 +163,12 @@ class DemoSeeder extends Seeder
                 'accessible' => true,
             ]
         );
+
+        $typeProjet->update([
+            'cours_id' => $cours->id,
+            'ponderation' => 60.00,
+            'is_sommatif' => true,
+        ]);
 
         // ─── Sections du TypeProjet (idempotent : suppression + recréation) ──
         // La cascade supprime automatiquement les ProjetSectionContenu liés
@@ -375,6 +385,9 @@ class DemoSeeder extends Seeder
             'nom' => "Schéma d'entrevue",
             'description' => "Préparation structurée de l'entrevue avec une personne âgée : concepts, dimensions, indicateurs et questions spécifiques.",
             'accessible' => true,
+            'cours_id' => $cours->id,
+            'ponderation' => 30.00,
+            'is_sommatif' => true,
         ]);
 
         // Sections du TypeProjet entrevue (idempotent)
@@ -492,5 +505,134 @@ class DemoSeeder extends Seeder
                 ]);
             }
         }
+
+        // ─── TypeProjet "Plan de travail" ─────────────────────────────────────
+        /** @var TypeProjet $typeProjetPlanTravail */
+        $typeProjetPlanTravail = TypeProjet::firstOrCreate(
+            ['enseignant_id' => $prof->id, 'nom' => 'Plan de travail'],
+            [
+                'cours_id' => $cours->id,
+                'description' => 'Rédaction du plan de travail structuré selon les normes du cours complet.',
+                'accessible' => true,
+                'generer_page_titre' => false,
+                'generer_table_matieres' => false,
+                'ponderation' => 10.00,
+                'is_sommatif' => false,
+            ]
+        );
+
+        $typeProjetPlanTravail->update([
+            'cours_id' => $cours->id,
+            'description' => 'Rédaction du plan de travail structuré selon les normes du cours complet.',
+            'accessible' => true,
+            'generer_page_titre' => false,
+            'generer_table_matieres' => false,
+            'ponderation' => 10.00,
+            'is_sommatif' => false,
+        ]);
+
+        // ─── Sections du Plan de travail (idempotent) ─────────────────────────
+        $typeProjetPlanTravail->sections()->delete();
+
+        /** @var TypeProjetSection[] $sectionsPlanTravail */
+        $sectionsPlanTravail = [];
+        foreach ([
+            ['label' => 'Sujet amené',                 'type' => 'texte'],
+            ['label' => 'Sujet posé',                  'type' => 'texte'],
+            ['label' => 'Développement chronologique', 'type' => 'paragraphes'],
+            ['label' => 'Conclusion',                  'type' => 'texte'],
+            ['label' => 'Références',                  'type' => 'texte'],
+        ] as $ordre => $data) {
+            $sectionsPlanTravail[] = TypeProjetSection::create([
+                'type_projet_id' => $typeProjetPlanTravail->id,
+                'label' => $data['label'],
+                'type' => $data['type'],
+                'ordre' => $ordre + 1,
+            ]);
+        }
+
+        // ─── Grille de correction du Plan de travail ──────────────────────────
+        if (! $typeProjetPlanTravail->grille()->exists()) {
+            /** @var GrilleCorrection $grillePlanTravail */
+            $grillePlanTravail = GrilleCorrection::create([
+                'type_projet_id' => $typeProjetPlanTravail->id,
+                'nom' => 'Grille de correction — Plan de travail',
+                'description' => 'Grille d\'évaluation du plan de travail. Total : 100 points.',
+            ]);
+
+            foreach ([
+                ['label' => 'Qualité de la problématique et de l\'angle d\'analyse', 'ponderation' => 25],
+                ['label' => 'Cohérence du plan (introduction, développement, conclusion)', 'ponderation' => 25],
+                ['label' => 'Pertinence et diversité des sources annoncées',          'ponderation' => 20],
+                ['label' => 'Clarté et profondeur de l\'argumentation prévue',        'ponderation' => 20],
+                ['label' => 'Respect des consignes de présentation',                  'ponderation' => 10],
+            ] as $ordre => $critere) {
+                GrilleCritere::create([
+                    'grille_id' => $grillePlanTravail->id,
+                    'label' => $critere['label'],
+                    'ponderation' => $critere['ponderation'],
+                    'ordre' => $ordre + 1,
+                ]);
+            }
+
+            foreach (self::MALUS as $ordre => $malus) {
+                GrilleMalus::create([
+                    'grille_id' => $grillePlanTravail->id,
+                    'label' => $malus['label'],
+                    'deduction' => $malus['deduction'],
+                    'description' => $malus['description'],
+                    'ordre' => $ordre + 1,
+                ]);
+            }
+        }
+
+        // ─── Projet Plan de travail démo ──────────────────────────────────────
+        /** @var ProjetRecherche $projetPlanTravail */
+        $projetPlanTravail = ProjetRecherche::updateOrCreate(
+            ['groupe_id' => $groupe->id, 'type_projet_id' => $typeProjetPlanTravail->id],
+            ['titre_projet' => 'Plan de travail — La Révolution tranquille']
+        );
+
+        // Sujet amené
+        ProjetSectionContenu::updateOrCreate(
+            ['projet_id' => $projetPlanTravail->id, 'section_id' => $sectionsPlanTravail[0]->id],
+            ['contenu' => '<p>Le Québec du XXe siècle a connu de profondes mutations sociales, culturelles et politiques qui ont forgé l\'identité collective de la province. Au tournant des années 1960, une période de changements accélérés, connue sous le nom de Révolution tranquille, a transformé en profondeur les institutions québécoises.</p>']
+        );
+
+        // Sujet posé
+        ProjetSectionContenu::updateOrCreate(
+            ['projet_id' => $projetPlanTravail->id, 'section_id' => $sectionsPlanTravail[1]->id],
+            ['contenu' => '<p>Dans quelle mesure la Révolution tranquille a-t-elle redéfini le rapport entre l\'État québécois, l\'Église catholique et la société civile entre 1960 et 1980 ?</p>']
+        );
+
+        // Développement chronologique — paragraphes idempotents
+        ProjetSectionParagraphe::where('projet_id', $projetPlanTravail->id)
+            ->where('section_id', $sectionsPlanTravail[2]->id)
+            ->delete();
+
+        foreach ([
+            '<p>La montée du mouvement nationaliste laïc (1960-1966) : élection de Jean Lesage, slogan « Maîtres chez nous », nationalisation de l\'électricité.</p>',
+            '<p>Les grandes réformes institutionnelles (1966-1976) : création du ministère de l\'Éducation, réforme Castonguay-Nepveu, essor de la fonction publique provinciale.</p>',
+            '<p>L\'affirmation identitaire et ses limites (1976-1980) : élection du Parti québécois, loi 101, référendum de 1980 et bilan nuancé de la modernisation.</p>',
+        ] as $ordre => $contenu) {
+            ProjetSectionParagraphe::create([
+                'projet_id' => $projetPlanTravail->id,
+                'section_id' => $sectionsPlanTravail[2]->id,
+                'contenu' => $contenu,
+                'ordre' => $ordre + 1,
+            ]);
+        }
+
+        // Conclusion
+        ProjetSectionContenu::updateOrCreate(
+            ['projet_id' => $projetPlanTravail->id, 'section_id' => $sectionsPlanTravail[3]->id],
+            ['contenu' => '<p>En somme, la Révolution tranquille représente une rupture fondatrice dans l\'histoire du Québec contemporain. Son bilan reste nuancé, mais son impact sur la modernisation de l\'État et l\'affirmation de l\'identité québécoise est indéniable.</p>']
+        );
+
+        // Références
+        ProjetSectionContenu::updateOrCreate(
+            ['projet_id' => $projetPlanTravail->id, 'section_id' => $sectionsPlanTravail[4]->id],
+            ['contenu' => '<p>Behiels, Michael D. <em>Prelude to Quebec\'s Quiet Revolution</em>. Montréal : McGill-Queen\'s University Press, 1985.</p><p>Linteau, Paul-André et al. <em>Histoire du Québec contemporain</em>, tome 2. Montréal : Boréal, 1989.</p><p>Lamont, Michèle. <em>The Dignity of Working Men</em>. Cambridge : Harvard University Press, 2000.</p>']
+        );
     }
 }

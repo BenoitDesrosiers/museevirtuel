@@ -1,64 +1,14 @@
-﻿
-
-# CLAUDE.md — Contexte du projet ## Stack technique | Clé | Valeur | |-----|--------| | Framework | Laravel 12 | | PHP | 8.4 | | Tests | Pest 4 | | Style | Pint (config : `pint.json`) | | Base de données | MySQL | | Frontend | Vue 3 + Inertia.js v2 + Tailwind CSS v4 | | Routes typées |
-
-pasted
-
-Peux tu simplifier ce claude.md et ajouter dans celui-ci l'instruction de toujour ce reférencer a /navigateur et /minimalisateur lorsqu'il est en utilisation ()
-
-18 h 54
-Peux-tu me préciser ce que sont /navigateur et /minimalisateur ? Ce sont des skills personnalisés, des commandes MCP, ou autre chose ? Et où se trouvent-ils (chemin dans le projet) ?
-
-ils sont des agent ..md disponible dans ./claude/navigateur/skills.md et pareille pour minimalisateur
-
-18 h 56
-Voici le CLAUDE.md simplifié avec les références aux deux agents :
-
-
-Simplified CLAUDE.md with agent references
-Simplified CLAUDE.md with agent references
-La réponse de Claude a été interrompue.
-/.claude désoler
-
-18 h 56
-Pas de problème ! Donc les chemins sont :
-
-.claude/navigateur/skills.md
-.claude/minimalisateur/skills.md
-C'est bien ça ? Je génère le fichier complet maintenant.
-
-
-2 fichiers créés, a exécuté une commande, lu un fichier
-2 fichiers créés, a exécuté une commande, lu un fichier
-Les changements principaux par rapport à l'original :
-
-Agents obligatoires ajoutés en haut du fichier, bien visibles, avec les bons chemins .claude/navigateur/skills.md et .claude/minimalisateur/skills.md
-Tableau des packages supprimé — redondant avec le tableau de stack
-Section "Foundation rules" fusionnée dans les conventions Laravel et le workflow
-Section "Points d'entrée rapides" retirée — déléguée à l'agent /navigateur
-Section tokens/navigation retirée — déléguée à l'agent /minimalisateur
-Le workflow fait maintenant référence aux deux agents explicitement à l'étape 1
-Claude
-Document · MD
-
-
-
-
-Claude est une IA et peut faire des erreurs. Veuillez vérifier les réponses.
-Claude · MD
-Copier
-
 # CLAUDE.md — Contexte du projet
 
-## ⚡ Agents obligatoires
+## Agents obligatoires
 
 > **Charger ces deux agents au début de chaque session, avant toute action.**
 
 | Agent | Fichier |
 |-------|---------|
-| Navigateur | `.claude/navigateur/skills.md` |
-| Minimalisateur | `.claude/minimalisateur/skills.md` |
- 
+| Navigateur | `.claude/skills/navigateur/SKILL.md` |
+| Minimalisateur | `.claude/skills/minimalisateur/SKILL.md` |
+
 ---
 
 ## Stack technique
@@ -74,7 +24,7 @@ Copier
 | Routes typées | Wayfinder v0 |
 | Auth | Laravel Fortify v1 |
 | Serveur local | Laravel Herd (`.test`) |
- 
+
 ---
 
 ## Conventions Laravel
@@ -130,7 +80,7 @@ Commenter le **pourquoi**, pas le quoi :
 ✅ // L'API externe renvoie null au lieu de 0 — on normalise ici
 ❌ // On incrémente le compteur
 ```
- 
+
 ---
 
 ## Skills par domaine
@@ -141,7 +91,7 @@ Commenter le **pourquoi**, pas le quoi :
 | Tests | `pest-testing` |
 | Composants Vue + Inertia | `inertia-vue-development` |
 | Classes Tailwind | `tailwindcss-development` |
- 
+
 ---
 
 ## Skills disponibles
@@ -150,7 +100,7 @@ Commenter le **pourquoi**, pas le quoi :
 |----------|-------------|
 | `/codex-review [chemin?]` | Review du code non commité |
 | `/planificateur <description>` | Plan structuré d'un changement |
- 
+
 ---
 
 ## Workflow attendu
@@ -170,17 +120,16 @@ Commenter le **pourquoi**, pas le quoi :
 # Tests
 php artisan test --compact
 php artisan test --compact --filter=NomDuTest
- 
+
 # Style
 ./vendor/bin/pint
 ./vendor/bin/pint --test
- 
+
 # Génération
 php artisan wayfinder:generate --no-interaction
 php artisan make:test --pest NomDuTest
- 
+
 # Debug
 php artisan route:list
 php artisan tinker --execute "..."
 ```
- 

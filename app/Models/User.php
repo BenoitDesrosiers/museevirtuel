@@ -34,6 +34,7 @@ class User extends Authenticatable
         'theme_libre',
         'engagements_acceptes_le',
         'signature_electronique',
+        'disponible_appel_distance',
     ];
 
     protected $hidden = [
@@ -49,6 +50,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'engagements_acceptes_le' => 'datetime',
             'password' => 'hashed',
+            'disponible_appel_distance' => 'boolean',
         ];
     }
 

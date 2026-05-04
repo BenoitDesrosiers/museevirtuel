@@ -58,8 +58,13 @@ function creerScenarioExport(array $flags = []): array
 
 test('mettre generer_page_titre à false via PUT persiste bien false en base', function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $cours = Cours::create([
+        'nom_cours' => 'Cours test', 'code' => '330-T1', 'groupe' => '01',
+        'enseignant_id' => $enseignant->id,
+    ]);
     $typeProjet = TypeProjet::create([
         'enseignant_id' => $enseignant->id,
+        'cours_id' => $cours->id,
         'nom' => 'Projet',
         'accessible' => false,
         'generer_page_titre' => true,
@@ -67,7 +72,7 @@ test('mettre generer_page_titre à false via PUT persiste bien false en base', f
     ]);
 
     $this->actingAs($enseignant)
-        ->putJson("/types-projets/{$typeProjet->id}", [
+        ->putJson("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
             'nom' => 'Projet',
             'generer_page_titre' => false,
             'generer_table_matieres' => true,
@@ -83,8 +88,13 @@ test('mettre generer_page_titre à false via PUT persiste bien false en base', f
 
 test('mettre generer_table_matieres à false via PUT persiste bien false en base', function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $cours = Cours::create([
+        'nom_cours' => 'Cours test', 'code' => '330-T1', 'groupe' => '01',
+        'enseignant_id' => $enseignant->id,
+    ]);
     $typeProjet = TypeProjet::create([
         'enseignant_id' => $enseignant->id,
+        'cours_id' => $cours->id,
         'nom' => 'Projet',
         'accessible' => false,
         'generer_page_titre' => true,
@@ -92,7 +102,7 @@ test('mettre generer_table_matieres à false via PUT persiste bien false en base
     ]);
 
     $this->actingAs($enseignant)
-        ->putJson("/types-projets/{$typeProjet->id}", [
+        ->putJson("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
             'nom' => 'Projet',
             'generer_page_titre' => true,
             'generer_table_matieres' => false,
@@ -108,8 +118,13 @@ test('mettre generer_table_matieres à false via PUT persiste bien false en base
 
 test('désactiver les deux flags simultanément persiste en base', function () {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $cours = Cours::create([
+        'nom_cours' => 'Cours test', 'code' => '330-T1', 'groupe' => '01',
+        'enseignant_id' => $enseignant->id,
+    ]);
     $typeProjet = TypeProjet::create([
         'enseignant_id' => $enseignant->id,
+        'cours_id' => $cours->id,
         'nom' => 'Projet',
         'accessible' => false,
         'generer_page_titre' => true,
@@ -117,7 +132,7 @@ test('désactiver les deux flags simultanément persiste en base', function () {
     ]);
 
     $this->actingAs($enseignant)
-        ->putJson("/types-projets/{$typeProjet->id}", [
+        ->putJson("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
             'nom' => 'Projet',
             'generer_page_titre' => false,
             'generer_table_matieres' => false,

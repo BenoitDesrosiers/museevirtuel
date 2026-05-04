@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { ArrowLeft, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Download, FileText, ImagePlus, MessageSquare, Music, Pencil, Search, Trash2 } from 'lucide-vue-next';
+import { ArrowLeft, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Download, FileText, ImagePlus, MessageSquare, Music, Pencil, Search, Trash2, Video } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import FormDialog from '@/components/FormDialog.vue';
 import Heading from '@/components/Heading.vue';
 import NoteAvecCorrections from '@/components/NoteAvecCorrections.vue';
+import VisioSession from '@/components/VisioSession.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -91,6 +92,19 @@ type EtudiantDispo = {
     nom: string;
 };
 
+type VisioConference = {
+    id: number;
+    cours_id: number;
+    groupe_id: number | null;
+    jitsi_room: string;
+    titre: string;
+    scheduled_at: string | null;
+    started_at: string | null;
+    ended_at: string | null;
+    recording_url: string | null;
+    animateur: { id: number; prenom: string; nom: string };
+};
+
 type Props = {
     groupe: Groupe;
     classe: Classe;
@@ -102,6 +116,7 @@ type Props = {
     etudiantsDispo: EtudiantDispo[];
     temoinsDisponibles: User[];
     tousLesTemoins: User[];
+    visioConferences: VisioConference[];
 };
 
 const props = defineProps<Props>();
@@ -861,6 +876,31 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                             </form>
                         </div>
                     </template>
+                </CardContent>
+            </Card>
+
+            <!-- Visioconférences -->
+            <Card v-if="visioConferences.length > 0 || estEnseignant">
+                <CardHeader>
+                    <CardTitle>
+                        <span class="flex items-center gap-2">
+                            <Video class="h-5 w-5" />
+                            Visioconférences
+                        </span>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div v-if="visioConferences.length === 0" class="text-sm text-muted-foreground">
+                        Aucune visioconférence planifiée pour ce groupe.
+                    </div>
+                    <div v-else class="flex flex-col gap-3">
+                        <VisioSession
+                            v-for="visio in visioConferences"
+                            :key="visio.id"
+                            :visio="visio"
+                            :can-manage="estEnseignant"
+                        />
+                    </div>
                 </CardContent>
             </Card>
         </div>

@@ -8,10 +8,12 @@ use App\Helpers\HtmlHelper;
 use App\Http\Requests\UpsertProjetCommentaireRequest;
 use App\Http\Requests\UpsertProjetNoteRequest;
 use App\Models\Classe;
+use App\Models\ConsentementVideo;
 use App\Models\Cours;
 use App\Models\EntrevueConcept;
 use App\Models\GrilleCorrection;
 use App\Models\Groupe;
+use App\Models\GroupeTache;
 use App\Models\ProjetAnnotation;
 use App\Models\ProjetCommentaire;
 use App\Models\ProjetConclusion;
@@ -21,11 +23,14 @@ use App\Models\ProjetGrilleNote;
 use App\Models\ProjetNote;
 use App\Models\ProjetRecherche;
 use App\Models\ProjetRenvoi;
+use App\Models\ProjetSchemaVisuel;
 use App\Models\ProjetSectionContenu;
+use App\Models\ProjetSectionMedia;
 use App\Models\ProjetSectionParagraphe;
 use App\Models\ProjetVoteRemise;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetSection;
+use App\Models\TypeProjetTache;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
@@ -149,7 +154,17 @@ class ProjetRechercheController extends Controller
         ]);
 
         // Précharger en une seule requête chacune des relations — évite le N+1
-        $projet->load(['conclusions', 'commentaires', 'annotations', 'developpements', 'votes', 'notes', 'notesGrille.critere', 'malusAppliques.malus', 'typeProjet.grille.criteres', 'typeProjet.grille.malus', 'typeProjet.sections', 'sectionContenus', 'sectionParagraphes', 'entrevueConcepts.lignes', 'renvois']);
+        $projet->load(['conclusions', 'commentaires', 'annotations', 'developpements', 'votes', 'notes', 'notesGrille.critere', 'malusAppliques.malus', 'typeProjet.grille.criteres', 'typeProjet.grille.malus', 'typeProjet.sections.questionsBanque', 'typeProjet.taches', 'sectionContenus', 'sectionParagraphes', 'entrevueConcepts.lignes', 'sectionMedias', 'questionsChoisies', 'schemaVisuels', 'renvois']);
+
+        // État des tâches pour ce groupe — groupé par tache_id pour O(1) dans construireSections
+        $tacheIds = $typeProjet->taches()->pluck('id');
+        $groupeTachesParTache = $tacheIds->isNotEmpty()
+            ? GroupeTache::where('groupe_id', $groupe->id)
+                ->whereIn('tache_id', $tacheIds)
+                ->with('assigneA:id,prenom,nom')
+                ->get()
+                ->keyBy('tache_id')
+            : collect();
 
         $conclusionsParMembre = $projet->conclusions->keyBy('user_id');
 
@@ -229,7 +244,7 @@ class ProjetRechercheController extends Controller
         return Inertia::render('Projets/Show', [
             'groupe' => $groupe,
             'classe' => $classe->only('id', 'code', 'cours_id'),
-            'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
+            'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe', 'type_cours'),
             'enseignant' => $cours->enseignant->only('id', 'prenom', 'nom'),
             'membres' => $groupe->membres->map->only('id', 'prenom', 'nom')->values(),
             'projet' => $projet,
@@ -260,8 +275,9 @@ class ProjetRechercheController extends Controller
             'notesGrilleParEtudiant' => $notesGrilleParEtudiant,
             'malusParEtudiant' => $malusParEtudiant,
             'noteFinaleGrilleParEtudiant' => $noteFinaleGrilleParEtudiant,
-            'sections' => $this->construireSections($projet, $groupe->membres),
+            'sections' => $this->construireSections($projet, $groupe->membres, $groupeTachesParTache),
             'renvois' => $projet->renvois->map->only('id', 'numero', 'contenu')->values(),
+            'consentement' => $this->construireConsentement($projet->id, $user->id),
         ]);
     }
 
@@ -836,6 +852,9 @@ class ProjetRechercheController extends Controller
             'contenu' => ['required', 'string', 'max:1000'],
             'html' => ['required', 'string'],
             'type' => ['sometimes', 'string', 'in:commentaire,correction'],
+            // Malus inline — uniquement pertinents pour type='correction'
+            'cible_user_id' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
+            'points_malus' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
         ]);
 
         $projet = ProjetRecherche::firstOrCreate([
@@ -857,15 +876,20 @@ class ProjetRechercheController extends Controller
         );
         $motAnnote = isset($markMatch[1]) ? strip_tags($markMatch[1]) : null;
 
+        $type = $validated['type'] ?? 'commentaire';
+
         $annotation = ProjetAnnotation::updateOrCreate(
             ['projet_id' => $projet->id, 'commentaire_id' => $validated['commentaire_id']],
             [
                 'champ' => $validated['champ'],
                 'contenu' => $validated['contenu'],
-                'type' => $validated['type'] ?? 'commentaire',
+                'type' => $type,
                 'position' => $position,
                 'mot_annote' => $motAnnote,
                 'user_id' => auth()->id(),
+                // Les champs malus ne s'appliquent qu'aux corrections ; on les réinitialise sinon.
+                'cible_user_id' => $type === 'correction' ? ($validated['cible_user_id'] ?? null) : null,
+                'points_malus' => $type === 'correction' ? ($validated['points_malus'] ?? null) : null,
             ]
         );
 
@@ -876,6 +900,8 @@ class ProjetRechercheController extends Controller
             'contenu' => $annotation->contenu,
             'type' => $annotation->type,
             'user_id' => $annotation->user_id,
+            'cible_user_id' => $annotation->cible_user_id,
+            'points_malus' => $annotation->points_malus,
         ]);
     }
 
@@ -1404,24 +1430,53 @@ class ProjetRechercheController extends Controller
     }
 
     /**
+     * Retourne le consentement vidéo de l'utilisateur pour ce projet,
+     * ou null si aucun consentement n'a encore été enregistré.
+     *
+     * @return array{accepte: bool, signed_at: string|null}|null
+     */
+    private function construireConsentement(int $projetId, int $userId): ?array
+    {
+        $consentement = ConsentementVideo::where('projet_id', $projetId)
+            ->where('user_id', $userId)
+            ->first();
+
+        if (! $consentement) {
+            return null;
+        }
+
+        return [
+            'accepte' => $consentement->accepte,
+            'signed_at' => $consentement->signed_at?->toISOString(),
+        ];
+    }
+
+    /**
      * Construit le tableau des sections dynamiques avec leur contenu courant.
      *
      * Selon le type de section :
-     * - 'texte'       → champ `contenu` (ProjetSectionContenu)
-     * - 'paragraphes' → champ `paragraphes` (liste ProjetSectionParagraphe triée par ordre)
-     * - 'individuel'  → champ `conclusionsParMembre` (1 entrée par membre du groupe)
-     * - 'entrevue'    → champ `concepts` (liste EntrevueConcept avec leurs lignes)
+     * - 'texte'         → champ `contenu` (ProjetSectionContenu)
+     * - 'paragraphes'   → champ `paragraphes` (liste ProjetSectionParagraphe triée par ordre)
+     * - 'individuel'    → champ `conclusionsParMembre` (1 entrée par membre du groupe)
+     * - 'entrevue'      → champ `concepts` (liste EntrevueConcept avec leurs lignes)
+     * - 'tache'         → champ `taches` (liste TypeProjetTache + état GroupeTache du groupe)
      *
      * @param  Collection|null  $membres  membres du groupe (requis pour le type 'individuel')
-     * @return array<int, array{id: int, label: string, description: string|null, ordre: int, type: string, contenu: string|null, paragraphes: array|null, conclusionsParMembre: array|null, concepts: array|null}>
+     * @param  Collection|null  $groupeTachesParTache  état des tâches du groupe, indexé par tache_id
+     * @return array<int, array<string, mixed>>
      */
-    private function construireSections(ProjetRecherche $projet, ?Collection $membres = null): array
+    private function construireSections(ProjetRecherche $projet, ?Collection $membres = null, ?Collection $groupeTachesParTache = null): array
     {
         $sections = $projet->typeProjet?->sections ?? collect();
 
         if ($sections->isEmpty()) {
             return [];
         }
+
+        // Médias de section (vidéo/audio) — groupés par section_id si déjà chargés
+        $mediasParSection = $projet->relationLoaded('sectionMedias')
+            ? $projet->sectionMedias->groupBy('section_id')
+            : collect();
 
         $contenusParSection = $projet->sectionContenus->keyBy('section_id');
 
@@ -1438,6 +1493,16 @@ class ProjetRechercheController extends Controller
         // Concepts d'entrevue groupés par section
         $conceptsParSection = $projet->relationLoaded('entrevueConcepts')
             ? $projet->entrevueConcepts->groupBy('section_id')
+            : collect();
+
+        // Questions choisies par ce projet, groupées par section_id — pour les sections choix_questions
+        $questionsChoisiesParSection = $projet->relationLoaded('questionsChoisies')
+            ? $projet->questionsChoisies->groupBy('section_id')
+            : collect();
+
+        // Schémas visuels par section_id — pour les sections schema_visuel
+        $schemaVisuelsParSection = $projet->relationLoaded('schemaVisuels')
+            ? $projet->schemaVisuels->keyBy('section_id')
             : collect();
 
         return $sections->map(fn (TypeProjetSection $s) => [
@@ -1465,6 +1530,34 @@ class ProjetRechercheController extends Controller
                     'ordre' => $c->ordre,
                     'lignes' => $c->lignes->map->only('id', 'ordre', 'dimension', 'indicateur', 'questions')->values()->all(),
                 ])->values()->all() ?? [])
+                : null,
+            'medias' => in_array($s->type, ['video', 'audio'])
+                ? ($mediasParSection->get($s->id)?->map(fn (ProjetSectionMedia $m) => [
+                    'id' => $m->id,
+                    'source_type' => $m->source_type,
+                    'url' => $m->url,
+                    'nom_original' => $m->nom_original,
+                    'url_publique' => $m->url_publique,
+                ])->values()->all() ?? [])
+                : null,
+            'taches' => $s->type === 'tache'
+                ? ($projet->typeProjet?->taches->map(fn (TypeProjetTache $t) => [
+                    'id' => $t->id,
+                    'titre' => $t->titre,
+                    'description' => $t->description,
+                    'ordre' => $t->ordre,
+                    'assigne_a' => $groupeTachesParTache?->get($t->id)?->assigneA?->only('id', 'prenom', 'nom'),
+                    'completed_at' => $groupeTachesParTache?->get($t->id)?->completed_at?->toIso8601String(),
+                ])->values()->all() ?? [])
+                : null,
+            'questions' => $s->type === 'choix_questions'
+                ? $s->questionsBanque->map->only('id', 'contenu', 'ordre')->values()->all()
+                : null,
+            'questionsChoisies' => $s->type === 'choix_questions'
+                ? $questionsChoisiesParSection->get($s->id)?->pluck('question_banque_id')->values()->all() ?? []
+                : null,
+            'schemaVisuel' => $s->type === 'schema_visuel'
+                ? ($schemaVisuelsParSection->get($s->id)?->contenu ?? ProjetSchemaVisuel::contenuVide())
                 : null,
         ])->values()->all();
     }

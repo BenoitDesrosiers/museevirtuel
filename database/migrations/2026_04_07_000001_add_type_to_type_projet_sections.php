@@ -9,9 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('type_projet_sections', function (Blueprint $table) {
-            $table->enum('type', ['texte', 'paragraphes', 'individuel'])
-                ->default('texte')
-                ->after('description');
+            // Utiliser string plutôt qu'enum : MySQL gère l'enum via ALTER TABLE
+            // dans les migrations suivantes ; SQLite n'a pas de CHECK automatique ici.
+            $table->string('type')->default('texte')->after('description');
         });
     }
 

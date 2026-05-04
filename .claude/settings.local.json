@@ -125,7 +125,14 @@
       "Bash(py:*)",
       "Bash(python3.exe:*)",
       "Bash(/tmp/refactor_tests.py:*)",
-      "Bash(Get-Content \"C:/Users/Adam/Herd/Muse/resources/js/pages/Classes/Show.vue\")"
+      "Bash(Get-Content \"C:/Users/Adam/Herd/Muse/resources/js/pages/Classes/Show.vue\")",
+      "Bash(node_modules/.bin/vite build:*)",
+      "Bash(C:/Users/Adam/Herd/Muse/vendor/bin/pint --test)",
+      "Bash(Select-String -Path \"C:/Users/Adam/Herd/Muse/.env\" -Pattern \"^DB_\")",
+      "Bash(set \"OLDPATH=%PATH%\")",
+      "Bash(bash -c:*)",
+      "Bash(\"C:/Users/Adam/Herd/Muse/vendor/bin/pest\" --compact)",
+      "Bash(del \"C:/Users/Adam/Herd/Muse/debug_forest.php\")"
     ]
   },
   "enableAllProjectMcpServers": true,

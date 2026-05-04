@@ -16,6 +16,18 @@ import typesProjets from '@/routes/types-projets';
 
 const { t } = useI18n();
 
+type Cours = {
+    id: number;
+    nom_cours: string;
+    code: string;
+};
+
+type Props = {
+    cours: Cours;
+};
+
+const props = defineProps<Props>();
+
 type SectionType = 'texte' | 'paragraphes' | 'individuel' | 'entrevue';
 
 type SectionFormItem = {
@@ -76,7 +88,7 @@ function supprimerSection(idx: number) {
  * Soumet le formulaire de création via POST.
  */
 function creer() {
-    form.post(typesProjets.store.url());
+    form.post(typesProjets.store.url(props.cours.id));
 }
 </script>
 
@@ -88,7 +100,7 @@ function creer() {
             <!-- En-tête -->
             <div>
                 <Link
-                    :href="typesProjets.index.url()"
+                    :href="typesProjets.index.url(cours.id)"
                     class="mb-3 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
                 >
                     <ArrowLeft class="h-3.5 w-3.5" />

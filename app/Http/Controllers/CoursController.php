@@ -6,6 +6,7 @@ use App\Http\Requests\StoreCoursRequest;
 use App\Http\Requests\UpdateCoursRequest;
 use App\Models\Cours;
 use App\Models\TypeProjet;
+use App\Models\VisioConference;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -50,21 +51,51 @@ class CoursController extends Controller
             ->map(fn ($etape) => [
                 'id' => $etape->id,
                 'semaine' => $etape->semaine,
+                'periode' => $etape->periode,
                 'etape' => $etape->etape,
                 'is_done' => $etape->is_done,
                 'ordre' => $etape->ordre,
             ]);
 
-        $typesProjets = TypeProjet::where('enseignant_id', auth()->id())
+        $objectifs = $cours->objectifs()
+            ->get()
+            ->map(fn ($o) => [
+                'id' => $o->id,
+                'contenu' => $o->contenu,
+                'ordre' => $o->ordre,
+            ]);
+
+        $typesProjets = TypeProjet::where('cours_id', $cours->id)
             ->with(['grille:id,type_projet_id,nom', 'sections'])
             ->orderBy('nom')
             ->get();
+
+        $visioConferences = $cours->visioConferences()
+            ->with('animateur:id,prenom,nom')
+            ->get()
+            ->map(fn (VisioConference $v) => [
+                'id' => $v->id,
+                'cours_id' => $v->cours_id,
+                'groupe_id' => $v->groupe_id,
+                'jitsi_room' => $v->jitsi_room,
+                'titre' => $v->titre,
+                'scheduled_at' => $v->scheduled_at?->toIso8601String(),
+                'started_at' => $v->started_at?->toIso8601String(),
+                'ended_at' => $v->ended_at?->toIso8601String(),
+                'recording_url' => $v->recording_url,
+                'animateur' => [
+                    'id' => $v->animateur->id,
+                    'prenom' => $v->animateur->prenom,
+                    'nom' => $v->animateur->nom,
+                ],
+            ]);
 
         return Inertia::render('Cours/Show', [
             'cours' => $cours,
             'classes' => $classes,
             'documents' => $documents,
             'echeancierEtapes' => $echeancierEtapes,
+            'objectifs' => $objectifs,
             'typesProjets' => $typesProjets->map(fn (TypeProjet $tp) => [
                 'id' => $tp->id,
                 'nom' => $tp->nom,
@@ -78,6 +109,7 @@ class CoursController extends Controller
                     'ordre' => $s->ordre,
                 ])->values(),
             ])->values(),
+            'visioConferences' => $visioConferences,
         ]);
     }
 

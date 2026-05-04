@@ -22,6 +22,7 @@ class EcheancierController extends Controller
 
         $validated = $request->validate([
             'semaine' => ['required', 'integer', 'min:1', 'max:15'],
+            'periode' => ['nullable', 'integer', 'in:1,2'],
             'etape' => ['required', 'string', 'max:500'],
         ]);
 
@@ -33,6 +34,7 @@ class EcheancierController extends Controller
         EcheancierEtape::create([
             'cours_id' => $cours->id,
             'semaine' => $validated['semaine'],
+            'periode' => $validated['periode'] ?? null,
             'etape' => $validated['etape'],
             'is_done' => false,
             'ordre' => $ordre + 1,
@@ -53,6 +55,7 @@ class EcheancierController extends Controller
 
         $validated = $request->validate([
             'etape' => ['required', 'string', 'max:500'],
+            'periode' => ['nullable', 'integer', 'in:1,2'],
         ]);
 
         $etape->update($validated);

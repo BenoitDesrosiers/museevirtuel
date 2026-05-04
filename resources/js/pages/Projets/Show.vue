@@ -30,7 +30,15 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import AntidoteGlobalModal from '@/components/AntidoteGlobalModal.vue';
 import type { GlobalSection } from '@/components/AntidoteGlobalModal.vue';
+import ConfirmationModal from '@/components/ConfirmationModal.vue';
 import CommentaireEnseignant from '@/components/CommentaireEnseignant.vue';
+import ConsentementVideo from '@/components/ConsentementVideo.vue';
+import SectionAudio from '@/components/SectionAudio.vue';
+import SectionChoixQuestions from '@/components/SectionChoixQuestions.vue';
+import SectionEntrevueCC from '@/components/SectionEntrevueCC.vue';
+import SectionTache from '@/components/SectionTache.vue';
+import SectionSchemaVisuel from '@/components/SectionSchemaVisuel.vue';
+import SectionVideo from '@/components/SectionVideo.vue';
 import Heading from '@/components/Heading.vue';
 import NotesGrillePersonnalisee from '@/components/NotesGrillePersonnalisee.vue';
 import RichEditor from '@/components/RichEditor.vue';
@@ -107,6 +115,8 @@ type Annotation = {
     contenu: string;
     type: 'commentaire' | 'correction';
     user_id: number;
+    cible_user_id?: number | null;
+    points_malus?: number | null;
 };
 
 type VoteRemise = {
@@ -128,6 +138,14 @@ type SectionParagraphe = {
 type SectionConclusionMembre = {
     userId: number;
     contenu: string | null;
+};
+
+type SectionMedia = {
+    id: number;
+    source_type: 'upload' | 'url';
+    url: string | null;
+    nom_original: string | null;
+    url_publique: string | null;
 };
 
 type EntrevueLigne = {
@@ -156,21 +174,56 @@ type Renvoi = {
     contenu: string | null;
 };
 
+type SectionTacheItem = {
+    id: number;
+    titre: string;
+    description: string | null;
+    ordre: number;
+    assigne_a: { id: number; prenom: string; nom: string } | null;
+    completed_at: string | null;
+};
+
+type CarteSchema = {
+    id: string;
+    texte: string;
+    image: string | null;
+};
+
+type ContenuSchema = {
+    image_centrale: string | null;
+    zones: {
+        causes: CarteSchema[];
+        activites: CarteSchema[];
+        consequences: CarteSchema[];
+    };
+};
+
 type Section = {
     id: number;
     label: string;
     description: string | null;
     ordre: number;
-    type: 'texte' | 'paragraphes' | 'individuel' | 'entrevue';
+    type: 'texte' | 'paragraphes' | 'individuel' | 'entrevue' | 'video' | 'audio' | 'choix_questions' | 'tache' | 'schema_visuel';
     contenu: string | null;
     paragraphes: SectionParagraphe[] | null;
     conclusionsParMembre: SectionConclusionMembre[] | null;
     concepts: EntrevueConcept[] | null;
+    medias: SectionMedia[] | null;
+    questions: { id: number; contenu: string; ordre: number }[] | null;
+    questionsChoisies: number[] | null;
+    taches: SectionTacheItem[] | null;
+    schemaVisuel: ContenuSchema | null;
 };
+
+type ConsentementExistant = {
+    accepte: boolean;
+    signed_at: string | null;
+} | null;
 
 type Props = {
     groupe: Groupe;
     classe: Classe;
+    cours: { id: number; nom_cours: string; code: string; groupe: string; type_cours: string };
     enseignant: Enseignant;
     membres: Etudiant[];
     projet: Projet;
@@ -194,6 +247,8 @@ type Props = {
     sections: Section[];
     /** Notes de renvoi (endnotes) triées par numéro */
     renvois: Renvoi[];
+    /** Consentement vidéo de l'utilisateur connecté pour ce projet (null si non renseigné) */
+    consentement: ConsentementExistant;
     // Grille personnalisée (rattachée automatiquement à la classe)
     grillePersonnalisee: GrillePersonnalisee | null;
     /** notesGrilleParEtudiant[userId][critereId] = note */
@@ -217,6 +272,11 @@ const props = defineProps<Props>();
 const page = usePage();
 const userId = computed(() => (page.props.auth as Auth).user.id);
 const { t } = useI18n();
+
+/** Vrai si au moins une section de type vidéo ou audio est présente. */
+const hasVideoOrAudioSection = computed(() =>
+    props.sections.some((s) => s.type === 'video' || s.type === 'audio'),
+);
 
 // ─── Contenu partagé ──────────────────────────────────────────────────────────
 
@@ -1251,7 +1311,14 @@ async function annulerRemise(): Promise<void> {
 
 async function sauvegarderAnnotation(
     champ: string,
-    payload: { commentaire_id: string; contenu: string; html: string; type: string },
+    payload: {
+        commentaire_id: string;
+        contenu: string;
+        html: string;
+        type: string;
+        cible_user_id?: number | null;
+        points_malus?: number | null;
+    },
 ): Promise<void> {
     const response = await axios.put(`${baseUrl.value}/annotations`, { champ, ...payload });
 
@@ -1267,6 +1334,8 @@ async function sauvegarderAnnotation(
     if (existingIndex !== -1) {
         annotations[champ][existingIndex].contenu = response.data.contenu;
         annotations[champ][existingIndex].type = response.data.type;
+        annotations[champ][existingIndex].cible_user_id = response.data.cible_user_id;
+        annotations[champ][existingIndex].points_malus = response.data.points_malus;
     } else {
         annotations[champ].push({
             id: response.data.id,
@@ -1274,6 +1343,8 @@ async function sauvegarderAnnotation(
             contenu: response.data.contenu,
             type: response.data.type,
             user_id: response.data.user_id,
+            cible_user_id: response.data.cible_user_id,
+            points_malus: response.data.points_malus,
         });
     }
 }
@@ -1372,7 +1443,8 @@ const editorsInitialises = ref(new Set<string>());
  *
  * - Premier rapport (montage de l'éditeur) : pas de suppression — les autres éditeurs
  *   n'ont pas encore eu le temps de signaler leurs IDs, ce qui provoquerait des faux positifs.
- * - Rapports suivants : si un renvoiId disparaît de TOUS les éditeurs, sa référence est supprimée.
+ * - Rapports suivants : si un renvoiId disparaît de TOUS les éditeurs, le modal de
+ *   confirmation s'ouvre (source='editeur') plutôt que de supprimer silencieusement.
  */
 function handleRenvoisUtilises(editorId: string, ids: number[]): void {
     const isFirstReport = !editorsInitialises.value.has(editorId);
@@ -1383,10 +1455,10 @@ function handleRenvoisUtilises(editorId: string, ids: number[]): void {
 
     if (isFirstReport) return;
 
-    // IDs retirés de cet éditeur ET absents de tous les autres éditeurs → supprimer la référence
+    // IDs retirés de cet éditeur ET absents de tous les autres éditeurs → demander confirmation
     const tousLesIds = new Set([...renvoisParEditor.value.values()].flat());
     const aSupprimer = previousIds.filter((id) => !tousLesIds.has(id));
-    aSupprimer.forEach((id) => supprimerRenvoi(id));
+    aSupprimer.forEach((id) => demanderSupprimerRenvoi(id, 'editeur'));
 }
 
 /**
@@ -1458,6 +1530,85 @@ async function supprimerRenvoi(renvoiId: number) {
     }
 }
 
+// ─── Confirmation suppression de référence (bouton 🗑️ ou exposant retiré) ───
+
+/** ID du renvoi ciblé par le modal de confirmation. */
+const renvoisSupprimerCibleId = ref<number | null>(null);
+/** true → le modal de confirmation est visible. */
+const renvoisSupprimerModalOuvert = ref(false);
+/** true pendant l'appel API de suppression déclenché via le modal. */
+const renvoisSupprimerEnCours = ref(false);
+/**
+ * 'bouton' → clic sur 🗑️ dans la liste des références.
+ * 'editeur' → l'exposant a été retiré directement dans TipTap.
+ */
+const renvoisSupprimerSource = ref<'bouton' | 'editeur'>('bouton');
+/** File d'attente pour les suppressions simultanées (multi-exposants retirés d'un coup). */
+const renvoisSupprimerFile = ref<Array<{ id: number; source: 'bouton' | 'editeur' }>>([]);
+
+/** Description du modal selon la source de la demande. */
+const renvoisSupprimerDescription = computed(() =>
+    renvoisSupprimerSource.value === 'editeur'
+        ? "L'exposant a été retiré du texte. Voulez-vous aussi supprimer la note de référence correspondante ?"
+        : 'Cette note de renvoi sera définitivement supprimée. Les exposants correspondants seront retirés du texte.',
+);
+
+/**
+ * Ouvre le modal de confirmation avant de supprimer un renvoi.
+ * Appelé par le bouton 🗑️ (source='bouton') ou lorsque l'éditeur TipTap détecte
+ * qu'un exposant a été retiré du texte (source='editeur').
+ * Si le modal est déjà ouvert, la demande est mise en file d'attente.
+ *
+ * @param renvoiId  ID du renvoi à supprimer.
+ * @param source    Origine de la demande ('bouton' par défaut).
+ */
+function demanderSupprimerRenvoi(renvoiId: number, source: 'bouton' | 'editeur' = 'bouton'): void {
+    if (renvoisSupprimerModalOuvert.value) {
+        renvoisSupprimerFile.value.push({ id: renvoiId, source });
+        return;
+    }
+    renvoisSupprimerCibleId.value = renvoiId;
+    renvoisSupprimerSource.value = source;
+    renvoisSupprimerModalOuvert.value = true;
+}
+
+/** Traite la prochaine demande en file d'attente, si elle existe. */
+function processerFileSuppressionRenvois(): void {
+    const next = renvoisSupprimerFile.value.shift();
+    if (next) {
+        nextTick().then(() => demanderSupprimerRenvoi(next.id, next.source));
+    }
+}
+
+/** Confirme et exécute la suppression après validation dans le modal. */
+async function confirmerSupprimerRenvoi(): Promise<void> {
+    if (!renvoisSupprimerCibleId.value) return;
+    renvoisSupprimerEnCours.value = true;
+    try {
+        await supprimerRenvoi(renvoisSupprimerCibleId.value);
+        renvoisSupprimerModalOuvert.value = false;
+    } finally {
+        renvoisSupprimerEnCours.value = false;
+        renvoisSupprimerCibleId.value = null;
+        processerFileSuppressionRenvois();
+    }
+}
+
+/**
+ * Ferme le modal après annulation par l'utilisateur (X, Escape, clic extérieur)
+ * et traite la prochaine demande en file d'attente.
+ * Appelé uniquement par @update:open du ConfirmationModal (pas par confirmerSupprimerRenvoi).
+ *
+ * @param ouvert  Nouvelle valeur de visibilité émise par le modal.
+ */
+function onModalRenvoisUpdateOpen(ouvert: boolean): void {
+    renvoisSupprimerModalOuvert.value = ouvert;
+    if (!ouvert) {
+        renvoisSupprimerCibleId.value = null;
+        processerFileSuppressionRenvois();
+    }
+}
+
 /**
  * Décrémente le numéro de tous les renvois dont le numéro dépasse celui du renvoi supprimé,
  * met à jour renvoisLocaux réactivement (ce qui déclenche le watcher dans RichEditor),
@@ -1491,6 +1642,14 @@ const notesGrille = reactive<Record<number, Record<number, number | undefined>>>
         ]),
     ),
 );
+
+
+/** Applique ou retire un malus sur tous les membres du groupe. */
+async function toggleMalusGrillePourTous(malusId: number, applique: boolean): Promise<void> {
+    for (const membre of props.membres) {
+        await toggleMalusGrille(malusId, membre.id, applique);
+    }
+}
 
 // malusGrille[userId][malusId] = applique
 const malusGrille = reactive<Record<number, Record<number, boolean>>>(
@@ -1689,6 +1848,16 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         <SpellCheck class="mr-2 h-4 w-4" />
                         Corriger tout avec Antidote
                     </Button>
+                    <!-- Consentement vidéo — affiché si au moins une section vidéo/audio existe -->
+                    <ConsentementVideo
+                        v-if="hasVideoOrAudioSection && !estEnseignant"
+                        :params="{
+                            cours: classe.cours_id,
+                            groupe: groupe.id,
+                            typeProjet: typeProjet.id,
+                        }"
+                        :consentement="consentement"
+                    />
                     <Button v-if="estEnseignant" variant="ghost" size="sm" as-child>
                         <Link href="/types-projets">
                             <Settings2 class="mr-2 h-4 w-4" />
@@ -1818,6 +1987,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         :renvois="renvoisLocaux"
                         :renvois-sync-version="renvoisSyncVersion"
                         editor-id="page-titre-contenu"
+                        :membres="membres"
                         @update:model-value="scheduleSharedSave"
                         @save-annotation="(p) => sauvegarderAnnotation('page_titre_contenu', p)"
                         @delete-annotation="(p) => supprimerAnnotation('page_titre_contenu', p)"
@@ -1874,6 +2044,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         :renvois="renvoisLocaux"
                         :renvois-sync-version="renvoisSyncVersion"
                         editor-id="page-titre-contenu"
+                        :membres="membres"
                         @update:model-value="scheduleSharedSave"
                         @save-annotation="(p) => sauvegarderAnnotation('page_titre_contenu', p)"
                         @delete-annotation="(p) => supprimerAnnotation('page_titre_contenu', p)"
@@ -1934,6 +2105,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :renvois="renvoisLocaux"
                             :renvois-sync-version="renvoisSyncVersion"
                             editor-id="table-matieres-contenu"
+                            :membres="membres"
                             @update:model-value="scheduleSharedSave"
                             @save-annotation="(p) => sauvegarderAnnotation('table_matieres_contenu', p)"
                             @delete-annotation="(p) => supprimerAnnotation('table_matieres_contenu', p)"
@@ -1957,10 +2129,12 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                     {{ section.description }}
                                 </span>
                             </CardTitle>
-                            <Button variant="ghost" size="icon" @click="toggleSection(`section_${section.id}`)">
-                                <ChevronUp v-if="!collapsed[`section_${section.id}`]" class="h-4 w-4" />
-                                <ChevronDown v-else class="h-4 w-4" />
-                            </Button>
+                            <div class="flex items-center gap-1">
+                                <Button variant="ghost" size="icon" @click="toggleSection(`section_${section.id}`)">
+                                    <ChevronUp v-if="!collapsed[`section_${section.id}`]" class="h-4 w-4" />
+                                    <ChevronDown v-else class="h-4 w-4" />
+                                </Button>
+                            </div>
                         </CardHeader>
                         <CardContent v-show="!collapsed[`section_${section.id}`]" class="space-y-4">
                             <RichEditor
@@ -1972,6 +2146,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 :renvois="renvoisLocaux"
                                 :renvois-sync-version="renvoisSyncVersion"
                                 :editor-id="`section-${section.id}`"
+                                :membres="membres"
                                 @update:model-value="scheduleSectionSave(section.id)"
                                 @save-annotation="(p) => sauvegarderAnnotation(`section_${section.id}`, p)"
                                 @delete-annotation="(p) => supprimerAnnotation(`section_${section.id}`, p)"
@@ -2048,6 +2223,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                     :renvois="renvoisLocaux"
                                     :renvois-sync-version="renvoisSyncVersion"
                                     :editor-id="`section-paragraphe-${para.id}`"
+                                    :membres="membres"
                                     @update:model-value="(val: string) => { para.contenu = val; scheduleSectionParagrapheSave(para.id, section.id); }"
                                     @save-annotation="(p) => sauvegarderAnnotation(`section_paragraphe_${para.id}`, p)"
                                     @delete-annotation="(p) => supprimerAnnotation(`section_paragraphe_${para.id}`, p)"
@@ -2143,8 +2319,8 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         </Card>
                     </template>
 
-                    <!-- ── Type entrevue : concepts + tableau dim/indic/questions ── -->
-                    <template v-else-if="section.type === 'entrevue'">
+                    <!-- ── Type entrevue DEP/Complet : concepts + tableau dim/indic/questions ── -->
+                    <template v-else-if="section.type === 'entrevue' && cours.type_cours !== 'cours_complementaire'">
                         <!-- Compteur de questions -->
                         <div class="mb-2 flex items-center justify-between">
                             <span class="text-sm text-muted-foreground">
@@ -2312,6 +2488,152 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         </div>
                     </template>
 
+                    <!-- ── Type vidéo : lecteur + upload de vidéos ───────────── -->
+                    <Card v-else-if="section.type === 'video'">
+                        <CardHeader>
+                            <CardTitle class="flex flex-col gap-0.5">
+                                <span class="text-base font-semibold">{{ section.label }}</span>
+                                <span v-if="section.description" class="text-sm font-normal text-muted-foreground">
+                                    {{ section.description }}
+                                </span>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <SectionVideo
+                                :params="{
+                                    cours: classe.cours_id,
+                                    classe: classe.id,
+                                    groupe: groupe.id,
+                                    typeProjet: typeProjet.id,
+                                    section: section.id,
+                                }"
+                                :medias="section.medias ?? []"
+                                :readonly="!peutEditer"
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <!-- ── Type entrevue CC : question principale + sous-questions ─ -->
+                    <Card v-else-if="section.type === 'entrevue' && cours.type_cours === 'cours_complementaire'">
+                        <CardHeader>
+                            <CardTitle class="text-base font-semibold">{{ section.label }}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <SectionEntrevueCC
+                                :params="{
+                                    cours: classe.cours_id,
+                                    classe: classe.id,
+                                    groupe: groupe.id,
+                                    typeProjet: typeProjet.id,
+                                    section: section.id,
+                                }"
+                                :concepts="section.concepts ?? []"
+                                :readonly="!peutEditer"
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <!-- ── Type audio : lecteur + upload d'audios ────────────── -->
+                    <Card v-else-if="section.type === 'audio'">
+                        <CardHeader>
+                            <CardTitle class="flex flex-col gap-0.5">
+                                <span class="text-base font-semibold">{{ section.label }}</span>
+                                <span v-if="section.description" class="text-sm font-normal text-muted-foreground">
+                                    {{ section.description }}
+                                </span>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <SectionAudio
+                                :params="{
+                                    cours: classe.cours_id,
+                                    classe: classe.id,
+                                    groupe: groupe.id,
+                                    typeProjet: typeProjet.id,
+                                    section: section.id,
+                                }"
+                                :medias="section.medias ?? []"
+                                :readonly="!peutEditer"
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <!-- ── Type choix_questions : sélection de questions dans la banque ─ -->
+                    <Card v-else-if="section.type === 'choix_questions'">
+                        <CardHeader>
+                            <CardTitle class="flex flex-col gap-0.5">
+                                <span class="text-base font-semibold">{{ section.label }}</span>
+                                <span v-if="section.description" class="text-sm font-normal text-muted-foreground">
+                                    {{ section.description }}
+                                </span>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <SectionChoixQuestions
+                                :params="{
+                                    cours: classe.cours_id,
+                                    classe: classe.id,
+                                    groupe: groupe.id,
+                                    typeProjet: typeProjet.id,
+                                    section: section.id,
+                                }"
+                                :questions="section.questions ?? []"
+                                :questions-choisies="section.questionsChoisies ?? []"
+                                :readonly="!peutEditer"
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <!-- ── Type tache : liste de tâches assignables ───────────── -->
+                    <Card v-else-if="section.type === 'tache'">
+                        <CardHeader>
+                            <CardTitle class="flex flex-col gap-0.5">
+                                <span class="text-base font-semibold">{{ section.label }}</span>
+                                <span v-if="section.description" class="text-sm font-normal text-muted-foreground">
+                                    {{ section.description }}
+                                </span>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <SectionTache
+                                :params="{
+                                    cours: classe.cours_id,
+                                    classe: classe.id,
+                                    groupe: groupe.id,
+                                    typeProjet: typeProjet.id,
+                                }"
+                                :taches="section.taches ?? []"
+                                :membres="membres"
+                                :readonly="!peutEditer"
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <!-- ── Type schema_visuel : schéma DEP drag-and-drop ─────── -->
+                    <Card v-else-if="section.type === 'schema_visuel'">
+                        <CardHeader>
+                            <CardTitle class="flex flex-col gap-0.5">
+                                <span class="text-base font-semibold">{{ section.label }}</span>
+                                <span v-if="section.description" class="text-sm font-normal text-muted-foreground">
+                                    {{ section.description }}
+                                </span>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <SectionSchemaVisuel
+                                :params="{
+                                    cours: classe.cours_id,
+                                    classe: classe.id,
+                                    groupe: groupe.id,
+                                    typeProjet: typeProjet.id,
+                                    section: section.id,
+                                }"
+                                :schema-visuel="section.schemaVisuel"
+                                :read-only="!peutEditer"
+                            />
+                        </CardContent>
+                    </Card>
+
                 </template>
             </template>
 
@@ -2369,6 +2691,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :renvois="renvoisLocaux"
                             :renvois-sync-version="renvoisSyncVersion"
                             editor-id="introduction-amener"
+                            :membres="membres"
                             @save-annotation="(p) => sauvegarderAnnotation('introduction_amener', p)"
                             @delete-annotation="(p) => supprimerAnnotation('introduction_amener', p)"
                             @demander-renvoi="creerEtInsererRenvoi"
@@ -2412,6 +2735,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :renvois="renvoisLocaux"
                             :renvois-sync-version="renvoisSyncVersion"
                             editor-id="introduction-poser"
+                            :membres="membres"
                             @save-annotation="(p) => sauvegarderAnnotation('introduction_poser', p)"
                             @delete-annotation="(p) => supprimerAnnotation('introduction_poser', p)"
                             @demander-renvoi="creerEtInsererRenvoi"
@@ -2451,6 +2775,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :renvois="renvoisLocaux"
                             :renvois-sync-version="renvoisSyncVersion"
                             editor-id="introduction-diviser"
+                            :membres="membres"
                             @save-annotation="(p) => sauvegarderAnnotation('introduction_diviser', p)"
                             @delete-annotation="(p) => supprimerAnnotation('introduction_diviser', p)"
                             @demander-renvoi="creerEtInsererRenvoi"
@@ -2550,6 +2875,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         :renvois="renvoisLocaux"
                         :renvois-sync-version="renvoisSyncVersion"
                         :editor-id="`developpement-${dev.id}`"
+                        :membres="membres"
                         @update:model-value="(val: string) => { dev.contenu = val; scheduleDeveloppementSave(dev.id); }"
                         @save-annotation="(p) => sauvegarderAnnotation(`developpement_${dev.id}`, p)"
                         @delete-annotation="(p) => supprimerAnnotation(`developpement_${dev.id}`, p)"
@@ -2722,7 +3048,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 size="icon"
                                 class="mt-1 h-7 w-7 shrink-0 text-destructive"
                                 title="Supprimer cette référence"
-                                @click="supprimerRenvoi(renvoi.id)"
+                                @click="demanderSupprimerRenvoi(renvoi.id)"
                             >
                                 <Trash2 class="h-3.5 w-3.5" />
                             </Button>
@@ -2923,6 +3249,18 @@ function setOngletActif(section: string, membreId: number | 'tous') {
             @update:open="showAntidoteGlobal = $event"
             @corrected="onSectionsCorrigees"
         />
+
+        <!-- ─── Modal confirmation suppression de référence ─────────────────── -->
+        <ConfirmationModal
+            :open="renvoisSupprimerModalOuvert"
+            title="Supprimer cette référence ?"
+            :description="renvoisSupprimerDescription"
+            confirm-label="Oui, supprimer"
+            :loading="renvoisSupprimerEnCours"
+            @update:open="onModalRenvoisUpdateOpen"
+            @confirm="confirmerSupprimerRenvoi"
+        />
+
 
     </AppLayout>
 </template>

@@ -37,7 +37,14 @@ type TypeProjet = {
     sections: { id: number; label: string; description: string | null; ordre: number; type: SectionType }[];
 };
 
+type Cours = {
+    id: number;
+    nom_cours: string;
+    code: string;
+};
+
 type Props = {
+    cours: Cours;
     typeProjet: TypeProjet;
 };
 
@@ -108,7 +115,7 @@ function supprimerSection(idx: number) {
  * Soumet le formulaire complet via PUT.
  */
 function sauvegarder() {
-    form.put(typesProjets.update.url(props.typeProjet.id), {
+    form.put(typesProjets.update.url({ cours: props.cours.id, typeProjet: props.typeProjet.id }), {
         onSuccess: () => {
             // Reste sur la page — le flash success s'affiche via Inertia
         },
@@ -124,7 +131,7 @@ function sauvegarder() {
             <!-- En-tête -->
             <div>
                 <Link
-                    :href="typesProjets.index.url()"
+                    :href="typesProjets.index.url(props.cours.id)"
                     class="mb-3 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
                 >
                     <ArrowLeft class="h-3.5 w-3.5" />

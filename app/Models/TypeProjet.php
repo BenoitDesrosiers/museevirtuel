@@ -13,6 +13,7 @@ class TypeProjet extends Model
 
     protected $fillable = [
         'enseignant_id',
+        'cours_id',
         'nom',
         'description',
         'accessible',
@@ -21,6 +22,8 @@ class TypeProjet extends Model
         'retard_permis',
         'generer_page_titre',
         'generer_table_matieres',
+        'ponderation',
+        'is_sommatif',
     ];
 
     protected function casts(): array
@@ -32,6 +35,8 @@ class TypeProjet extends Model
             'retard_permis' => 'boolean',
             'generer_page_titre' => 'boolean',
             'generer_table_matieres' => 'boolean',
+            'ponderation' => 'decimal:2',
+            'is_sommatif' => 'boolean',
         ];
     }
 
@@ -41,6 +46,14 @@ class TypeProjet extends Model
     public function enseignant(): BelongsTo
     {
         return $this->belongsTo(User::class, 'enseignant_id');
+    }
+
+    /**
+     * Retourne le cours auquel ce type de projet est rattaché.
+     */
+    public function cours(): BelongsTo
+    {
+        return $this->belongsTo(Cours::class);
     }
 
     /**
@@ -65,5 +78,13 @@ class TypeProjet extends Model
     public function projets(): HasMany
     {
         return $this->hasMany(ProjetRecherche::class, 'type_projet_id');
+    }
+
+    /**
+     * Retourne les tâches définies par l'enseignant pour ce type de projet, triées par ordre.
+     */
+    public function taches(): HasMany
+    {
+        return $this->hasMany(TypeProjetTache::class, 'type_projet_id')->orderBy('ordre');
     }
 }

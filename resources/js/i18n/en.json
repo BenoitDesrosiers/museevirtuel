@@ -562,6 +562,8 @@
         "label_description": "Tell us about yourself",
         "description_bio_hint": "Who are you? Where are you from? What brought you to this approach?",
         "placeholder_description": "I was born in…",
+        "label_disponible_appel_distance": "Available for remote video call",
+        "hint_disponible_appel_distance": "Check this box if you agree to meet students via videoconference.",
         "submit": "Submit my request"
     },
     "inscription_engagements": {
@@ -714,5 +716,26 @@
         "section_not_written": "(Section not written)",
         "no_paragraphs": "(No paragraphs written)",
         "no_conclusions": "(No conclusions written)"
+    },
+    "signature": {
+        "clear": "Clear",
+        "hint": "Sign in the box above"
+    },
+    "consentement": {
+        "title": "Video Consent",
+        "description": "By signing, you consent to be filmed as part of this project.",
+        "accept": "I consent to being filmed",
+        "save": "Save consent",
+        "signed_on": "Signed on {date}",
+        "not_signed": "Not signed"
+    },
+    "media": {
+        "add_video": "Add a video",
+        "add_audio": "Add audio",
+        "url_placeholder": "https://...",
+        "upload_label": "File",
+        "source_url": "URL link",
+        "source_upload": "Upload a file",
+        "delete_confirm": "Delete this media?"
     }
 }

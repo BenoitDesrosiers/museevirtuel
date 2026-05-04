@@ -51,6 +51,7 @@ const form = useForm({
     password_confirmation: '',
     choix: [] as Choix[],
     description: '',
+    disponible_appel_distance: false,
 });
 
 // ─── Gestion des cégeps ajoutés ───────────────────────────────────────────────
@@ -298,6 +299,30 @@ function submit() {
                     :placeholder="$t('inscription_temoin.placeholder_description')"
                 />
                 <InputError :message="form.errors.description" />
+            </div>
+
+            <!-- Disponibilité appel à distance -->
+            <div class="flex items-start gap-3">
+                <div
+                    class="mt-0.5 size-4 shrink-0 rounded-[4px] border shadow-xs flex items-center justify-center transition-colors cursor-pointer"
+                    :class="form.disponible_appel_distance
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'border-input bg-background'"
+                    @click="form.disponible_appel_distance = !form.disponible_appel_distance"
+                >
+                    <Check v-if="form.disponible_appel_distance" class="size-3.5" />
+                </div>
+                <div class="grid gap-1">
+                    <label
+                        class="text-sm font-medium cursor-pointer"
+                        @click="form.disponible_appel_distance = !form.disponible_appel_distance"
+                    >
+                        {{ $t('inscription_temoin.label_disponible_appel_distance') }}
+                    </label>
+                    <p class="text-xs text-muted-foreground">
+                        {{ $t('inscription_temoin.hint_disponible_appel_distance') }}
+                    </p>
+                </div>
             </div>
 
             <Button type="submit" class="w-full" :disabled="form.processing">

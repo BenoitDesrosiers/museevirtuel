@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\TypeCours;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreCoursRequest extends FormRequest
 {
@@ -18,7 +20,7 @@ class StoreCoursRequest extends FormRequest
     /**
      * Retourne les règles de validation pour la création d'un cours.
      *
-     * @return array<string, array<int, string>>
+     * @return array<string, array<int, mixed>>
      */
     public function rules(): array
     {
@@ -27,6 +29,9 @@ class StoreCoursRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'code' => ['required', 'string', 'max:20'],
             'groupe' => ['required', 'string', 'max:20'],
+            'type_cours' => ['nullable', Rule::enum(TypeCours::class)],
+            'taille_equipe_min' => ['nullable', 'integer', 'min:1', 'max:20'],
+            'taille_equipe_max' => ['nullable', 'integer', 'min:1', 'max:20', 'gte:taille_equipe_min'],
         ];
     }
 }

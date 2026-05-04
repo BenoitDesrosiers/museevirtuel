@@ -129,6 +129,7 @@ class InscriptionTemoinController extends Controller
             'choix.*.thematique_ids.*' => ['integer', 'exists:thematiques,id'],
             'choix.*.theme_libre' => ['nullable', 'string', 'max:500'],
             'description' => ['required', 'string', 'max:2000'],
+            'disponible_appel_distance' => ['boolean'],
         ]);
     }
 
@@ -147,6 +148,7 @@ class InscriptionTemoinController extends Controller
             'role' => 'personne_agee',
             'statut' => 'en_attente',
             'description' => $step1['description'],
+            'disponible_appel_distance' => $step1['disponible_appel_distance'] ?? false,
             'engagements_acceptes_le' => now(),
             'signature_electronique' => $signature,
         ]);

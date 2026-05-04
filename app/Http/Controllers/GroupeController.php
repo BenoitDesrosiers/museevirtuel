@@ -9,6 +9,7 @@ use App\Models\GroupeNote;
 use App\Models\GroupeNoteCorrection;
 use App\Models\Thematique;
 use App\Models\User;
+use App\Models\VisioConference;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -98,6 +99,17 @@ class GroupeController extends Controller
         // Exclure les membres déjà dans un autre groupe de la même classe
         $membresInscrits = array_diff($membresInscrits, $this->membresDejaGroupes($classe));
 
+        // Vérifier les contraintes de taille d'équipe du cours
+        $totalMembres = count(array_unique(array_merge([(int) $user->id], $membresInscrits)));
+
+        if ($cours->taille_equipe_min !== null && $totalMembres < $cours->taille_equipe_min) {
+            return back()->withErrors(['membres' => "Le groupe doit avoir au moins {$cours->taille_equipe_min} membre(s) (vous inclus)."]);
+        }
+
+        if ($cours->taille_equipe_max !== null && $totalMembres > $cours->taille_equipe_max) {
+            return back()->withErrors(['membres' => "Le groupe ne peut pas avoir plus de {$cours->taille_equipe_max} membre(s)."]);
+        }
+
         $thematiquesValides = $this->thematiquesVisibles($cours->enseignant)
             ->whereIn('id', $validated['thematiques'] ?? [])
             ->pluck('id')
@@ -184,6 +196,32 @@ class GroupeController extends Controller
         $tousLesTemoins->each(fn ($t) => $t->makeHidden('thematiquesChoisies'));
         $temoinsDisponibles->each(fn ($t) => $t->makeHidden('thematiquesChoisies'));
 
+        // Sessions visio pour ce groupe : ciblées au groupe ou ouvertes à tout le cours
+        $visioConferences = VisioConference::where('cours_id', $cours->id)
+            ->where(fn ($q) => $q
+                ->whereNull('groupe_id')
+                ->orWhere('groupe_id', $groupe->id)
+            )
+            ->with('animateur:id,prenom,nom')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn (VisioConference $v) => [
+                'id' => $v->id,
+                'cours_id' => $v->cours_id,
+                'groupe_id' => $v->groupe_id,
+                'jitsi_room' => $v->jitsi_room,
+                'titre' => $v->titre,
+                'scheduled_at' => $v->scheduled_at?->toIso8601String(),
+                'started_at' => $v->started_at?->toIso8601String(),
+                'ended_at' => $v->ended_at?->toIso8601String(),
+                'recording_url' => $v->recording_url,
+                'animateur' => [
+                    'id' => $v->animateur->id,
+                    'prenom' => $v->animateur->prenom,
+                    'nom' => $v->animateur->nom,
+                ],
+            ]);
+
         return Inertia::render('Groupes/Show', [
             'groupe' => $groupe,
             'classe' => $classe->only('id', 'code', 'cours_id'),
@@ -195,6 +233,7 @@ class GroupeController extends Controller
             'etudiantsDispo' => $etudiantsDispo,
             'temoinsDisponibles' => $temoinsDisponibles,
             'tousLesTemoins' => $tousLesTemoins,
+            'visioConferences' => $visioConferences,
         ]);
     }
 
@@ -220,26 +259,46 @@ class GroupeController extends Controller
 
         $user = auth()->user();
 
-        DB::transaction(function () use ($validated, $user, $classe, $groupe) {
-            if (! empty($validated['ajouter'])) {
-                $aAjouter = $classe->etudiants()
-                    ->whereIn('users.id', $validated['ajouter'])
-                    ->pluck('users.id')
-                    ->map(fn ($id) => (int) $id)
-                    ->toArray();
+        // Pré-calculer les changements avant transaction pour pouvoir valider la taille
+        $aAjouter = [];
+        if (! empty($validated['ajouter'])) {
+            $aAjouter = $classe->etudiants()
+                ->whereIn('users.id', $validated['ajouter'])
+                ->pluck('users.id')
+                ->map(fn ($id) => (int) $id)
+                ->toArray();
 
-                // Exclure les étudiants déjà dans un autre groupe de la même classe
-                $aAjouter = array_diff($aAjouter, $this->membresDejaGroupes($classe, $groupe->id));
+            // Exclure les étudiants déjà dans un autre groupe de la même classe
+            $aAjouter = array_values(array_diff($aAjouter, $this->membresDejaGroupes($classe, $groupe->id)));
+        }
 
-                if (! empty($aAjouter)) {
-                    $groupe->membres()->syncWithoutDetaching($aAjouter);
-                }
+        $aRetirer = array_values(array_diff(
+            array_map('intval', $validated['retirer'] ?? []),
+            [(int) $user->id]
+        ));
+
+        // Vérifier les contraintes de taille d'équipe du cours
+        if ($cours->taille_equipe_min !== null || $cours->taille_equipe_max !== null) {
+            $membresCourants = $groupe->membres()->pluck('users.id')->map(fn ($id) => (int) $id)->toArray();
+            $nouveauxMembres = array_values(array_unique(array_diff(
+                array_merge($membresCourants, $aAjouter),
+                $aRetirer,
+            )));
+            $totalMembres = count($nouveauxMembres);
+
+            if ($cours->taille_equipe_min !== null && $totalMembres < $cours->taille_equipe_min) {
+                return back()->withErrors(['membres' => "Le groupe doit avoir au moins {$cours->taille_equipe_min} membre(s)."]);
             }
 
-            $aRetirer = array_diff(
-                array_map('intval', $validated['retirer'] ?? []),
-                [(int) $user->id]
-            );
+            if ($cours->taille_equipe_max !== null && $totalMembres > $cours->taille_equipe_max) {
+                return back()->withErrors(['membres' => "Le groupe ne peut pas avoir plus de {$cours->taille_equipe_max} membre(s)."]);
+            }
+        }
+
+        DB::transaction(function () use ($aAjouter, $aRetirer, $groupe) {
+            if (! empty($aAjouter)) {
+                $groupe->membres()->syncWithoutDetaching($aAjouter);
+            }
 
             if (! empty($aRetirer)) {
                 $groupe->membres()->detach($aRetirer);

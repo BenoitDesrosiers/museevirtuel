@@ -3,8 +3,11 @@
 use App\Http\Controllers\AdministrationController;
 use App\Http\Controllers\ClasseController;
 use App\Http\Controllers\ClasseEtudiantController;
+use App\Http\Controllers\ConsentementVideoController;
 use App\Http\Controllers\CoursController;
 use App\Http\Controllers\CoursDocumentController;
+use App\Http\Controllers\CoursLienEntrevueController;
+use App\Http\Controllers\CoursObjectifController;
 use App\Http\Controllers\EcheancierController;
 use App\Http\Controllers\EnseignantController;
 use App\Http\Controllers\EntrevueConceptController;
@@ -14,11 +17,17 @@ use App\Http\Controllers\GrilleCorrectionController;
 use App\Http\Controllers\GroupeController;
 use App\Http\Controllers\GroupeEchangeController;
 use App\Http\Controllers\GroupeMediaController;
+use App\Http\Controllers\GroupeTacheController;
 use App\Http\Controllers\InscriptionTemoinController;
 use App\Http\Controllers\PersonneAgeeController;
 use App\Http\Controllers\ProjetRechercheController;
+use App\Http\Controllers\ProjetSchemaVisuelController;
+use App\Http\Controllers\ProjetSectionMediaController;
+use App\Http\Controllers\QuestionBanqueController;
 use App\Http\Controllers\ThematiqueController;
 use App\Http\Controllers\TypeProjetController;
+use App\Http\Controllers\TypeProjetTacheController;
+use App\Http\Controllers\VisioConferenceController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -177,53 +186,105 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
     Route::put('/enseignant/temoins/{user}/desapprouver', [EnseignantController::class, 'desapprouverTemoin'])
         ->name('enseignant.temoins.desapprouver');
 
-    // Types de projet (enseignant/admin)
-    Route::get('/types-projets', [TypeProjetController::class, 'index'])
+    // Objectifs pédagogiques du cours
+    Route::post('/cours/{cours}/objectifs', [CoursObjectifController::class, 'store'])
+        ->name('cours.objectifs.store');
+
+    Route::patch('/cours/{cours}/objectifs/reorder', [CoursObjectifController::class, 'reorder'])
+        ->name('cours.objectifs.reorder');
+
+    Route::put('/cours/{cours}/objectifs/{objectif}', [CoursObjectifController::class, 'update'])
+        ->name('cours.objectifs.update');
+
+    Route::delete('/cours/{cours}/objectifs/{objectif}', [CoursObjectifController::class, 'destroy'])
+        ->name('cours.objectifs.destroy');
+
+    // Types de projet — imbriqués sous le cours
+    Route::get('/cours/{cours}/types-projets', [TypeProjetController::class, 'index'])
         ->name('types-projets.index');
 
-    Route::get('/types-projets/create', [TypeProjetController::class, 'create'])
+    Route::get('/cours/{cours}/types-projets/create', [TypeProjetController::class, 'create'])
         ->name('types-projets.create');
 
-    Route::post('/types-projets', [TypeProjetController::class, 'store'])
+    Route::post('/cours/{cours}/types-projets', [TypeProjetController::class, 'store'])
         ->name('types-projets.store');
 
-    Route::get('/types-projets/{typeProjet}/edit', [TypeProjetController::class, 'edit'])
+    Route::get('/cours/{cours}/types-projets/{typeProjet}/edit', [TypeProjetController::class, 'edit'])
         ->name('types-projets.edit');
 
-    Route::put('/types-projets/{typeProjet}', [TypeProjetController::class, 'update'])
+    Route::put('/cours/{cours}/types-projets/{typeProjet}', [TypeProjetController::class, 'update'])
         ->name('types-projets.update');
 
-    Route::patch('/types-projets/{typeProjet}/toggle-accessible', [TypeProjetController::class, 'toggleAccessible'])
+    Route::patch('/cours/{cours}/types-projets/{typeProjet}/toggle-accessible', [TypeProjetController::class, 'toggleAccessible'])
         ->name('types-projets.toggle-accessible');
 
-    Route::delete('/types-projets/{typeProjet}', [TypeProjetController::class, 'destroy'])
+    Route::delete('/cours/{cours}/types-projets/{typeProjet}', [TypeProjetController::class, 'destroy'])
         ->name('types-projets.destroy');
 
     // Sections du type de projet (définies par le professeur)
-    Route::post('/types-projets/{typeProjet}/sections', [TypeProjetController::class, 'storeSection'])
+    Route::post('/cours/{cours}/types-projets/{typeProjet}/sections', [TypeProjetController::class, 'storeSection'])
         ->name('types-projets.sections.store');
 
-    Route::put('/types-projets/{typeProjet}/sections/reorder', [TypeProjetController::class, 'reorderSections'])
+    Route::put('/cours/{cours}/types-projets/{typeProjet}/sections/reorder', [TypeProjetController::class, 'reorderSections'])
         ->name('types-projets.sections.reorder');
 
-    Route::put('/types-projets/{typeProjet}/sections/{section}', [TypeProjetController::class, 'updateSection'])
+    Route::put('/cours/{cours}/types-projets/{typeProjet}/sections/{section}', [TypeProjetController::class, 'updateSection'])
         ->name('types-projets.sections.update');
 
-    Route::delete('/types-projets/{typeProjet}/sections/{section}', [TypeProjetController::class, 'destroySection'])
+    Route::delete('/cours/{cours}/types-projets/{typeProjet}/sections/{section}', [TypeProjetController::class, 'destroySection'])
         ->name('types-projets.sections.destroy');
 
     // Grille de correction rattachée à un type de projet
-    Route::get('/types-projets/{typeProjet}/grille', [GrilleCorrectionController::class, 'edit'])
+    Route::get('/cours/{cours}/types-projets/{typeProjet}/grille', [GrilleCorrectionController::class, 'edit'])
         ->name('types-projets.grille.edit');
 
-    Route::post('/types-projets/{typeProjet}/grille', [GrilleCorrectionController::class, 'store'])
+    Route::post('/cours/{cours}/types-projets/{typeProjet}/grille', [GrilleCorrectionController::class, 'store'])
         ->name('types-projets.grille.store');
 
-    Route::put('/types-projets/{typeProjet}/grille', [GrilleCorrectionController::class, 'update'])
+    Route::put('/cours/{cours}/types-projets/{typeProjet}/grille', [GrilleCorrectionController::class, 'update'])
         ->name('types-projets.grille.update');
 
-    Route::delete('/types-projets/{typeProjet}/grille', [GrilleCorrectionController::class, 'destroy'])
+    Route::delete('/cours/{cours}/types-projets/{typeProjet}/grille', [GrilleCorrectionController::class, 'destroy'])
         ->name('types-projets.grille.destroy');
+
+    // Banque de questions (sections de type choix_questions) — gérées par l'enseignant
+    Route::post('/cours/{cours}/types-projets/{typeProjet}/sections/{section}/questions', [QuestionBanqueController::class, 'store'])
+        ->name('types-projets.sections.questions.store');
+
+    Route::patch('/cours/{cours}/types-projets/{typeProjet}/sections/{section}/questions/reorder', [QuestionBanqueController::class, 'reorder'])
+        ->name('types-projets.sections.questions.reorder');
+
+    Route::put('/cours/{cours}/types-projets/{typeProjet}/sections/{section}/questions/{question}', [QuestionBanqueController::class, 'update'])
+        ->name('types-projets.sections.questions.update');
+
+    Route::delete('/cours/{cours}/types-projets/{typeProjet}/sections/{section}/questions/{question}', [QuestionBanqueController::class, 'destroy'])
+        ->name('types-projets.sections.questions.destroy');
+
+    // Tâches du type de projet (définies par l'enseignant, section type 'tache')
+    Route::post('/cours/{cours}/types-projets/{typeProjet}/taches', [TypeProjetTacheController::class, 'store'])
+        ->name('types-projets.taches.store');
+
+    Route::patch('/cours/{cours}/types-projets/{typeProjet}/taches/reorder', [TypeProjetTacheController::class, 'reorder'])
+        ->name('types-projets.taches.reorder');
+
+    Route::put('/cours/{cours}/types-projets/{typeProjet}/taches/{tache}', [TypeProjetTacheController::class, 'update'])
+        ->name('types-projets.taches.update');
+
+    Route::delete('/cours/{cours}/types-projets/{typeProjet}/taches/{tache}', [TypeProjetTacheController::class, 'destroy'])
+        ->name('types-projets.taches.destroy');
+
+    // Liens d'entrevue du cours (définis par l'enseignant)
+    Route::post('/cours/{cours}/liens-entrevue', [CoursLienEntrevueController::class, 'store'])
+        ->name('cours.liens-entrevue.store');
+
+    Route::patch('/cours/{cours}/liens-entrevue/reorder', [CoursLienEntrevueController::class, 'reorder'])
+        ->name('cours.liens-entrevue.reorder');
+
+    Route::put('/cours/{cours}/liens-entrevue/{lien}', [CoursLienEntrevueController::class, 'update'])
+        ->name('cours.liens-entrevue.update');
+
+    Route::delete('/cours/{cours}/liens-entrevue/{lien}', [CoursLienEntrevueController::class, 'destroy'])
+        ->name('cours.liens-entrevue.destroy');
 
     // Échéancier du cours
     Route::post('/cours/{cours}/echeancier', [EcheancierController::class, 'store'])
@@ -240,6 +301,16 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
 
     Route::patch('/cours/{cours}/echeancier/{etape}/toggle', [EcheancierController::class, 'toggleDone'])
         ->name('echeancier.toggle');
+
+    // Visioconférences — créées et gérées par l'enseignant
+    Route::post('/cours/{cours}/visio', [VisioConferenceController::class, 'store'])
+        ->name('cours.visio.store');
+
+    Route::put('/cours/{cours}/visio/{visio}', [VisioConferenceController::class, 'update'])
+        ->name('cours.visio.update');
+
+    Route::delete('/cours/{cours}/visio/{visio}', [VisioConferenceController::class, 'destroy'])
+        ->name('cours.visio.destroy');
 });
 
 // ─── Étudiant ─────────────────────────────────────────────────────────────────
@@ -273,13 +344,17 @@ Route::middleware(['auth', 'role:etudiant'])->group(function () {
         ->name('echeancier.toggleEtudiant');
 });
 
-// ─── Échanges groupe ↔ témoin (tous les rôles auth concernés) ─────────────────
+// ─── Échanges groupe ↔ témoin + Consentement vidéo (tous les rôles auth concernés) ──
 Route::middleware(['auth', 'role:etudiant,enseignant,admin,personne_agee'])->group(function () {
     Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/echanges', [GroupeEchangeController::class, 'index'])
         ->name('groupes.echanges.index');
 
     Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/echanges', [GroupeEchangeController::class, 'store'])
         ->name('groupes.echanges.store');
+
+    // Consentement vidéo — membres du groupe + personne âgée
+    Route::post('/cours/{cours}/groupes/{groupe}/projets/{typeProjet}/consentement', [ConsentementVideoController::class, 'store'])
+        ->name('projets.consentement.store');
 });
 
 // ─── Corrections inline des notes (enseignant + admin) ────────────────────────
@@ -448,6 +523,31 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin'])->group(function ()
 
     Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/concepts/{concept}/lignes/{ligne}', [EntrevueConceptController::class, 'destroyLigne'])
         ->name('projets.sections.concepts.lignes.destroy');
+
+    // Médias de section (vidéo/audio) — upload ou URL
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/medias', [ProjetSectionMediaController::class, 'store'])
+        ->name('projets.sections.medias.store');
+
+    Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/medias/{media}', [ProjetSectionMediaController::class, 'destroy'])
+        ->name('projets.sections.medias.destroy');
+
+    // Schéma visuel DEP — sauvegarde JSON (upsert) + upload image
+    Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/schema', [ProjetSchemaVisuelController::class, 'update'])
+        ->name('projets.sections.schema.update');
+
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/schema/images', [ProjetSchemaVisuelController::class, 'uploadImage'])
+        ->name('projets.sections.schema.images');
+
+    // Choix de questions — étudiant sélectionne ses questions dans la banque
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/questions/choisir', [QuestionBanqueController::class, 'choisir'])
+        ->name('projets.sections.questions.choisir');
+
+    // Tâches du groupe — assignation d'un membre + toggle complété
+    Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/taches/{tache}/assigner', [GroupeTacheController::class, 'assigner'])
+        ->name('groupes.taches.assigner');
+
+    Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/taches/{tache}/toggle', [GroupeTacheController::class, 'toggleCompleted'])
+        ->name('groupes.taches.toggle');
 });
 
 require __DIR__.'/settings.php';

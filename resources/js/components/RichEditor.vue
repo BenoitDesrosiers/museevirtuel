@@ -73,7 +73,11 @@ type Annotation = {
     contenu: string;
     type: 'commentaire' | 'correction';
     user_id: number;
+    cible_user_id?: number | null;
+    points_malus?: number | null;
 };
+
+type Membre = { id: number; prenom: string; nom: string };
 
 type RenvoiBase = { id: number; numero: number; contenu: string | null };
 
@@ -84,6 +88,8 @@ const props = defineProps<{
     readOnly?: boolean;
     estEnseignant?: boolean;
     corrections?: Annotation[];
+    /** Liste des membres du groupe — si fournie, active le select étudiant dans le formulaire de correction. */
+    membres?: Membre[];
     /** Liste des renvois existants — si fournie, active le bouton ¹ dans la barre d'outils. */
     renvois?: RenvoiBase[];
     /** Identifiant unique de cet éditeur — si fourni, émet 'renvois-utilises' à chaque changement. */
@@ -103,6 +109,8 @@ const emit = defineEmits<{
             contenu: string;
             html: string;
             type: string;
+            cible_user_id?: number | null;
+            points_malus?: number | null;
         },
     ];
     'delete-annotation': [payload: { correction: Annotation; html: string; htmlOriginal: string }];
@@ -442,6 +450,10 @@ const brouillon = ref('');
 const savedRange = ref<Range | null>(null);
 const isDeletingId = ref<number | null>(null);
 const hoveredCommentId = ref<string | null>(null);
+/** Étudiant ciblé par la déduction — uniquement pour les corrections. */
+const cibleUserId = ref<number | null>(null);
+/** Points à retirer — uniquement pour les corrections. */
+const pointsMalus = ref<number | null>(null);
 const editingId = ref<number | null>(null);
 const panelAnnotationsVisible = ref(true);
 const activeAnnotationId = ref<string | null>(null);
@@ -523,9 +535,13 @@ function saveAnnotation(): void {
         contenu: brouillon.value.trim(),
         html: editor.value.getHTML(),
         type: annotationType.value,
+        cible_user_id: annotationType.value === 'correction' ? cibleUserId.value : null,
+        points_malus: annotationType.value === 'correction' ? pointsMalus.value : null,
     });
 
     brouillon.value = '';
+    cibleUserId.value = null;
+    pointsMalus.value = null;
     annotationType.value = 'commentaire';
     showBubble.value = false;
     savedRange.value = null;
@@ -534,6 +550,8 @@ function saveAnnotation(): void {
 function cancelBubble(): void {
     showBubble.value = false;
     brouillon.value = '';
+    cibleUserId.value = null;
+    pointsMalus.value = null;
     annotationType.value = 'commentaire';
     savedRange.value = null;
 }
@@ -1081,9 +1099,45 @@ function togglePanel(): void {
                             Correction
                         </label>
                     </div>
+                    <!-- Champs malus — uniquement pour les corrections -->
+                    <template v-if="annotationType === 'correction' && membres?.length">
+                        <div class="flex gap-2">
+                            <div class="flex-1">
+                                <label class="mb-0.5 block text-xs font-medium text-rose-700 dark:text-rose-300">
+                                    Étudiant
+                                </label>
+                                <select
+                                    v-model="cibleUserId"
+                                    class="w-full rounded border border-rose-300 bg-white px-1.5 py-1 text-xs dark:border-rose-700 dark:bg-rose-950 dark:text-rose-100"
+                                >
+                                    <option :value="null">— tous —</option>
+                                    <option
+                                        v-for="m in membres"
+                                        :key="m.id"
+                                        :value="m.id"
+                                    >
+                                        {{ m.prenom }} {{ m.nom }}
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="w-20">
+                                <label class="mb-0.5 block text-xs font-medium text-rose-700 dark:text-rose-300">
+                                    Pts à enlever
+                                </label>
+                                <input
+                                    v-model.number="pointsMalus"
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    placeholder="0"
+                                    class="w-full rounded border border-rose-300 bg-white px-1.5 py-1 text-xs dark:border-rose-700 dark:bg-rose-950 dark:text-rose-100"
+                                />
+                            </div>
+                        </div>
+                    </template>
                     <Textarea
                         v-model="brouillon"
-                        placeholder="Écrire une annotation…"
+                        :placeholder="annotationType === 'correction' ? 'Raison de la déduction…' : 'Écrire une annotation…'"
                         class="min-h-[60px] text-sm"
                         :rows="2"
                         autofocus

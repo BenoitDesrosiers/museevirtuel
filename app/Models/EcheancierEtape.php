@@ -11,6 +11,7 @@ class EcheancierEtape extends Model
     protected $fillable = [
         'cours_id',
         'semaine',
+        'periode',
         'etape',
         'is_done',
         'ordre',
@@ -26,6 +27,7 @@ class EcheancierEtape extends Model
         return [
             'is_done' => 'boolean',
             'semaine' => 'integer',
+            'periode' => 'integer',
             'ordre' => 'integer',
         ];
     }

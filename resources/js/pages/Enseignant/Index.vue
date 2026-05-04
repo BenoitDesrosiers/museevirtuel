@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { show as showTemoin } from '@/routes/enseignant/temoins';
 
@@ -20,6 +21,9 @@ type Cours = {
     code: string;
     groupe: string;
     etudiants_count: number;
+    type_cours: 'dep' | 'cours_complementaire' | 'cours_complet' | null;
+    taille_equipe_min: number | null;
+    taille_equipe_max: number | null;
 };
 
 type Thematique = {
@@ -73,6 +77,9 @@ const coursForm = useForm({
     description: '',
     code: '',
     groupe: '',
+    type_cours: '' as '' | 'dep' | 'cours_complementaire' | 'cours_complet',
+    taille_equipe_min: null as number | null,
+    taille_equipe_max: null as number | null,
 });
 
 function openCreateCours() {
@@ -95,6 +102,9 @@ function openEditCours(unCours: Cours) {
     coursForm.description = unCours.description ?? '';
     coursForm.code = unCours.code;
     coursForm.groupe = unCours.groupe;
+    coursForm.type_cours = unCours.type_cours ?? '';
+    coursForm.taille_equipe_min = unCours.taille_equipe_min;
+    coursForm.taille_equipe_max = unCours.taille_equipe_max;
     showEditCoursDialog.value = true;
 }
 
@@ -552,6 +562,32 @@ function voirTemoin(temoin: TemoinEnAttente) {
                 <Input id="description" v-model="coursForm.description" :placeholder="$t('enseignant.index.modal_description_placeholder')" />
                 <InputError :message="coursForm.errors.description" />
             </div>
+            <div class="grid gap-2">
+                <Label>Niveau du cours</Label>
+                <Select v-model="coursForm.type_cours">
+                    <SelectTrigger>
+                        <SelectValue placeholder="Choisir un niveau…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="dep">DEP</SelectItem>
+                        <SelectItem value="cours_complementaire">Cours complémentaire</SelectItem>
+                        <SelectItem value="cours_complet">Cours complet</SelectItem>
+                    </SelectContent>
+                </Select>
+                <InputError :message="coursForm.errors.type_cours" />
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="grid gap-2">
+                    <Label>Taille équipe min.</Label>
+                    <Input v-model.number="coursForm.taille_equipe_min" type="number" min="1" max="20" placeholder="—" />
+                    <InputError :message="coursForm.errors.taille_equipe_min" />
+                </div>
+                <div class="grid gap-2">
+                    <Label>Taille équipe max.</Label>
+                    <Input v-model.number="coursForm.taille_equipe_max" type="number" min="1" max="20" placeholder="—" />
+                    <InputError :message="coursForm.errors.taille_equipe_max" />
+                </div>
+            </div>
         </FormDialog>
 
         <!-- Modal : Modifier cours -->
@@ -582,6 +618,32 @@ function voirTemoin(temoin: TemoinEnAttente) {
                 <Label>{{ $t('enseignant.index.modal_description') }}</Label>
                 <Input v-model="coursForm.description" :placeholder="$t('enseignant.index.modal_description_placeholder')" />
                 <InputError :message="coursForm.errors.description" />
+            </div>
+            <div class="grid gap-2">
+                <Label>Niveau du cours</Label>
+                <Select v-model="coursForm.type_cours">
+                    <SelectTrigger>
+                        <SelectValue placeholder="Choisir un niveau…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="dep">DEP</SelectItem>
+                        <SelectItem value="cours_complementaire">Cours complémentaire</SelectItem>
+                        <SelectItem value="cours_complet">Cours complet</SelectItem>
+                    </SelectContent>
+                </Select>
+                <InputError :message="coursForm.errors.type_cours" />
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="grid gap-2">
+                    <Label>Taille équipe min.</Label>
+                    <Input v-model.number="coursForm.taille_equipe_min" type="number" min="1" max="20" placeholder="—" />
+                    <InputError :message="coursForm.errors.taille_equipe_min" />
+                </div>
+                <div class="grid gap-2">
+                    <Label>Taille équipe max.</Label>
+                    <Input v-model.number="coursForm.taille_equipe_max" type="number" min="1" max="20" placeholder="—" />
+                    <InputError :message="coursForm.errors.taille_equipe_max" />
+                </div>
             </div>
         </FormDialog>
 
