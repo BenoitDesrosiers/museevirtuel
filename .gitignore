@@ -29,3 +29,6 @@ yarn-error.log
 /.zed
 /nul
 /public/images/
+junit*.xml
+/testing
+/testing_test_*
