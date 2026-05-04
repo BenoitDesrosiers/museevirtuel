@@ -20,6 +20,11 @@ const props = defineProps<{
     estEnseignant: boolean;
     userId: number;
     ongletActif: number | 'tous';
+    /**
+     * Déductions de points issues des annotations de correction inline, par étudiant.
+     * Clé = userId, valeur = liste de { contenu, points_malus }.
+     */
+    annotationsMalus?: Record<number, Array<{ contenu: string; points_malus: number }>>;
 }>();
 
 const emit = defineEmits<{
@@ -55,11 +60,16 @@ function tousOntNote(critereId: number, valeur: number): boolean {
     );
 }
 
-/** Total des déductions de malus appliqués pour un étudiant. */
+/** Total des déductions appliquées pour un étudiant (malus grille + corrections inline). */
 function totalMalus(membreId: number): number {
-    return props.malus.reduce((total, m) => {
+    const malusGrille = props.malus.reduce((total, m) => {
         return props.malusAppliques[membreId]?.[m.id] ? total + m.deduction : total;
     }, 0);
+    const malusAnnotations = (props.annotationsMalus?.[membreId] ?? []).reduce(
+        (total, a) => total + a.points_malus,
+        0,
+    );
+    return malusGrille + malusAnnotations;
 }
 </script>
 
@@ -142,7 +152,7 @@ function totalMalus(membreId: number): number {
                     </div>
                 </div>
 
-                <!-- Section malus -->
+                <!-- Section malus grille -->
                 <div v-if="malus.length > 0" class="space-y-2 border-t pt-3">
                     <p class="text-muted-foreground text-xs font-medium uppercase tracking-wide">Malus</p>
                     <div v-for="m in malus" :key="m.id" class="flex items-center gap-2">
@@ -167,6 +177,17 @@ function totalMalus(membreId: number): number {
                     <p v-if="totalMalus(membre.id) > 0" class="text-destructive text-xs font-medium">
                         Total malus : − {{ totalMalus(membre.id) }} pts
                     </p>
+                </div>
+
+                <!-- Section corrections inline (annotations enseignant avec déduction de points) -->
+                <div v-if="(annotationsMalus?.[membre.id]?.length ?? 0) > 0" class="space-y-2 border-t pt-3">
+                    <p class="text-muted-foreground text-xs font-medium uppercase tracking-wide">Corrections inline</p>
+                    <div v-for="(a, idx) in annotationsMalus![membre.id]" :key="idx" class="flex items-start gap-2">
+                        <span class="text-destructive shrink-0 text-xs font-medium tabular-nums">
+                            − {{ a.points_malus }} pt{{ a.points_malus !== 1 ? 's' : '' }}
+                        </span>
+                        <span class="text-muted-foreground text-xs">{{ a.contenu }}</span>
+                    </div>
                 </div>
             </div>
         </div>

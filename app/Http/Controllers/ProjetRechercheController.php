@@ -893,7 +893,7 @@ class ProjetRechercheController extends Controller
             ]
         );
 
-        return response()->json([
+        $responseData = [
             'message' => 'saved',
             'id' => $annotation->id,
             'commentaire_id' => $annotation->commentaire_id,
@@ -902,7 +902,18 @@ class ProjetRechercheController extends Controller
             'user_id' => $annotation->user_id,
             'cible_user_id' => $annotation->cible_user_id,
             'points_malus' => $annotation->points_malus,
-        ]);
+        ];
+
+        // Si l'annotation est une correction avec déduction de points et que le projet a une grille,
+        // on retourne la note finale recalculée pour que le frontend la mette à jour immédiatement.
+        if ($annotation->type === 'correction' && $annotation->points_malus !== null && $projet->typeProjet?->grille) {
+            $projet->load(['notesGrille.critere', 'malusAppliques.malus', 'annotations']);
+            $responseData['noteFinaleGrilleParEtudiant'] = $groupe->membres->mapWithKeys(
+                fn (User $membre) => [$membre->id => ProjetGrilleNote::noteFinale($projet, $membre)]
+            );
+        }
+
+        return response()->json($responseData);
     }
 
     /**
@@ -925,9 +936,23 @@ class ProjetRechercheController extends Controller
         ]);
 
         $this->mettreAJourChampHtml($projet, $validated['champ'], $validated['html']);
+
+        // Capturer avant suppression pour décider du recalcul de note après
+        $estCorrectionAvecMalus = $annotation->type === 'correction' && $annotation->points_malus !== null;
+
         $annotation->delete();
 
-        return response()->json(['message' => 'deleted']);
+        $responseData = ['message' => 'deleted'];
+
+        // Recalculer la note finale si une déduction venait d'être retirée
+        if ($estCorrectionAvecMalus && $projet->typeProjet?->grille) {
+            $projet->load(['notesGrille.critere', 'malusAppliques.malus', 'annotations']);
+            $responseData['noteFinaleGrilleParEtudiant'] = $groupe->membres->mapWithKeys(
+                fn (User $membre) => [$membre->id => ProjetGrilleNote::noteFinale($projet, $membre)]
+            );
+        }
+
+        return response()->json($responseData);
     }
 
     /**
@@ -1419,7 +1444,7 @@ class ProjetRechercheController extends Controller
      */
     private function reponseGrilleNotesFinales(ProjetRecherche $projet, Groupe $groupe): JsonResponse
     {
-        $projet->load(['notesGrille.critere', 'malusAppliques.malus']);
+        $projet->load(['notesGrille.critere', 'malusAppliques.malus', 'annotations']);
 
         return response()->json([
             'message' => 'saved',

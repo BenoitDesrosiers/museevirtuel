@@ -60,7 +60,7 @@ import {
     Underline as UnderlineIcon,
     X,
 } from 'lucide-vue-next';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, inject, onBeforeUnmount, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { AntidoteExtension, generateAntidoteGroupeId } from '@/extensions/AntidoteExtension';
@@ -222,6 +222,24 @@ watch(
         newEditor.commands.syncRenvois(map);
     },
     { deep: true, immediate: true },
+);
+
+/**
+ * Signal d'annulation du modal de suppression de renvoi — fourni par Projets/Show.vue via
+ * provide('renvoisUndoTarget'). Vaut null par défaut quand RichEditor est utilisé ailleurs.
+ * Quand la version change et que l'editorId correspond, on restaure l'exposant via undo().
+ */
+const defaultUndoTarget = ref<{ editorId: string; version: number } | null>(null);
+const renvoisUndoTarget = inject('renvoisUndoTarget', defaultUndoTarget);
+
+watch(
+    () => (renvoisUndoTarget as typeof defaultUndoTarget).value?.version,
+    () => {
+        const target = (renvoisUndoTarget as typeof defaultUndoTarget).value;
+        if (target?.editorId === props.editorId && props.editorId && editor.value) {
+            editor.value.commands.undo();
+        }
+    },
 );
 
 // Détecte les marques supprimées par édition de texte (ex. : mot surligné effacé).
