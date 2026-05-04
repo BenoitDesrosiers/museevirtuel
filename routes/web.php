@@ -493,6 +493,17 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin'])->group(function ()
     Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/renvois/{renvoi}', [ProjetRechercheController::class, 'destroyRenvoi'])
         ->name('projets.renvois.destroy');
 
+    // Commentaires d'enseignant sur les renvois (enseignant uniquement — vérifié dans le controller)
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/renvois/{renvoi}/commentaires', [ProjetRechercheController::class, 'storeRenvoiCommentaire'])
+        ->name('projets.renvois.commentaires.store');
+
+    Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/renvois/{renvoi}/commentaires/{renvoiCommentaire}', [ProjetRechercheController::class, 'destroyRenvoiCommentaire'])
+        ->name('projets.renvois.commentaires.destroy');
+
+    // Toggle mode édition enseignant (enseignant uniquement — vérifié dans le controller)
+    Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/mode-edition-enseignant', [ProjetRechercheController::class, 'toggleModeEditionEnseignant'])
+        ->name('projets.mode-edition-enseignant.toggle');
+
     Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/pdf', [ProjetRechercheController::class, 'exportPdf'])
         ->name('projets.export.pdf');
 

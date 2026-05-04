@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProjetRenvoi extends Model
 {
@@ -21,5 +22,13 @@ class ProjetRenvoi extends Model
     public function projet(): BelongsTo
     {
         return $this->belongsTo(ProjetRecherche::class, 'projet_id');
+    }
+
+    /**
+     * Retourne les commentaires de l'enseignant sur ce renvoi, du plus ancien au plus récent.
+     */
+    public function commentaires(): HasMany
+    {
+        return $this->hasMany(ProjetRenvoiCommentaire::class, 'renvoi_id')->orderBy('created_at');
     }
 }

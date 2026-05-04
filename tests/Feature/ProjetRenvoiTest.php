@@ -5,6 +5,7 @@ use App\Models\Cours;
 use App\Models\Groupe;
 use App\Models\ProjetRecherche;
 use App\Models\ProjetRenvoi;
+use App\Models\ProjetRenvoiCommentaire;
 use App\Models\TypeProjet;
 use App\Models\User;
 use Illuminate\Database\QueryException;
@@ -202,5 +203,143 @@ it('un projet sans renvoi retourne un tableau vide dans show()', function () {
         ->assertInertia(fn ($page) => $page
             ->component('Projets/Show')
             ->where('renvois', [])
+        );
+});
+
+// ─── Commentaires d'enseignant sur les renvois ────────────────────────────────
+
+it('un enseignant peut ajouter un commentaire sur un renvoi', function () {
+    ['enseignant' => $enseignant, 'projet' => $projet, 'baseUrl' => $url] = creerScenarioRenvoi();
+
+    $renvoi = ProjetRenvoi::create(['projet_id' => $projet->id, 'numero' => 1, 'contenu' => 'Source test.']);
+
+    $this->actingAs($enseignant)
+        ->postJson("{$url}/renvois/{$renvoi->id}/commentaires", ['contenu' => 'Vérifier la source.'])
+        ->assertCreated()
+        ->assertJsonPath('message', 'created')
+        ->assertJsonPath('commentaire.contenu', 'Vérifier la source.');
+
+    expect(ProjetRenvoiCommentaire::where('renvoi_id', $renvoi->id)->count())->toBe(1);
+});
+
+it('un étudiant ne peut pas ajouter un commentaire sur un renvoi', function () {
+    ['etudiant1' => $etudiant, 'projet' => $projet, 'baseUrl' => $url] = creerScenarioRenvoi();
+
+    $renvoi = ProjetRenvoi::create(['projet_id' => $projet->id, 'numero' => 1, 'contenu' => 'Source test.']);
+
+    $this->actingAs($etudiant)
+        ->postJson("{$url}/renvois/{$renvoi->id}/commentaires", ['contenu' => 'Tentative.'])
+        ->assertForbidden();
+});
+
+it('le contenu du commentaire est obligatoire', function () {
+    ['enseignant' => $enseignant, 'projet' => $projet, 'baseUrl' => $url] = creerScenarioRenvoi();
+
+    $renvoi = ProjetRenvoi::create(['projet_id' => $projet->id, 'numero' => 1, 'contenu' => 'Source test.']);
+
+    $this->actingAs($enseignant)
+        ->postJson("{$url}/renvois/{$renvoi->id}/commentaires", ['contenu' => ''])
+        ->assertUnprocessable();
+});
+
+it('un enseignant peut supprimer son commentaire sur un renvoi', function () {
+    ['enseignant' => $enseignant, 'projet' => $projet, 'baseUrl' => $url] = creerScenarioRenvoi();
+
+    $renvoi = ProjetRenvoi::create(['projet_id' => $projet->id, 'numero' => 1, 'contenu' => 'Source test.']);
+    $commentaire = ProjetRenvoiCommentaire::create([
+        'renvoi_id' => $renvoi->id,
+        'user_id' => $enseignant->id,
+        'contenu' => 'Commentaire à supprimer.',
+    ]);
+
+    $this->actingAs($enseignant)
+        ->deleteJson("{$url}/renvois/{$renvoi->id}/commentaires/{$commentaire->id}")
+        ->assertOk()
+        ->assertJsonPath('message', 'deleted');
+
+    expect(ProjetRenvoiCommentaire::find($commentaire->id))->toBeNull();
+});
+
+it('impossible de supprimer un commentaire appartenant à un autre renvoi (anti-IDOR)', function () {
+    ['enseignant' => $enseignant, 'projet' => $projet, 'baseUrl' => $url] = creerScenarioRenvoi();
+
+    $renvoi1 = ProjetRenvoi::create(['projet_id' => $projet->id, 'numero' => 1, 'contenu' => 'A.']);
+    $renvoi2 = ProjetRenvoi::create(['projet_id' => $projet->id, 'numero' => 2, 'contenu' => 'B.']);
+    $commentaireDuRenvoi2 = ProjetRenvoiCommentaire::create([
+        'renvoi_id' => $renvoi2->id,
+        'user_id' => $enseignant->id,
+        'contenu' => 'Commentaire du renvoi 2.',
+    ]);
+
+    // Tente de supprimer le commentaire de renvoi2 via l'URL de renvoi1 → 404
+    $this->actingAs($enseignant)
+        ->deleteJson("{$url}/renvois/{$renvoi1->id}/commentaires/{$commentaireDuRenvoi2->id}")
+        ->assertNotFound();
+});
+
+it('les commentaires sont inclus dans show() pour l\'enseignant', function () {
+    ['enseignant' => $enseignant, 'projet' => $projet, 'cours' => $cours, 'classeSection' => $cs, 'groupe' => $groupe, 'typeProjet' => $typeProjet] = creerScenarioRenvoi();
+
+    $renvoi = ProjetRenvoi::create(['projet_id' => $projet->id, 'numero' => 1, 'contenu' => 'Ref.']);
+    ProjetRenvoiCommentaire::create(['renvoi_id' => $renvoi->id, 'user_id' => $enseignant->id, 'contenu' => 'Mon commentaire.']);
+
+    $this->actingAs($enseignant)
+        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/edit")
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Projets/Show')
+            ->has('renvois', 1)
+            ->where('renvois.0.commentaires.0.contenu', 'Mon commentaire.')
+        );
+});
+
+// ─── Mode édition enseignant ───────────────────────────────────────────────────
+
+it('un enseignant peut activer le mode édition enseignant', function () {
+    ['enseignant' => $enseignant, 'projet' => $projet, 'baseUrl' => $url] = creerScenarioRenvoi();
+
+    expect($projet->mode_edition_enseignant)->toBeFalsy();
+
+    $this->actingAs($enseignant)
+        ->patchJson("{$url}/mode-edition-enseignant")
+        ->assertOk()
+        ->assertJsonPath('message', 'toggled')
+        ->assertJsonPath('mode_edition_enseignant', true);
+
+    expect($projet->fresh()->mode_edition_enseignant)->toBeTrue();
+});
+
+it('un enseignant peut désactiver le mode édition en le retogglant', function () {
+    ['enseignant' => $enseignant, 'projet' => $projet, 'baseUrl' => $url] = creerScenarioRenvoi();
+
+    $projet->update(['mode_edition_enseignant' => true]);
+
+    $this->actingAs($enseignant)
+        ->patchJson("{$url}/mode-edition-enseignant")
+        ->assertOk()
+        ->assertJsonPath('mode_edition_enseignant', false);
+
+    expect($projet->fresh()->mode_edition_enseignant)->toBeFalse();
+});
+
+it('un étudiant ne peut pas toggler le mode édition enseignant', function () {
+    ['etudiant1' => $etudiant, 'baseUrl' => $url] = creerScenarioRenvoi();
+
+    $this->actingAs($etudiant)
+        ->patchJson("{$url}/mode-edition-enseignant")
+        ->assertForbidden();
+});
+
+it('show() retourne modeEditionEnseignant dans les props', function () {
+    ['enseignant' => $enseignant, 'projet' => $projet, 'cours' => $cours, 'classeSection' => $cs, 'groupe' => $groupe, 'typeProjet' => $typeProjet] = creerScenarioRenvoi();
+
+    $projet->update(['mode_edition_enseignant' => true]);
+
+    $this->actingAs($enseignant)
+        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/edit")
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Projets/Show')
+            ->where('modeEditionEnseignant', true)
         );
 });

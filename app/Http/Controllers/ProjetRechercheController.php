@@ -23,6 +23,7 @@ use App\Models\ProjetGrilleNote;
 use App\Models\ProjetNote;
 use App\Models\ProjetRecherche;
 use App\Models\ProjetRenvoi;
+use App\Models\ProjetRenvoiCommentaire;
 use App\Models\ProjetSchemaVisuel;
 use App\Models\ProjetSectionContenu;
 use App\Models\ProjetSectionMedia;
@@ -154,7 +155,7 @@ class ProjetRechercheController extends Controller
         ]);
 
         // Précharger en une seule requête chacune des relations — évite le N+1
-        $projet->load(['conclusions', 'commentaires', 'annotations', 'developpements', 'votes', 'notes', 'notesGrille.critere', 'malusAppliques.malus', 'typeProjet.grille.criteres', 'typeProjet.grille.malus', 'typeProjet.sections.questionsBanque', 'typeProjet.taches', 'sectionContenus', 'sectionParagraphes', 'entrevueConcepts.lignes', 'sectionMedias', 'questionsChoisies', 'schemaVisuels', 'renvois']);
+        $projet->load(['conclusions', 'commentaires', 'annotations', 'developpements', 'votes', 'notes', 'notesGrille.critere', 'malusAppliques.malus', 'typeProjet.grille.criteres', 'typeProjet.grille.malus', 'typeProjet.sections.questionsBanque', 'typeProjet.taches', 'sectionContenus', 'sectionParagraphes', 'entrevueConcepts.lignes', 'sectionMedias', 'questionsChoisies', 'schemaVisuels', 'renvois.commentaires']);
 
         // État des tâches pour ce groupe — groupé par tache_id pour O(1) dans construireSections
         $tacheIds = $typeProjet->taches()->pluck('id');
@@ -212,6 +213,9 @@ class ProjetRechercheController extends Controller
         // Condition commune : membre + non verrouillé + remise encore possible
         $peutAgir = $estMembre && ! $projet->verrouille && $projet->peutEtreRemis();
 
+        // L'enseignant en mode édition peut modifier le contenu comme un membre
+        $peutEditer = $peutAgir || ($estEnseignant && (bool) $projet->mode_edition_enseignant);
+
         // Notes standard pondérées (visibles selon correction_visible)
         $noteFinaleParEtudiant = ($estEnseignant || $projet->correction_visible)
             ? $groupe->membres->mapWithKeys(fn (User $membre) => [$membre->id => ProjetNote::noteFinale($projet, $membre)])
@@ -255,10 +259,11 @@ class ProjetRechercheController extends Controller
             'tableMatieresContenu' => $projet->table_matieres_contenu,
             'developpements' => $projet->developpements->map->only('id', 'ordre', 'titre', 'contenu')->values(),
             'conclusions' => $conclusions,
-            'peutEditer' => $peutAgir,
+            'peutEditer' => $peutEditer,
             'estEnseignant' => $estEnseignant,
             'correctionVisible' => (bool) $projet->correction_visible,
             'verrouille' => (bool) $projet->verrouille,
+            'modeEditionEnseignant' => (bool) $projet->mode_edition_enseignant,
             'dateRemise' => $typeProjet->date_remise?->toIso8601String(),
             'remisLe' => $projet->remis_le?->toIso8601String(),
             'remisesMultiples' => (bool) $typeProjet->remises_multiples,
@@ -276,7 +281,14 @@ class ProjetRechercheController extends Controller
             'malusParEtudiant' => $malusParEtudiant,
             'noteFinaleGrilleParEtudiant' => $noteFinaleGrilleParEtudiant,
             'sections' => $this->construireSections($projet, $groupe->membres, $groupeTachesParTache),
-            'renvois' => $projet->renvois->map->only('id', 'numero', 'contenu')->values(),
+            'renvois' => $projet->renvois->map(function (ProjetRenvoi $r) use ($estEnseignant, $projet) {
+                $data = $r->only('id', 'numero', 'contenu');
+                $data['commentaires'] = ($estEnseignant || $projet->correction_visible)
+                    ? $r->commentaires->map->only('id', 'contenu', 'user_id')->values()
+                    : collect();
+
+                return $data;
+            })->values(),
             'consentement' => $this->construireConsentement($projet->id, $user->id),
         ]);
     }
@@ -364,18 +376,12 @@ class ProjetRechercheController extends Controller
      */
     public function updateSectionContenu(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): JsonResponse
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
         $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $groupe->loadMissing('classe.cours');
-        $this->authorize('manageThematiques', $groupe);
-
         // Vérifier que la section appartient au TypeProjet passé en URL — évite l'IDOR
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
-
-        $this->verifierProjetModifiable($projet);
+        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
 
         $validated = $request->validate([
             'contenu' => ['nullable', 'string'],
@@ -404,12 +410,7 @@ class ProjetRechercheController extends Controller
      */
     public function update(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
         $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-
-        $groupe->loadMissing('classe.cours');
-        $this->authorize('manageThematiques', $groupe);
 
         $validated = $request->validate([
             'titre_projet' => ['nullable', 'string', 'max:500'],
@@ -421,13 +422,22 @@ class ProjetRechercheController extends Controller
             ->where('type_projet_id', $typeProjet->id)
             ->first();
 
-        abort_if($existant?->verrouille, 403, 'Ce document est verrouillé.');
-        abort_if($existant !== null && ! $existant->peutEtreRemis(), 422, 'Ce travail a déjà été remis.');
-
-        $projet = ProjetRecherche::updateOrCreate(
-            ['groupe_id' => $groupe->id, 'type_projet_id' => $typeProjet->id],
-            $validated,
-        );
+        if ($existant !== null) {
+            $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $existant);
+            $existant->update($validated);
+            $projet = $existant;
+        } else {
+            // Le projet n'existe pas encore — seul un membre du groupe peut le créer
+            abort_if($classe->cours_id !== $cours->id, 404);
+            abort_if($groupe->classe_id !== $classe->id, 404);
+            $groupe->loadMissing('classe.cours');
+            $this->authorize('manageThematiques', $groupe);
+            $projet = ProjetRecherche::create([
+                'groupe_id' => $groupe->id,
+                'type_projet_id' => $typeProjet->id,
+                ...$validated,
+            ]);
+        }
 
         return response()->json([
             'message' => 'saved',
@@ -443,14 +453,12 @@ class ProjetRechercheController extends Controller
     public function storeDeveloppement(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
         $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserMembreGroupe($cours, $classe, $groupe);
 
         $projet = ProjetRecherche::firstOrCreate([
             'groupe_id' => $groupe->id,
             'type_projet_id' => $typeProjet->id,
         ]);
-
-        $this->verifierProjetModifiable($projet);
+        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
 
         $ordre = ($projet->developpements()->max('ordre') ?? 0) + 1;
 
@@ -476,12 +484,11 @@ class ProjetRechercheController extends Controller
     public function updateDeveloppement(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetDeveloppement $developpement): JsonResponse
     {
         $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserMembreGroupe($cours, $classe, $groupe);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($developpement->projet_id !== $projet->id, 404);
-        $this->verifierProjetModifiable($projet);
+        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
 
         $validated = $request->validate([
             'titre' => ['nullable', 'string', 'max:500'],
@@ -514,12 +521,11 @@ class ProjetRechercheController extends Controller
     public function destroyDeveloppement(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetDeveloppement $developpement): JsonResponse
     {
         $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserMembreGroupe($cours, $classe, $groupe);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($developpement->projet_id !== $projet->id, 404);
-        $this->verifierProjetModifiable($projet);
+        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
         abort_if($projet->developpements()->count() <= 1, 422, 'Le projet doit conserver au moins un paragraphe.');
 
         $developpement->delete();
@@ -544,11 +550,10 @@ class ProjetRechercheController extends Controller
     public function reorderDeveloppements(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
         $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserMembreGroupe($cours, $classe, $groupe);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
-        abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
+        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
 
         $validated = $request->validate([
             'ordre' => ['required', 'array'],
@@ -572,15 +577,13 @@ class ProjetRechercheController extends Controller
     public function storeSectionParagraphe(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): JsonResponse
     {
         $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserMembreGroupe($cours, $classe, $groupe);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
 
         $projet = ProjetRecherche::firstOrCreate([
             'groupe_id' => $groupe->id,
             'type_projet_id' => $typeProjet->id,
         ]);
-
-        $this->verifierProjetModifiable($projet);
+        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
 
         $ordre = (ProjetSectionParagraphe::where('projet_id', $projet->id)
             ->where('section_id', $section->id)
@@ -608,13 +611,12 @@ class ProjetRechercheController extends Controller
     public function updateSectionParagraphe(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, ProjetSectionParagraphe $paragraphe): JsonResponse
     {
         $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserMembreGroupe($cours, $classe, $groupe);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($paragraphe->projet_id !== $projet->id || $paragraphe->section_id !== $section->id, 404);
-        $this->verifierProjetModifiable($projet);
+        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
 
         $validated = $request->validate([
             'titre' => ['nullable', 'string', 'max:500'],
@@ -644,13 +646,12 @@ class ProjetRechercheController extends Controller
     public function destroySectionParagraphe(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, ProjetSectionParagraphe $paragraphe): JsonResponse
     {
         $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserMembreGroupe($cours, $classe, $groupe);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($paragraphe->projet_id !== $projet->id || $paragraphe->section_id !== $section->id, 404);
-        $this->verifierProjetModifiable($projet);
+        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
 
         $count = ProjetSectionParagraphe::where('projet_id', $projet->id)
             ->where('section_id', $section->id)
@@ -678,12 +679,11 @@ class ProjetRechercheController extends Controller
     public function reorderSectionParagraphes(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): JsonResponse
     {
         $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserMembreGroupe($cours, $classe, $groupe);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
-        abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
+        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
 
         $validated = $request->validate([
             'ordre' => ['required', 'array'],
@@ -710,12 +710,10 @@ class ProjetRechercheController extends Controller
      */
     public function updateConclusion(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
         $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
 
+        // Charger les membres pour valider le user_id cible (toujours nécessaire, même pour l'enseignant)
         $groupe->load(['classe.cours', 'membres']);
-        $this->authorize('manageThematiques', $groupe);
 
         $validated = $request->validate([
             'contenu' => ['nullable', 'string'],
@@ -734,7 +732,7 @@ class ProjetRechercheController extends Controller
             'type_projet_id' => $typeProjet->id,
         ]);
 
-        abort_if($projet->verrouille, 403, 'Ce document est verrouillé.');
+        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
 
         $clé = ['projet_id' => $projet->id, 'user_id' => $validated['user_id']];
         if (isset($validated['section_id'])) {
@@ -1229,14 +1227,12 @@ class ProjetRechercheController extends Controller
     public function storeRenvoi(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
         $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserMembreGroupe($cours, $classe, $groupe);
 
         $projet = ProjetRecherche::firstOrCreate([
             'groupe_id' => $groupe->id,
             'type_projet_id' => $typeProjet->id,
         ]);
-
-        $this->verifierProjetModifiable($projet);
+        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
 
         $validated = $request->validate([
             'contenu' => ['nullable', 'string', 'max:2000'],
@@ -1281,12 +1277,11 @@ class ProjetRechercheController extends Controller
     public function updateRenvoi(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetRenvoi $renvoi): JsonResponse
     {
         $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserMembreGroupe($cours, $classe, $groupe);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($renvoi->projet_id !== $projet->id, 404);
-        $this->verifierProjetModifiable($projet);
+        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
 
         $validated = $request->validate([
             'contenu' => ['nullable', 'string', 'max:2000'],
@@ -1309,16 +1304,91 @@ class ProjetRechercheController extends Controller
     public function destroyRenvoi(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetRenvoi $renvoi): JsonResponse
     {
         $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserMembreGroupe($cours, $classe, $groupe);
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
         abort_if($renvoi->projet_id !== $projet->id, 404);
-        $this->verifierProjetModifiable($projet);
+        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
 
         $renvoi->delete();
 
         return response()->json(['message' => 'deleted']);
+    }
+
+    /**
+     * Ajoute un commentaire de l'enseignant sur un renvoi (endnote) du projet.
+     *
+     * @throws HttpException
+     */
+    public function storeRenvoiCommentaire(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetRenvoi $renvoi): JsonResponse
+    {
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserEnseignant($cours, $classe, $groupe);
+
+        $projet = $this->trouverProjet($groupe, $typeProjet);
+        abort_if($renvoi->projet_id !== $projet->id, 404);
+
+        $validated = $request->validate([
+            'contenu' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $commentaire = ProjetRenvoiCommentaire::create([
+            'renvoi_id' => $renvoi->id,
+            'user_id' => auth()->id(),
+            'contenu' => $validated['contenu'],
+        ]);
+
+        return response()->json([
+            'message' => 'created',
+            'commentaire' => $commentaire->only('id', 'contenu', 'user_id'),
+        ], 201);
+    }
+
+    /**
+     * Supprime un commentaire d'enseignant sur un renvoi.
+     *
+     * Vérifie que le commentaire appartient bien au renvoi passé en URL (anti-IDOR).
+     *
+     * @throws HttpException
+     */
+    public function destroyRenvoiCommentaire(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetRenvoi $renvoi, ProjetRenvoiCommentaire $renvoiCommentaire): JsonResponse
+    {
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserEnseignant($cours, $classe, $groupe);
+
+        $projet = $this->trouverProjet($groupe, $typeProjet);
+        abort_if($renvoi->projet_id !== $projet->id, 404);
+        abort_if($renvoiCommentaire->renvoi_id !== $renvoi->id, 404);
+
+        $renvoiCommentaire->delete();
+
+        return response()->json(['message' => 'deleted']);
+    }
+
+    /**
+     * Active ou désactive le mode édition enseignant pour le projet d'une équipe.
+     *
+     * Quand actif, l'enseignant peut modifier directement le contenu du projet
+     * (titre, sections, développements, conclusions, renvois) sans être membre.
+     *
+     * @throws HttpException
+     */
+    public function toggleModeEditionEnseignant(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
+    {
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserEnseignant($cours, $classe, $groupe);
+
+        $projet = ProjetRecherche::firstOrCreate([
+            'groupe_id' => $groupe->id,
+            'type_projet_id' => $typeProjet->id,
+        ]);
+
+        $projet->update(['mode_edition_enseignant' => ! $projet->mode_edition_enseignant]);
+
+        return response()->json([
+            'message' => 'toggled',
+            'mode_edition_enseignant' => (bool) $projet->mode_edition_enseignant,
+        ]);
     }
 
     // ─── Méthodes privées ─────────────────────────────────────────────────────
@@ -1574,6 +1644,30 @@ class ProjetRechercheController extends Controller
         abort_if($groupe->classe_id !== $classe->id, 404);
         $groupe->loadMissing('classe.cours');
         $this->authorize('manageThematiques', $groupe);
+    }
+
+    /**
+     * Autorise la modification du contenu du projet par un membre du groupe
+     * ou par l'enseignant lorsque le mode édition est activé.
+     *
+     * L'enseignant en mode édition bypasse le verrou et la contrainte de remise.
+     *
+     * @throws HttpException
+     * @throws AuthorizationException
+     */
+    private function verifierEditionContenuAutorisee(Cours $cours, Classe $classe, Groupe $groupe, ProjetRecherche $projet): void
+    {
+        abort_if($classe->cours_id !== $cours->id, 404);
+        abort_if($groupe->classe_id !== $classe->id, 404);
+
+        // L'enseignant du cours en mode édition peut modifier le projet sans restriction
+        if ($cours->enseignant_id === auth()->id() && $projet->mode_edition_enseignant) {
+            return;
+        }
+
+        $groupe->loadMissing('classe.cours');
+        $this->authorize('manageThematiques', $groupe);
+        $this->verifierProjetModifiable($projet);
     }
 
     /**
