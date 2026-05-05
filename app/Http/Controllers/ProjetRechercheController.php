@@ -342,6 +342,7 @@ class ProjetRechercheController extends Controller
             'groupe' => $groupe->only('id', 'numero', 'classe_id'),
             'classe' => $classe->only('id', 'code', 'cours_id'),
             'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
+            'typeProjet' => $typeProjet->only('id', 'nom'),
             'thematiques' => $groupe->thematiques->map->only('id', 'nom'),
             'membres' => $groupe->membres->map->only('id', 'prenom', 'nom')->values(),
             'projet' => $projet
@@ -1175,12 +1176,15 @@ class ProjetRechercheController extends Controller
     }
 
     /**
-     * Exporte les notes finales des membres du groupe en XML.
+     * Affiche la page d'aperçu des notes finales du groupe (format DA + note).
+     *
+     * Accessible aux enseignants et admins uniquement.
+     * Chaque ligne affiche le numéro DA de l'étudiant suivi de sa note finale.
      *
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function exportXmlNotes(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): HttpResponse
+    public function apercuNotes(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): Response
     {
         abort_if($classe->cours_id !== $cours->id, 404);
         abort_if($groupe->classe_id !== $classe->id, 404);
@@ -1197,22 +1201,29 @@ class ProjetRechercheController extends Controller
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
-        $projet->load('notes');
+        // Charger la grille personnalisée du TypeProjet pour savoir quelle méthode de notation utiliser
+        $typeProjet->loadMissing('grille');
+        $useGrillePerso = $typeProjet->grille !== null;
 
-        $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><notes/>');
+        $projet->load($useGrillePerso
+            ? ['notesGrille.critere', 'malusAppliques.malus']
+            : ['notes']
+        );
 
-        foreach ($groupe->membres as $membre) {
-            $note = ProjetNote::noteFinale($projet, $membre);
-            $etudiantNode = $xml->addChild('etudiant');
-            $etudiantNode->addChild('no_da', preg_replace('/\D/', '', (string) $membre->no_da));
-            $etudiantNode->addChild('note', $note !== null ? (string) $note : '');
-        }
+        $lignes = $groupe->membres->map(fn ($membre) => [
+            'da' => preg_replace('/\D/', '', (string) $membre->no_da),
+            'note' => ($n = $useGrillePerso
+                ? ProjetGrilleNote::noteFinale($projet, $membre)
+                : ProjetNote::noteFinale($projet, $membre)
+            ) !== null ? (string) $n : null,
+        ])->values();
 
-        $nomFichier = sprintf('notes_groupe_%d.xml', $groupe->numero);
-
-        return response($xml->asXML(), 200, [
-            'Content-Type' => 'application/xml; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$nomFichier}\"",
+        return Inertia::render('Projets/ApercuNotes', [
+            'cours' => ['id' => $cours->id],
+            'classe' => ['id' => $classe->id, 'cours_id' => $cours->id],
+            'groupe' => ['id' => $groupe->id, 'numero' => $groupe->numero, 'classe_id' => $classe->id],
+            'typeProjet' => ['id' => $typeProjet->id, 'nom' => $typeProjet->nom],
+            'lignes' => $lignes,
         ]);
     }
 

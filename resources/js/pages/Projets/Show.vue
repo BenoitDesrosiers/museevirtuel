@@ -12,6 +12,7 @@ import {
     Cloud,
     Download,
     Eye,
+    FileBarChart,
     FileText,
     Loader2,
     Lock,
@@ -1800,10 +1801,10 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         </a>
                     </Button>
                     <Button v-if="estEnseignant" variant="outline" size="sm" as-child>
-                        <a :href="`${baseUrl}/xml-notes`">
-                            <Download class="mr-2 h-4 w-4" />
-                            Exporter XML
-                        </a>
+                        <Link :href="`${baseUrl}/apercu-notes`">
+                            <FileBarChart class="mr-2 h-4 w-4" />
+                            Export note
+                        </Link>
                     </Button>
                     <Button
                         v-if="peutEditer && !verrouille"
