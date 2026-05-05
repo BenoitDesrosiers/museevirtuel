@@ -12,6 +12,7 @@ use PhpOffice\PhpWord\Element\Section;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\Shared\Html;
+use PhpOffice\PhpWord\SimpleType\Jc;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ExportProjetWord
@@ -33,7 +34,9 @@ class ExportProjetWord
         $enseignant = $cours->enseignant;
 
         if (! $projet->relationLoaded('typeProjet')) {
-            $projet->load(['typeProjet.sections', 'sectionContenus', 'sectionParagraphes', 'conclusions']);
+            $projet->load(['typeProjet.sections', 'sectionContenus', 'sectionParagraphes', 'conclusions', 'renvois']);
+        } elseif (! $projet->relationLoaded('renvois')) {
+            $projet->load(['renvois']);
         }
 
         $typeProjet = $projet->typeProjet;
@@ -41,10 +44,18 @@ class ExportProjetWord
         $word = new PhpWord;
         $word->setDefaultFontName('Times New Roman');
         $word->setDefaultFontSize(12);
+        // Force Word à recalculer la TDM (numéros de page) dès l'ouverture du fichier
+        $word->getSettings()->setUpdateFields(true);
+
+        // Enregistrer les styles Heading dans la feuille de styles du document —
+        // sans cela, addTitle() crée les paragraphes mais Word ne les reconnaît pas
+        // comme entrées de TOC lors de la mise à jour du champ.
+        $word->addTitleStyle(1, ['bold' => true, 'size' => 14], ['spaceAfter' => 200, 'spaceBefore' => 240]);
+        $word->addTitleStyle(2, ['bold' => true, 'size' => 12], ['spaceAfter' => 160, 'spaceBefore' => 160]);
 
         // ─── Page titre ───────────────────────────────────────────────────────
         if ($typeProjet && $typeProjet->generer_page_titre) {
-            $pageTitre = $word->addSection();
+            $pageTitre = $this->newSection($word, false);
 
             foreach ($groupe->membres as $membre) {
                 $this->addCenteredText($pageTitre, "{$membre->prenom} {$membre->nom}");
@@ -64,13 +75,13 @@ class ExportProjetWord
             $this->addCenteredText($pageTitre, 'Le '.now()->translatedFormat('j F Y'), 10);
         } elseif (! empty($projet->page_titre_contenu)) {
             // Contenu rédigé manuellement par l'étudiant
-            $pageTitre = $word->addSection();
+            $pageTitre = $this->newSection($word, false);
             $this->addHtmlContent($pageTitre, $projet->page_titre_contenu);
         }
 
         // ─── Table des matières (champ TOC Word — Heading 1 & 2) ─────────────
         if ($typeProjet && $typeProjet->generer_table_matieres) {
-            $tocSection = $word->addSection();
+            $tocSection = $this->newSection($word, false);
             $tocSection->addText(
                 'TABLE DES MATIÈRES',
                 ['bold' => true, 'size' => 13, 'allCaps' => true],
@@ -81,7 +92,7 @@ class ExportProjetWord
             $tocSection->addTOC(['size' => 11], null, 1, 2);
         } elseif (! empty($projet->table_matieres_contenu)) {
             // Contenu rédigé manuellement par l'étudiant
-            $tocSection = $word->addSection();
+            $tocSection = $this->newSection($word, false);
             $this->addHtmlContent($tocSection, $projet->table_matieres_contenu);
         }
 
@@ -96,49 +107,57 @@ class ExportProjetWord
 
         $nbMembres = $groupe->membres->count();
 
+        // Tout le contenu dans UNE SEULE section Word (pageNumberingStart = 1) afin que
+        // la numérotation soit continue et que la TOC reflète les vrais numéros de page.
+        // Les séparations entre TypeProjetSections sont des sauts de page simples (pas
+        // des sauts de section), ce qui évite tout redémarrage implicite du compteur.
+        $contenu = $this->newSection($word, true, 1);
+        $aContenu = false;
+
         foreach ($sections as $typeSection) {
             /** @var TypeProjetSection $typeSection */
-            $sectionWord = $word->addSection();
-            $sectionWord->addTitle($typeSection->label, 1);
-            $sectionWord->addTextBreak(1);
+            if ($aContenu) {
+                $contenu->addPageBreak();
+            }
+            $aContenu = true;
+
+            $contenu->addTitle($typeSection->label, 1);
+            $contenu->addTextBreak(1);
 
             match ($typeSection->type ?? 'texte') {
                 'paragraphes' => $this->renderParagraphes(
-                    $word,
-                    $sectionWord,
+                    $contenu,
                     $paragraphesParSection->get($typeSection->id) ?? collect()
                 ),
                 'individuel' => $this->renderIndividuel(
-                    $word,
-                    $sectionWord,
+                    $contenu,
                     $groupe->membres,
                     $conclusionsParUser->get($typeSection->id) ?? collect(),
                     $nbMembres
                 ),
                 default => $this->addHtmlContent(
-                    $sectionWord,
+                    $contenu,
                     $contenusParSection->get($typeSection->id)?->contenu
                 ),
             };
         }
 
         // Fallback si aucune section définie (projet sans TypeProjet configuré)
-        if ($sections->isEmpty()) {
-            $vide = $word->addSection();
-            $this->addHtmlContent($vide, null);
+        if (! $aContenu) {
+            $this->addHtmlContent($contenu, null);
         }
 
         // ─── Références (renvois / endnotes) ──────────────────────────────────
         $renvois = $projet->renvois ?? collect();
 
         if ($renvois->isNotEmpty()) {
-            $refsSection = $word->addSection();
-            $refsSection->addTitle('Références', 1);
-            $refsSection->addTextBreak(1);
+            $contenu->addPageBreak();
+            $contenu->addTitle('Références', 1);
+            $contenu->addTextBreak(1);
 
             foreach ($renvois as $renvoi) {
                 $texte = "{$renvoi->numero}.\t".($renvoi->contenu ?? '—');
-                $refsSection->addText(htmlspecialchars($texte), ['size' => 11]);
+                $contenu->addText(htmlspecialchars($texte), ['size' => 11]);
             }
         }
 
@@ -146,60 +165,130 @@ class ExportProjetWord
         $nomFichier = sprintf('projet_groupe_%d.docx', $groupe->id);
 
         return response()->streamDownload(function () use ($word) {
-            $writer = IOFactory::createWriter($word, 'Word2007');
-            $writer->save('php://output');
+            // PhpWord génère les champs TOC avec deux bugs : PAGEREF utilise
+            // l'ID numérique du signet au lieu de son nom (_TocN), et l'instruction
+            // TOC omet les guillemets autour de la plage de niveaux.
+            // On corrige le XML directement dans le .docx avant de l'envoyer.
+            $temp = tempnam(sys_get_temp_dir(), 'phpword_').'.docx';
+
+            try {
+                $writer = IOFactory::createWriter($word, 'Word2007');
+                $writer->save($temp);
+                $this->fixTocXml($temp);
+                readfile($temp);
+            } finally {
+                if (file_exists($temp)) {
+                    unlink($temp);
+                }
+            }
         }, $nomFichier, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         ]);
     }
 
     /**
+     * Crée une nouvelle section Word, avec ou sans pied de page numéroté.
+     *
+     * Le footer est omis sur la page titre et la table des matières,
+     * de sorte que la numérotation n'apparaît qu'à partir de la première page de contenu.
+     * Passer $debutNumerotation = 1 sur la première section de contenu pour redémarrer
+     * le compteur à 1 (Word ignore les pages titre/TDM sans footer).
+     *
+     * @param  bool  $avecFooter  Ajouter le pied de page numéroté (défaut : true)
+     * @param  int|null  $debutNumerotation  Valeur de départ du compteur de pages (null = continuer)
+     */
+    private function newSection(PhpWord $word, bool $avecFooter = true, ?int $debutNumerotation = null): Section
+    {
+        $settings = $debutNumerotation !== null ? ['pageNumberingStart' => $debutNumerotation] : [];
+        $section = $word->addSection($settings);
+
+        if ($avecFooter) {
+            $footer = $section->addFooter();
+            $footer->addPreserveText(
+                '{PAGE}',
+                ['size' => 9, 'color' => '444444'],
+                ['alignment' => Jc::RIGHT],
+            );
+        }
+
+        return $section;
+    }
+
+    /**
      * Ajoute les paragraphes d'une section de type 'paragraphes' comme sous-sections (Heading 2).
+     * Tous les paragraphes partagent la même section Word pour éviter les sauts de page inutiles.
      *
      * @param  Collection  $paragraphes
      */
-    private function renderParagraphes(PhpWord $word, Section $firstSection, $paragraphes): void
+    private function renderParagraphes(Section $section, $paragraphes): void
     {
         if ($paragraphes->isEmpty()) {
-            $this->addHtmlContent($firstSection, null);
+            $this->addHtmlContent($section, null);
 
             return;
         }
 
-        foreach ($paragraphes->sortBy('ordre') as $index => $paragraphe) {
-            // Le premier partage la section du H1
-            $sectionParagraphe = ($index === 0) ? $firstSection : $word->addSection();
+        foreach ($paragraphes->sortBy('ordre') as $paragraphe) {
             $titre = $paragraphe->titre ?: "Paragraphe {$paragraphe->ordre}";
-            $sectionParagraphe->addTitle($titre, 2);
-            $sectionParagraphe->addTextBreak(1);
-            $this->addHtmlContent($sectionParagraphe, $paragraphe->contenu);
+            $section->addTitle($titre, 2);
+            $section->addTextBreak(1);
+            $this->addHtmlContent($section, $paragraphe->contenu);
         }
     }
 
     /**
      * Ajoute les conclusions individuelles d'une section de type 'individuel'.
+     * Tous les membres partagent la même section Word pour éviter les sauts de page inutiles.
      *
      * @param  Collection  $membres
      * @param  Collection  $conclusionsParUser  keyBy user_id
      */
-    private function renderIndividuel(PhpWord $word, Section $firstSection, $membres, $conclusionsParUser, int $nbMembres): void
+    private function renderIndividuel(Section $section, $membres, $conclusionsParUser, int $nbMembres): void
     {
-        $isFirst = true;
-
         foreach ($membres as $membre) {
             /** @var User $membre */
-            $sectionConclusion = $isFirst ? $firstSection : $word->addSection();
-
             if ($nbMembres > 1) {
-                $sectionConclusion->addTitle("{$membre->prenom} {$membre->nom}", 2);
-                $sectionConclusion->addTextBreak(1);
+                $section->addTitle("{$membre->prenom} {$membre->nom}", 2);
+                $section->addTextBreak(1);
             }
 
             $conclusion = $conclusionsParUser->get($membre->id);
-            $this->addHtmlContent($sectionConclusion, $conclusion?->contenu);
-
-            $isFirst = false;
+            $this->addHtmlContent($section, $conclusion?->contenu);
         }
+    }
+
+    /**
+     * Corrige les deux bugs de PhpWord dans le XML de la table des matières.
+     *
+     * Bug 1 — PhpWord génère `PAGEREF 0 \h` mais les signets sont nommés `_Toc0`.
+     *          Word ne trouve pas les signets et affiche « 1 » pour tous les numéros.
+     * Bug 2 — L'instruction TOC omet les guillemets : `\o 1-2` au lieu de `\o "1-2"`,
+     *          ce qui empêche certaines versions de Word d'interpréter correctement le champ.
+     *
+     * @param  string  $filePath  Chemin absolu du fichier .docx temporaire
+     */
+    private function fixTocXml(string $filePath): void
+    {
+        $zip = new \ZipArchive;
+        if ($zip->open($filePath) !== true) {
+            return;
+        }
+
+        $xml = $zip->getFromName('word/document.xml');
+        if ($xml === false) {
+            $zip->close();
+
+            return;
+        }
+
+        // Bug 1 : PAGEREF 0 \h → PAGEREF _Toc0 \h
+        $xml = preg_replace('/PAGEREF (\d+) \\\\h/', 'PAGEREF _Toc$1 \\h', $xml);
+
+        // Bug 2 : \o 1-2 → \o "1-2"
+        $xml = preg_replace('/TOC \\\\o (\d+-\d+) /', 'TOC \\o "$1" ', $xml);
+
+        $zip->addFromString('word/document.xml', $xml);
+        $zip->close();
     }
 
     /**

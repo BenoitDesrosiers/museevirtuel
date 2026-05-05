@@ -143,6 +143,9 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
         ->name('thematiques.destroy');
 
     // Gestion des classes (sections de cours) — enseignant/admin
+    Route::get('/cours/{cours}/classes/{classe}/types-projets/{typeProjet}/apercu-notes', [ClasseController::class, 'apercuNotesClasse'])
+        ->name('classes.apercu.notes');
+
     Route::post('/cours/{cours}/classes', [ClasseController::class, 'store'])
         ->name('classes.store');
 
@@ -499,8 +502,8 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin'])->group(function ()
     Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/word', [ProjetRechercheController::class, 'exportWord'])
         ->name('projets.export.word');
 
-    Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/xml-notes', [ProjetRechercheController::class, 'exportXmlNotes'])
-        ->name('projets.export.xml');
+    Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/apercu-notes', [ProjetRechercheController::class, 'apercuNotes'])
+        ->name('projets.apercu.notes');
 
     // Concepts d'entrevue — CRUD + réordonnancement + lignes
     Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/concepts', [EntrevueConceptController::class, 'store'])

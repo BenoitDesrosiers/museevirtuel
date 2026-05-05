@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\EcheancierEtudiantProgress;
+use App\Models\ProjetGrilleNote;
+use App\Models\ProjetNote;
+use App\Models\ProjetRecherche;
+use App\Models\TypeProjet;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -85,10 +89,82 @@ class ClasseController extends Controller
             'etudiants' => fn ($query) => $query->withPivot('statut_cours'),
         ]);
 
+        // TypeProjets du cours — pour les boutons d'aperçu notes (enseignant seulement)
+        $typesProjets = $estEnseignant
+            ? $cours->typesProjets()->get(['id', 'nom'])
+            : collect();
+
         return Inertia::render('Classes/Show', [
             'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
             'classe' => $classe,
             'estEnseignant' => $estEnseignant,
+            'typesProjets' => $typesProjets,
+        ]);
+    }
+
+    /**
+     * Affiche la page d'aperçu des notes de toute la classe pour un TypeProjet donné.
+     *
+     * Agrège les notes de tous les groupes de la classe : une ligne par étudiant
+     * avec son numéro DA et sa note finale (format "DA NOTE").
+     * Accessible aux enseignants et admins uniquement.
+     *
+     * @throws AuthorizationException
+     * @throws HttpException
+     */
+    public function apercuNotesClasse(Cours $cours, Classe $classe, TypeProjet $typeProjet): Response
+    {
+        abort_if($classe->cours_id !== $cours->id, 404);
+
+        $classe->load('cours');
+        $this->authorize('view', $classe);
+
+        $user = auth()->user();
+        abort_unless(
+            $user->role === 'admin' || $cours->enseignant_id === $user->id,
+            403,
+        );
+
+        $classe->load('groupes.membres');
+
+        // Déterminer si ce TypeProjet utilise une grille personnalisée
+        $typeProjet->loadMissing('grille');
+        $useGrillePerso = $typeProjet->grille !== null;
+
+        // Charger tous les projets de cette classe pour ce TypeProjet en une seule requête — évite N+1
+        $relationsNotes = $useGrillePerso
+            ? ['notesGrille.critere', 'malusAppliques.malus']
+            : ['notes'];
+
+        $projets = ProjetRecherche::whereIn('groupe_id', $classe->groupes->pluck('id'))
+            ->where('type_projet_id', $typeProjet->id)
+            ->with($relationsNotes)
+            ->get()
+            ->keyBy('groupe_id');
+
+        $lignes = collect();
+
+        foreach ($classe->groupes as $groupe) {
+            $projet = $projets->get($groupe->id);
+
+            foreach ($groupe->membres as $membre) {
+                $note = $projet
+                    ? ($useGrillePerso
+                        ? ProjetGrilleNote::noteFinale($projet, $membre)
+                        : ProjetNote::noteFinale($projet, $membre))
+                    : null;
+                $lignes->push([
+                    'da' => preg_replace('/\D/', '', (string) $membre->no_da),
+                    'note' => $note !== null ? (string) $note : null,
+                ]);
+            }
+        }
+
+        return Inertia::render('Classes/ApercuNotes', [
+            'cours' => $cours->only('id', 'nom_cours'),
+            'classe' => ['id' => $classe->id, 'numero' => $classe->numero, 'nom' => $classe->nom],
+            'typeProjet' => ['id' => $typeProjet->id, 'nom' => $typeProjet->nom],
+            'lignes' => $lignes->values(),
         ]);
     }
 

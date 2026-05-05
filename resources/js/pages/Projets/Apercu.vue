@@ -65,6 +65,7 @@ type Renvoi = {
 const props = defineProps<{
     groupe: Groupe;
     classe: Classe;
+    typeProjet: { id: number; nom: string };
     thematiques: Thematique[];
     membres: Membre[];
     projet: Projet | null;
@@ -74,7 +75,7 @@ const props = defineProps<{
 }>();
 
 /** Construit l'URL de base pour les routes du projet de ce groupe. */
-const baseUrl = `/cours/${props.classe.cours_id}/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/projets`;
+const baseUrl = `/cours/${props.classe.cours_id}/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/projets/${props.typeProjet.id}`;
 
 /** Retrouve le nom d'un membre par son userId. */
 function nomMembre(userId: number): string {

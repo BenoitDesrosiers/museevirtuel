@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, ExternalLink, Pencil, Trash2, Upload, Users } from 'lucide-vue-next';
+import { ArrowLeft, ExternalLink, FileBarChart, Pencil, Trash2, Upload, Users } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
@@ -76,10 +76,16 @@ type Classe = {
     etudiants: Etudiant[];
 };
 
+type TypeProjet = {
+    id: number;
+    nom: string;
+};
+
 type Props = {
     cours: Cours;
     classe: Classe;
     estEnseignant: boolean;
+    typesProjets: TypeProjet[];
 };
 
 const props = defineProps<Props>();
@@ -311,6 +317,32 @@ function executeDeleteGroupe() {
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Aperçu notes par TypeProjet — enseignant seulement -->
+            <Card v-if="estEnseignant && typesProjets.length > 0">
+                <CardHeader>
+                    <CardTitle class="flex items-center gap-2">
+                        <FileBarChart class="h-5 w-5" />
+                        Aperçu des notes
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div class="flex flex-wrap gap-2">
+                        <Button
+                            v-for="tp in typesProjets"
+                            :key="tp.id"
+                            variant="outline"
+                            size="sm"
+                            as-child
+                        >
+                            <Link :href="`/cours/${cours.id}/classes/${classe.id}/types-projets/${tp.id}/apercu-notes`">
+                                <FileBarChart class="mr-2 h-4 w-4" />
+                                {{ tp.nom }}
+                            </Link>
+                        </Button>
                     </div>
                 </CardContent>
             </Card>

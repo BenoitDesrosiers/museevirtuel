@@ -76,7 +76,6 @@
 
         /* ─── Table des matières ──────────────────────────────── */
         .toc {
-            page-break-after: always;
             padding: 40px 80px;
         }
 
@@ -89,17 +88,21 @@
         }
 
         .toc-entry {
-            display: flex;
+            display: table;
+            width: 100%;
             margin-bottom: 6pt;
             font-size: 11pt;
         }
 
         .toc-entry .toc-label {
-            flex: 1;
+            display: table-cell;
+            width: 100%;
         }
 
         .toc-entry .toc-dots {
-            flex: 0 0 auto;
+            display: table-cell;
+            text-align: right;
+            white-space: nowrap;
             color: #888;
         }
 
@@ -169,9 +172,15 @@
             margin-bottom: 6pt;
             font-size: 11pt;
         }
+
+        /* ─── Marges de page ─────────────────────────────────────── */
+        @page {
+            margin: 2cm 2.5cm 2.5cm 2.5cm;
+        }
     </style>
 </head>
 <body>
+@php $tocPageNums = $tocPageNums ?? []; @endphp
 
     {{-- ─── Page titre ──────────────────────────────────────────────── --}}
     @if($genererPageTitre)
@@ -206,22 +215,43 @@
         @if($sections->isNotEmpty())
             {{-- TOC dynamique : reflète les sections TypeProjet --}}
             @foreach($sections as $section)
+                @php $sectionKey = 'section-'.$loop->index; @endphp
                 <div class="toc-entry">
                     <span class="toc-label">{{ $section['label'] }}</span>
-                    <span class="toc-dots">……………</span>
+                    <span class="toc-dots">
+                        @if(!empty($tocPageNums[$sectionKey]))
+                            ……… {{ $tocPageNums[$sectionKey] }}
+                        @else
+                            ……………
+                        @endif
+                    </span>
                 </div>
                 @if($section['type'] === 'paragraphes')
                     @foreach($section['paragraphes'] as $para)
+                        @php $subKey = 'subsection-'.$loop->parent->index.'-'.$loop->index; @endphp
                         <div class="toc-entry toc-entry--sub">
                             <span class="toc-label">{{ $para['titre'] ?: '(sans titre)' }}</span>
-                            <span class="toc-dots">……………</span>
+                            <span class="toc-dots">
+                                @if(!empty($tocPageNums[$subKey]))
+                                    ……… {{ $tocPageNums[$subKey] }}
+                                @else
+                                    ……………
+                                @endif
+                            </span>
                         </div>
                     @endforeach
                 @elseif($section['type'] === 'individuel')
                     @foreach($membresObjets as $membre)
+                        @php $subKey = 'member-'.$loop->parent->index.'-'.$loop->index; @endphp
                         <div class="toc-entry toc-entry--sub">
                             <span class="toc-label">{{ $membre->prenom }} {{ $membre->nom }}</span>
-                            <span class="toc-dots">……………</span>
+                            <span class="toc-dots">
+                                @if(!empty($tocPageNums[$subKey]))
+                                    ……… {{ $tocPageNums[$subKey] }}
+                                @else
+                                    ……………
+                                @endif
+                            </span>
                         </div>
                     @endforeach
                 @endif
@@ -256,7 +286,7 @@
     {{-- ─── Sections dynamiques ou Introduction classique ─────────────── --}}
     @if($sections->isNotEmpty())
         @foreach($sections as $section)
-            <div class="section">
+            <div class="section" id="section-{{ $loop->index }}">
                 <h2>{{ $section['label'] }}</h2>
                 @if(($section['type'] ?? 'texte') === 'paragraphes')
                     {{-- Sections de type paragraphes : chaque paragraphe est une sous-section --}}
@@ -264,7 +294,7 @@
                         <p style="color: #999; font-style: italic;">(Section non rédigée)</p>
                     @else
                         @foreach($section['paragraphes'] as $para)
-                            <div class="subsection">
+                            <div class="subsection" id="subsection-{{ $loop->parent->index }}-{{ $loop->index }}">
                                 @if(!empty($para['titre']))
                                     <h3>{{ $para['titre'] }}</h3>
                                 @endif
@@ -280,7 +310,7 @@
                     {{-- Sections de type individuel : une sous-section par membre --}}
                     @foreach($membresObjets as $membre)
                         @php $contenuMembre = $section['membres_conclusions'][$membre->id] ?? null; @endphp
-                        <div class="subsection">
+                        <div class="subsection" id="member-{{ $loop->parent->index }}-{{ $loop->index }}">
                             <h3>{{ $membre->prenom }} {{ $membre->nom }}</h3>
                             @if($contenuMembre && trim(strip_tags($contenuMembre)) !== '')
                                 <div class="prose">{!! $contenuMembre !!}</div>
@@ -369,11 +399,19 @@
         <h2>Références</h2>
         <ol>
             @foreach($renvois as $renvoi)
-                <li>{{ $renvoi->contenu ?? '—' }}</li>
+                {{-- id="ref-N" : cible des liens <a href="#ref-N"> dans le texte --}}
+                {{-- Le lien ↩ renvoie à la première occurrence de ce renvoi dans le texte --}}
+                <li id="ref-{{ $renvoi->numero }}">
+                    <a href="#appel-{{ $renvoi->numero }}-1"
+                       style="color:#1e40af;text-decoration:none;font-size:0.8em;"
+                       title="Retour au texte">↩</a>
+                    {{ $renvoi->contenu ?? '—' }}
+                </li>
             @endforeach
         </ol>
     </div>
     @endif
+
 
 </body>
 </html>
