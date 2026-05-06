@@ -5,6 +5,7 @@ import { createApp, h } from 'vue';
 import { createI18n } from 'vue-i18n';
 import '../css/app.css';
 import { initializeTheme } from '@/composables/useAppearance';
+import { vTooltip } from '@/directives/tooltip';
 import en from '@/i18n/en.json';
 import fr from '@/i18n/fr.json';
 
@@ -39,6 +40,7 @@ createInertiaApp({
         createApp({ render: () => h(App, props) })
             .use(plugin)
             .use(i18n)
+            .directive('tooltip', vTooltip)
             .mount(el);
     },
     progress: {

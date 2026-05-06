@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n';
 import FormDialog from '@/components/FormDialog.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
+import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -281,20 +282,22 @@ function deleteEtablissement(etablissement: Etablissement) {
                                     <td class="py-3 pr-4 text-center">{{ etablissement.enseignants_count }}</td>
                                     <td class="py-3">
                                         <div class="flex gap-2">
-                                            <Button
+                                            <BoutonTooltip
+                                                texte="Modifier cet établissement"
                                                 size="sm"
                                                 variant="outline"
                                                 @click="openEditEtablissement(etablissement)"
                                             >
                                                 <Pencil class="h-4 w-4" />
-                                            </Button>
-                                            <Button
+                                            </BoutonTooltip>
+                                            <BoutonTooltip
+                                                texte="Supprimer cet établissement"
                                                 size="sm"
                                                 variant="destructive"
                                                 @click="deleteEtablissement(etablissement)"
                                             >
                                                 <Trash2 class="h-4 w-4" />
-                                            </Button>
+                                            </BoutonTooltip>
                                         </div>
                                     </td>
                                 </tr>
@@ -346,20 +349,22 @@ function deleteEtablissement(etablissement: Etablissement) {
                                     <td class="py-3 pr-4 text-center">{{ enseignant.thematiques_count }}</td>
                                     <td class="py-3">
                                         <div class="flex gap-2">
-                                            <Button
+                                            <BoutonTooltip
+                                                texte="Modifier cet enseignant"
                                                 size="sm"
                                                 variant="outline"
                                                 @click="openEdit(enseignant)"
                                             >
                                                 <Pencil class="h-4 w-4" />
-                                            </Button>
-                                            <Button
+                                            </BoutonTooltip>
+                                            <BoutonTooltip
+                                                texte="Supprimer cet enseignant"
                                                 size="sm"
                                                 variant="destructive"
                                                 @click="deleteEnseignant(enseignant)"
                                             >
                                                 <Trash2 class="h-4 w-4" />
-                                            </Button>
+                                            </BoutonTooltip>
                                         </div>
                                     </td>
                                 </tr>

@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft, Download, Eye } from 'lucide-vue-next';
 import Heading from '@/components/Heading.vue';
+import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 
@@ -100,18 +101,28 @@ function nomMembre(userId: number): string {
 
                 <!-- Boutons export (enseignant seulement) -->
                 <div v-if="estEnseignant" class="flex gap-2">
-                    <Button variant="outline" size="sm" as-child>
+                    <BoutonTooltip
+                        texte="Télécharger en PDF (s'ouvre dans un nouvel onglet)"
+                        variant="outline"
+                        size="sm"
+                        as-child
+                    >
                         <a :href="`${baseUrl}/pdf`" target="_blank">
                             <Download class="mr-2 h-4 w-4" />
                             PDF
                         </a>
-                    </Button>
-                    <Button variant="outline" size="sm" as-child>
+                    </BoutonTooltip>
+                    <BoutonTooltip
+                        texte="Télécharger en Word"
+                        variant="outline"
+                        size="sm"
+                        as-child
+                    >
                         <a :href="`${baseUrl}/word`" target="_blank">
                             <Download class="mr-2 h-4 w-4" />
                             Word
                         </a>
-                    </Button>
+                    </BoutonTooltip>
                 </div>
             </div>
 

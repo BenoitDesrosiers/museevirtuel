@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n';
 import FormDialog from '@/components/FormDialog.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
+import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -256,25 +257,32 @@ function voirTemoin(temoin: TemoinEnAttente) {
                                     <td class="py-3 pr-4 text-center">{{ unCours.etudiants_count }}</td>
                                     <td class="py-3">
                                         <div class="flex gap-2">
-                                            <Button size="sm" variant="outline" as-child>
+                                            <BoutonTooltip
+                                                texte="Accéder au détail de ce cours"
+                                                size="sm"
+                                                variant="outline"
+                                                as-child
+                                            >
                                                 <Link :href="`/cours/${unCours.id}`">
                                                     <ExternalLink class="h-4 w-4" />
                                                 </Link>
-                                            </Button>
-                                            <Button
+                                            </BoutonTooltip>
+                                            <BoutonTooltip
+                                                texte="Modifier les informations de ce cours"
                                                 size="sm"
                                                 variant="outline"
                                                 @click="openEditCours(unCours)"
                                             >
                                                 <Pencil class="h-4 w-4" />
-                                            </Button>
-                                            <Button
+                                            </BoutonTooltip>
+                                            <BoutonTooltip
+                                                texte="Supprimer ce cours définitivement"
                                                 size="sm"
                                                 variant="destructive"
                                                 @click="deleteCours(unCours)"
                                             >
                                                 <Trash2 class="h-4 w-4" />
-                                            </Button>
+                                            </BoutonTooltip>
                                         </div>
                                     </td>
                                 </tr>
@@ -329,20 +337,22 @@ function voirTemoin(temoin: TemoinEnAttente) {
                                     </td>
                                     <td class="py-3">
                                         <div class="flex gap-2">
-                                            <Button
+                                            <BoutonTooltip
+                                                texte="Modifier cette thématique"
                                                 size="sm"
                                                 variant="outline"
                                                 @click="openEditThematique(thematique)"
                                             >
                                                 <Pencil class="h-4 w-4" />
-                                            </Button>
-                                            <Button
+                                            </BoutonTooltip>
+                                            <BoutonTooltip
+                                                texte="Supprimer cette thématique"
                                                 size="sm"
                                                 variant="destructive"
                                                 @click="deleteThematique(thematique)"
                                             >
                                                 <Trash2 class="h-4 w-4" />
-                                            </Button>
+                                            </BoutonTooltip>
                                         </div>
                                     </td>
                                 </tr>
@@ -512,12 +522,17 @@ function voirTemoin(temoin: TemoinEnAttente) {
                                         {{ new Date(travail.remis_le).toLocaleDateString() }}
                                     </td>
                                     <td class="py-3">
-                                        <Button size="sm" variant="outline" as-child>
+                                        <BoutonTooltip
+                                            texte="Accéder aux projets de ce groupe"
+                                            size="sm"
+                                            variant="outline"
+                                            as-child
+                                        >
                                             <Link :href="`/cours/${travail.classe.cours_id}/classes/${travail.classe.id}/projets`">
                                                 <ExternalLink class="h-4 w-4" />
                                                 {{ $t('enseignant.index.view_project') }}
                                             </Link>
-                                        </Button>
+                                        </BoutonTooltip>
                                     </td>
                                 </tr>
                                 <tr v-if="travauxRemis.length === 0">

@@ -7,6 +7,7 @@ import FormDialog from '@/components/FormDialog.vue';
 import Heading from '@/components/Heading.vue';
 import NoteAvecCorrections from '@/components/NoteAvecCorrections.vue';
 import VisioSession from '@/components/VisioSession.vue';
+import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -413,13 +414,22 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
 
             <!-- Liens rapides -->
             <div class="flex flex-wrap gap-2">
-                <Button variant="outline" as-child>
+                <BoutonTooltip
+                    texte="Accéder aux projets de ce groupe"
+                    variant="outline"
+                    as-child
+                >
                     <Link :href="`/cours/${cours.id}/classes/${groupe.classe_id}/groupes/${groupe.id}/projets`">
                         <BookOpen class="mr-2 h-4 w-4" />
                         Projets
                     </Link>
-                </Button>
-                <Button v-if="groupe.temoin || estMembre || estEnseignant" variant="outline" as-child>
+                </BoutonTooltip>
+                <BoutonTooltip
+                    v-if="groupe.temoin || estMembre || estEnseignant"
+                    texte="Accéder aux échanges avec le témoin de ce groupe"
+                    variant="outline"
+                    as-child
+                >
                     <Link :href="`/cours/${cours.id}/classes/${groupe.classe_id}/groupes/${groupe.id}/echanges`">
                         <MessageSquare class="mr-2 h-4 w-4" />
                         Échanges avec le témoin
@@ -427,7 +437,7 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                             ({{ groupe.temoin.prenom }} {{ groupe.temoin.nom }})
                         </span>
                     </Link>
-                </Button>
+                </BoutonTooltip>
             </div>
 
             <!-- Carte Témoin (enseignant seulement) -->
@@ -443,7 +453,8 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                             </span>
                             <span class="text-sm font-medium">{{ groupe.temoin.prenom }} {{ groupe.temoin.nom }}</span>
                         </div>
-                        <Button
+                        <BoutonTooltip
+                            texte="Retirer le témoin assigné à ce groupe"
                             type="button"
                             size="sm"
                             variant="destructive"
@@ -451,7 +462,7 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                             @click="desassignerTemoin"
                         >
                             Désassigner
-                        </Button>
+                        </BoutonTooltip>
                     </div>
                     <p v-else class="text-muted-foreground mb-4 text-sm">Aucun témoin assigné à ce groupe.</p>
 
@@ -691,11 +702,16 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                                 </div>
                             </div>
                             <div class="flex shrink-0 gap-2">
-                                <Button size="sm" variant="outline" as-child>
+                                <BoutonTooltip
+                                    texte="Télécharger ce document"
+                                    size="sm"
+                                    variant="outline"
+                                    as-child
+                                >
                                     <a :href="doc.url" target="_blank" download>
                                         <Download class="h-4 w-4" />
                                     </a>
-                                </Button>
+                                </BoutonTooltip>
                                 <Button
                                     v-if="peutSupprimerMedia(doc)"
                                     size="sm"

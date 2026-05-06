@@ -43,11 +43,13 @@ import SectionVideo from '@/components/SectionVideo.vue';
 import Heading from '@/components/Heading.vue';
 import NotesGrillePersonnalisee from '@/components/NotesGrillePersonnalisee.vue';
 import RichEditor from '@/components/RichEditor.vue';
+import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogHeader, DialogScrollContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { Auth } from '@/types/auth';
 
@@ -1780,42 +1782,70 @@ function setOngletActif(section: string, membreId: number | 'tous') {
 
             <!-- Boutons d'export + notes finales par étudiant — sticky pour garder le score visible au scroll -->
             <div class="sticky top-0 z-30 -mx-3 border-b bg-white px-3 py-2 shadow-sm dark:bg-zinc-950">
-            <div class="flex flex-wrap items-start justify-between gap-2">
-                <div class="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" as-child>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-1">
+                    <!-- ── Groupe 1 : Consultation & exports ─────────────── -->
+                    <BoutonTooltip
+                        texte="Voir le rendu final du projet"
+                        variant="ghost"
+                        size="sm"
+                        as-child
+                    >
                         <Link :href="`${baseUrl}/apercu`">
-                            <Eye class="mr-2 h-4 w-4" />
+                            <Eye class="h-4 w-4" />
                             Aperçu
                         </Link>
-                    </Button>
-                    <Button variant="outline" size="sm" as-child>
-                        <a :href="`${baseUrl}/pdf`" target="_blank">
-                            <FileText class="mr-2 h-4 w-4" />
-                            {{ t('projets.show.export_pdf') }}
-                        </a>
-                    </Button>
-                    <Button variant="outline" size="sm" as-child>
-                        <a :href="`${baseUrl}/word`">
-                            <Download class="mr-2 h-4 w-4" />
-                            {{ t('projets.show.export_word') }}
-                        </a>
-                    </Button>
-                    <Button v-if="estEnseignant" variant="outline" size="sm" as-child>
-                        <Link :href="`${baseUrl}/apercu-notes`">
-                            <FileBarChart class="mr-2 h-4 w-4" />
-                            Export note
-                        </Link>
-                    </Button>
-                    <Button
-                        v-if="peutEditer && !verrouille"
-                        variant="outline"
+                    </BoutonTooltip>
+                    <BoutonTooltip
+                        texte="Télécharger une version PDF (s'ouvre dans un nouvel onglet)"
+                        variant="ghost"
                         size="sm"
-                        class="border-green-300 text-green-700 hover:bg-green-50"
+                        as-child
+                    >
+                        <a :href="`${baseUrl}/pdf`" target="_blank">
+                            <FileText class="h-4 w-4" />
+                            PDF
+                        </a>
+                    </BoutonTooltip>
+                    <BoutonTooltip
+                        texte="Télécharger une version Word (.docx)"
+                        variant="ghost"
+                        size="sm"
+                        as-child
+                    >
+                        <a :href="`${baseUrl}/word`">
+                            <Download class="h-4 w-4" />
+                            Word
+                        </a>
+                    </BoutonTooltip>
+                    <BoutonTooltip
+                        v-if="estEnseignant"
+                        texte="Voir les notes de tous les étudiants du groupe"
+                        variant="ghost"
+                        size="sm"
+                        as-child
+                    >
+                        <Link :href="`${baseUrl}/apercu-notes`">
+                            <FileBarChart class="h-4 w-4" />
+                            Notes
+                        </Link>
+                    </BoutonTooltip>
+
+                    <!-- ── Séparateur ─────────────────────────────────────── -->
+                    <Separator orientation="vertical" class="mx-1 h-5" />
+
+                    <!-- ── Groupe 2 : Outils ──────────────────────────────── -->
+                    <BoutonTooltip
+                        v-if="peutEditer && !verrouille"
+                        texte="Lancer la correction orthographique globale avec Antidote"
+                        variant="ghost"
+                        size="sm"
+                        class="text-green-700 hover:bg-green-50 hover:text-green-700"
                         @click="showAntidoteGlobal = true"
                     >
-                        <SpellCheck class="mr-2 h-4 w-4" />
-                        Corriger tout avec Antidote
-                    </Button>
+                        <SpellCheck class="h-4 w-4" />
+                        Antidote
+                    </BoutonTooltip>
                     <!-- Consentement vidéo — affiché si au moins une section vidéo/audio existe -->
                     <ConsentementVideo
                         v-if="hasVideoOrAudioSection && !estEnseignant"
@@ -1826,53 +1856,61 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         }"
                         :consentement="consentement"
                     />
-                    <Button v-if="estEnseignant" variant="ghost" size="sm" as-child>
+                    <BoutonTooltip
+                        v-if="estEnseignant"
+                        texte="Gérer les sections disponibles pour ce type de projet"
+                        variant="ghost"
+                        size="sm"
+                        as-child
+                    >
                         <Link href="/types-projets">
-                            <Settings2 class="mr-2 h-4 w-4" />
-                            Configurer les sections
+                            <Settings2 class="h-4 w-4" />
+                            Sections
                         </Link>
-                    </Button>
-                    <Button
+                    </BoutonTooltip>
+                    <BoutonTooltip
                         v-if="estEnseignant || (grillePersonnalisee && correctionVisible)"
-                        variant="outline"
+                        texte="Ouvrir la grille de correction personnalisée"
+                        variant="ghost"
                         size="sm"
                         @click="grilleModalOuverte = true"
                     >
-                        <ClipboardList class="mr-2 h-4 w-4" />
-                        Grille de correction
-                    </Button>
-                    <Button
+                        <ClipboardList class="h-4 w-4" />
+                        Grille
+                    </BoutonTooltip>
+                    <BoutonTooltip
                         v-if="champsVisibles.length > 0"
+                        :texte="tousCommentairesReduits ? 'Développer tous les commentaires enseignant' : 'Réduire tous les commentaires enseignant'"
                         variant="ghost"
                         size="sm"
                         @click="toggleTousCommentaires"
                     >
-                        <MessageSquare class="mr-2 h-4 w-4" />
-                        {{
-                            tousCommentairesReduits
-                                ? t('projets.show.show_comments')
-                                : t('projets.show.hide_comments')
-                        }}
-                    </Button>
-                    <!-- Toggles enseignant -->
+                        <MessageSquare class="h-4 w-4" />
+                        Commentaires
+                    </BoutonTooltip>
+
+                    <!-- ── Groupe 3 : Actions enseignant ──────────────────── -->
                     <template v-if="estEnseignant">
-                        <Button
-                            :variant="correctionVisible ? 'default' : 'outline'"
+                        <Separator orientation="vertical" class="mx-1 h-5" />
+                        <BoutonTooltip
+                            :texte="correctionVisible ? 'Masquer les corrections aux étudiants' : 'Publier les corrections pour que les étudiants puissent les consulter'"
+                            :variant="correctionVisible ? 'default' : 'ghost'"
                             size="sm"
                             @click="toggleCorrectionVisible"
                         >
-                            <CheckCircle2 v-if="correctionVisible" class="mr-2 h-4 w-4" />
-                            <Send v-else class="mr-2 h-4 w-4" />
-                            {{ correctionVisible ? t('projets.show.corrections_published') : t('projets.show.publish_corrections') }}
-                        </Button>
-                        <Button
-                            :variant="verrouille ? 'destructive' : 'outline'"
+                            <CheckCircle2 v-if="correctionVisible" class="h-4 w-4" />
+                            <Send v-else class="h-4 w-4" />
+                            Correction
+                        </BoutonTooltip>
+                        <BoutonTooltip
+                            :texte="verrouille ? 'Déverrouiller le document pour permettre les modifications' : 'Verrouiller le document pour empêcher toute modification'"
+                            :variant="verrouille ? 'destructive' : 'ghost'"
                             size="sm"
                             @click="toggleVerrouille"
                         >
-                            <Lock class="mr-2 h-4 w-4" />
-                            {{ verrouille ? t('projets.show.unlock') : t('projets.show.lock') }}
-                        </Button>
+                            <Lock class="h-4 w-4" />
+                            Verrouiller
+                        </BoutonTooltip>
                     </template>
                 </div>
 
@@ -1933,9 +1971,8 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     >
                         {{ t('projets.show.page_title_card') }}
                     </CardTitle>
-                    <Button
-                        variant="ghost"
-                        size="icon"
+                    <BoutonTooltip
+                        :texte="collapsed.pageTitre ? 'Développer' : 'Réduire'"
                         @click="toggleSection('pageTitre')"
                     >
                         <ChevronUp
@@ -1943,7 +1980,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             class="h-4 w-4"
                         />
                         <ChevronDown v-else class="h-4 w-4" />
-                    </Button>
+                    </BoutonTooltip>
                 </CardHeader>
                 <CardContent v-show="!collapsed.pageTitre">
                     <RichEditor
@@ -1987,9 +2024,8 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     >
                         {{ t('projets.show.page_titre_manuel_card') }}
                     </CardTitle>
-                    <Button
-                        variant="ghost"
-                        size="icon"
+                    <BoutonTooltip
+                        :texte="collapsed.pageTitre ? 'Développer' : 'Réduire'"
                         @click="toggleSection('pageTitre')"
                     >
                         <ChevronUp
@@ -1997,7 +2033,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             class="h-4 w-4"
                         />
                         <ChevronDown v-else class="h-4 w-4" />
-                    </Button>
+                    </BoutonTooltip>
                 </CardHeader>
                 <CardContent v-show="!collapsed.pageTitre">
                     <p class="mb-3 text-xs text-muted-foreground">
@@ -2045,14 +2081,13 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     >
                         {{ genererTableMatieres ? t('projets.show.toc_card') : t('projets.show.toc_manuel_card') }}
                     </CardTitle>
-                    <Button
-                        variant="ghost"
-                        size="icon"
+                    <BoutonTooltip
+                        :texte="collapsed.tdm ? 'Développer' : 'Réduire'"
                         @click="toggleSection('tdm')"
                     >
                         <ChevronUp v-if="!collapsed.tdm" class="h-4 w-4" />
                         <ChevronDown v-else class="h-4 w-4" />
-                    </Button>
+                    </BoutonTooltip>
                 </CardHeader>
                 <CardContent v-show="!collapsed.tdm">
                     <!-- Mode automatique : notice informative, pas d'éditeur -->
@@ -2098,10 +2133,13 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 </span>
                             </CardTitle>
                             <div class="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" @click="toggleSection(`section_${section.id}`)">
+                                <BoutonTooltip
+                                    :texte="collapsed[`section_${section.id}`] ? 'Développer' : 'Réduire'"
+                                    @click="toggleSection(`section_${section.id}`)"
+                                >
                                     <ChevronUp v-if="!collapsed[`section_${section.id}`]" class="h-4 w-4" />
                                     <ChevronDown v-else class="h-4 w-4" />
-                                </Button>
+                                </BoutonTooltip>
                             </div>
                         </CardHeader>
                         <CardContent v-show="!collapsed[`section_${section.id}`]" class="space-y-4">
@@ -2152,24 +2190,23 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                     </span>
                                 </CardTitle>
                                 <div class="flex items-center gap-1">
-                                    <Button
+                                    <BoutonTooltip
                                         v-if="peutEditer && (sectionParagraphesLocaux[section.id]?.length ?? 0) > 1"
-                                        variant="ghost"
-                                        size="icon"
-                                        class="h-8 w-8 text-destructive"
+                                        texte="Supprimer ce paragraphe"
+                                        size="icon-sm"
+                                        class="text-destructive"
                                         :disabled="!!sectionParagrapheEnCours[section.id]"
                                         @click="supprimerSectionParagraphe(para.id, section.id)"
                                     >
                                         <Trash2 class="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
+                                    </BoutonTooltip>
+                                    <BoutonTooltip
+                                        :texte="collapsedDev[para.id] ? 'Développer' : 'Réduire'"
                                         @click="toggleDev(para.id)"
                                     >
                                         <ChevronUp v-if="!collapsedDev[para.id]" class="h-4 w-4" />
                                         <ChevronDown v-else class="h-4 w-4" />
-                                    </Button>
+                                    </BoutonTooltip>
                                 </div>
                             </CardHeader>
                             <CardContent v-show="!collapsedDev[para.id]" class="space-y-2">
@@ -2237,10 +2274,13 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                     </span>
                                     {{ section.label }} — {{ membre.prenom }} {{ membre.nom }}
                                 </CardTitle>
-                                <Button variant="ghost" size="icon" @click="toggleConclusion(section.id * 10000 + membre.id)">
+                                <BoutonTooltip
+                                    :texte="collapsedConclusion[section.id * 10000 + membre.id] ? 'Développer' : 'Réduire'"
+                                    @click="toggleConclusion(section.id * 10000 + membre.id)"
+                                >
                                     <ChevronUp v-if="!collapsedConclusion[section.id * 10000 + membre.id]" class="h-4 w-4" />
                                     <ChevronDown v-else class="h-4 w-4" />
-                                </Button>
+                                </BoutonTooltip>
                             </CardHeader>
                             <CardContent v-show="!collapsedConclusion[section.id * 10000 + membre.id]">
                                 <template v-if="peutEditer">
@@ -2319,16 +2359,15 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                     />
                                     <span v-else class="text-sm font-medium">{{ concept.label }}</span>
                                 </div>
-                                <Button
+                                <BoutonTooltip
                                     v-if="peutEditer"
-                                    variant="ghost"
-                                    size="icon"
-                                    class="h-7 w-7 shrink-0 text-destructive"
+                                    texte="Supprimer ce concept"
+                                    class="size-7 shrink-0 text-destructive"
                                     :disabled="!!conceptEnCours[section.id]"
                                     @click="supprimerConcept(concept.id, section.id)"
                                 >
                                     <Trash2 class="h-3.5 w-3.5" />
-                                </Button>
+                                </BoutonTooltip>
                             </CardHeader>
 
                             <CardContent class="pt-0">
@@ -2389,15 +2428,14 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                                             @input="(e) => { ligne.questions[qi] = (e.target as HTMLInputElement).value; scheduleLigneSave(ligne.id, concept.id, section.id); }"
                                                         />
                                                         <span v-else class="flex-1">{{ q }}</span>
-                                                        <Button
+                                                        <BoutonTooltip
                                                             v-if="peutEditer"
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            class="h-6 w-6 shrink-0 text-destructive"
+                                                            texte="Supprimer cette question"
+                                                            class="size-6 shrink-0 text-destructive"
                                                             @click="supprimerQuestion(ligne, qi, concept.id, section.id)"
                                                         >
                                                             <Trash2 class="h-3 w-3" />
-                                                        </Button>
+                                                        </BoutonTooltip>
                                                     </div>
                                                     <Button
                                                         v-if="peutEditer"
@@ -2414,14 +2452,13 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                             </td>
                                             <!-- Supprimer ligne -->
                                             <td v-if="peutEditer" class="py-1 pl-1 align-top">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    class="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                                <BoutonTooltip
+                                                    texte="Supprimer cette ligne"
+                                                    class="size-7 text-muted-foreground hover:text-destructive"
                                                     @click="supprimerLigne(ligne.id, concept.id, section.id)"
                                                 >
                                                     <Trash2 class="h-3.5 w-3.5" />
-                                                </Button>
+                                                </BoutonTooltip>
                                             </td>
                                         </tr>
                                     </tbody>
@@ -2793,20 +2830,18 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         </span>
                     </CardTitle>
                     <div class="flex items-center gap-1">
-                        <Button
+                        <BoutonTooltip
                             v-if="peutEditer && developpements.length > 1"
-                            variant="ghost"
-                            size="icon"
-                            class="h-8 w-8 text-destructive"
-                            :title="t('projets.show.delete_paragraph')"
+                            :texte="t('projets.show.delete_paragraph')"
+                            size="icon-sm"
+                            class="text-destructive"
                             :disabled="devEnCours"
                             @click="supprimerDev(dev.id)"
                         >
                             <Trash2 class="h-4 w-4" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
+                        </BoutonTooltip>
+                        <BoutonTooltip
+                            :texte="collapsedDev[dev.id] ? 'Développer' : 'Réduire'"
                             @click="toggleDev(dev.id)"
                         >
                             <ChevronUp
@@ -2814,7 +2849,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 class="h-4 w-4"
                             />
                             <ChevronDown v-else class="h-4 w-4" />
-                        </Button>
+                        </BoutonTooltip>
                     </div>
                 </CardHeader>
                 <CardContent v-show="!collapsedDev[dev.id]" class="space-y-2">
@@ -2892,9 +2927,8 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         </span>
                         {{ t('projets.show.conclusion_member', { prenom: item.etudiant.prenom, nom: item.etudiant.nom }) }}
                     </CardTitle>
-                    <Button
-                        variant="ghost"
-                        size="icon"
+                    <BoutonTooltip
+                        :texte="collapsedConclusion[item.etudiant.id] ? 'Développer' : 'Réduire'"
                         @click="toggleConclusion(item.etudiant.id)"
                     >
                         <ChevronUp
@@ -2902,7 +2936,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             class="h-4 w-4"
                         />
                         <ChevronDown v-else class="h-4 w-4" />
-                    </Button>
+                    </BoutonTooltip>
                 </CardHeader>
                 <CardContent v-show="!collapsedConclusion[item.etudiant.id]">
                     <template v-if="peutEditer">
@@ -3010,16 +3044,14 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                     }"
                                 />
                             </div>
-                            <Button
+                            <BoutonTooltip
                                 v-if="peutEditer"
-                                variant="ghost"
-                                size="icon"
-                                class="mt-1 h-7 w-7 shrink-0 text-destructive"
-                                title="Supprimer cette référence"
+                                texte="Supprimer cette référence"
+                                class="mt-1 size-7 shrink-0 text-destructive"
                                 @click="demanderSupprimerRenvoi(renvoi.id)"
                             >
                                 <Trash2 class="h-3.5 w-3.5" />
-                            </Button>
+                            </BoutonTooltip>
                         </li>
                     </ol>
                 </CardContent>

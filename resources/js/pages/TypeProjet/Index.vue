@@ -5,6 +5,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
+import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -119,9 +120,10 @@ function supprimer(tp: TypeProjet) {
                         </div>
 
                         <div class="flex shrink-0 items-center gap-1">
-                            <Button
+                            <BoutonTooltip
                                 size="sm"
                                 :variant="tp.accessible ? 'outline' : 'secondary'"
+                                :texte="tp.accessible ? 'Masquer ce type de projet aux étudiants' : 'Rendre ce type de projet accessible aux étudiants'"
                                 class="text-xs"
                                 :disabled="toggleForm.processing"
                                 @click="toggleAccessible(tp)"
@@ -129,15 +131,22 @@ function supprimer(tp: TypeProjet) {
                                 <ChevronRight v-if="!tp.accessible" class="mr-1 h-3 w-3" />
                                 <ChevronDown v-else class="mr-1 h-3 w-3" />
                                 {{ tp.accessible ? $t('types_projet.index.btn_hide') : $t('types_projet.index.btn_make_accessible') }}
-                            </Button>
+                            </BoutonTooltip>
 
-                            <Button size="icon" variant="ghost" class="h-8 w-8" as-child>
-                                <Link :href="typesProjetsRoutes.edit.url({ cours: cours.id, typeProjet: tp.id })" :title="$t('common.edit')">
+                            <BoutonTooltip
+                                texte="Modifier ce type de projet"
+                                size="icon"
+                                variant="ghost"
+                                class="h-8 w-8"
+                                as-child
+                            >
+                                <Link :href="typesProjetsRoutes.edit.url({ cours: cours.id, typeProjet: tp.id })">
                                     <Pencil class="h-4 w-4" />
                                 </Link>
-                            </Button>
+                            </BoutonTooltip>
 
-                            <Button
+                            <BoutonTooltip
+                                texte="Supprimer ce type de projet"
                                 size="icon"
                                 variant="ghost"
                                 class="h-8 w-8 text-muted-foreground hover:text-destructive"
@@ -145,7 +154,7 @@ function supprimer(tp: TypeProjet) {
                                 @click="supprimer(tp)"
                             >
                                 <Trash2 class="h-4 w-4" />
-                            </Button>
+                            </BoutonTooltip>
                         </div>
                     </div>
                 </CardHeader>

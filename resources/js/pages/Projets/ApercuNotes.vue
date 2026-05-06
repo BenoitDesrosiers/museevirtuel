@@ -3,6 +3,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft, Copy } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import Heading from '@/components/Heading.vue';
+import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 
@@ -50,11 +51,11 @@ async function copierTexte(): Promise<void> {
 
         <div class="mx-auto max-w-xl space-y-6 px-4 py-8">
             <div class="flex items-center gap-3">
-                <Button variant="ghost" size="icon" as-child>
+                <BoutonTooltip texte="Retour au projet" variant="ghost" as-child>
                     <Link :href="retourUrl">
                         <ArrowLeft class="h-4 w-4" />
                     </Link>
-                </Button>
+                </BoutonTooltip>
                 <Heading
                     :title="`Aperçu notes — Groupe ${groupe.numero}`"
                     :description="`${typeProjet.nom} · ${lignes.length} étudiant(s)`"
