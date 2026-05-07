@@ -171,10 +171,17 @@ type TypeProjetInfo = {
     nom: string;
 };
 
+type RenvoiCommentaire = {
+    id: number;
+    contenu: string;
+    user_id: number;
+};
+
 type Renvoi = {
     id: number;
     numero: number;
     contenu: string | null;
+    commentaires: RenvoiCommentaire[];
 };
 
 type SectionTacheItem = {
@@ -236,6 +243,7 @@ type Props = {
     estEnseignant: boolean;
     correctionVisible: boolean;
     verrouille: boolean;
+    modeEditionEnseignant: boolean;
     dateRemise: string | null;
     remisLe: string | null;
     remisesMultiples: boolean;
@@ -1136,6 +1144,13 @@ async function toggleVerrouille(): Promise<void> {
     verrouille.value = response.data.verrouille;
 }
 
+const modeEditionEnseignant = ref(props.modeEditionEnseignant);
+
+async function toggleModeEditionEnseignant(): Promise<void> {
+    const response = await axios.patch(`${baseUrl.value}/mode-edition-enseignant`);
+    modeEditionEnseignant.value = response.data.mode_edition_enseignant;
+}
+
 // ─── Polling — synchronisation multi-sessions ─────────────────────────────────
 //
 // Rafraîchit les props "volatiles" toutes les 10 secondes pour couvrir :
@@ -1466,7 +1481,7 @@ async function creerEtInsererRenvoi(insertFn: (renvoiId: number, numero: number)
     renvoiEnCours.value = true;
     try {
         const response = await axios.post(`${baseUrl.value}/renvois`, { contenu: null });
-        const renvoi = response.data.renvoi as Renvoi;
+        const renvoi: Renvoi = { ...response.data.renvoi, commentaires: [] };
         renvoisLocaux.value.push(renvoi);
         insertFn(renvoi.id, renvoi.numero);
         // TipTap → onUpdate → emit update:modelValue → scheduleSectionSave : tout synchrone.
@@ -1638,6 +1653,43 @@ async function renumeroterapresSupression(numeroSupprime: number) {
     affectees.forEach((r) => { r.numero -= 1; });
     for (const r of affectees) {
         await axios.patch(`${baseUrl.value}/renvois/${r.id}`, { numero: r.numero });
+    }
+}
+
+// ─── Commentaires d'enseignant sur les renvois ────────────────────────────────
+
+/** Texte en cours de saisie par l'enseignant, indexé par renvoiId. */
+const renvoiNouveauCommentaire = reactive<Record<number, string>>({});
+/** Verrou anti-double-envoi par renvoi. */
+const renvoiCommentaireEnCours = reactive<Record<number, boolean>>({});
+
+/**
+ * Soumet un nouveau commentaire d'enseignant sur un renvoi donné.
+ */
+async function ajouterCommentaireRenvoi(renvoiId: number): Promise<void> {
+    const contenu = (renvoiNouveauCommentaire[renvoiId] ?? '').trim();
+    if (!contenu || renvoiCommentaireEnCours[renvoiId]) return;
+    renvoiCommentaireEnCours[renvoiId] = true;
+    try {
+        const response = await axios.post(`${baseUrl.value}/renvois/${renvoiId}/commentaires`, { contenu });
+        const renvoi = renvoisLocaux.value.find((r) => r.id === renvoiId);
+        if (renvoi) {
+            renvoi.commentaires.push(response.data.commentaire as RenvoiCommentaire);
+        }
+        renvoiNouveauCommentaire[renvoiId] = '';
+    } finally {
+        renvoiCommentaireEnCours[renvoiId] = false;
+    }
+}
+
+/**
+ * Supprime un commentaire d'enseignant sur un renvoi.
+ */
+async function supprimerCommentaireRenvoi(renvoiId: number, commentaireId: number): Promise<void> {
+    await axios.delete(`${baseUrl.value}/renvois/${renvoiId}/commentaires/${commentaireId}`);
+    const renvoi = renvoisLocaux.value.find((r) => r.id === renvoiId);
+    if (renvoi) {
+        renvoi.commentaires = renvoi.commentaires.filter((c) => c.id !== commentaireId);
     }
 }
 
@@ -1950,6 +2002,14 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     <!-- ── Groupe 3 : Actions enseignant ──────────────────── -->
                     <template v-if="estEnseignant">
                         <Separator orientation="vertical" class="mx-1 h-5" />
+                        <Button
+                            :variant="modeEditionEnseignant ? 'default' : 'outline'"
+                            size="sm"
+                            @click="toggleModeEditionEnseignant"
+                        >
+                            <Settings2 class="mr-2 h-4 w-4" />
+                            {{ modeEditionEnseignant ? 'Mode édition actif' : 'Activer mode édition' }}
+                        </Button>
                         <BoutonTooltip
                             :texte="correctionVisible ? 'Masquer les corrections aux étudiants' : 'Publier les corrections pour que les étudiants puissent les consulter'"
                             :variant="correctionVisible ? 'default' : 'ghost'"
@@ -3080,7 +3140,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     <p v-if="renvoisLocaux.length === 0" class="text-sm text-muted-foreground italic">
                         Aucune référence. Cliquez sur ¹ dans la barre d'un éditeur pour en insérer une.
                     </p>
-                    <ol v-else class="space-y-2">
+                    <ol v-else class="space-y-3">
                         <li
                             v-for="renvoi in renvoisLocaux"
                             :key="renvoi.id"
@@ -3089,7 +3149,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             <span class="mt-2 min-w-[1.5rem] text-right text-xs font-bold text-blue-600 dark:text-blue-400">
                                 {{ renvoi.numero }}.
                             </span>
-                            <div class="flex-1">
+                            <div class="flex-1 space-y-1.5">
                                 <textarea
                                     :value="renvoi.contenu ?? ''"
                                     :disabled="!peutEditer"
@@ -3101,6 +3161,49 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                         scheduleRenvoiSave(renvoi.id);
                                     }"
                                 />
+                                <!-- Commentaires enseignant sur ce renvoi -->
+                                <div
+                                    v-if="estEnseignant || (renvoi.commentaires?.length ?? 0) > 0"
+                                    class="space-y-1"
+                                >
+                                    <div
+                                        v-for="commentaire in (renvoi.commentaires ?? [])"
+                                        :key="commentaire.id"
+                                        class="flex items-start gap-1.5 rounded border border-amber-200 bg-amber-50 px-2 py-1 dark:border-amber-800 dark:bg-amber-950/30"
+                                    >
+                                        <MessageSquare class="mt-0.5 h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
+                                        <span class="flex-1 text-xs text-foreground">{{ commentaire.contenu }}</span>
+                                        <button
+                                            v-if="estEnseignant"
+                                            type="button"
+                                            class="text-destructive hover:text-destructive/70"
+                                            title="Supprimer ce commentaire"
+                                            @click="supprimerCommentaireRenvoi(renvoi.id, commentaire.id)"
+                                        >
+                                            <Trash2 class="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                    <!-- Saisie nouveau commentaire (enseignant seulement) -->
+                                    <div v-if="estEnseignant" class="flex gap-1">
+                                        <input
+                                            v-model="renvoiNouveauCommentaire[renvoi.id]"
+                                            type="text"
+                                            placeholder="Commenter cette référence…"
+                                            class="flex-1 rounded border border-input bg-background px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                                            @keydown.enter.prevent="ajouterCommentaireRenvoi(renvoi.id)"
+                                        />
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            class="h-6 w-6 shrink-0"
+                                            title="Envoyer"
+                                            :disabled="!renvoiNouveauCommentaire[renvoi.id]?.trim() || renvoiCommentaireEnCours[renvoi.id]"
+                                            @click="ajouterCommentaireRenvoi(renvoi.id)"
+                                        >
+                                            <Send class="h-3 w-3" />
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
                             <BoutonTooltip
                                 v-if="peutEditer"

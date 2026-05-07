@@ -18,6 +18,7 @@ class ProjetRecherche extends Model
         'table_matieres_contenu',
         'correction_visible',
         'verrouille',
+        'mode_edition_enseignant',
         'date_remise',
         'remis_le',
         'remises_multiples',
@@ -34,6 +35,7 @@ class ProjetRecherche extends Model
         return [
             'correction_visible' => 'boolean',
             'verrouille' => 'boolean',
+            'mode_edition_enseignant' => 'boolean',
             'remises_multiples' => 'boolean',
             'retard_permis' => 'boolean',
             'date_remise' => 'datetime',
