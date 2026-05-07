@@ -27,7 +27,7 @@ import {
     Users,
     XCircle,
 } from 'lucide-vue-next';
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, provide, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import AntidoteGlobalModal from '@/components/AntidoteGlobalModal.vue';
 import type { GlobalSection } from '@/components/AntidoteGlobalModal.vue';
@@ -1324,6 +1324,13 @@ async function sauvegarderAnnotation(
             points_malus: response.data.points_malus,
         });
     }
+
+    // Si l'annotation comportait une déduction de points, mettre à jour la note finale affichée.
+    if (response.data.noteFinaleGrilleParEtudiant) {
+        Object.entries(response.data.noteFinaleGrilleParEtudiant as Record<number, number | null>).forEach(
+            ([uid, val]) => { noteFinaleGrille[Number(uid)] = val; },
+        );
+    }
 }
 
 async function supprimerAnnotation(
@@ -1333,12 +1340,19 @@ async function supprimerAnnotation(
     annotationDeleteError.value = null;
 
     try {
-        await axios.delete(`${baseUrl.value}/annotations/${payload.correction.id}`, {
+        const deleteResponse = await axios.delete(`${baseUrl.value}/annotations/${payload.correction.id}`, {
             data: { champ, html: payload.html },
         });
 
         if (annotations[champ]) {
             annotations[champ] = annotations[champ].filter((a) => a.id !== payload.correction.id);
+        }
+
+        // Si la correction supprimée avait une déduction de points, mettre à jour la note finale.
+        if (deleteResponse.data.noteFinaleGrilleParEtudiant) {
+            Object.entries(deleteResponse.data.noteFinaleGrilleParEtudiant as Record<number, number | null>).forEach(
+                ([uid, val]) => { noteFinaleGrille[Number(uid)] = val; },
+            );
         }
 
         // Synchronise le modèle local avec le HTML sans marque retourné par deleteAnnotation.
@@ -1435,7 +1449,7 @@ function handleRenvoisUtilises(editorId: string, ids: number[]): void {
     // IDs retirés de cet éditeur ET absents de tous les autres éditeurs → demander confirmation
     const tousLesIds = new Set([...renvoisParEditor.value.values()].flat());
     const aSupprimer = previousIds.filter((id) => !tousLesIds.has(id));
-    aSupprimer.forEach((id) => demanderSupprimerRenvoi(id, 'editeur'));
+    aSupprimer.forEach((id) => demanderSupprimerRenvoi(id, 'editeur', editorId));
 }
 
 /**
@@ -1521,7 +1535,18 @@ const renvoisSupprimerEnCours = ref(false);
  */
 const renvoisSupprimerSource = ref<'bouton' | 'editeur'>('bouton');
 /** File d'attente pour les suppressions simultanées (multi-exposants retirés d'un coup). */
-const renvoisSupprimerFile = ref<Array<{ id: number; source: 'bouton' | 'editeur' }>>([]);
+const renvoisSupprimerFile = ref<Array<{ id: number; source: 'bouton' | 'editeur'; editorId?: string }>>([]);
+
+/** editorId de l'éditeur TipTap ayant déclenché la suppression via source='editeur'. */
+const renvoisSupprimerEditorId = ref<string | null>(null);
+
+/**
+ * Signal d'annulation — incrémenté quand l'utilisateur annule le modal après avoir retiré
+ * un exposant directement dans l'éditeur. RichEditor surveille ce ref via inject pour
+ * appeler undo() sur l'éditeur concerné et restaurer l'exposant.
+ */
+const renvoisUndoTarget = ref<{ editorId: string; version: number } | null>(null);
+provide('renvoisUndoTarget', renvoisUndoTarget);
 
 /** Description du modal selon la source de la demande. */
 const renvoisSupprimerDescription = computed(() =>
@@ -1538,14 +1563,16 @@ const renvoisSupprimerDescription = computed(() =>
  *
  * @param renvoiId  ID du renvoi à supprimer.
  * @param source    Origine de la demande ('bouton' par défaut).
+ * @param editorId  Identifiant de l'éditeur source (uniquement quand source='editeur').
  */
-function demanderSupprimerRenvoi(renvoiId: number, source: 'bouton' | 'editeur' = 'bouton'): void {
+function demanderSupprimerRenvoi(renvoiId: number, source: 'bouton' | 'editeur' = 'bouton', editorId?: string): void {
     if (renvoisSupprimerModalOuvert.value) {
-        renvoisSupprimerFile.value.push({ id: renvoiId, source });
+        renvoisSupprimerFile.value.push({ id: renvoiId, source, editorId });
         return;
     }
     renvoisSupprimerCibleId.value = renvoiId;
     renvoisSupprimerSource.value = source;
+    renvoisSupprimerEditorId.value = editorId ?? null;
     renvoisSupprimerModalOuvert.value = true;
 }
 
@@ -1553,7 +1580,7 @@ function demanderSupprimerRenvoi(renvoiId: number, source: 'bouton' | 'editeur' 
 function processerFileSuppressionRenvois(): void {
     const next = renvoisSupprimerFile.value.shift();
     if (next) {
-        nextTick().then(() => demanderSupprimerRenvoi(next.id, next.source));
+        nextTick().then(() => demanderSupprimerRenvoi(next.id, next.source, next.editorId));
     }
 }
 
@@ -1581,7 +1608,16 @@ async function confirmerSupprimerRenvoi(): Promise<void> {
 function onModalRenvoisUpdateOpen(ouvert: boolean): void {
     renvoisSupprimerModalOuvert.value = ouvert;
     if (!ouvert) {
+        // Si l'utilisateur annule et que c'est l'éditeur qui avait retiré l'exposant,
+        // on demande au RichEditor concerné d'effectuer un undo pour le restaurer.
+        if (renvoisSupprimerSource.value === 'editeur' && renvoisSupprimerEditorId.value) {
+            renvoisUndoTarget.value = {
+                editorId: renvoisSupprimerEditorId.value,
+                version: (renvoisUndoTarget.value?.version ?? 0) + 1,
+            };
+        }
         renvoisSupprimerCibleId.value = null;
+        renvoisSupprimerEditorId.value = null;
         processerFileSuppressionRenvois();
     }
 }
@@ -1633,6 +1669,28 @@ const malusGrille = reactive<Record<number, Record<number, boolean>>>(
 
 const noteFinaleGrille = reactive<Record<number, number | null>>({
     ...props.noteFinaleGrilleParEtudiant,
+});
+
+/**
+ * Aggrège les déductions de points par étudiant depuis les annotations de correction inline.
+ * Réactif : se recalcule dès qu'une annotation est ajoutée, modifiée ou supprimée.
+ */
+const annotationsMalusParEtudiant = computed<Record<number, Array<{ contenu: string; points_malus: number }>>>(() => {
+    const result: Record<number, Array<{ contenu: string; points_malus: number }>> = {};
+    for (const fieldAnnotations of Object.values(annotations)) {
+        for (const a of fieldAnnotations) {
+            if (a.type !== 'correction' || a.points_malus == null) continue;
+            const cibles = a.cible_user_id == null
+                // null = tous les membres
+                ? props.membres.map((m) => m.id)
+                : [a.cible_user_id];
+            for (const uid of cibles) {
+                if (!result[uid]) result[uid] = [];
+                result[uid].push({ contenu: a.contenu, points_malus: a.points_malus });
+            }
+        }
+    }
+    return result;
 });
 
 const notesSavingGrille = reactive<Record<string, boolean>>({});
@@ -3229,6 +3287,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         :user-id="userId"
                         :onglet-actif="getOngletActif('grille_personnalisee', membres[0]?.id ?? 0)"
                         @set-onglet="setOngletActif('grille_personnalisee', $event)"
+                        :annotations-malus="annotationsMalusParEtudiant"
                         @save-note="(critereId, membreId, valeur) => sauvegarderNoteGrille(critereId, membreId, valeur)"
                         @save-note-pour-tous="(critereId, valeur) => sauvegarderNoteGrillePourTous(critereId, valeur)"
                         @toggle-malus="(malusId, membreId, applique) => toggleMalusGrille(malusId, membreId, applique)"

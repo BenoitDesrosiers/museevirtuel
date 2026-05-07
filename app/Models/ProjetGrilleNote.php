@@ -73,6 +73,22 @@ class ProjetGrilleNote extends Model
             : (float) (GrilleMalus::find($m->malus_id)?->deduction ?? 0)
         );
 
+        // Déduire les malus des annotations de correction inline (enseignant).
+        // cible_user_id = null → s'applique à tous les étudiants du groupe.
+        $annotationsMalus = $projet->relationLoaded('annotations')
+            ? $projet->annotations
+                ->where('type', 'correction')
+                ->filter(fn ($a) => $a->cible_user_id === null || $a->cible_user_id === $etudiant->id)
+                ->whereNotNull('points_malus')
+                ->sum('points_malus')
+            : $projet->annotations()
+                ->where('type', 'correction')
+                ->where(fn ($q) => $q->whereNull('cible_user_id')->orWhere('cible_user_id', $etudiant->id))
+                ->whereNotNull('points_malus')
+                ->sum('points_malus');
+
+        $deductions += (float) $annotationsMalus;
+
         return round(max(0.0, $base - $deductions), 2);
     }
 

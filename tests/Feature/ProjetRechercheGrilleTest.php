@@ -6,10 +6,12 @@ use App\Models\GrilleCorrection;
 use App\Models\GrilleCritere;
 use App\Models\GrilleMalus;
 use App\Models\Groupe;
+use App\Models\ProjetAnnotation;
 use App\Models\ProjetGrilleMalus;
 use App\Models\ProjetGrilleNote;
 use App\Models\ProjetRecherche;
 use App\Models\TypeProjet;
+use App\Models\TypeProjetSection;
 use App\Models\User;
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -411,4 +413,154 @@ test('un malus non appliqué (applique = false) ne décompte pas', function () {
     ]);
 
     expect(ProjetGrilleNote::noteFinale($projet->fresh(), $etudiant))->toBe(100.0);
+});
+
+// ─── Points malus annotations ─────────────────────────────────────────────────
+
+it('noteFinale déduit les points_malus des annotations de correction', function () {
+    [
+        'projet' => $projet,
+        'etudiant' => $etudiant,
+        'critere1' => $critere1, // pondération 60
+        'critere2' => $critere2, // pondération 40
+    ] = creerContexteGrilleProjet();
+
+    // base = (4/4)*60 + (4/4)*40 = 100
+    ProjetGrilleNote::create(['projet_id' => $projet->id, 'user_id' => $etudiant->id, 'critere_id' => $critere1->id, 'note' => 4]);
+    ProjetGrilleNote::create(['projet_id' => $projet->id, 'user_id' => $etudiant->id, 'critere_id' => $critere2->id, 'note' => 4]);
+
+    ProjetAnnotation::create([
+        'projet_id' => $projet->id,
+        'champ' => 'page_titre_contenu',
+        'commentaire_id' => 'aaa-bbb-ccc',
+        'contenu' => 'Erreur de méthode',
+        'type' => 'correction',
+        'user_id' => $etudiant->id,
+        'cible_user_id' => $etudiant->id,
+        'points_malus' => 5,
+    ]);
+
+    // 100 - 5 = 95
+    expect(ProjetGrilleNote::noteFinale($projet->fresh(), $etudiant))->toBe(95.0);
+});
+
+it('noteFinale ignore les annotations de correction sans points_malus', function () {
+    [
+        'projet' => $projet,
+        'etudiant' => $etudiant,
+        'critere1' => $critere1,
+        'critere2' => $critere2,
+    ] = creerContexteGrilleProjet();
+
+    ProjetGrilleNote::create(['projet_id' => $projet->id, 'user_id' => $etudiant->id, 'critere_id' => $critere1->id, 'note' => 4]);
+    ProjetGrilleNote::create(['projet_id' => $projet->id, 'user_id' => $etudiant->id, 'critere_id' => $critere2->id, 'note' => 4]);
+
+    ProjetAnnotation::create([
+        'projet_id' => $projet->id,
+        'champ' => 'page_titre_contenu',
+        'commentaire_id' => 'aaa-bbb-001',
+        'contenu' => 'Commentaire sans déduction',
+        'type' => 'correction',
+        'user_id' => $etudiant->id,
+        'cible_user_id' => $etudiant->id,
+        'points_malus' => null,
+    ]);
+
+    expect(ProjetGrilleNote::noteFinale($projet->fresh(), $etudiant))->toBe(100.0);
+});
+
+it('noteFinale ignore les annotations de type commentaire même avec points_malus', function () {
+    [
+        'projet' => $projet,
+        'etudiant' => $etudiant,
+        'critere1' => $critere1,
+        'critere2' => $critere2,
+    ] = creerContexteGrilleProjet();
+
+    ProjetGrilleNote::create(['projet_id' => $projet->id, 'user_id' => $etudiant->id, 'critere_id' => $critere1->id, 'note' => 4]);
+    ProjetGrilleNote::create(['projet_id' => $projet->id, 'user_id' => $etudiant->id, 'critere_id' => $critere2->id, 'note' => 4]);
+
+    // type='commentaire' : les points_malus ne doivent jamais être déduits
+    ProjetAnnotation::create([
+        'projet_id' => $projet->id,
+        'champ' => 'introduction_amener',
+        'commentaire_id' => 'aaa-bbb-002',
+        'contenu' => 'Bon travail',
+        'type' => 'commentaire',
+        'user_id' => $etudiant->id,
+        'cible_user_id' => $etudiant->id,
+        'points_malus' => 10,
+    ]);
+
+    expect(ProjetGrilleNote::noteFinale($projet->fresh(), $etudiant))->toBe(100.0);
+});
+
+test('upsertAnnotation retourne noteFinaleGrilleParEtudiant quand correction avec points_malus', function () {
+    [
+        'enseignant' => $enseignant,
+        'cours' => $cours,
+        'classeSection' => $cs,
+        'classe' => $classe,
+        'etudiant' => $etudiant,
+        'typeProjet' => $typeProjet,
+        'critere1' => $critere1,
+        'critere2' => $critere2,
+        'projet' => $projet,
+    ] = creerContexteGrilleProjet();
+
+    // base = (4/4)*60 + (4/4)*40 = 100
+    ProjetGrilleNote::create(['projet_id' => $projet->id, 'user_id' => $etudiant->id, 'critere_id' => $critere1->id, 'note' => 4]);
+    ProjetGrilleNote::create(['projet_id' => $projet->id, 'user_id' => $etudiant->id, 'critere_id' => $critere2->id, 'note' => 4]);
+
+    // Une section valide est nécessaire pour que mettreAJourChampHtml respecte la FK section_id
+    $section = TypeProjetSection::create([
+        'type_projet_id' => $typeProjet->id,
+        'label' => 'Section test',
+        'ordre' => 0,
+        'type' => 'texte',
+    ]);
+    $champ = "section_{$section->id}";
+    $commentaireId = 'test-uuid-1234';
+    $html = '<p><mark data-comment-id="'.$commentaireId.'" data-annotation-type="correction">texte annoté</mark></p>';
+
+    $this->actingAs($enseignant)
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/annotations", [
+            'champ' => $champ,
+            'commentaire_id' => $commentaireId,
+            'contenu' => 'Erreur de méthode',
+            'html' => $html,
+            'type' => 'correction',
+            'cible_user_id' => $etudiant->id,
+            'points_malus' => 8,
+        ])
+        ->assertOk()
+        ->assertJsonStructure(['noteFinaleGrilleParEtudiant'])
+        ->assertJsonPath("noteFinaleGrilleParEtudiant.{$etudiant->id}", 92); // 100 - 8
+});
+
+it('noteFinale déduit les annotations de correction ciblant tous les étudiants (cible_user_id = null)', function () {
+    [
+        'projet' => $projet,
+        'etudiant' => $etudiant,
+        'critere1' => $critere1,
+        'critere2' => $critere2,
+    ] = creerContexteGrilleProjet();
+
+    ProjetGrilleNote::create(['projet_id' => $projet->id, 'user_id' => $etudiant->id, 'critere_id' => $critere1->id, 'note' => 4]);
+    ProjetGrilleNote::create(['projet_id' => $projet->id, 'user_id' => $etudiant->id, 'critere_id' => $critere2->id, 'note' => 4]);
+
+    // cible_user_id = null → s'applique à tous les étudiants
+    ProjetAnnotation::create([
+        'projet_id' => $projet->id,
+        'champ' => 'introduction_amener',
+        'commentaire_id' => 'aaa-bbb-003',
+        'contenu' => 'Format incorrect pour tous',
+        'type' => 'correction',
+        'user_id' => $etudiant->id,
+        'cible_user_id' => null,
+        'points_malus' => 7,
+    ]);
+
+    // 100 - 7 = 93
+    expect(ProjetGrilleNote::noteFinale($projet->fresh(), $etudiant))->toBe(93.0);
 });
