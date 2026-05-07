@@ -347,7 +347,13 @@
         "teacher_space": "Teacher workspace",
         "my_space": "My workspace",
         "my_classes": "My classes",
-        "my_class": "My class"
+        "my_class": "My class",
+        "home": "Home",
+        "group": "Group",
+        "section": "Section",
+        "project_types": "Project types",
+        "projects": "Projects",
+        "discussion_temoin": "PA chat"
     },
     "settings": {
         "heading_title": "Settings",

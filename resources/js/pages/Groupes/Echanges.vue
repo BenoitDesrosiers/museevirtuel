@@ -15,9 +15,14 @@ type User = {
     nom: string;
 };
 
-type Classe = {
+type Cours = {
     id: number;
     nom_cours: string;
+    code: string;
+};
+
+type Classe = {
+    id: number;
     code: string;
 };
 
@@ -37,6 +42,7 @@ type Echange = {
 };
 
 type Props = {
+    cours: Cours;
     classe: Classe;
     groupe: Groupe;
     echanges: Echange[];
@@ -78,7 +84,7 @@ function scrollToBottom() {
 onMounted(() => scrollToBottom());
 
 function submit() {
-    form.post(`/classes/${props.classe.id}/groupes/${props.groupe.id}/echanges`, {
+    form.post(`/cours/${props.cours.id}/classes/${props.classe.id}/groupes/${props.groupe.id}/echanges`, {
         preserveScroll: true,
         onSuccess: () => {
             form.reset();
@@ -96,7 +102,7 @@ function submit() {
             <!-- Retour -->
             <div>
                 <Button variant="ghost" size="sm" as-child>
-                    <Link :href="`/classes/${classe.id}/groupes/${groupe.id}`">
+                    <Link :href="`/cours/${cours.id}/classes/${classe.id}/groupes/${groupe.id}`">
                         <ArrowLeft class="mr-2 h-4 w-4" />
                         {{ $t('echanges.back') }}
                     </Link>
@@ -105,7 +111,7 @@ function submit() {
 
             <Heading
                 :title="$t('echanges.page_title', { n: groupe.numero })"
-                :description="`${classe.code} · ${classe.nom_cours}`"
+                :description="`${cours.code} · ${cours.nom_cours}`"
             />
 
             <!-- Témoin info -->

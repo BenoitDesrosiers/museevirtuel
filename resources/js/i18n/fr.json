@@ -345,7 +345,13 @@
         "teacher_space": "Espace enseignant",
         "my_space": "Mon espace",
         "my_classes": "Mes classes",
-        "my_class": "Ma classe"
+        "my_class": "Ma classe",
+        "home": "Accueil",
+        "group": "Groupe",
+        "section": "Section",
+        "project_types": "Types de projet",
+        "projects": "Projets",
+        "discussion_temoin": "Échanges PA"
     },
     "settings": {
         "heading_title": "Paramètres",
