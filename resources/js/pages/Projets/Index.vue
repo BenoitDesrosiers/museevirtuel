@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { BookOpen, CheckCircle2, ChevronRight, FileEdit, FolderOpen, Settings2, XCircle } from 'lucide-vue-next';
 import Heading from '@/components/Heading.vue';
+import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -131,12 +132,18 @@ function projetUrl(typeProjetId: number): string {
                     <CardContent class="flex flex-1 flex-col gap-4">
                         <!-- Lien configuration sections (enseignant seulement) -->
                         <div v-if="estEnseignant" class="flex items-center justify-end">
-                            <Button variant="ghost" size="sm" class="h-7 gap-1.5 px-2 text-xs text-muted-foreground" as-child>
+                            <BoutonTooltip
+                                texte="Gérer les sections disponibles pour ce type de projet"
+                                variant="ghost"
+                                size="default"
+                                class="h-7 gap-1.5 px-2 text-xs text-muted-foreground"
+                                as-child
+                            >
                                 <Link href="/types-projets">
                                     <Settings2 class="h-3 w-3" />
                                     Configurer les sections
                                 </Link>
-                            </Button>
+                            </BoutonTooltip>
                         </div>
                         <!-- Barre de progression -->
                         <div v-if="card.projet">
@@ -192,8 +199,9 @@ function projetUrl(typeProjetId: number): string {
 
                         <!-- Bouton d'accès (poussé vers le bas) -->
                         <div class="mt-auto pt-2">
-                            <Button
+                            <BoutonTooltip
                                 size="sm"
+                                :texte="!estEnseignant ? 'Ouvrir et éditer votre projet' : 'Consulter le projet du groupe'"
                                 :variant="!estEnseignant ? 'default' : 'outline'"
                                 class="w-full"
                                 as-child
@@ -206,7 +214,7 @@ function projetUrl(typeProjetId: number): string {
                                     {{ !estEnseignant ? 'Ouvrir le projet' : 'Consulter' }}
                                     <ChevronRight class="ml-auto h-4 w-4" />
                                 </Link>
-                            </Button>
+                            </BoutonTooltip>
                         </div>
                     </CardContent>
                 </Card>

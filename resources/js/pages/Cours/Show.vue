@@ -26,6 +26,7 @@ import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import VisioSession from '@/components/VisioSession.vue';
 import { Badge } from '@/components/ui/badge';
+import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -421,14 +422,24 @@ function submitVisio() {
                                     </p>
                                 </div>
                                 <div class="flex shrink-0 gap-2">
-                                    <Button size="sm" variant="outline" as-child>
+                                    <BoutonTooltip
+                                        texte="Accéder au détail de cette section (groupes et étudiants)"
+                                        size="sm"
+                                        variant="outline"
+                                        as-child
+                                    >
                                         <Link :href="`/cours/${cours.id}/classes/${classe.id}`">
                                             {{ $t('cours.show.classes_see') }}
                                         </Link>
-                                    </Button>
-                                    <Button size="sm" variant="destructive" @click="confirmDeleteClasse(classe)">
+                                    </BoutonTooltip>
+                                    <BoutonTooltip
+                                        texte="Supprimer cette section"
+                                        size="sm"
+                                        variant="destructive"
+                                        @click="confirmDeleteClasse(classe)"
+                                    >
                                         <Trash2 class="h-4 w-4" />
-                                    </Button>
+                                    </BoutonTooltip>
                                 </div>
                             </div>
 
@@ -493,14 +504,24 @@ function submitVisio() {
                                 </div>
                             </div>
                             <div class="flex shrink-0 gap-2">
-                                <Button size="sm" variant="outline" as-child>
+                                <BoutonTooltip
+                                    texte="Télécharger ce document"
+                                    size="sm"
+                                    variant="outline"
+                                    as-child
+                                >
                                     <a :href="doc.url" target="_blank" download>
                                         <Download class="h-4 w-4" />
                                     </a>
-                                </Button>
-                                <Button size="sm" variant="destructive" @click="removeDocument(doc)">
+                                </BoutonTooltip>
+                                <BoutonTooltip
+                                    texte="Supprimer ce document"
+                                    size="sm"
+                                    variant="destructive"
+                                    @click="removeDocument(doc)"
+                                >
                                     <Trash2 class="h-4 w-4" />
-                                </Button>
+                                </BoutonTooltip>
                             </div>
                         </div>
                     </div>
@@ -581,9 +602,10 @@ function submitVisio() {
                                 </div>
                             </div>
                             <div class="flex shrink-0 items-center gap-1">
-                                <Button
+                                <BoutonTooltip
                                     size="sm"
                                     :variant="tp.accessible ? 'outline' : 'secondary'"
+                                    :texte="tp.accessible ? 'Masquer ce type de projet aux étudiants' : 'Rendre ce type de projet accessible aux étudiants'"
                                     class="h-7 text-xs"
                                     :disabled="toggleTpForm.processing"
                                     @click="toggleAccessibleTp(tp)"
@@ -591,13 +613,20 @@ function submitVisio() {
                                     <ChevronRight v-if="!tp.accessible" class="mr-1 h-3 w-3" />
                                     <ChevronDown v-else class="mr-1 h-3 w-3" />
                                     {{ tp.accessible ? 'Masquer' : 'Rendre accessible' }}
-                                </Button>
-                                <Button size="icon" variant="ghost" class="h-7 w-7" as-child>
-                                    <Link :href="typesProjetsRoutes.edit.url({ cours: cours.id, typeProjet: tp.id })" title="Modifier">
+                                </BoutonTooltip>
+                                <BoutonTooltip
+                                    texte="Modifier ce type de projet"
+                                    size="icon"
+                                    variant="ghost"
+                                    class="h-7 w-7"
+                                    as-child
+                                >
+                                    <Link :href="typesProjetsRoutes.edit.url({ cours: cours.id, typeProjet: tp.id })">
                                         <Pencil class="h-3.5 w-3.5" />
                                     </Link>
-                                </Button>
-                                <Button
+                                </BoutonTooltip>
+                                <BoutonTooltip
+                                    texte="Supprimer ce type de projet"
                                     size="icon"
                                     variant="ghost"
                                     class="h-7 w-7 text-muted-foreground hover:text-destructive"
@@ -605,7 +634,7 @@ function submitVisio() {
                                     @click="supprimerTp(tp)"
                                 >
                                     <Trash2 class="h-3.5 w-3.5" />
-                                </Button>
+                                </BoutonTooltip>
                             </div>
                         </div>
                     </div>
@@ -703,23 +732,25 @@ function submitVisio() {
                                             >P{{ etape.periode }}</span>
                                         </label>
                                         <div class="flex shrink-0 gap-1">
-                                            <Button
-                                                size="sm"
+                                            <BoutonTooltip
+                                                texte="Modifier cette étape"
+                                                size="icon-sm"
                                                 variant="ghost"
-                                                class="h-6 w-6 p-0"
+                                                class="h-6 w-6"
                                                 @click="openEditEtape(etape)"
                                             >
                                                 <Pencil class="h-3.5 w-3.5" />
-                                            </Button>
-                                            <Button
-                                                size="sm"
+                                            </BoutonTooltip>
+                                            <BoutonTooltip
+                                                texte="Supprimer cette étape de l'échéancier"
+                                                size="icon-sm"
                                                 variant="ghost"
-                                                class="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                                class="h-6 w-6 text-destructive hover:text-destructive"
                                                 :disabled="deleteEtapeForm.processing"
                                                 @click="deleteEtape(etape)"
                                             >
                                                 <Trash2 class="h-3.5 w-3.5" />
-                                            </Button>
+                                            </BoutonTooltip>
                                         </div>
                                     </template>
                                 </li>

@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
+import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -263,19 +264,25 @@ function executeDeleteGroupe() {
                                     </p>
                                 </div>
                                 <div class="flex shrink-0 gap-2">
-                                    <Button size="sm" variant="outline" as-child>
+                                    <BoutonTooltip
+                                        texte="Accéder au détail de ce groupe"
+                                        size="sm"
+                                        variant="outline"
+                                        as-child
+                                    >
                                         <Link :href="`/cours/${cours.id}/classes/${classe.id}/groupes/${groupe.id}`">
                                             <ExternalLink class="h-4 w-4" />
                                         </Link>
-                                    </Button>
-                                    <Button
+                                    </BoutonTooltip>
+                                    <BoutonTooltip
                                         v-if="estEnseignant"
+                                        texte="Supprimer ce groupe"
                                         size="sm"
                                         variant="destructive"
                                         @click="confirmDeleteGroupe(groupe)"
                                     >
                                         <Trash2 class="h-4 w-4" />
-                                    </Button>
+                                    </BoutonTooltip>
                                 </div>
                             </div>
 
@@ -331,9 +338,10 @@ function executeDeleteGroupe() {
                 </CardHeader>
                 <CardContent>
                     <div class="flex flex-wrap gap-2">
-                        <Button
+                        <BoutonTooltip
                             v-for="tp in typesProjets"
                             :key="tp.id"
+                            :texte="`Voir l'aperçu des notes — ${tp.nom}`"
                             variant="outline"
                             size="sm"
                             as-child
@@ -342,7 +350,7 @@ function executeDeleteGroupe() {
                                 <FileBarChart class="mr-2 h-4 w-4" />
                                 {{ tp.nom }}
                             </Link>
-                        </Button>
+                        </BoutonTooltip>
                     </div>
                 </CardContent>
             </Card>
@@ -357,10 +365,15 @@ function executeDeleteGroupe() {
                         </span>
                     </CardTitle>
                     <div v-if="estEnseignant" class="flex gap-2">
-                        <Button size="sm" variant="outline" @click="showImportDialog = true">
+                        <BoutonTooltip
+                            texte="Importer une liste d'étudiants depuis un fichier CSV"
+                            size="sm"
+                            variant="outline"
+                            @click="showImportDialog = true"
+                        >
                             <Upload class="mr-2 h-4 w-4" />
                             {{ $t('classes.show.import_csv') }}
-                        </Button>
+                        </BoutonTooltip>
                         <Button size="sm" @click="openAddEtudiant">
                             {{ $t('classes.show.add_student') }}
                         </Button>
@@ -403,12 +416,22 @@ function executeDeleteGroupe() {
                                     </td>
                                     <td v-if="estEnseignant" class="py-3">
                                         <div class="flex gap-2">
-                                            <Button size="sm" variant="outline" @click="openEditEtudiant(etudiant)">
+                                            <BoutonTooltip
+                                                texte="Modifier les informations de cet étudiant"
+                                                size="sm"
+                                                variant="outline"
+                                                @click="openEditEtudiant(etudiant)"
+                                            >
                                                 <Pencil class="h-4 w-4" />
-                                            </Button>
-                                            <Button size="sm" variant="destructive" @click="removeEtudiant(etudiant)">
+                                            </BoutonTooltip>
+                                            <BoutonTooltip
+                                                texte="Retirer cet étudiant de la classe"
+                                                size="sm"
+                                                variant="destructive"
+                                                @click="removeEtudiant(etudiant)"
+                                            >
                                                 <Trash2 class="h-4 w-4" />
-                                            </Button>
+                                            </BoutonTooltip>
                                         </div>
                                     </td>
                                 </tr>
