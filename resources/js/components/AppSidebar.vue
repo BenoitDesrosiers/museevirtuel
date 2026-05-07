@@ -23,6 +23,12 @@ const page = usePage();
 const user = computed(() => page.props.auth.user);
 const navData = computed(() => page.props.navData as NavData | null);
 
+const sessionLabels: Record<string, string> = {
+    hiver: 'Hiver',
+    ete: 'Été',
+    automne: 'Automne',
+};
+
 /**
  * Construit les items de navigation hiérarchiques pour un enseignant
  * à partir des données navData partagées par le middleware.
@@ -31,7 +37,7 @@ function buildEnseignantItems(): NavItem[] {
     const cours = navData.value?.cours ?? [];
 
     return cours.map((c: CoursSidebar) => ({
-        title: `${c.code}–${c.groupe}`,
+        title: `${c.code} ${sessionLabels[c.session] ?? c.session} ${c.annee}`,
         href: `/cours/${c.id}`,
         icon: BookOpen,
         children: [

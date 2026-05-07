@@ -8,6 +8,7 @@ import {
     ChevronDown,
     ChevronRight,
     ClipboardList,
+    Copy,
     Download,
     FileText,
     Grid2x2,
@@ -39,6 +40,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import typesProjetsRoutes from '@/routes/types-projets';
 
@@ -68,6 +70,9 @@ type Cours = {
     description: string | null;
     code: string;
     groupe: string;
+    annee: number;
+    session: 'hiver' | 'ete' | 'automne';
+    is_verrouille: boolean;
 };
 
 type EcheancierEtape = {
@@ -356,6 +361,27 @@ function submitVisio() {
         },
     });
 }
+
+// ─── Transfert de cours ────────────────────────────────────────────────────────
+const showTransfertDialog = ref(false);
+const transfertForm = useForm({
+    annee: props.cours.annee as number,
+    session: props.cours.session as 'hiver' | 'ete' | 'automne',
+});
+
+function ouvrirTransfert() {
+    transfertForm.annee = props.cours.annee;
+    transfertForm.session = props.cours.session;
+    showTransfertDialog.value = true;
+}
+
+function submitTransfert() {
+    transfertForm.post(`/cours/${props.cours.id}/transferer`, {
+        onSuccess: () => {
+            showTransfertDialog.value = false;
+        },
+    });
+}
 </script>
 
 <template>
@@ -374,14 +400,21 @@ function submitVisio() {
             </div>
 
             <!-- En-tête du cours -->
-            <div class="flex flex-col gap-1">
-                <Heading
-                    :title="`${cours.code} — Groupe ${cours.groupe}`"
-                    :description="cours.nom_cours"
-                />
-                <div class="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                    <span v-if="cours.description">{{ cours.description }}</span>
+            <div class="flex items-start justify-between gap-4">
+                <div class="flex flex-col gap-1">
+                    <Heading
+                        :title="`${cours.code} — Groupe ${cours.groupe}`"
+                        :description="cours.nom_cours"
+                    />
+                    <div class="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                        <span>{{ { hiver: 'Hiver', ete: 'Été', automne: 'Automne' }[cours.session] }} {{ cours.annee }}</span>
+                        <span v-if="cours.description">· {{ cours.description }}</span>
+                    </div>
                 </div>
+                <Button variant="outline" size="sm" @click="ouvrirTransfert">
+                    <Copy class="mr-2 h-4 w-4" />
+                    Transférer
+                </Button>
             </div>
 
             <!-- Classes du cours -->
@@ -967,6 +1000,51 @@ function submitVisio() {
             @update:open="handleClasseDialogUpdate"
             @confirm="executeDeleteClasse"
         />
+
+        <!-- Modal : Transférer le cours -->
+        <Dialog v-model:open="showTransfertDialog">
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Transférer ce cours</DialogTitle>
+                </DialogHeader>
+                <p class="text-sm text-muted-foreground">
+                    Une copie du cours sera créée avec l'échéancier, les objectifs, les documents et les types de projets (grilles incluses).
+                    Les classes et les étudiants ne seront <strong>pas</strong> copiés.
+                </p>
+                <form class="space-y-4" @submit.prevent="submitTransfert">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="grid gap-2">
+                            <Label>Session</Label>
+                            <Select v-model="transfertForm.session">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Session…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="hiver">Hiver</SelectItem>
+                                    <SelectItem value="ete">Été</SelectItem>
+                                    <SelectItem value="automne">Automne</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <InputError :message="transfertForm.errors.session" />
+                        </div>
+                        <div class="grid gap-2">
+                            <Label>Année</Label>
+                            <Input v-model.number="transfertForm.annee" type="number" min="2000" max="2100" />
+                            <InputError :message="transfertForm.errors.annee" />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" @click="showTransfertDialog = false">
+                            Annuler
+                        </Button>
+                        <Button type="submit" :disabled="transfertForm.processing">
+                            <Copy class="mr-2 h-4 w-4" />
+                            Transférer
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
 
     </AppLayout>
 </template>

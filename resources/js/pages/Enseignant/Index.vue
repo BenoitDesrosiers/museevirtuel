@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { BookOpen, ExternalLink, Pencil, Plus, Search, Send, Trash2, Users } from 'lucide-vue-next';
+import { BookOpen, ExternalLink, Lock, Pencil, Plus, Search, Send, Trash2, Unlock, Users } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import FormDialog from '@/components/FormDialog.vue';
@@ -21,6 +21,9 @@ type Cours = {
     description: string | null;
     code: string;
     groupe: string;
+    annee: number;
+    session: 'hiver' | 'ete' | 'automne';
+    is_verrouille: boolean;
     etudiants_count: number;
     type_cours: 'dep' | 'cours_complementaire' | 'cours_complet' | null;
     taille_equipe_min: number | null;
@@ -78,10 +81,17 @@ const coursForm = useForm({
     description: '',
     code: '',
     groupe: '',
+    annee: new Date().getFullYear() as number,
+    session: 'hiver' as 'hiver' | 'ete' | 'automne',
     type_cours: '' as '' | 'dep' | 'cours_complementaire' | 'cours_complet',
     taille_equipe_min: null as number | null,
     taille_equipe_max: null as number | null,
 });
+
+function sessionLabel(session: string): string {
+    const labels: Record<string, string> = { hiver: 'Hiver', ete: 'Été', automne: 'Automne' };
+    return labels[session] ?? session;
+}
 
 function openCreateCours() {
     coursForm.reset();
@@ -103,6 +113,8 @@ function openEditCours(unCours: Cours) {
     coursForm.description = unCours.description ?? '';
     coursForm.code = unCours.code;
     coursForm.groupe = unCours.groupe;
+    coursForm.annee = unCours.annee;
+    coursForm.session = unCours.session;
     coursForm.type_cours = unCours.type_cours ?? '';
     coursForm.taille_equipe_min = unCours.taille_equipe_min;
     coursForm.taille_equipe_max = unCours.taille_equipe_max;
@@ -129,6 +141,12 @@ return;
 }
 
     deleteCoursForm.delete(`/cours/${unCours.id}`);
+}
+
+const verrouillageForm = useForm({});
+
+function toggleVerrouillage(unCours: Cours) {
+    verrouillageForm.patch(`/cours/${unCours.id}/verrouillage`);
 }
 
 // ─── Thématiques ──────────────────────────────────────────────────────────────
@@ -240,6 +258,7 @@ function voirTemoin(temoin: TemoinEnAttente) {
                                 <tr class="border-b text-left">
                                     <th class="pb-3 pr-4 font-medium">{{ $t('enseignant.index.table_header_code') }}</th>
                                     <th class="pb-3 pr-4 font-medium">{{ $t('enseignant.index.table_header_group') }}</th>
+                                    <th class="pb-3 pr-4 font-medium">Session</th>
                                     <th class="pb-3 pr-4 font-medium">{{ $t('enseignant.index.table_header_course_name') }}</th>
                                     <th class="pb-3 pr-4 font-medium text-center">{{ $t('enseignant.index.table_header_students') }}</th>
                                     <th class="pb-3 font-medium">{{ $t('enseignant.index.table_header_actions') }}</th>
@@ -253,6 +272,7 @@ function voirTemoin(temoin: TemoinEnAttente) {
                                 >
                                     <td class="py-3 pr-4 font-mono text-xs">{{ unCours.code }}</td>
                                     <td class="py-3 pr-4 font-mono text-xs">{{ unCours.groupe }}</td>
+                                    <td class="text-muted-foreground py-3 pr-4 text-xs">{{ sessionLabel(unCours.session) }} {{ unCours.annee }}</td>
                                     <td class="py-3 pr-4">{{ unCours.nom_cours }}</td>
                                     <td class="py-3 pr-4 text-center">{{ unCours.etudiants_count }}</td>
                                     <td class="py-3">
@@ -276,6 +296,15 @@ function voirTemoin(temoin: TemoinEnAttente) {
                                                 <Pencil class="h-4 w-4" />
                                             </BoutonTooltip>
                                             <BoutonTooltip
+                                                :texte="unCours.is_verrouille ? 'Déverrouiller — rendre accessible aux étudiants' : 'Verrouiller — masquer aux étudiants'"
+                                                size="sm"
+                                                :variant="unCours.is_verrouille ? 'default' : 'outline'"
+                                                @click="toggleVerrouillage(unCours)"
+                                            >
+                                                <Lock v-if="unCours.is_verrouille" class="h-4 w-4" />
+                                                <Unlock v-else class="h-4 w-4" />
+                                            </BoutonTooltip>
+                                            <BoutonTooltip
                                                 texte="Supprimer ce cours définitivement"
                                                 size="sm"
                                                 variant="destructive"
@@ -287,7 +316,7 @@ function voirTemoin(temoin: TemoinEnAttente) {
                                     </td>
                                 </tr>
                                 <tr v-if="cours.length === 0">
-                                    <td colspan="5" class="text-muted-foreground py-6 text-center">
+                                    <td colspan="6" class="text-muted-foreground py-6 text-center">
                                         {{ $t('enseignant.index.no_courses') }}
                                     </td>
                                 </tr>
@@ -567,6 +596,27 @@ function voirTemoin(temoin: TemoinEnAttente) {
                     <InputError :message="coursForm.errors.groupe" />
                 </div>
             </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="grid gap-2">
+                    <Label>Session</Label>
+                    <Select v-model="coursForm.session">
+                        <SelectTrigger>
+                            <SelectValue placeholder="Session…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="hiver">Hiver</SelectItem>
+                            <SelectItem value="ete">Été</SelectItem>
+                            <SelectItem value="automne">Automne</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <InputError :message="coursForm.errors.session" />
+                </div>
+                <div class="grid gap-2">
+                    <Label>Année</Label>
+                    <Input v-model.number="coursForm.annee" type="number" min="2000" max="2100" placeholder="2026" />
+                    <InputError :message="coursForm.errors.annee" />
+                </div>
+            </div>
             <div class="grid gap-2">
                 <Label for="nom_cours">{{ $t('enseignant.index.modal_course_name') }}</Label>
                 <Input id="nom_cours" v-model="coursForm.nom_cours" :placeholder="$t('enseignant.index.modal_course_name_placeholder')" />
@@ -622,6 +672,27 @@ function voirTemoin(temoin: TemoinEnAttente) {
                     <Label>{{ $t('enseignant.index.modal_group') }}</Label>
                     <Input v-model="coursForm.groupe" :placeholder="$t('enseignant.index.modal_group_placeholder')" />
                     <InputError :message="coursForm.errors.groupe" />
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="grid gap-2">
+                    <Label>Session</Label>
+                    <Select v-model="coursForm.session">
+                        <SelectTrigger>
+                            <SelectValue placeholder="Session…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="hiver">Hiver</SelectItem>
+                            <SelectItem value="ete">Été</SelectItem>
+                            <SelectItem value="automne">Automne</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <InputError :message="coursForm.errors.session" />
+                </div>
+                <div class="grid gap-2">
+                    <Label>Année</Label>
+                    <Input v-model.number="coursForm.annee" type="number" min="2000" max="2100" placeholder="2026" />
+                    <InputError :message="coursForm.errors.annee" />
                 </div>
             </div>
             <div class="grid gap-2">

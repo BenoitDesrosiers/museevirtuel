@@ -25,6 +25,7 @@ use App\Http\Controllers\ProjetSchemaVisuelController;
 use App\Http\Controllers\ProjetSectionMediaController;
 use App\Http\Controllers\QuestionBanqueController;
 use App\Http\Controllers\ThematiqueController;
+use App\Http\Controllers\TransfererCoursController;
 use App\Http\Controllers\TypeProjetController;
 use App\Http\Controllers\TypeProjetTacheController;
 use App\Http\Controllers\VisioConferenceController;
@@ -124,6 +125,12 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
 
     Route::delete('/cours/{cours}', [CoursController::class, 'destroy'])
         ->name('cours.destroy');
+
+    Route::patch('/cours/{cours}/verrouillage', [CoursController::class, 'toggleVerrouillage'])
+        ->name('cours.verrouillage.toggle');
+
+    Route::post('/cours/{cours}/transferer', TransfererCoursController::class)
+        ->name('cours.transferer');
 
     // Documents du cours
     Route::post('/cours/{cours}/documents', [CoursDocumentController::class, 'store'])

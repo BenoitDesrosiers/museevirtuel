@@ -12,12 +12,16 @@ type Cours = {
     description: string | null;
     code: string;
     groupe: string;
+    annee: number;
+    session: 'hiver' | 'ete' | 'automne';
     enseignant: {
         id: number;
         prenom: string;
         nom: string;
     };
 };
+
+const sessionLabel: Record<string, string> = { hiver: 'Hiver', ete: 'Été', automne: 'Automne' };
 
 type Props = {
     cours: Cours[];
@@ -51,6 +55,9 @@ defineProps<Props>();
                             <div>
                                 <span class="text-muted-foreground font-mono text-xs">
                                     {{ unCours.code }} — Groupe {{ unCours.groupe }}
+                                </span>
+                                <span class="text-muted-foreground text-xs">
+                                    {{ sessionLabel[unCours.session] }} {{ unCours.annee }}
                                 </span>
                                 <CardTitle class="mt-1 text-base">{{ unCours.nom_cours }}</CardTitle>
                             </div>

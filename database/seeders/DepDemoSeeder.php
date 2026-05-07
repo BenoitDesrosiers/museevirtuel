@@ -59,6 +59,8 @@ class DepDemoSeeder extends Seeder
                 'nom_cours' => 'Histoire mondiale — DEP Démo',
                 'description' => 'Cours de démonstration pour le niveau DEP.',
                 'groupe' => '00001',
+                'annee' => 2026,
+                'session' => 'hiver',
                 'enseignant_id' => $prof->id,
                 'type_cours' => 'dep',
             ]

@@ -49,5 +49,11 @@
     "visio.deleted": "Video conference deleted.",
     "visio.groupe_invalid": "This group does not belong to the course.",
     "schema_visuel.saved": "Visual schema saved.",
-    "schema_visuel.image_uploaded": "Image uploaded."
+    "schema_visuel.image_uploaded": "Image uploaded.",
+    "cours.created": "Course created successfully.",
+    "cours.updated": "Course updated.",
+    "cours.deleted": "Course deleted.",
+    "cours.verrouille": "Course locked — students no longer have access.",
+    "cours.deverrouille": "Course unlocked — students have access again.",
+    "cours.transfere": "Course transferred successfully."
 }

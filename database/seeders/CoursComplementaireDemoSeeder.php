@@ -61,6 +61,8 @@ class CoursComplementaireDemoSeeder extends Seeder
                 'nom_cours' => 'Société américaine — Cours complémentaire Démo',
                 'description' => 'Cours de démonstration pour le niveau Cours complémentaire.',
                 'groupe' => '00001',
+                'annee' => 2026,
+                'session' => 'hiver',
                 'enseignant_id' => $prof->id,
                 'type_cours' => 'cours_complementaire',
             ]

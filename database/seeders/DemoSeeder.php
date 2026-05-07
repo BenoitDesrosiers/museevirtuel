@@ -93,6 +93,8 @@ class DemoSeeder extends Seeder
                 'description' => 'Cours de démonstration pour présentation.',
                 'code' => '330-DEM-01',
                 'groupe' => '00001',
+                'annee' => 2026,
+                'session' => 'hiver',
                 'enseignant_id' => $prof->id,
                 'type_cours' => 'cours_complet',
             ]

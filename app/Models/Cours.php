@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SessionCours;
 use App\Enums\TypeCours;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,6 +17,9 @@ class Cours extends Model
         'description',
         'code',
         'groupe',
+        'annee',
+        'session',
+        'is_verrouille',
         'enseignant_id',
         'type_cours',
         'taille_equipe_min',
@@ -31,6 +35,9 @@ class Cours extends Model
     {
         return [
             'type_cours' => TypeCours::class,
+            'session' => SessionCours::class,
+            'annee' => 'integer',
+            'is_verrouille' => 'boolean',
             'taille_equipe_min' => 'integer',
             'taille_equipe_max' => 'integer',
         ];

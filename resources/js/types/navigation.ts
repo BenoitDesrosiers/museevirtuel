@@ -40,6 +40,8 @@ export type CoursSidebar = {
     nom: string;
     code: string;
     groupe: string;
+    annee: number;
+    session: string;
     classes: ClasseSidebar[];
 };
 

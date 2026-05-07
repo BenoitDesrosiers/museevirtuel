@@ -16,11 +16,13 @@ class CoursController extends Controller
 {
     /**
      * Affiche la liste des cours dans lesquels l'étudiant authentifié est inscrit.
+     * Les cours verrouillés par l'enseignant sont masqués.
      */
     public function index(): Response
     {
         $cours = auth()->user()
             ->coursInscrits()
+            ->where('is_verrouille', false)
             ->with('enseignant:id,prenom,nom')
             ->orderBy('nom_cours')
             ->get();
@@ -135,6 +137,25 @@ class CoursController extends Controller
         $cours->update($request->validated());
 
         return back()->with('success', __('cours.updated'));
+    }
+
+    /**
+     * Inverse le statut de verrouillage d'un cours.
+     *
+     * Un cours verrouillé n'est plus visible pour les étudiants.
+     *
+     * @throws AuthorizationException
+     */
+    public function toggleVerrouillage(Cours $cours): RedirectResponse
+    {
+        $this->authorize('update', $cours);
+
+        $verrouille = ! $cours->is_verrouille;
+        $cours->update(['is_verrouille' => $verrouille]);
+
+        $message = $verrouille ? __('cours.verrouille') : __('cours.deverrouille');
+
+        return back()->with('success', $message);
     }
 
     /**

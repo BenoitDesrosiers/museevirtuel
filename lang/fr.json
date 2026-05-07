@@ -49,5 +49,11 @@
     "visio.deleted": "Visioconférence supprimée.",
     "visio.groupe_invalid": "Ce groupe n'appartient pas au cours.",
     "schema_visuel.saved": "Schéma visuel enregistré.",
-    "schema_visuel.image_uploaded": "Image téléversée."
+    "schema_visuel.image_uploaded": "Image téléversée.",
+    "cours.created": "Cours créé avec succès.",
+    "cours.updated": "Cours mis à jour.",
+    "cours.deleted": "Cours supprimé.",
+    "cours.verrouille": "Cours verrouillé — les étudiants n'y ont plus accès.",
+    "cours.deverrouille": "Cours déverrouillé — les étudiants y ont de nouveau accès.",
+    "cours.transfere": "Cours transféré avec succès."
 }

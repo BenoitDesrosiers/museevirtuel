@@ -95,7 +95,7 @@ class HandleInertiaRequests extends Middleware
                 ])
                 ->select('id', 'cours_id', 'nom', 'numero'),
             ])
-            ->get(['id', 'nom_cours', 'code', 'groupe']);
+            ->get(['id', 'nom_cours', 'code', 'groupe', 'annee', 'session']);
 
         return [
             'cours' => $cours->map(fn ($c) => [
@@ -103,6 +103,8 @@ class HandleInertiaRequests extends Middleware
                 'nom' => $c->nom_cours,
                 'code' => $c->code,
                 'groupe' => $c->groupe,
+                'annee' => $c->annee,
+                'session' => $c->session?->value,
                 'classes' => $c->classes->map(fn ($cl) => [
                     'id' => $cl->id,
                     'nom' => $cl->nom,
@@ -134,7 +136,7 @@ class HandleInertiaRequests extends Middleware
         $studentGroupeIds = $user->groupesMembre()->pluck('groupes.id');
 
         $classes = $user->classesInscrites()
-            ->with(['cours:id,nom_cours,code,groupe'])
+            ->with(['cours:id,nom_cours,code,groupe,annee,session'])
             ->orderBy('classes.cours_id')
             ->get(['classes.id', 'classes.cours_id', 'classes.nom', 'classes.numero']);
 
@@ -172,6 +174,8 @@ class HandleInertiaRequests extends Middleware
                     'nom' => $classe->cours->nom_cours,
                     'code' => $classe->cours->code,
                     'groupe' => $classe->cours->groupe,
+                    'annee' => $classe->cours->annee,
+                    'session' => $classe->cours->session?->value,
                     'classes' => [],
                 ];
             }
