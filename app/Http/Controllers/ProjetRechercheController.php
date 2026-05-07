@@ -48,8 +48,8 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ProjetRechercheController extends Controller
 {
-    /** Pattern regex validant les noms de champs annotables (développement_{id}, section_{id} ou section_paragraphe_{id}). */
-    private const CHAMP_ANNOTABLE_REGEX = '/^(developpement_\d+|section_\d+|section_paragraphe_\d+)$/';
+    /** Pattern regex validant les noms de champs annotables (développement_{id}, section_{id}, section_paragraphe_{id} ou renvoi_{id}). */
+    private const CHAMP_ANNOTABLE_REGEX = '/^(developpement_\d+|section_\d+|section_paragraphe_\d+|renvoi_\d+)$/';
 
     /**
      * Affiche toutes les cartes de projets disponibles pour ce groupe.
@@ -1740,7 +1740,7 @@ class ProjetRechercheController extends Controller
     /**
      * Met à jour le contenu HTML d'un champ annotable.
      *
-     * Supporte les préfixes : `developpement_`, `section_paragraphe_`, `section_`.
+     * Supporte les préfixes : `developpement_`, `section_paragraphe_`, `section_`, `renvoi_`.
      * Tout autre préfixe est rejeté par le CHAMP_ANNOTABLE_REGEX en amont.
      *
      * @throws HttpException si la ressource n'appartient pas au projet
@@ -1765,6 +1765,13 @@ class ProjetRechercheController extends Controller
                 ['projet_id' => $projet->id, 'section_id' => $sectionId],
                 ['contenu' => $html],
             );
+        } elseif (str_starts_with($champ, 'renvoi_')) {
+            // Le contenu du renvoi est mis à jour avec le HTML annoté (marks TipTap inclus).
+            $renvoiId = (int) mb_substr($champ, mb_strlen('renvoi_'));
+            ProjetRenvoi::where('id', $renvoiId)
+                ->where('projet_id', $projet->id)
+                ->firstOrFail()
+                ->update(['contenu' => $html]);
         }
     }
 }

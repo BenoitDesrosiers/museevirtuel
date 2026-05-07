@@ -417,6 +417,7 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                 <BoutonTooltip
                     texte="Accéder aux projets de ce groupe"
                     variant="outline"
+                    size="sm"
                     as-child
                 >
                     <Link :href="`/cours/${cours.id}/classes/${groupe.classe_id}/groupes/${groupe.id}/projets`">
@@ -428,6 +429,7 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                     v-if="groupe.temoin || estMembre || estEnseignant"
                     texte="Accéder aux échanges avec le témoin de ce groupe"
                     variant="outline"
+                    size="sm"
                     as-child
                 >
                     <Link :href="`/cours/${cours.id}/classes/${groupe.classe_id}/groupes/${groupe.id}/echanges`">

@@ -99,6 +99,11 @@ const props = defineProps<{
      * Garantit que le watcher se déclenche même si Vue rate une mutation profonde sur renvois.
      */
     renvoisSyncVersion?: number;
+    /**
+     * Mode compact — réduit la hauteur minimale à ~2 lignes (utile pour les champs courts comme les références).
+     * Sans ce prop, l'éditeur a un minimum de 160px.
+     */
+    compact?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -159,7 +164,7 @@ const editor = useEditor({
     extensions,
     editorProps: {
         attributes: {
-            class: 'prose prose-sm max-w-none min-h-[160px] focus:outline-none px-3 py-2',
+            class: `prose prose-sm max-w-none ${props.compact ? 'min-h-[52px]' : 'min-h-[160px]'} focus:outline-none px-3 py-2`,
         },
     },
     // onCreate garantit que currentHtml contient le HTML canonique TipTap dès le montage,

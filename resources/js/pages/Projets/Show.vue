@@ -1496,6 +1496,19 @@ async function creerEtInsererRenvoi(insertFn: (renvoiId: number, numero: number)
 const debounceRenvois = new Map<number, ReturnType<typeof setTimeout>>();
 
 /**
+ * Convertit le contenu d'un renvoi en HTML compatible TipTap.
+ *
+ * Les renvois créés avant l'introduction du RichEditor sont en texte brut ;
+ * on les enveloppe dans un <p> pour que TipTap les charge correctement.
+ */
+function renvoiContenuHtml(contenu: string | null): string {
+    if (!contenu) return '';
+    // Déjà du HTML (sauvegardé par TipTap lors d'une session précédente)
+    if (contenu.trimStart().startsWith('<')) return contenu;
+    return `<p>${contenu}</p>`;
+}
+
+/**
  * Planifie la sauvegarde du contenu d'un renvoi après 1,5 s sans frappe.
  */
 function scheduleRenvoiSave(renvoiId: number) {
@@ -3150,16 +3163,21 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 {{ renvoi.numero }}.
                             </span>
                             <div class="flex-1 space-y-1.5">
-                                <textarea
-                                    :value="renvoi.contenu ?? ''"
-                                    :disabled="!peutEditer"
-                                    rows="2"
-                                    placeholder="Texte de la référence…"
-                                    class="w-full resize-none rounded border border-input bg-background px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
-                                    @input="(e) => {
-                                        renvoi.contenu = (e.target as HTMLTextAreaElement).value;
+                                <RichEditor
+                                    :model-value="renvoiContenuHtml(renvoi.contenu)"
+                                    :read-only="!peutEditer"
+                                    :est-enseignant="estEnseignant"
+                                    :corrections="annotations['renvoi_' + renvoi.id] ?? []"
+                                    :renvois="[]"
+                                    :membres="membres"
+                                    :editor-id="`renvoi-${renvoi.id}`"
+                                    :compact="true"
+                                    @update:model-value="(html: string) => {
+                                        renvoi.contenu = html;
                                         scheduleRenvoiSave(renvoi.id);
                                     }"
+                                    @save-annotation="(p) => sauvegarderAnnotation('renvoi_' + renvoi.id, p)"
+                                    @delete-annotation="(p) => supprimerAnnotation('renvoi_' + renvoi.id, p)"
                                 />
                                 <!-- Commentaires enseignant sur ce renvoi -->
                                 <div
