@@ -331,31 +331,34 @@ Route::middleware(['auth', 'role:etudiant'])->group(function () {
     Route::get('/etudiant', [EtudiantController::class, 'index'])
         ->name('etudiant.index');
 
-    // Sections d'un cours dans lesquelles l'étudiant est inscrit
-    Route::get('/cours/{cours}/classes', [ClasseController::class, 'indexForStudent'])
-        ->name('classes.index');
+    // Routes sur un cours spécifique — bloquées si le cours est verrouillé
+    Route::middleware('cours.accessible')->group(function () {
+        // Sections d'un cours dans lesquelles l'étudiant est inscrit
+        Route::get('/cours/{cours}/classes', [ClasseController::class, 'indexForStudent'])
+            ->name('classes.index');
 
-    // Groupes dans une classe (section) — l'étudiant crée et consulte son groupe
-    Route::get('/cours/{cours}/classes/{classe}/groupes', [GroupeController::class, 'index'])
-        ->name('groupes.index');
+        // Groupes dans une classe (section) — l'étudiant crée et consulte son groupe
+        Route::get('/cours/{cours}/classes/{classe}/groupes', [GroupeController::class, 'index'])
+            ->name('groupes.index');
 
-    Route::post('/cours/{cours}/classes/{classe}/groupes', [GroupeController::class, 'store'])
-        ->name('groupes.store');
+        Route::post('/cours/{cours}/classes/{classe}/groupes', [GroupeController::class, 'store'])
+            ->name('groupes.store');
 
-    // Notes collaboratives du groupe
-    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/notes', [GroupeController::class, 'storeNote'])
-        ->name('groupes.notes.store');
+        // Notes collaboratives du groupe
+        Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/notes', [GroupeController::class, 'storeNote'])
+            ->name('groupes.notes.store');
 
-    Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/notes/{note}', [GroupeController::class, 'destroyNote'])
-        ->name('groupes.notes.destroy');
+        Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/notes/{note}', [GroupeController::class, 'destroyNote'])
+            ->name('groupes.notes.destroy');
 
-    // Progression personnelle de l'étudiant sur l'échéancier
-    Route::patch('/cours/{cours}/echeancier/{etape}/toggle-etudiant', [EcheancierController::class, 'toggleEtudiant'])
-        ->name('echeancier.toggleEtudiant');
+        // Progression personnelle de l'étudiant sur l'échéancier
+        Route::patch('/cours/{cours}/echeancier/{etape}/toggle-etudiant', [EcheancierController::class, 'toggleEtudiant'])
+            ->name('echeancier.toggleEtudiant');
+    });
 });
 
 // ─── Échanges groupe ↔ témoin + Consentement vidéo (tous les rôles auth concernés) ──
-Route::middleware(['auth', 'role:etudiant,enseignant,admin,personne_agee'])->group(function () {
+Route::middleware(['auth', 'role:etudiant,enseignant,admin,personne_agee', 'cours.accessible'])->group(function () {
     Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/echanges', [GroupeEchangeController::class, 'index'])
         ->name('groupes.echanges.index');
 
@@ -377,7 +380,7 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
 });
 
 // ─── Actions créateur du groupe ────────────────────────────────────────────────
-Route::middleware(['auth', 'role:etudiant'])->group(function () {
+Route::middleware(['auth', 'role:etudiant', 'cours.accessible'])->group(function () {
     Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/thematiques', [GroupeController::class, 'updateThematiques'])
         ->name('groupes.thematiques.update');
 
@@ -386,7 +389,7 @@ Route::middleware(['auth', 'role:etudiant'])->group(function () {
 });
 
 // ─── Classes et Groupes (étudiant + enseignant + admin) ───────────────────────
-Route::middleware(['auth', 'role:etudiant,enseignant,admin'])->group(function () {
+Route::middleware(['auth', 'role:etudiant,enseignant,admin', 'cours.accessible'])->group(function () {
     // Détail d'une classe (section)
     Route::get('/cours/{cours}/classes/{classe}', [ClasseController::class, 'show'])
         ->name('classes.show');

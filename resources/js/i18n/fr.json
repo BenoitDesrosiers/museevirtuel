@@ -151,7 +151,7 @@
             "page_title": "Mes cours",
             "heading_title": "Mes cours",
             "heading_description": "Vos cours inscrits pour cette session",
-            "no_courses": "Vous n'êtes inscrit à aucun cours pour l'instant.",
+            "no_courses": "Aucun cours accessible pour l'instant.",
             "my_sections": "Mes sections"
         },
         "show": {
