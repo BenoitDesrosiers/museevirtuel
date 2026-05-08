@@ -153,7 +153,7 @@
             "page_title": "My courses",
             "heading_title": "My courses",
             "heading_description": "Your enrolled courses for this session",
-            "no_courses": "You are not enrolled in any courses at the moment.",
+            "no_courses": "No courses are currently accessible.",
             "my_sections": "My sections"
         },
         "show": {
