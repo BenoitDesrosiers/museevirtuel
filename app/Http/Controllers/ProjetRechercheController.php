@@ -71,8 +71,8 @@ class ProjetRechercheController extends Controller
         $user = auth()->user();
         $estEnseignant = $cours->enseignant_id === $user->id;
 
-        // Charger les TypeProjets de l'enseignant du cours
-        $query = TypeProjet::where('enseignant_id', $cours->enseignant_id);
+        // Charger les TypeProjets du cours — pas de tous les cours de l'enseignant
+        $query = TypeProjet::where('cours_id', $cours->id);
 
         // Les étudiants ne voient que les types rendus accessibles par l'enseignant
         if (! $estEnseignant && $user->role !== 'admin') {
@@ -853,7 +853,7 @@ class ProjetRechercheController extends Controller
             'type' => ['sometimes', 'string', 'in:commentaire,correction'],
             // Malus inline — uniquement pertinents pour type='correction'
             'cible_user_id' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
-            'points_malus' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
+            'points_malus' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
         ]);
 
         $projet = ProjetRecherche::firstOrCreate([

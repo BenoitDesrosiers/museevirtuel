@@ -20,6 +20,14 @@ class ProjetAnnotation extends Model
         'points_malus',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            // float natif pour que les calculs dans noteFinale() restent sans cast explicite
+            'points_malus' => 'float',
+        ];
+    }
+
     /**
      * Retourne le projet de recherche auquel appartient cette annotation.
      */

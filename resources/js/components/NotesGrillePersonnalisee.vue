@@ -60,7 +60,7 @@ function tousOntNote(critereId: number, valeur: number): boolean {
     );
 }
 
-/** Total des déductions appliquées pour un étudiant (malus grille + corrections inline). */
+/** Total des déductions appliquées pour un étudiant (malus grille + corrections inline), arrondi au centième. */
 function totalMalus(membreId: number): number {
     const malusGrille = props.malus.reduce((total, m) => {
         return props.malusAppliques[membreId]?.[m.id] ? total + m.deduction : total;
@@ -69,7 +69,8 @@ function totalMalus(membreId: number): number {
         (total, a) => total + a.points_malus,
         0,
     );
-    return malusGrille + malusAnnotations;
+    // Arrondi au centième pour éviter les erreurs de précision flottante JS (ex. 0.1 + 0.2)
+    return Math.round((malusGrille + malusAnnotations) * 100) / 100;
 }
 </script>
 

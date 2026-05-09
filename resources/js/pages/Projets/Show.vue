@@ -2066,7 +2066,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             >
                                 <Star class="h-3.5 w-3.5" />
                                 {{ membre.prenom }} :
-                                {{ noteFinaleGrille[membre.id]?.toFixed(1) }} / 100
+                                {{ noteFinaleGrille[membre.id]?.toFixed(2) }} / 100
                             </button>
                         </template>
                     </template>
@@ -2088,7 +2088,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         @click="grilleModalOuverte = true"
                     >
                         <Star class="h-4 w-4" />
-                        {{ t('projets.show.my_grade', { grade: noteFinaleGrille[userId]?.toFixed(1) }) }}
+                        {{ t('projets.show.my_grade', { grade: noteFinaleGrille[userId]?.toFixed(2) }) }}
                     </button>
                 </div>
             </div>
@@ -3392,7 +3392,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 class="rounded px-2 py-0.5 text-xs font-medium"
                                 :class="(noteFinaleGrille[membre.id] ?? 0) >= 60 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
                             >
-                                {{ membre.prenom }} : {{ noteFinaleGrille[membre.id]?.toFixed(1) }}/100
+                                {{ membre.prenom }} : {{ noteFinaleGrille[membre.id]?.toFixed(2) }}/100
                             </span>
                         </template>
                     </div>

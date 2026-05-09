@@ -1152,6 +1152,7 @@ function togglePanel(): void {
                                     type="number"
                                     min="0"
                                     max="100"
+                                    step="0.25"
                                     placeholder="0"
                                     class="w-full rounded border border-rose-300 bg-white px-1.5 py-1 text-xs dark:border-rose-700 dark:bg-rose-950 dark:text-rose-100"
                                 />
