@@ -34,6 +34,8 @@ type TypeProjet = {
     retard_permis: boolean;
     generer_page_titre: boolean;
     generer_table_matieres: boolean;
+    ponderation: number | null;
+    is_sommatif: boolean;
     sections: { id: number; label: string; description: string | null; ordre: number; type: SectionType }[];
 };
 
@@ -89,6 +91,8 @@ const form = useForm({
     retard_permis: props.typeProjet.retard_permis,
     generer_page_titre: props.typeProjet.generer_page_titre,
     generer_table_matieres: props.typeProjet.generer_table_matieres,
+    ponderation: props.typeProjet.ponderation,
+    is_sommatif: props.typeProjet.is_sommatif,
     sections: props.typeProjet.sections.map<SectionFormItem>((s) => ({
         id: s.id,
         label: s.label,
@@ -218,6 +222,43 @@ function sauvegarder() {
                             <Label for="generer_table_matieres" class="cursor-pointer">{{ $t('types_projet.edit.label_generer_table_matieres') }}</Label>
                             <p class="text-xs text-muted-foreground">
                                 {{ form.generer_table_matieres ? $t('types_projet.edit.hint_auto') : '' }}
+                            </p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Évaluation -->
+            <Card>
+                <CardContent class="grid gap-4 pt-6">
+                    <h2 class="text-sm font-semibold">Évaluation</h2>
+
+                    <div class="grid gap-2">
+                        <Label for="ponderation">Pondération (%)</Label>
+                        <Input
+                            id="ponderation"
+                            v-model.number="form.ponderation"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            placeholder="ex: 60"
+                        />
+                        <p class="text-xs text-muted-foreground">
+                            Poids de ce type de projet dans la note finale du cours (0–100 %). Laissez vide si non applicable.
+                        </p>
+                        <InputError :message="form.errors.ponderation" />
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <Checkbox
+                            id="is_sommatif"
+                            v-model="form.is_sommatif"
+                        />
+                        <div class="grid gap-0.5">
+                            <Label for="is_sommatif" class="cursor-pointer">Évaluation sommative</Label>
+                            <p class="text-xs text-muted-foreground">
+                                Coché : ce projet contribue à la note finale. Décoché : formatif seulement.
                             </p>
                         </div>
                     </div>

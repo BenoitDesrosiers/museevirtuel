@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, ExternalLink, FileBarChart, Pencil, Trash2, Upload, Users } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { apercuNotesAccumulees } from '@/actions/App/Http/Controllers/ClasseController';
+import { ArrowLeft, ExternalLink, FileBarChart, Pencil, Sigma, Trash2, Upload, Users } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
 import Heading from '@/components/Heading.vue';
@@ -80,6 +81,8 @@ type Classe = {
 type TypeProjet = {
     id: number;
     nom: string;
+    ponderation: number | null;
+    is_sommatif: boolean;
 };
 
 type Props = {
@@ -91,6 +94,9 @@ type Props = {
 
 const props = defineProps<Props>();
 const { t } = useI18n();
+
+/** Vrai si au moins un TypeProjet a une pondération définie — affiche le bouton notes accumulées. */
+const aPonderation = computed(() => props.typesProjets.some((tp) => tp.ponderation !== null && tp.is_sommatif));
 
 // ─── Gestion étudiants de la section ──────────────────────────────────────────
 const showAddEtudiantDialog = ref(false);
@@ -336,7 +342,8 @@ function executeDeleteGroupe() {
                         Aperçu des notes
                     </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent class="flex flex-col gap-4">
+                    <!-- Notes par type de projet -->
                     <div class="flex flex-wrap gap-2">
                         <BoutonTooltip
                             v-for="tp in typesProjets"
@@ -349,6 +356,24 @@ function executeDeleteGroupe() {
                             <Link :href="`/cours/${cours.id}/classes/${classe.id}/types-projets/${tp.id}/apercu-notes`">
                                 <FileBarChart class="mr-2 h-4 w-4" />
                                 {{ tp.nom }}
+                                <span v-if="tp.ponderation !== null" class="ml-1 text-xs text-muted-foreground">
+                                    ({{ tp.ponderation }} %)
+                                </span>
+                            </Link>
+                        </BoutonTooltip>
+                    </div>
+
+                    <!-- Bouton notes accumulées — visible si au moins un TypeProjet a une pondération -->
+                    <div v-if="aPonderation" class="border-t pt-3">
+                        <BoutonTooltip
+                            texte="Voir le total pondéré de tous les types de projets"
+                            variant="default"
+                            size="sm"
+                            as-child
+                        >
+                            <Link :href="apercuNotesAccumulees({ cours, classe }).url">
+                                <Sigma class="mr-2 h-4 w-4" />
+                                Notes accumulées
                             </Link>
                         </BoutonTooltip>
                     </div>

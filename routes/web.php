@@ -153,6 +153,9 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
     Route::get('/cours/{cours}/classes/{classe}/types-projets/{typeProjet}/apercu-notes', [ClasseController::class, 'apercuNotesClasse'])
         ->name('classes.apercu.notes');
 
+    Route::get('/cours/{cours}/classes/{classe}/apercu-notes-accumulees', [ClasseController::class, 'apercuNotesAccumulees'])
+        ->name('classes.apercu.notes.accumulees');
+
     Route::post('/cours/{cours}/classes', [ClasseController::class, 'store'])
         ->name('classes.store');
 

@@ -20,14 +20,6 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class ClasseController extends Controller
 {
     /**
-     * Affiche le détail d'une classe (section) avec ses groupes.
-     *
-     * Accessible aux étudiants inscrits, à l'enseignant et aux admins.
-     *
-     * @throws AuthorizationException
-     * @throws HttpException
-     */
-    /**
      * Liste les sections (classes) d'un cours dans lesquelles l'étudiant est inscrit.
      *
      * Réservé aux étudiants.
@@ -91,7 +83,7 @@ class ClasseController extends Controller
 
         // TypeProjets du cours — pour les boutons d'aperçu notes (enseignant seulement)
         $typesProjets = $estEnseignant
-            ? $cours->typesProjets()->get(['id', 'nom'])
+            ? $cours->typesProjets()->get(['id', 'nom', 'ponderation', 'is_sommatif'])
             : collect();
 
         return Inertia::render('Classes/Show', [
@@ -114,17 +106,7 @@ class ClasseController extends Controller
      */
     public function apercuNotesClasse(Cours $cours, Classe $classe, TypeProjet $typeProjet): Response
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-
-        $classe->load('cours');
-        $this->authorize('view', $classe);
-
-        $user = auth()->user();
-        abort_unless(
-            $user->role === 'admin' || $cours->enseignant_id === $user->id,
-            403,
-        );
-
+        $this->autoriserEnseignantOuAdmin($cours, $classe);
         $classe->load('groupes.membres');
 
         // Déterminer si ce TypeProjet utilise une grille personnalisée
@@ -165,6 +147,97 @@ class ClasseController extends Controller
             'classe' => ['id' => $classe->id, 'numero' => $classe->numero, 'nom' => $classe->nom],
             'typeProjet' => ['id' => $typeProjet->id, 'nom' => $typeProjet->nom],
             'lignes' => $lignes->values(),
+        ]);
+    }
+
+    /**
+     * Affiche la page d'aperçu des notes accumulées (pondérées) de toute la classe.
+     *
+     * Agrège les notes finales de chaque étudiant sur tous les TypeProjets ayant
+     * une pondération définie, et calcule le total pondéré : Σ(noteFinale × pondération / 100).
+     * Accessible aux enseignants et admins uniquement.
+     *
+     * @throws AuthorizationException
+     * @throws HttpException
+     */
+    public function apercuNotesAccumulees(Cours $cours, Classe $classe): Response
+    {
+        $this->autoriserEnseignantOuAdmin($cours, $classe);
+        $classe->load('groupes.membres');
+
+        // TypeProjets sommatifs du cours ayant une pondération définie.
+        // Les projets non-sommatifs (is_sommatif = false) n'ont pas de poids sur la note finale.
+        $typesProjets = $cours->typesProjets()
+            ->where('is_sommatif', true)
+            ->whereNotNull('ponderation')
+            ->with('grille')
+            ->orderBy('nom')
+            ->get();
+
+        // Flag par TypeProjet calculé une seule fois — évite le double accès à $tp->grille
+        $useGrilleParId = $typesProjets->mapWithKeys(
+            fn ($tp) => [$tp->id => $tp->grille !== null]
+        )->all();
+
+        // Charger tous les projets de la classe en une seule requête par TypeProjet — évite N+1
+        $projetsPar = [];
+        foreach ($typesProjets as $tp) {
+            $relations = $useGrilleParId[$tp->id]
+                ? ['notesGrille.critere', 'malusAppliques.malus']
+                : ['notes'];
+
+            $projetsPar[$tp->id] = ProjetRecherche::whereIn('groupe_id', $classe->groupes->pluck('id'))
+                ->where('type_projet_id', $tp->id)
+                ->with($relations)
+                ->get()
+                ->keyBy('groupe_id');
+        }
+
+        $lignes = collect();
+
+        foreach ($classe->groupes as $groupe) {
+            foreach ($groupe->membres as $membre) {
+                $notesParType = [];
+                $total = 0.0;
+
+                foreach ($typesProjets as $tp) {
+                    $useGrillePerso = $useGrilleParId[$tp->id];
+                    $projet = $projetsPar[$tp->id]->get($groupe->id);
+
+                    $note = $projet
+                        ? ($useGrillePerso
+                            ? ProjetGrilleNote::noteFinale($projet, $membre)
+                            : ProjetNote::noteFinale($projet, $membre))
+                        : null;
+
+                    $notesParType[$tp->id] = $note !== null ? (float) $note : null;
+
+                    // Contribution pondérée : 0 si pas de note
+                    $total += ($note !== null ? (float) $note : 0.0) * ((float) $tp->ponderation / 100);
+                }
+
+                $lignes->push([
+                    'da' => preg_replace('/\D/', '', (string) $membre->no_da),
+                    'prenom' => $membre->prenom,
+                    'nom' => $membre->nom,
+                    'notes_par_type' => $notesParType,
+                    'total' => round($total, 2),
+                ]);
+            }
+        }
+
+        $somme = $typesProjets->sum('ponderation');
+
+        return Inertia::render('Classes/ApercuNotesAccumulees', [
+            'cours' => $cours->only('id', 'nom_cours'),
+            'classe' => ['id' => $classe->id, 'numero' => $classe->numero, 'nom' => $classe->nom],
+            'typesProjets' => $typesProjets->map(fn ($tp) => [
+                'id' => $tp->id,
+                'nom' => $tp->nom,
+                'ponderation' => (float) $tp->ponderation,
+            ])->values(),
+            'lignes' => $lignes->values(),
+            'sommePonderations' => (float) $somme,
         ]);
     }
 
@@ -217,6 +290,30 @@ class ClasseController extends Controller
         $classe->update(array_merge($validated, ['code' => $cours->code]));
 
         return back()->with('success', 'Classe mise à jour.');
+    }
+
+    /**
+     * Valide que la classe appartient au cours, que l'utilisateur a accès via la Policy,
+     * et qu'il est l'enseignant du cours ou un admin.
+     *
+     * Factorisé ici car ce triplet apparaît dans toutes les méthodes réservées
+     * aux enseignants (apercuNotesClasse, apercuNotesAccumulees, etc.).
+     *
+     * @throws AuthorizationException
+     * @throws HttpException
+     */
+    private function autoriserEnseignantOuAdmin(Cours $cours, Classe $classe): void
+    {
+        abort_if($classe->cours_id !== $cours->id, 404);
+
+        $classe->load('cours');
+        $this->authorize('view', $classe);
+
+        $user = auth()->user();
+        abort_unless(
+            $user->role === 'admin' || $cours->enseignant_id === $user->id,
+            403,
+        );
     }
 
     /**

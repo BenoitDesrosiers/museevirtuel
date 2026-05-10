@@ -716,6 +716,13 @@ class ProjetRechercheController extends Controller
         // Charger les membres pour valider le user_id cible (toujours nécessaire, même pour l'enseignant)
         $groupe->load(['classe.cours', 'membres']);
 
+        // Vérifier l'autorisation avant la validation pour retourner 403 plutôt que 422
+        // aux utilisateurs qui ne font pas partie du groupe et ne sont pas l'enseignant.
+        abort_unless(
+            $groupe->membres->contains('id', auth()->id()) || $cours->enseignant_id === auth()->id(),
+            403,
+        );
+
         $validated = $request->validate([
             'contenu' => ['nullable', 'string'],
             'user_id' => ['required', 'integer', 'exists:users,id'],
