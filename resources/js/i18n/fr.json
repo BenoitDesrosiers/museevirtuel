@@ -639,6 +639,8 @@
             "export_options_title": "Options d'export",
             "label_generer_page_titre": "Générer la page titre automatiquement",
             "label_generer_table_matieres": "Générer la table des matières automatiquement",
+            "label_aide_reference": "Activer l'aide à la saisie des références APA",
+            "hint_aide_reference": "Un formulaire guidé aidera les étudiants à formater leurs références selon les normes APA.",
             "hint_manuel": "Les étudiants devront inclure cet élément manuellement."
         },
         "create": {
@@ -671,6 +673,8 @@
             "export_options_title": "Options d'export",
             "label_generer_page_titre": "Générer la page titre automatiquement",
             "label_generer_table_matieres": "Générer la table des matières automatiquement",
+            "label_aide_reference": "Activer l'aide à la saisie des références APA",
+            "hint_aide_reference": "Un formulaire guidé aidera les étudiants à formater leurs références selon les normes APA.",
             "hint_auto": "L'export génère cet élément automatiquement.",
             "hint_manuel": "Les étudiants devront inclure cet élément manuellement.",
             "section_type_texte_label": "Texte libre",

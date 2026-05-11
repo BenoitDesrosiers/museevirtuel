@@ -67,6 +67,7 @@ const form = useForm({
     retard_permis: false,
     generer_page_titre: true,
     generer_table_matieres: true,
+    aide_reference: false,
     sections: [] as SectionFormItem[],
 });
 
@@ -187,6 +188,19 @@ function creer() {
                             <Label for="generer_table_matieres" class="cursor-pointer">{{ $t('types_projet.edit.label_generer_table_matieres') }}</Label>
                             <p class="text-xs text-muted-foreground">
                                 {{ form.generer_table_matieres ? $t('types_projet.edit.hint_auto') : '' }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start gap-3">
+                        <Checkbox
+                            id="aide_reference"
+                            v-model="form.aide_reference"
+                        />
+                        <div class="grid gap-0.5">
+                            <Label for="aide_reference" class="cursor-pointer">{{ $t('types_projet.edit.label_aide_reference') }}</Label>
+                            <p class="text-xs text-muted-foreground">
+                                {{ form.aide_reference ? $t('types_projet.edit.hint_aide_reference') : '' }}
                             </p>
                         </div>
                     </div>

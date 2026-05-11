@@ -255,6 +255,7 @@ class ProjetRechercheController extends Controller
             'typeProjet' => $typeProjet->only('id', 'nom'),
             'genererPageTitre' => (bool) $typeProjet->generer_page_titre,
             'genererTableMatieres' => (bool) $typeProjet->generer_table_matieres,
+            'aideReference' => (bool) $typeProjet->aide_reference,
             'pageTitreContenu' => $projet->page_titre_contenu,
             'tableMatieresContenu' => $projet->table_matieres_contenu,
             'developpements' => $projet->developpements->map->only('id', 'ordre', 'titre', 'contenu')->values(),

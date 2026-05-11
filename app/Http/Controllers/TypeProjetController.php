@@ -77,6 +77,7 @@ class TypeProjetController extends Controller
             'retard_permis' => ['boolean'],
             'generer_page_titre' => ['boolean'],
             'generer_table_matieres' => ['boolean'],
+            'aide_reference' => ['boolean'],
             'ponderation' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'is_sommatif' => ['boolean'],
             'sections' => ['nullable', 'array'],
@@ -96,6 +97,7 @@ class TypeProjetController extends Controller
             'retard_permis' => $data['retard_permis'] ?? false,
             'generer_page_titre' => $request->boolean('generer_page_titre', true),
             'generer_table_matieres' => $request->boolean('generer_table_matieres', true),
+            'aide_reference' => $request->boolean('aide_reference', false),
             'ponderation' => $data['ponderation'] ?? null,
             'is_sommatif' => $request->boolean('is_sommatif', true),
         ]);
@@ -134,6 +136,7 @@ class TypeProjetController extends Controller
             'retard_permis' => ['boolean'],
             'generer_page_titre' => ['boolean'],
             'generer_table_matieres' => ['boolean'],
+            'aide_reference' => ['boolean'],
             'ponderation' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'is_sommatif' => ['boolean'],
             'sections' => ['nullable', 'array'],
@@ -154,6 +157,7 @@ class TypeProjetController extends Controller
             'retard_permis' => $request->boolean('retard_permis', $typeProjet->retard_permis),
             'generer_page_titre' => $willGeneratePageTitre,
             'generer_table_matieres' => $request->boolean('generer_table_matieres', $typeProjet->generer_table_matieres),
+            'aide_reference' => $request->boolean('aide_reference', $typeProjet->aide_reference),
             'ponderation' => $data['ponderation'] ?? $typeProjet->ponderation,
             'is_sommatif' => $request->boolean('is_sommatif', $typeProjet->is_sommatif),
         ]);

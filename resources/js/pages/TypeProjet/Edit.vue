@@ -34,6 +34,7 @@ type TypeProjet = {
     retard_permis: boolean;
     generer_page_titre: boolean;
     generer_table_matieres: boolean;
+    aide_reference: boolean;
     ponderation: number | null;
     is_sommatif: boolean;
     sections: { id: number; label: string; description: string | null; ordre: number; type: SectionType }[];
@@ -91,6 +92,7 @@ const form = useForm({
     retard_permis: props.typeProjet.retard_permis,
     generer_page_titre: props.typeProjet.generer_page_titre,
     generer_table_matieres: props.typeProjet.generer_table_matieres,
+    aide_reference: props.typeProjet.aide_reference,
     ponderation: props.typeProjet.ponderation,
     is_sommatif: props.typeProjet.is_sommatif,
     sections: props.typeProjet.sections.map<SectionFormItem>((s) => ({
@@ -222,6 +224,19 @@ function sauvegarder() {
                             <Label for="generer_table_matieres" class="cursor-pointer">{{ $t('types_projet.edit.label_generer_table_matieres') }}</Label>
                             <p class="text-xs text-muted-foreground">
                                 {{ form.generer_table_matieres ? $t('types_projet.edit.hint_auto') : '' }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start gap-3">
+                        <Checkbox
+                            id="aide_reference"
+                            v-model="form.aide_reference"
+                        />
+                        <div class="grid gap-0.5">
+                            <Label for="aide_reference" class="cursor-pointer">{{ $t('types_projet.edit.label_aide_reference') }}</Label>
+                            <p class="text-xs text-muted-foreground">
+                                {{ form.aide_reference ? $t('types_projet.edit.hint_aide_reference') : '' }}
                             </p>
                         </div>
                     </div>

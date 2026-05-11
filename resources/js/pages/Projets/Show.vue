@@ -32,6 +32,7 @@ import { useI18n } from 'vue-i18n';
 import AntidoteGlobalModal from '@/components/AntidoteGlobalModal.vue';
 import type { GlobalSection } from '@/components/AntidoteGlobalModal.vue';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
+import ReferenceApaModal from '@/components/ReferenceApaModal.vue';
 import CommentaireEnseignant from '@/components/CommentaireEnseignant.vue';
 import ConsentementVideo from '@/components/ConsentementVideo.vue';
 import SectionAudio from '@/components/SectionAudio.vue';
@@ -272,6 +273,8 @@ type Props = {
     genererPageTitre: boolean;
     /** true = table des matières auto-générée à l'export, false = étudiant la rédige manuellement */
     genererTableMatieres: boolean;
+    /** true = le modal d'aide APA s'ouvre lors de l'insertion d'un renvoi */
+    aideReference: boolean;
     /** Contenu manuel de la page titre (utilisé quand genererPageTitre est false) */
     pageTitreContenu: string | null;
     /** Contenu manuel de la table des matières (utilisé quand genererTableMatieres est false) */
@@ -1476,11 +1479,14 @@ function handleRenvoisUtilises(editorId: string, ids: number[]): void {
  * serait perdu si l'utilisateur naviguait avant son expiration. On sauvegarde
  * donc immédiatement pour garantir la persistance du nœud renvoiMark inséré.
  */
-async function creerEtInsererRenvoi(insertFn: (renvoiId: number, numero: number) => void) {
+async function creerEtInsererRenvoi(
+    insertFn: (renvoiId: number, numero: number) => void,
+    contenuInitial: string | null = null,
+) {
     if (renvoiEnCours.value) return;
     renvoiEnCours.value = true;
     try {
-        const response = await axios.post(`${baseUrl.value}/renvois`, { contenu: null });
+        const response = await axios.post(`${baseUrl.value}/renvois`, { contenu: contenuInitial });
         const renvoi: Renvoi = { ...response.data.renvoi, commentaires: [] };
         renvoisLocaux.value.push(renvoi);
         insertFn(renvoi.id, renvoi.numero);
@@ -1490,6 +1496,40 @@ async function creerEtInsererRenvoi(insertFn: (renvoiId: number, numero: number)
     } finally {
         renvoiEnCours.value = false;
     }
+}
+
+// ─── Aide à la référence APA ──────────────────────────────────────────────────
+
+/**
+ * Stocke le callback d'insertion en attente quand le modal APA est ouvert.
+ * Le callback est fourni par le RichEditor via @demander-renvoi.
+ */
+const insertFnEnAttente = ref<((renvoiId: number, numero: number) => void) | null>(null);
+const referenceModalOuvert = ref(false);
+
+/**
+ * Intercepte la demande d'insertion d'un renvoi.
+ *
+ * Si aide_reference est activé sur ce type de projet, ouvre le modal APA
+ * au lieu de créer le renvoi immédiatement.
+ */
+function demanderRenvoi(insertFn: (renvoiId: number, numero: number) => void): void {
+    if (props.aideReference) {
+        insertFnEnAttente.value = insertFn;
+        referenceModalOuvert.value = true;
+    } else {
+        creerEtInsererRenvoi(insertFn);
+    }
+}
+
+/**
+ * Reçoit la référence APA formatée depuis le modal et crée le renvoi
+ * avec ce contenu pré-rempli.
+ */
+async function confirmerReferenceApa(contenu: string): Promise<void> {
+    if (!insertFnEnAttente.value) return;
+    await creerEtInsererRenvoi(insertFnEnAttente.value, contenu);
+    insertFnEnAttente.value = null;
 }
 
 
@@ -2127,7 +2167,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         @update:model-value="scheduleSharedSave"
                         @save-annotation="(p) => sauvegarderAnnotation('page_titre_contenu', p)"
                         @delete-annotation="(p) => supprimerAnnotation('page_titre_contenu', p)"
-                        @demander-renvoi="creerEtInsererRenvoi"
+                        @demander-renvoi="demanderRenvoi"
                         @renvois-utilises="handleRenvoisUtilises"
                     />
 
@@ -2183,7 +2223,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         @update:model-value="scheduleSharedSave"
                         @save-annotation="(p) => sauvegarderAnnotation('page_titre_contenu', p)"
                         @delete-annotation="(p) => supprimerAnnotation('page_titre_contenu', p)"
-                        @demander-renvoi="creerEtInsererRenvoi"
+                        @demander-renvoi="demanderRenvoi"
                         @renvois-utilises="handleRenvoisUtilises"
                     />
 
@@ -2243,7 +2283,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             @update:model-value="scheduleSharedSave"
                             @save-annotation="(p) => sauvegarderAnnotation('table_matieres_contenu', p)"
                             @delete-annotation="(p) => supprimerAnnotation('table_matieres_contenu', p)"
-                            @demander-renvoi="creerEtInsererRenvoi"
+                            @demander-renvoi="demanderRenvoi"
                             @renvois-utilises="handleRenvoisUtilises"
                         />
                     </template>
@@ -2287,7 +2327,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 @update:model-value="scheduleSectionSave(section.id)"
                                 @save-annotation="(p) => sauvegarderAnnotation(`section_${section.id}`, p)"
                                 @delete-annotation="(p) => supprimerAnnotation(`section_${section.id}`, p)"
-                                @demander-renvoi="creerEtInsererRenvoi"
+                                @demander-renvoi="demanderRenvoi"
                                 @renvois-utilises="handleRenvoisUtilises"
                             />
                             <CommentaireEnseignant
@@ -2363,7 +2403,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                     @update:model-value="(val: string) => { para.contenu = val; scheduleSectionParagrapheSave(para.id, section.id); }"
                                     @save-annotation="(p) => sauvegarderAnnotation(`section_paragraphe_${para.id}`, p)"
                                     @delete-annotation="(p) => supprimerAnnotation(`section_paragraphe_${para.id}`, p)"
-                                    @demander-renvoi="creerEtInsererRenvoi"
+                                    @demander-renvoi="demanderRenvoi"
                                     @renvois-utilises="handleRenvoisUtilises"
                                 />
                                 <CommentaireEnseignant
@@ -2430,7 +2470,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                             sectionConclusionsLocales[section.id][membre.id] = val;
                                             scheduleSectionConclusionSave(section.id, membre.id);
                                         }"
-                                        @demander-renvoi="creerEtInsererRenvoi"
+                                        @demander-renvoi="demanderRenvoi"
                                         @renvois-utilises="handleRenvoisUtilises"
                                     />
                                 </template>
@@ -2830,7 +2870,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :membres="membres"
                             @save-annotation="(p) => sauvegarderAnnotation('introduction_amener', p)"
                             @delete-annotation="(p) => supprimerAnnotation('introduction_amener', p)"
-                            @demander-renvoi="creerEtInsererRenvoi"
+                            @demander-renvoi="demanderRenvoi"
                             @renvois-utilises="handleRenvoisUtilises"
                         />
                         <CommentaireEnseignant
@@ -2874,7 +2914,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :membres="membres"
                             @save-annotation="(p) => sauvegarderAnnotation('introduction_poser', p)"
                             @delete-annotation="(p) => supprimerAnnotation('introduction_poser', p)"
-                            @demander-renvoi="creerEtInsererRenvoi"
+                            @demander-renvoi="demanderRenvoi"
                             @renvois-utilises="handleRenvoisUtilises"
                         />
                         <CommentaireEnseignant
@@ -2914,7 +2954,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :membres="membres"
                             @save-annotation="(p) => sauvegarderAnnotation('introduction_diviser', p)"
                             @delete-annotation="(p) => supprimerAnnotation('introduction_diviser', p)"
-                            @demander-renvoi="creerEtInsererRenvoi"
+                            @demander-renvoi="demanderRenvoi"
                             @renvois-utilises="handleRenvoisUtilises"
                         />
                         <CommentaireEnseignant
@@ -3013,7 +3053,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         @update:model-value="(val: string) => { dev.contenu = val; scheduleDeveloppementSave(dev.id); }"
                         @save-annotation="(p) => sauvegarderAnnotation(`developpement_${dev.id}`, p)"
                         @delete-annotation="(p) => supprimerAnnotation(`developpement_${dev.id}`, p)"
-                        @demander-renvoi="creerEtInsererRenvoi"
+                        @demander-renvoi="demanderRenvoi"
                         @renvois-utilises="handleRenvoisUtilises"
                     />
 
@@ -3082,7 +3122,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :renvois-sync-version="renvoisSyncVersion"
                             :editor-id="`conclusion-${item.etudiant.id}`"
                             @update:model-value="(val: string) => { conclusionsLocales[item.etudiant.id] = val; scheduleConclusionSave(item.etudiant.id); }"
-                            @demander-renvoi="creerEtInsererRenvoi"
+                            @demander-renvoi="demanderRenvoi"
                             @renvois-utilises="handleRenvoisUtilises"
                         />
                     </template>
@@ -3439,6 +3479,13 @@ function setOngletActif(section: string, membreId: number | 'tous') {
             :loading="renvoisSupprimerEnCours"
             @update:open="onModalRenvoisUpdateOpen"
             @confirm="confirmerSupprimerRenvoi"
+        />
+
+        <!-- ─── Modal aide à la saisie des références APA ─────────────────── -->
+        <ReferenceApaModal
+            v-if="aideReference"
+            v-model:open="referenceModalOuvert"
+            @inserer="confirmerReferenceApa"
         />
 
 

@@ -146,8 +146,10 @@ class DepDemoSeeder extends Seeder
                 'enseignant_id' => $cours->enseignant_id,
                 'description' => 'Représentation visuelle des causes, activités et conséquences de l\'événement étudié.',
                 'accessible' => true,
+                'aide_reference' => true,
             ]
         );
+        $typeProjet->update(['aide_reference' => true]);
 
         $typeProjet->sections()->delete();
 
@@ -207,8 +209,10 @@ class DepDemoSeeder extends Seeder
                 'enseignant_id' => $cours->enseignant_id,
                 'description' => 'L\'équipe choisit les questions qu\'elle souhaite poser lors de l\'entrevue avec le témoin.',
                 'accessible' => true,
+                'aide_reference' => true,
             ]
         );
+        $typeProjet->update(['aide_reference' => true]);
 
         $typeProjet->sections()->delete();
 
@@ -321,8 +325,10 @@ class DepDemoSeeder extends Seeder
                 'enseignant_id' => $cours->enseignant_id,
                 'description' => 'Réalisation et dépôt de l\'entrevue filmée avec le témoin.',
                 'accessible' => true,
+                'aide_reference' => true,
             ]
         );
+        $typeProjet->update(['aide_reference' => true]);
 
         $typeProjet->sections()->delete();
 
@@ -395,8 +401,10 @@ class DepDemoSeeder extends Seeder
                 'enseignant_id' => $cours->enseignant_id,
                 'description' => 'Réflexion personnelle sur l\'expérience d\'entrevue et sur l\'apprentissage réalisé.',
                 'accessible' => true,
+                'aide_reference' => true,
             ]
         );
+        $typeProjet->update(['aide_reference' => true]);
 
         $typeProjet->sections()->delete();
 

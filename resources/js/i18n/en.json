@@ -641,6 +641,8 @@
             "export_options_title": "Export options",
             "label_generer_page_titre": "Automatically generate the title page",
             "label_generer_table_matieres": "Automatically generate the table of contents",
+            "label_aide_reference": "Enable APA reference entry assistance",
+            "hint_aide_reference": "A guided form will help students format their references according to APA standards.",
             "hint_manuel": "Students will need to include this element manually."
         },
         "create": {
@@ -673,6 +675,8 @@
             "export_options_title": "Export options",
             "label_generer_page_titre": "Automatically generate the title page",
             "label_generer_table_matieres": "Automatically generate the table of contents",
+            "label_aide_reference": "Enable APA reference entry assistance",
+            "hint_aide_reference": "A guided form will help students format their references according to APA standards.",
             "hint_auto": "The export generates this element automatically.",
             "hint_manuel": "Students will need to include this element manually.",
             "section_type_texte_label": "Free text",

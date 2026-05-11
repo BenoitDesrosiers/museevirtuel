@@ -22,6 +22,7 @@ class TypeProjet extends Model
         'retard_permis',
         'generer_page_titre',
         'generer_table_matieres',
+        'aide_reference',
         'ponderation',
         'is_sommatif',
     ];
@@ -35,6 +36,7 @@ class TypeProjet extends Model
             'retard_permis' => 'boolean',
             'generer_page_titre' => 'boolean',
             'generer_table_matieres' => 'boolean',
+            'aide_reference' => 'boolean',
             'ponderation' => 'decimal:2',
             'is_sommatif' => 'boolean',
         ];

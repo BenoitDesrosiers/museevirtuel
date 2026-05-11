@@ -131,8 +131,10 @@ class CoursComplementaireDemoSeeder extends Seeder
                 'enseignant_id' => $cours->enseignant_id,
                 'description' => 'Rédaction d\'un essai argumentatif sur un enjeu du mouvement des droits civiques.',
                 'accessible' => true,
+                'aide_reference' => true,
             ]
         );
+        $typeProjet->update(['aide_reference' => true]);
 
         // Sections
         $typeProjet->sections()->delete();
