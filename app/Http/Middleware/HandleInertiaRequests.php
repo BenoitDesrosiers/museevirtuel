@@ -136,6 +136,7 @@ class HandleInertiaRequests extends Middleware
         $studentGroupeIds = $user->groupesMembre()->pluck('groupes.id');
 
         $classes = $user->classesInscrites()
+            ->whereHas('cours', fn ($q) => $q->where('is_verrouille', false))
             ->with(['cours:id,nom_cours,code,groupe,annee,session'])
             ->orderBy('classes.cours_id')
             ->get(['classes.id', 'classes.cours_id', 'classes.nom', 'classes.numero']);

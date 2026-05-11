@@ -54,6 +54,9 @@
     "cours.updated": "Course updated.",
     "cours.deleted": "Course deleted.",
     "cours.verrouille": "Course locked — students no longer have access.",
+    "cours.verrouille.titre": "Course not accessible",
+    "cours.verrouille.description": "The course {cours} is not accessible at this time. Contact your instructor for more information.",
+    "cours.verrouille.retour": "Back to home",
     "cours.deverrouille": "Course unlocked — students have access again.",
     "cours.transfere": "Course transferred successfully."
 }

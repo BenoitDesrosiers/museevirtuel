@@ -283,7 +283,7 @@ class ProjetRechercheController extends Controller
             'noteFinaleGrilleParEtudiant' => $noteFinaleGrilleParEtudiant,
             'sections' => $this->construireSections($projet, $groupe->membres, $groupeTachesParTache),
             'renvois' => $projet->renvois->map(function (ProjetRenvoi $r) use ($estEnseignant, $projet) {
-                $data = $r->only('id', 'numero', 'contenu');
+                $data = $r->only('id', 'numero', 'contenu', 'type_reference', 'champs_reference');
                 $data['commentaires'] = ($estEnseignant || $projet->correction_visible)
                     ? $r->commentaires->map->only('id', 'contenu', 'user_id')->values()
                     : collect();
@@ -1280,29 +1280,30 @@ class ProjetRechercheController extends Controller
 
         $validated = $request->validate([
             'contenu' => ['nullable', 'string', 'max:2000'],
+            'type_reference' => ['nullable', 'string', 'max:50'],
+            'champs_reference' => ['nullable', 'array'],
         ]);
 
         $numero = ($projet->renvois()->max('numero') ?? 0) + 1;
 
+        $payload = [
+            'projet_id' => $projet->id,
+            'contenu' => $validated['contenu'] ?? null,
+            'type_reference' => $validated['type_reference'] ?? null,
+            'champs_reference' => $validated['champs_reference'] ?? null,
+        ];
+
         try {
-            $renvoi = ProjetRenvoi::create([
-                'projet_id' => $projet->id,
-                'numero' => $numero,
-                'contenu' => $validated['contenu'] ?? null,
-            ]);
+            $renvoi = ProjetRenvoi::create(['numero' => $numero, ...$payload]);
         } catch (QueryException) {
             // Numéro en conflit (race condition) — on recalcule et on réessaie
             $numero = ($projet->renvois()->max('numero') ?? 0) + 1;
-            $renvoi = ProjetRenvoi::create([
-                'projet_id' => $projet->id,
-                'numero' => $numero,
-                'contenu' => $validated['contenu'] ?? null,
-            ]);
+            $renvoi = ProjetRenvoi::create(['numero' => $numero, ...$payload]);
         }
 
         return response()->json([
             'message' => 'created',
-            'renvoi' => $renvoi->only('id', 'numero', 'contenu'),
+            'renvoi' => $renvoi->only('id', 'numero', 'contenu', 'type_reference', 'champs_reference'),
         ], 201);
     }
 
@@ -1330,6 +1331,8 @@ class ProjetRechercheController extends Controller
         $validated = $request->validate([
             'contenu' => ['nullable', 'string', 'max:2000'],
             'numero' => ['sometimes', 'integer', 'min:1'],
+            'type_reference' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'champs_reference' => ['sometimes', 'nullable', 'array'],
         ]);
 
         $renvoi->update($validated);

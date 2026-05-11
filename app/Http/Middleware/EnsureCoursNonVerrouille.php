@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Cours;
 use Closure;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureCoursNonVerrouille
@@ -32,7 +33,9 @@ class EnsureCoursNonVerrouille
         }
 
         if ($cours->is_verrouille) {
-            abort(403);
+            return Inertia::render('Cours/Verrouille', [
+                'cours' => $cours->only('id', 'nom_cours', 'code'),
+            ])->toResponse($request)->setStatusCode(403);
         }
 
         return $next($request);
