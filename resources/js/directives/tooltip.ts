@@ -99,7 +99,7 @@ export const vTooltip: Directive<HTMLElement, string> = {
         }
     },
 
-    unmounted(_target: HTMLElement) {
+    unmounted() {
         hide()
     },
 }

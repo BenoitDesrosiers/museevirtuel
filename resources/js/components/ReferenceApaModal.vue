@@ -228,6 +228,8 @@ const referenceFormatee = computed<string>(() => {
                 : `<em>${get('titre_ouvrage')}</em>`;
             return `${get('auteur_editeur')}. (${get('annee')}). ${corpsPart}. ${get('editeur')}.${urlPart}`;
         }
+        default:
+            return '';
     }
 });
 
