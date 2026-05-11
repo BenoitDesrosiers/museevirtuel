@@ -93,8 +93,8 @@ function scenarioTransfertCours(): array
     GrilleCritere::create(['grille_id' => $grille->id, 'label' => 'Forme', 'ponderation' => 30, 'ordre' => 2]);
     GrilleMalus::create(['grille_id' => $grille->id, 'label' => 'Retard', 'deduction' => 10, 'description' => '-10%', 'ordre' => 1]);
 
-    TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Introduction', 'description' => null, 'ordre' => 1, 'type' => 'introduction']);
-    TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Développement', 'description' => null, 'ordre' => 2, 'type' => 'developpement']);
+    TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Introduction', 'description' => null, 'ordre' => 1, 'type' => 'texte']);
+    TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Développement', 'description' => null, 'ordre' => 2, 'type' => 'paragraphes']);
     TypeProjetTache::create(['type_projet_id' => $typeProjet->id, 'titre' => 'Rédiger le plan', 'description' => null, 'ordre' => 1]);
 
     // Classe avec un étudiant (ne doit PAS être copié)
