@@ -17,6 +17,7 @@ import {
     Loader2,
     Lock,
     MessageSquare,
+    Pencil,
     Plus,
     Send,
     Settings2,
@@ -182,6 +183,8 @@ type Renvoi = {
     id: number;
     numero: number;
     contenu: string | null;
+    type_reference: string | null;
+    champs_reference: Record<string, string> | null;
     commentaires: RenvoiCommentaire[];
 };
 
@@ -1482,11 +1485,17 @@ function handleRenvoisUtilises(editorId: string, ids: number[]): void {
 async function creerEtInsererRenvoi(
     insertFn: (renvoiId: number, numero: number) => void,
     contenuInitial: string | null = null,
+    typeReference: string | null = null,
+    champsReference: Record<string, string> | null = null,
 ) {
     if (renvoiEnCours.value) return;
     renvoiEnCours.value = true;
     try {
-        const response = await axios.post(`${baseUrl.value}/renvois`, { contenu: contenuInitial });
+        const response = await axios.post(`${baseUrl.value}/renvois`, {
+            contenu: contenuInitial,
+            type_reference: typeReference,
+            champs_reference: champsReference,
+        });
         const renvoi: Renvoi = { ...response.data.renvoi, commentaires: [] };
         renvoisLocaux.value.push(renvoi);
         insertFn(renvoi.id, renvoi.numero);
@@ -1506,6 +1515,16 @@ async function creerEtInsererRenvoi(
  */
 const insertFnEnAttente = ref<((renvoiId: number, numero: number) => void) | null>(null);
 const referenceModalOuvert = ref(false);
+/** Renvoi en cours d'édition — null en mode création */
+const renvoisEnEdition = ref<Renvoi | null>(null);
+
+// Nettoyer l'état de mode quand le modal se ferme (annulation ou confirmation)
+watch(referenceModalOuvert, (ouvert) => {
+    if (!ouvert) {
+        renvoisEnEdition.value = null;
+        insertFnEnAttente.value = null;
+    }
+});
 
 /**
  * Intercepte la demande d'insertion d'un renvoi.
@@ -1523,13 +1542,49 @@ function demanderRenvoi(insertFn: (renvoiId: number, numero: number) => void): v
 }
 
 /**
- * Reçoit la référence APA formatée depuis le modal et crée le renvoi
- * avec ce contenu pré-rempli.
+ * Reçoit la référence APA depuis le modal et dispatch vers création ou mise à jour.
  */
-async function confirmerReferenceApa(contenu: string): Promise<void> {
-    if (!insertFnEnAttente.value) return;
-    await creerEtInsererRenvoi(insertFnEnAttente.value, contenu);
-    insertFnEnAttente.value = null;
+async function confirmerReferenceApa(
+    contenu: string,
+    typeReference: string,
+    champsReference: Record<string, string>,
+): Promise<void> {
+    if (renvoisEnEdition.value) {
+        await mettreAJourRenvoi(renvoisEnEdition.value.id, contenu, typeReference, champsReference);
+    } else {
+        if (!insertFnEnAttente.value) return;
+        await creerEtInsererRenvoi(insertFnEnAttente.value, contenu, typeReference, champsReference);
+    }
+}
+
+/**
+ * Ouvre le modal APA en mode édition pré-rempli avec le renvoi existant.
+ */
+function ouvrirEditionRenvoi(renvoi: Renvoi): void {
+    renvoisEnEdition.value = renvoi;
+    referenceModalOuvert.value = true;
+}
+
+/**
+ * Met à jour un renvoi existant via PATCH et synchronise renvoisLocaux réactivement.
+ */
+async function mettreAJourRenvoi(
+    renvoiId: number,
+    contenu: string,
+    typeReference: string,
+    champsReference: Record<string, string>,
+): Promise<void> {
+    await axios.patch(`${baseUrl.value}/renvois/${renvoiId}`, {
+        contenu,
+        type_reference: typeReference,
+        champs_reference: champsReference,
+    });
+    const renvoi = renvoisLocaux.value.find((r) => r.id === renvoiId);
+    if (renvoi) {
+        renvoi.contenu = contenu;
+        renvoi.type_reference = typeReference;
+        renvoi.champs_reference = champsReference;
+    }
 }
 
 
@@ -3264,6 +3319,14 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 </div>
                             </div>
                             <BoutonTooltip
+                                v-if="aideReference && peutEditer"
+                                texte="Modifier cette référence"
+                                class="mt-1 size-7 shrink-0"
+                                @click="ouvrirEditionRenvoi(renvoi)"
+                            >
+                                <Pencil class="h-3.5 w-3.5" />
+                            </BoutonTooltip>
+                            <BoutonTooltip
                                 v-if="peutEditer"
                                 texte="Supprimer cette référence"
                                 class="mt-1 size-7 shrink-0 text-destructive"
@@ -3485,6 +3548,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
         <ReferenceApaModal
             v-if="aideReference"
             v-model:open="referenceModalOuvert"
+            :renvoi="renvoisEnEdition"
             @inserer="confirmerReferenceApa"
         />
 

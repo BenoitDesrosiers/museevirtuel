@@ -3,6 +3,8 @@
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
+use App\Models\ProjetRecherche;
+use App\Models\ProjetRenvoi;
 use App\Models\TypeProjet;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia;
@@ -209,4 +211,128 @@ it('cast aide_reference en booléen dans le modèle TypeProjet', function () {
 
     expect($typeProjet->aide_reference)->toBe(true)
         ->and(gettype($typeProjet->aide_reference))->toBe('boolean');
+});
+
+// ─── storeRenvoi : type_reference et champs_reference ─────────────────────────
+
+it('storeRenvoi persiste type_reference et champs_reference', function () {
+    [
+        'typeProjet' => $typeProjet,
+        'cours' => $cours,
+        'cs' => $cs,
+        'groupe' => $groupe,
+        'etudiant' => $etudiant,
+    ] = creerScenarioAideRef(['aide_reference' => true]);
+
+    $baseUrl = "/cours/{$cours->id}/classes/{$cs->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}";
+
+    $champs = ['auteurs' => 'Smith, J.', 'annee' => '2023', 'titre' => 'Titre du livre', 'editeur' => 'Éditeur'];
+
+    $response = $this->actingAs($etudiant)
+        ->postJson("{$baseUrl}/renvois", [
+            'contenu' => 'Smith, J. (2023). <em>Titre du livre</em>. Éditeur.',
+            'type_reference' => 'livre',
+            'champs_reference' => $champs,
+        ]);
+
+    $response->assertCreated()
+        ->assertJsonPath('renvoi.type_reference', 'livre')
+        ->assertJsonPath('renvoi.champs_reference.auteurs', 'Smith, J.');
+
+    $this->assertDatabaseHas('projet_renvois', ['type_reference' => 'livre']);
+});
+
+it('storeRenvoi fonctionne sans type_reference ni champs_reference', function () {
+    [
+        'typeProjet' => $typeProjet,
+        'cours' => $cours,
+        'cs' => $cs,
+        'groupe' => $groupe,
+        'etudiant' => $etudiant,
+    ] = creerScenarioAideRef();
+
+    $baseUrl = "/cours/{$cours->id}/classes/{$cs->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}";
+
+    $this->actingAs($etudiant)
+        ->postJson("{$baseUrl}/renvois", ['contenu' => 'Référence sans modal.'])
+        ->assertCreated()
+        ->assertJsonPath('renvoi.type_reference', null)
+        ->assertJsonPath('renvoi.champs_reference', null);
+});
+
+// ─── updateRenvoi : type_reference et champs_reference ────────────────────────
+
+it('updateRenvoi met à jour les trois champs', function () {
+    [
+        'typeProjet' => $typeProjet,
+        'cours' => $cours,
+        'cs' => $cs,
+        'groupe' => $groupe,
+        'etudiant' => $etudiant,
+    ] = creerScenarioAideRef(['aide_reference' => true]);
+
+    $projet = ProjetRecherche::create([
+        'groupe_id' => $groupe->id,
+        'type_projet_id' => $typeProjet->id,
+    ]);
+
+    $renvoi = ProjetRenvoi::create([
+        'projet_id' => $projet->id,
+        'numero' => 1,
+        'contenu' => 'Ancien contenu.',
+        'type_reference' => 'livre',
+        'champs_reference' => ['auteurs' => 'Ancien, A.', 'annee' => '2020', 'titre' => 'Ancien titre', 'editeur' => 'Ancienne maison'],
+    ]);
+
+    $baseUrl = "/cours/{$cours->id}/classes/{$cs->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}";
+    $nouveauxChamps = ['auteur_organisme' => 'Gouvernement', 'annee' => '2024', 'titre_page' => 'Page', 'nom_site' => 'Site', 'url' => 'https://exemple.ca'];
+
+    $this->actingAs($etudiant)
+        ->patchJson("{$baseUrl}/renvois/{$renvoi->id}", [
+            'contenu' => 'Nouveau contenu.',
+            'type_reference' => 'site_internet',
+            'champs_reference' => $nouveauxChamps,
+        ])
+        ->assertOk()
+        ->assertJsonPath('message', 'saved');
+
+    $renvoi->refresh();
+
+    expect($renvoi->contenu)->toBe('Nouveau contenu.')
+        ->and($renvoi->type_reference)->toBe('site_internet')
+        ->and($renvoi->champs_reference['auteur_organisme'])->toBe('Gouvernement');
+});
+
+it('updateRenvoi retourne 404 si le renvoi n\'appartient pas au projet du groupe', function () {
+    [
+        'typeProjet' => $typeProjet,
+        'cours' => $cours,
+        'cs' => $cs,
+        'groupe' => $groupe,
+        'etudiant' => $etudiant,
+    ] = creerScenarioAideRef(['aide_reference' => true]);
+
+    // Second groupe avec son propre projet et renvoi — le premier groupe ne doit pas pouvoir y accéder
+    $autreEtudiant = User::factory()->create(['role' => 'etudiant']);
+    $cs->etudiants()->attach($autreEtudiant->id);
+    $autreGroupe = Groupe::create(['classe_id' => $cs->id, 'created_by' => $autreEtudiant->id]);
+    $autreGroupe->membres()->attach($autreEtudiant->id);
+
+    $autreProjet = ProjetRecherche::create([
+        'groupe_id' => $autreGroupe->id,
+        'type_projet_id' => $typeProjet->id,
+    ]);
+
+    $renvoiAutreProjet = ProjetRenvoi::create([
+        'projet_id' => $autreProjet->id,
+        'numero' => 1,
+        'contenu' => 'Renvoi d\'un autre projet.',
+    ]);
+
+    $baseUrl = "/cours/{$cours->id}/classes/{$cs->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}";
+
+    // L'étudiant du groupe 1 tente de modifier le renvoi du groupe 2 (IDOR)
+    $this->actingAs($etudiant)
+        ->patchJson("{$baseUrl}/renvois/{$renvoiAutreProjet->id}", ['contenu' => 'Tentative IDOR.'])
+        ->assertNotFound();
 });

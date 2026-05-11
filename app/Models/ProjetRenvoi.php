@@ -14,7 +14,19 @@ class ProjetRenvoi extends Model
         'projet_id',
         'numero',
         'contenu',
+        'type_reference',
+        'champs_reference',
     ];
+
+    /**
+     * Sérialise champs_reference comme tableau PHP natif.
+     */
+    protected function casts(): array
+    {
+        return [
+            'champs_reference' => 'array',
+        ];
+    }
 
     /**
      * Retourne le projet de recherche auquel appartient ce renvoi.

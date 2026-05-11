@@ -54,6 +54,9 @@
     "cours.updated": "Cours mis à jour.",
     "cours.deleted": "Cours supprimé.",
     "cours.verrouille": "Cours verrouillé — les étudiants n'y ont plus accès.",
+    "cours.verrouille.titre": "Cours non accessible",
+    "cours.verrouille.description": "Le cours {cours} n'est pas accessible pour le moment. Contactez votre enseignant pour plus d'informations.",
+    "cours.verrouille.retour": "Retour à l'accueil",
     "cours.deverrouille": "Cours déverrouillé — les étudiants y ont de nouveau accès.",
     "cours.transfere": "Cours transféré avec succès."
 }

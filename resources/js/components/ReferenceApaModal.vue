@@ -41,11 +41,13 @@ type ChampConfig = {
 
 const props = defineProps<{
     open: boolean;
+    /** Renvoi existant à modifier — absent en mode création */
+    renvoi?: { id: number; type_reference: string; champs_reference: Record<string, string> } | null;
 }>();
 
 const emit = defineEmits<{
     'update:open': [value: boolean];
-    inserer: [contenu: string];
+    inserer: [contenu: string, typeReference: string, champsReference: Record<string, string>];
 }>();
 
 // ─── Configuration des types de références ────────────────────────────────────
@@ -153,7 +155,29 @@ function reinitialiserChamps(): void {
     Object.keys(champs).forEach((k) => delete champs[k]);
 }
 
-watch(typeRef, reinitialiserChamps);
+// flush:'sync' pour que reinitialiserChamps s'exécute immédiatement à la mutation de typeRef,
+// avant que le watch sur props.open ne poursuive avec Object.assign.
+watch(typeRef, reinitialiserChamps, { flush: 'sync' });
+
+/**
+ * Pré-remplit le formulaire à l'ouverture en mode édition, ou réinitialise en mode création.
+ * Le watch(typeRef, { flush: 'sync' }) vide champs de façon synchrone quand typeRef change,
+ * donc le Object.assign qui suit injecte bien les valeurs persistées.
+ */
+watch(
+    () => props.open,
+    (ouvert) => {
+        if (!ouvert) return;
+        if (props.renvoi?.type_reference) {
+            typeRef.value = props.renvoi.type_reference as TypeRef;
+            // reinitialiserChamps a déjà été appelé de façon synchrone par le watch(typeRef)
+            Object.assign(champs, props.renvoi.champs_reference ?? {});
+        } else {
+            typeRef.value = 'livre';
+            reinitialiserChamps();
+        }
+    },
+);
 
 // ─── Formatage APA ────────────────────────────────────────────────────────────
 
@@ -219,14 +243,15 @@ const formulaireValide = computed<boolean>(() =>
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
 /**
- * Émet le contenu APA formaté, réinitialise le formulaire et ferme le modal.
+ * Émet le contenu APA formaté avec le type et les champs bruts,
+ * réinitialise le formulaire et ferme le modal.
  *
  * La réinitialisation se fait ici (après insertion) plutôt qu'à la fermeture,
  * pour que l'étudiant retrouve ses champs s'il ferme et rouvre accidentellement.
  */
 function inserer(): void {
     if (!formulaireValide.value) return;
-    emit('inserer', referenceFormatee.value);
+    emit('inserer', referenceFormatee.value, typeRef.value, { ...champs });
     typeRef.value = 'livre';
     reinitialiserChamps();
     emit('update:open', false);
@@ -243,7 +268,7 @@ function fermer(): void {
             <DialogHeader>
                 <DialogTitle class="flex items-center gap-2">
                     <BookOpen class="h-4 w-4" />
-                    Ajouter une référence
+                    {{ renvoi ? 'Modifier la référence' : 'Ajouter une référence' }}
                 </DialogTitle>
             </DialogHeader>
 
@@ -296,7 +321,9 @@ function fermer(): void {
 
             <DialogFooter>
                 <Button variant="outline" type="button" @click="fermer">Annuler</Button>
-                <Button :disabled="!formulaireValide" @click="inserer">Insérer dans le texte</Button>
+                <Button :disabled="!formulaireValide" @click="inserer">
+                    {{ renvoi ? 'Mettre à jour la référence' : 'Insérer dans le texte' }}
+                </Button>
             </DialogFooter>
         </DialogScrollContent>
     </Dialog>
