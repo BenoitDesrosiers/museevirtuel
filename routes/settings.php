@@ -24,4 +24,5 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::inertia('settings/appearance', 'settings/Appearance')->name('appearance.edit');
     Route::inertia('settings/antidote', 'settings/AideAntidote')->name('antidote.help');
+    Route::inertia('settings/guide', 'settings/Guide')->name('guide.index');
 });

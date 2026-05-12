@@ -360,7 +360,8 @@
             "profile": "Profil",
             "security": "Sécurité",
             "appearance": "Apparence",
-            "antidote": "Aide Antidote"
+            "antidote": "Aide Antidote",
+            "guide": "Guide d'utilisation"
         },
         "profile": {
             "page_title": "Paramètres du profil",
@@ -456,6 +457,304 @@
             "cancel": "Annuler",
             "confirm": "Supprimer le compte",
             "locked_by_groupe": "La suppression de votre compte n'est pas possible car vous êtes actuellement assigné à un groupe actif. Contactez un administrateur pour retirer cette association."
+        },
+        "guide": {
+            "page_title": "Guide d'utilisation",
+            "heading_title": "Guide d'utilisation",
+            "heading_description": "Apprenez à utiliser les fonctionnalités de la plateforme étape par étape",
+            "section_general": "Paramètres et compte",
+            "section_role": "Fonctionnalités de votre rôle",
+            "links": {
+                "profile": "Aller à mon profil",
+                "appearance": "Aller aux paramètres d'apparence",
+                "security": "Aller aux paramètres de sécurité",
+                "workspace_enseignant": "Aller à l'espace enseignant",
+                "workspace_etudiant": "Aller à mes cours",
+                "workspace_temoin": "Aller à mon espace",
+                "workspace_admin": "Aller à l'administration"
+            },
+            "general": {
+                "profil": {
+                    "title": "Modifier son profil",
+                    "description": "Mettez à jour votre prénom, nom et adresse courriel.",
+                    "steps": [
+                        "Accédez à Paramètres → Profil.",
+                        "Modifiez votre prénom, nom ou adresse courriel.",
+                        "Cliquez sur « Enregistrer »."
+                    ]
+                },
+                "langue": {
+                    "title": "Changer la langue",
+                    "description": "Basculez l'interface entre le français et l'anglais.",
+                    "steps": [
+                        "Accédez à Paramètres → Profil.",
+                        "Dans la section « Langue », sélectionnez la langue souhaitée.",
+                        "La page se recharge automatiquement dans la nouvelle langue."
+                    ]
+                },
+                "theme": {
+                    "title": "Thème clair / sombre",
+                    "description": "Choisissez l'apparence visuelle de la plateforme.",
+                    "steps": [
+                        "Accédez à Paramètres → Apparence.",
+                        "Sélectionnez « Clair », « Sombre » ou « Système ».",
+                        "Le changement est immédiat."
+                    ]
+                },
+                "securite": {
+                    "title": "Changer son mot de passe",
+                    "description": "Mettez à jour votre mot de passe pour sécuriser votre compte.",
+                    "steps": [
+                        "Accédez à Paramètres → Sécurité.",
+                        "Entrez votre mot de passe actuel.",
+                        "Saisissez et confirmez le nouveau mot de passe.",
+                        "Cliquez sur « Enregistrer le mot de passe »."
+                    ]
+                }
+            },
+            "enseignant": {
+                "creer_cours": {
+                    "title": "Créer un cours",
+                    "description": "Configurez un nouveau cours avec ses informations essentielles.",
+                    "steps": [
+                        "Depuis l'espace enseignant, cliquez sur « Nouveau cours ».",
+                        "Saisissez le nom du cours et sélectionnez l'établissement.",
+                        "Enregistrez — le cours est maintenant actif.",
+                        "Ajoutez des classes, des étudiants et des types de projets."
+                    ]
+                },
+                "gerer_classes": {
+                    "title": "Gérer les classes",
+                    "description": "Créez et organisez les sections de votre cours.",
+                    "steps": [
+                        "Ouvrez le cours concerné.",
+                        "Dans l'onglet « Classes », cliquez sur « Ajouter une classe ».",
+                        "Nommez la classe (ex : Groupe A) et enregistrez.",
+                        "Répétez pour chaque section."
+                    ]
+                },
+                "importer_etudiants": {
+                    "title": "Importer des étudiants (CSV)",
+                    "description": "Ajoutez plusieurs étudiants à la fois via un fichier CSV.",
+                    "steps": [
+                        "Ouvrez la classe dans laquelle importer.",
+                        "Cliquez sur « Importer CSV ».",
+                        "Préparez un fichier CSV avec les colonnes : DA, prénom, nom, courriel.",
+                        "Sélectionnez le fichier et confirmez l'import."
+                    ]
+                },
+                "types_projets": {
+                    "title": "Créer un type de projet",
+                    "description": "Définissez un modèle de projet réutilisable pour votre cours.",
+                    "steps": [
+                        "Depuis votre cours, accédez à l'onglet « Types de projets ».",
+                        "Cliquez sur « Nouveau type de projet » et donnez-lui un titre.",
+                        "Ajoutez des sections (introduction, entrevue, développement, conclusion).",
+                        "Pour chaque section, définissez les consignes et les questions.",
+                        "Activez le type de projet pour le rendre accessible aux groupes."
+                    ]
+                },
+                "grille_correction": {
+                    "title": "Configurer une grille de correction",
+                    "description": "Créez des critères d'évaluation pondérés pour noter les projets.",
+                    "steps": [
+                        "Depuis un type de projet, accédez à « Grille de correction ».",
+                        "Ajoutez des critères avec leur pondération respective.",
+                        "Ajoutez des malus si nécessaire (ex : retard, non-respect des consignes).",
+                        "Enregistrez — la grille est prête à l'usage."
+                    ]
+                },
+                "objectifs": {
+                    "title": "Ajouter des objectifs pédagogiques",
+                    "description": "Listez les compétences visées par votre cours.",
+                    "steps": [
+                        "Dans votre cours, accédez à l'onglet « Objectifs ».",
+                        "Cliquez sur « Ajouter un objectif » et rédigez sa description.",
+                        "Réordonnez les objectifs par glisser-déposer si nécessaire."
+                    ]
+                },
+                "reference_apa": {
+                    "title": "Utiliser l'aide à la référence APA",
+                    "description": "Générez des références APA correctement formatées.",
+                    "steps": [
+                        "Depuis l'édition d'un type de projet, cliquez sur l'icône d'aide APA.",
+                        "Sélectionnez le type de source (livre, article, site web…).",
+                        "Remplissez les champs requis.",
+                        "Copiez la référence générée dans votre consigne."
+                    ]
+                },
+                "echeancier": {
+                    "title": "Créer un échéancier",
+                    "description": "Ajoutez des jalons pour guider la progression des groupes.",
+                    "steps": [
+                        "Dans votre cours, accédez à l'onglet « Échéancier ».",
+                        "Cliquez sur « Ajouter une étape » et définissez le titre et la date.",
+                        "Les étudiants voient les jalons dans leur espace groupe."
+                    ]
+                },
+                "visio": {
+                    "title": "Organiser une visioconférence",
+                    "description": "Lancez une session Jitsi directement depuis la plateforme.",
+                    "steps": [
+                        "Dans votre cours, accédez à « Visioconférence ».",
+                        "Créez un lien de session et partagez-le avec vos étudiants.",
+                        "Cliquez sur le lien pour rejoindre la session Jitsi."
+                    ]
+                },
+                "approuver_temoin": {
+                    "title": "Approuver un témoin",
+                    "description": "Validez la participation d'une personne âgée à votre cours.",
+                    "steps": [
+                        "Depuis l'espace enseignant, accédez à la liste des témoins en attente.",
+                        "Consultez le profil du témoin et ses thématiques choisies.",
+                        "Cliquez sur « Approuver » ou « Décliner ».",
+                        "Le témoin approuvé peut être assigné à un groupe."
+                    ]
+                },
+                "verrouiller_cours": {
+                    "title": "Verrouiller un cours",
+                    "description": "Empêchez toute modification du cours après la remise finale.",
+                    "steps": [
+                        "Depuis la page de votre cours, cliquez sur l'icône de verrouillage.",
+                        "Confirmez l'action — le cours passe en mode lecture seule.",
+                        "Les étudiants voient une page indiquant que le cours est verrouillé.",
+                        "Vous pouvez déverrouiller à tout moment de la même façon."
+                    ]
+                },
+                "echanges": {
+                    "title": "Gérer les échanges",
+                    "description": "Communiquez avec les groupes via le fil de discussion de la classe.",
+                    "steps": [
+                        "Ouvrez la classe concernée et accédez à l'onglet « Échanges ».",
+                        "Lisez les messages des groupes.",
+                        "Répondez depuis le fil de discussion de la classe ou du groupe."
+                    ]
+                }
+            },
+            "etudiant": {
+                "rejoindre_cours": {
+                    "title": "Accéder à vos cours",
+                    "description": "Consultez la liste de vos cours pour la session en cours.",
+                    "steps": [
+                        "Connectez-vous à la plateforme.",
+                        "Depuis le tableau de bord, cliquez sur « Mes cours ».",
+                        "Vos cours inscrits apparaissent avec leurs informations."
+                    ]
+                },
+                "former_groupe": {
+                    "title": "Former ou rejoindre un groupe",
+                    "description": "Créez ou intégrez un groupe de travail dans votre classe.",
+                    "steps": [
+                        "Depuis votre classe, accédez à l'onglet « Groupes ».",
+                        "Cliquez sur « Créer un groupe » ou rejoignez un groupe existant.",
+                        "Votre groupe est prêt — les membres peuvent commencer à collaborer."
+                    ]
+                },
+                "editer_projet": {
+                    "title": "Éditer un projet",
+                    "description": "Rédigez et enrichissez votre projet de recherche en équipe.",
+                    "steps": [
+                        "Depuis votre groupe, cliquez sur le type de projet à compléter.",
+                        "Naviguez entre les sections (introduction, entrevue, développement…).",
+                        "Rédigez le contenu dans chaque section.",
+                        "Les modifications sont sauvegardées automatiquement.",
+                        "Ajoutez des médias (photos, vidéos) si la section le permet."
+                    ]
+                },
+                "remettre_projet": {
+                    "title": "Remettre un projet",
+                    "description": "Soumettez votre projet lorsqu'il est prêt pour l'évaluation.",
+                    "steps": [
+                        "Depuis votre projet, cliquez sur « Remettre le projet ».",
+                        "Tous les membres du groupe doivent voter pour confirmer la remise.",
+                        "Une fois le vote complété, le projet est soumis à l'enseignant.",
+                        "Le projet passe en mode lecture seule après la remise."
+                    ]
+                },
+                "consulter_notes": {
+                    "title": "Consulter ses notes",
+                    "description": "Accédez aux évaluations et commentaires de votre enseignant.",
+                    "steps": [
+                        "Depuis votre projet, accédez à l'onglet « Notes ».",
+                        "Consultez le détail par critère de la grille de correction.",
+                        "Lisez les annotations laissées par l'enseignant dans le texte."
+                    ]
+                },
+                "echanges": {
+                    "title": "Échanges avec l'enseignant",
+                    "description": "Posez des questions via le fil de discussion de votre groupe.",
+                    "steps": [
+                        "Depuis votre groupe, accédez à l'onglet « Échanges ».",
+                        "Rédigez votre message et envoyez-le.",
+                        "L'enseignant recevra et pourra répondre depuis son espace."
+                    ]
+                }
+            },
+            "personne_agee": {
+                "profil": {
+                    "title": "Compléter son profil",
+                    "description": "Renseignez vos disponibilités et thématiques d'intérêt.",
+                    "steps": [
+                        "Connectez-vous à la plateforme.",
+                        "Accédez à votre profil depuis le menu.",
+                        "Sélectionnez les thématiques sur lesquelles vous souhaitez témoigner.",
+                        "Indiquez vos disponibilités pour les entrevues."
+                    ]
+                },
+                "consentement": {
+                    "title": "Consentement vidéo",
+                    "description": "Comprenez et signez le formulaire de consentement pour les enregistrements.",
+                    "steps": [
+                        "Un formulaire de consentement vous est présenté lors de l'inscription.",
+                        "Lisez attentivement les conditions d'utilisation de l'enregistrement.",
+                        "Cochez votre accord et confirmez votre signature.",
+                        "Ce consentement peut être revu en contactant l'établissement."
+                    ]
+                },
+                "entrevue": {
+                    "title": "Participer à une entrevue",
+                    "description": "Préparez-vous pour votre rencontre avec les étudiants.",
+                    "steps": [
+                        "L'enseignant vous contactera pour confirmer la date et le mode (présentiel ou visioconférence).",
+                        "Si l'entrevue est en ligne, un lien Jitsi vous sera fourni.",
+                        "Partagez votre témoignage avec le groupe d'étudiants.",
+                        "Les étudiants prendront des notes et pourront enregistrer avec votre accord."
+                    ]
+                }
+            },
+            "admin": {
+                "gerer_enseignants": {
+                    "title": "Gérer les enseignants",
+                    "description": "Ajoutez, modifiez ou supprimez des comptes enseignants.",
+                    "steps": [
+                        "Accédez à la section Administration.",
+                        "Dans l'onglet « Enseignants », cliquez sur « Ajouter un enseignant ».",
+                        "Remplissez le formulaire (nom, courriel, établissement).",
+                        "L'enseignant reçoit une invitation par courriel.",
+                        "Pour modifier ou supprimer, utilisez les actions en ligne dans le tableau."
+                    ]
+                },
+                "gerer_etablissements": {
+                    "title": "Gérer les établissements",
+                    "description": "Administrez les cégeps et institutions liés à la plateforme.",
+                    "steps": [
+                        "Accédez à Administration → Établissements.",
+                        "Cliquez sur « Ajouter un établissement » et remplissez le formulaire.",
+                        "Consultez un établissement pour voir ses enseignants et thématiques.",
+                        "Modifiez ou supprimez un établissement via ses actions dédiées."
+                    ]
+                },
+                "approuver_temoins": {
+                    "title": "Approuver les témoins",
+                    "description": "Gérez la file d'attente des personnes âgées en attente de validation.",
+                    "steps": [
+                        "Depuis l'Administration, consultez la section « Témoins en attente ».",
+                        "Cliquez sur un témoin pour voir son profil et ses thématiques.",
+                        "Approuvez ou déclinez la demande.",
+                        "Le témoin approuvé devient disponible pour les enseignants."
+                    ]
+                }
+            }
         }
     },
     "common": {
