@@ -362,7 +362,8 @@
             "profile": "Profile",
             "security": "Security",
             "appearance": "Appearance",
-            "antidote": "Antidote Help"
+            "antidote": "Antidote Help",
+            "guide": "User guide"
         },
         "profile": {
             "page_title": "Profile settings",
@@ -458,6 +459,304 @@
             "cancel": "Cancel",
             "confirm": "Delete account",
             "locked_by_groupe": "Your account cannot be deleted because you are currently assigned to an active group. Please contact an administrator to remove this association."
+        },
+        "guide": {
+            "page_title": "User guide",
+            "heading_title": "User guide",
+            "heading_description": "Learn how to use the platform's features step by step",
+            "section_general": "Settings & account",
+            "section_role": "Your role's features",
+            "links": {
+                "profile": "Go to my profile",
+                "appearance": "Go to appearance settings",
+                "security": "Go to security settings",
+                "workspace_enseignant": "Go to teacher workspace",
+                "workspace_etudiant": "Go to my courses",
+                "workspace_temoin": "Go to my workspace",
+                "workspace_admin": "Go to administration"
+            },
+            "general": {
+                "profil": {
+                    "title": "Edit your profile",
+                    "description": "Update your first name, last name and email address.",
+                    "steps": [
+                        "Go to Settings → Profile.",
+                        "Edit your first name, last name or email address.",
+                        "Click \"Save\"."
+                    ]
+                },
+                "langue": {
+                    "title": "Change language",
+                    "description": "Switch the interface between French and English.",
+                    "steps": [
+                        "Go to Settings → Profile.",
+                        "In the \"Language\" section, select the desired language.",
+                        "The page reloads automatically in the new language."
+                    ]
+                },
+                "theme": {
+                    "title": "Light / dark theme",
+                    "description": "Choose the visual appearance of the platform.",
+                    "steps": [
+                        "Go to Settings → Appearance.",
+                        "Select \"Light\", \"Dark\" or \"System\".",
+                        "The change is immediate."
+                    ]
+                },
+                "securite": {
+                    "title": "Change password",
+                    "description": "Update your password to keep your account secure.",
+                    "steps": [
+                        "Go to Settings → Security.",
+                        "Enter your current password.",
+                        "Enter and confirm the new password.",
+                        "Click \"Save password\"."
+                    ]
+                }
+            },
+            "enseignant": {
+                "creer_cours": {
+                    "title": "Create a course",
+                    "description": "Set up a new course with its essential information.",
+                    "steps": [
+                        "From the teacher workspace, click \"New course\".",
+                        "Enter the course name and select the institution.",
+                        "Save — the course is now active.",
+                        "Add classes, students and project types."
+                    ]
+                },
+                "gerer_classes": {
+                    "title": "Manage classes",
+                    "description": "Create and organize your course sections.",
+                    "steps": [
+                        "Open the relevant course.",
+                        "In the \"Classes\" tab, click \"Add a class\".",
+                        "Name the class (e.g., Group A) and save.",
+                        "Repeat for each section."
+                    ]
+                },
+                "importer_etudiants": {
+                    "title": "Import students (CSV)",
+                    "description": "Add multiple students at once via a CSV file.",
+                    "steps": [
+                        "Open the class to import into.",
+                        "Click \"Import CSV\".",
+                        "Prepare a CSV file with columns: student ID, first name, last name, email.",
+                        "Select the file and confirm the import."
+                    ]
+                },
+                "types_projets": {
+                    "title": "Create a project type",
+                    "description": "Define a reusable project template for your course.",
+                    "steps": [
+                        "From your course, go to the \"Project types\" tab.",
+                        "Click \"New project type\" and give it a title.",
+                        "Add sections (introduction, interview, development, conclusion).",
+                        "For each section, define instructions and questions.",
+                        "Enable the project type to make it accessible to groups."
+                    ]
+                },
+                "grille_correction": {
+                    "title": "Set up a correction grid",
+                    "description": "Create weighted evaluation criteria to grade projects.",
+                    "steps": [
+                        "From a project type, go to \"Correction grid\".",
+                        "Add criteria with their respective weight.",
+                        "Add deductions if needed (e.g., late submission, non-compliance).",
+                        "Save — the grid is ready to use."
+                    ]
+                },
+                "objectifs": {
+                    "title": "Add learning objectives",
+                    "description": "List the competencies targeted by your course.",
+                    "steps": [
+                        "In your course, go to the \"Objectives\" tab.",
+                        "Click \"Add an objective\" and write its description.",
+                        "Reorder objectives by drag and drop if needed."
+                    ]
+                },
+                "reference_apa": {
+                    "title": "Use APA reference help",
+                    "description": "Generate correctly formatted APA references.",
+                    "steps": [
+                        "From a project type's edit page, click the APA help icon.",
+                        "Select the source type (book, article, website…).",
+                        "Fill in the required fields.",
+                        "Copy the generated reference into your instructions."
+                    ]
+                },
+                "echeancier": {
+                    "title": "Create a schedule",
+                    "description": "Add milestones to guide group progress.",
+                    "steps": [
+                        "In your course, go to the \"Schedule\" tab.",
+                        "Click \"Add a step\" and set the title and date.",
+                        "Students see the milestones in their group workspace."
+                    ]
+                },
+                "visio": {
+                    "title": "Organize a video conference",
+                    "description": "Launch a Jitsi session directly from the platform.",
+                    "steps": [
+                        "In your course, go to \"Video conference\".",
+                        "Create a session link and share it with your students.",
+                        "Click the link to join the Jitsi session."
+                    ]
+                },
+                "approuver_temoin": {
+                    "title": "Approve a witness",
+                    "description": "Validate an elderly person's participation in your course.",
+                    "steps": [
+                        "From the teacher workspace, go to the pending witnesses list.",
+                        "View the witness profile and their chosen themes.",
+                        "Click \"Approve\" or \"Decline\".",
+                        "An approved witness can be assigned to a group."
+                    ]
+                },
+                "verrouiller_cours": {
+                    "title": "Lock a course",
+                    "description": "Prevent any course modifications after the final submission.",
+                    "steps": [
+                        "From your course page, click the lock icon.",
+                        "Confirm the action — the course becomes read-only.",
+                        "Students see a page indicating the course is locked.",
+                        "You can unlock at any time the same way."
+                    ]
+                },
+                "echanges": {
+                    "title": "Manage exchanges",
+                    "description": "Communicate with groups via the class discussion thread.",
+                    "steps": [
+                        "Open the relevant class and go to the \"Exchanges\" tab.",
+                        "Read messages from groups.",
+                        "Reply from the class or group discussion thread."
+                    ]
+                }
+            },
+            "etudiant": {
+                "rejoindre_cours": {
+                    "title": "Access your courses",
+                    "description": "View your enrolled courses for the current session.",
+                    "steps": [
+                        "Log in to the platform.",
+                        "From the dashboard, click \"My courses\".",
+                        "Your enrolled courses appear with their information."
+                    ]
+                },
+                "former_groupe": {
+                    "title": "Form or join a group",
+                    "description": "Create or join a work group in your class.",
+                    "steps": [
+                        "From your class, go to the \"Groups\" tab.",
+                        "Click \"Create a group\" or join an existing group.",
+                        "Your group is ready — members can start collaborating."
+                    ]
+                },
+                "editer_projet": {
+                    "title": "Edit a project",
+                    "description": "Write and enrich your research project as a team.",
+                    "steps": [
+                        "From your group, click on the project type to complete.",
+                        "Navigate between sections (introduction, interview, development…).",
+                        "Write content in each section.",
+                        "Changes are saved automatically.",
+                        "Add media (photos, videos) if the section allows it."
+                    ]
+                },
+                "remettre_projet": {
+                    "title": "Submit a project",
+                    "description": "Submit your project when it is ready for evaluation.",
+                    "steps": [
+                        "From your project, click \"Submit project\".",
+                        "All group members must vote to confirm the submission.",
+                        "Once the vote is complete, the project is submitted to the teacher.",
+                        "The project becomes read-only after submission."
+                    ]
+                },
+                "consulter_notes": {
+                    "title": "View your grades",
+                    "description": "Access your teacher's evaluations and comments.",
+                    "steps": [
+                        "From your project, go to the \"Grades\" tab.",
+                        "View the breakdown by criterion on the correction grid.",
+                        "Read annotations left by the teacher in the text."
+                    ]
+                },
+                "echanges": {
+                    "title": "Exchanges with teacher",
+                    "description": "Ask questions via your group's discussion thread.",
+                    "steps": [
+                        "From your group, go to the \"Exchanges\" tab.",
+                        "Write your message and send it.",
+                        "The teacher will receive and can reply from their workspace."
+                    ]
+                }
+            },
+            "personne_agee": {
+                "profil": {
+                    "title": "Complete your profile",
+                    "description": "Enter your availability and topics of interest.",
+                    "steps": [
+                        "Log in to the platform.",
+                        "Access your profile from the menu.",
+                        "Select the themes you wish to share testimony on.",
+                        "Indicate your availability for interviews."
+                    ]
+                },
+                "consentement": {
+                    "title": "Video consent",
+                    "description": "Understand and sign the consent form for recordings.",
+                    "steps": [
+                        "A consent form will be presented during registration.",
+                        "Carefully read the terms of use for recordings.",
+                        "Check your agreement and confirm your signature.",
+                        "This consent can be reviewed by contacting the institution."
+                    ]
+                },
+                "entrevue": {
+                    "title": "Participate in an interview",
+                    "description": "Prepare for your meeting with students.",
+                    "steps": [
+                        "The teacher will contact you to confirm the date and format (in-person or video conference).",
+                        "If the interview is online, a Jitsi link will be provided.",
+                        "Share your testimony with the student group.",
+                        "Students will take notes and may record with your consent."
+                    ]
+                }
+            },
+            "admin": {
+                "gerer_enseignants": {
+                    "title": "Manage teachers",
+                    "description": "Add, edit or delete teacher accounts.",
+                    "steps": [
+                        "Go to the Administration section.",
+                        "In the \"Teachers\" tab, click \"Add a teacher\".",
+                        "Fill in the form (name, email, institution).",
+                        "The teacher receives an invitation by email.",
+                        "To edit or delete, use the inline actions in the table."
+                    ]
+                },
+                "gerer_etablissements": {
+                    "title": "Manage institutions",
+                    "description": "Administer the colleges and institutions linked to the platform.",
+                    "steps": [
+                        "Go to Administration → Institutions.",
+                        "Click \"Add an institution\" and fill in the form.",
+                        "View an institution to see its teachers and themes.",
+                        "Edit or delete an institution via its dedicated actions."
+                    ]
+                },
+                "approuver_temoins": {
+                    "title": "Approve witnesses",
+                    "description": "Manage the queue of elderly people awaiting validation.",
+                    "steps": [
+                        "From Administration, view the \"Pending witnesses\" section.",
+                        "Click on a witness to see their profile and themes.",
+                        "Approve or decline the request.",
+                        "An approved witness becomes available to teachers."
+                    ]
+                }
+            }
         }
     },
     "common": {

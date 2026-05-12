@@ -4,7 +4,7 @@ export type User = {
     nom: string;
     name: string; // Accessor: prenom + ' ' + nom
     email: string;
-    role: 'admin' | 'enseignant' | 'etudiant';
+    role: 'admin' | 'enseignant' | 'etudiant' | 'personne_agee';
     locale: 'fr' | 'en';
     avatar?: string;
     email_verified_at: string | null;
