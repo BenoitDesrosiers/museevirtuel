@@ -153,6 +153,7 @@ class GroupeController extends Controller
 
         $estMembre = $groupe->membres()->where('users.id', $user->id)->exists();
         $estEnseignant = $cours->enseignant_id === $user->id;
+        $estTemoin = $groupe->personne_agee_id === $user->id;
 
         $groupe->load([
             'membres',
@@ -215,6 +216,13 @@ class GroupeController extends Controller
                 'started_at' => $v->started_at?->toIso8601String(),
                 'ended_at' => $v->ended_at?->toIso8601String(),
                 'recording_url' => $v->recording_url,
+                // URL sécurisée pour lire l'enregistrement : stream interne si fichier local, URL externe sinon
+                'recording_stream_url' => $v->recording_path
+                    ? route('cours.visio.recording', [$cours, $v])
+                    : $v->recording_url,
+                'has_recording' => (bool) ($v->recording_path || $v->recording_url),
+                // Vrai si le fichier est stocké localement (permet d'afficher un <video> plutôt qu'un lien)
+                'recording_is_local' => (bool) $v->recording_path,
                 'animateur' => [
                     'id' => $v->animateur->id,
                     'prenom' => $v->animateur->prenom,
@@ -228,6 +236,7 @@ class GroupeController extends Controller
             'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
             'estMembre' => $estMembre,
             'estEnseignant' => $estEnseignant,
+            'estTemoin' => $estTemoin,
             'estCreateur' => $groupe->created_by === $user->id,
             'thematiquesDispo' => $thematiquesDispo,
             'etudiantsDispo' => $etudiantsDispo,

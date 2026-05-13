@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { BookOpen, ExternalLink, Lock, Pencil, Plus, Search, Send, Trash2, Unlock, Users } from 'lucide-vue-next';
+import { BookOpen, Calendar, ChevronDown, ExternalLink, Lock, Pencil, Plus, Search, Send, Trash2, Unlock, Users, Video } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import FormDialog from '@/components/FormDialog.vue';
@@ -61,15 +61,36 @@ type TemoinEnAttente = {
 
 type TemoinApprouve = TemoinEnAttente;
 
+type ProchaineVisio = {
+    id: number;
+    titre: string;
+    scheduled_at: string;
+    started_at: string | null;
+    jitsi_room: string;
+    cours: { id: number; nom_cours: string; code: string; groupe: string };
+    groupe_numero: number | null;
+    animateur: { prenom: string; nom: string };
+};
+
 type Props = {
     cours: Cours[];
     thematiques: Thematique[];
     travauxRemis: TravailRemis[];
     temoinsEnAttente: TemoinEnAttente[];
     temoinsApprouves: TemoinApprouve[];
+    prochainesVisios: ProchaineVisio[];
 };
 
 const { t } = useI18n();
+
+// ─── Sections repliables ──────────────────────────────────────────────────────
+const ouvert = ref({
+    visios: true,
+    cours: true,
+    thematiques: true,
+    temoins: true,
+    travaux: true,
+});
 
 // ─── Cours ────────────────────────────────────────────────────────────────────
 const showCreateCoursDialog = ref(false);
@@ -230,6 +251,17 @@ const temoinsApprouvésFiltres = computed(() => filtrerTemoins(props.temoinsAppr
 function voirTemoin(temoin: TemoinEnAttente) {
     router.visit(showTemoin.url(temoin.id));
 }
+
+function formatDateVisio(iso: string): string {
+    return new Date(iso).toLocaleString('fr-CA', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    });
+}
+
+function rejoindreVisio(jitsiRoom: string) {
+    window.open(`https://meet.jit.si/${jitsiRoom}`, '_blank', 'noopener,noreferrer');
+}
 </script>
 
 <template>
@@ -245,13 +277,23 @@ function voirTemoin(temoin: TemoinEnAttente) {
             <!-- ─── Mes cours ──────────────────────────────────────────────── -->
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle>{{ $t('enseignant.index.my_courses') }}</CardTitle>
+                    <button
+                        type="button"
+                        class="flex flex-1 cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.cours = !ouvert.cours"
+                    >
+                        <CardTitle>{{ $t('enseignant.index.my_courses') }}</CardTitle>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.cours }"
+                        />
+                    </button>
                     <Button size="sm" @click="openCreateCours">
                         <Plus class="mr-2 h-4 w-4" />
                         {{ $t('enseignant.index.new_course') }}
                     </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent v-show="ouvert.cours">
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead>
@@ -329,18 +371,24 @@ function voirTemoin(temoin: TemoinEnAttente) {
             <!-- ─── Mes thématiques ────────────────────────────────────────── -->
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle>
-                        <div class="flex items-center gap-2">
-                            <BookOpen class="h-5 w-5" />
-                            {{ $t('enseignant.index.my_thematic') }}
-                        </div>
-                    </CardTitle>
+                    <button
+                        type="button"
+                        class="flex flex-1 cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.thematiques = !ouvert.thematiques"
+                    >
+                        <BookOpen class="h-5 w-5" />
+                        <CardTitle>{{ $t('enseignant.index.my_thematic') }}</CardTitle>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.thematiques }"
+                        />
+                    </button>
                     <Button size="sm" @click="openCreateThematique">
                         <Plus class="mr-2 h-4 w-4" />
                         {{ $t('enseignant.index.new_thematic') }}
                     </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent v-show="ouvert.thematiques">
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead>
@@ -398,12 +446,20 @@ function voirTemoin(temoin: TemoinEnAttente) {
             <!-- ─── Témoins ───────────────────────────────────────── -->
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between">
-                    <div class="flex items-center gap-2">
+                    <button
+                        type="button"
+                        class="flex flex-1 cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.temoins = !ouvert.temoins"
+                    >
                         <Users class="h-5 w-5" />
                         <CardTitle>{{ $t('administration.index.temoins_table') }}</CardTitle>
-                    </div>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.temoins }"
+                        />
+                    </button>
                     <!-- Toggle afficher approuvés -->
-                    <label class="flex cursor-pointer items-center gap-2 text-sm">
+                    <label class="flex cursor-pointer items-center gap-2 text-sm" @click.stop>
                         <span class="text-muted-foreground">{{ $t('enseignant.index.temoins_show_approved') }}</span>
                         <button
                             type="button"
@@ -411,7 +467,7 @@ function voirTemoin(temoin: TemoinEnAttente) {
                             :aria-checked="afficherApprouves"
                             class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                             :class="afficherApprouves ? 'bg-primary' : 'bg-input'"
-                            @click="afficherApprouves = !afficherApprouves"
+                            @click.stop="afficherApprouves = !afficherApprouves"
                         >
                             <span
                                 class="inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform"
@@ -420,7 +476,7 @@ function voirTemoin(temoin: TemoinEnAttente) {
                         </button>
                     </label>
                 </CardHeader>
-                <CardContent>
+                <CardContent v-show="ouvert.temoins">
                     <!-- Barre de filtre -->
                     <div class="mb-4 flex flex-wrap gap-3">
                         <div class="relative flex-1 min-w-48">
@@ -518,11 +574,21 @@ function voirTemoin(temoin: TemoinEnAttente) {
 
             <!-- ─── Travaux remis récemment ────────────────────────────── -->
             <Card>
-                <CardHeader class="flex flex-row items-center gap-2">
-                    <Send class="h-5 w-5" />
-                    <CardTitle>{{ $t('enseignant.index.recent_submissions') }}</CardTitle>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.travaux = !ouvert.travaux"
+                    >
+                        <Send class="h-5 w-5" />
+                        <CardTitle>{{ $t('enseignant.index.recent_submissions') }}</CardTitle>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.travaux }"
+                        />
+                    </button>
                 </CardHeader>
-                <CardContent>
+                <CardContent v-show="ouvert.travaux">
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead>
@@ -567,6 +633,71 @@ function voirTemoin(temoin: TemoinEnAttente) {
                                 <tr v-if="travauxRemis.length === 0">
                                     <td colspan="5" class="text-muted-foreground py-6 text-center">
                                         {{ $t('enseignant.index.no_submissions') }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- ─── Prochaines visioconférences ───────────────────────────── -->
+            <Card v-if="prochainesVisios.length > 0">
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.visios = !ouvert.visios"
+                    >
+                        <Video class="h-5 w-5" />
+                        <CardTitle>Prochaines visioconférences</CardTitle>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.visios }"
+                        />
+                    </button>
+                </CardHeader>
+                <CardContent v-show="ouvert.visios">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b text-left">
+                                    <th class="pb-3 pr-4 font-medium">Titre</th>
+                                    <th class="pb-3 pr-4 font-medium">Cours</th>
+                                    <th class="pb-3 pr-4 font-medium">Groupe</th>
+                                    <th class="pb-3 pr-4 font-medium">Date</th>
+                                    <th class="pb-3 font-medium"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="visio in prochainesVisios"
+                                    :key="visio.id"
+                                    class="border-b last:border-0"
+                                >
+                                    <td class="py-3 pr-4 font-medium">{{ visio.titre }}</td>
+                                    <td class="py-3 pr-4 text-muted-foreground">
+                                        <span class="font-mono text-xs">{{ visio.cours.code }}-{{ visio.cours.groupe }}</span>
+                                        <span class="ml-1">{{ visio.cours.nom_cours }}</span>
+                                    </td>
+                                    <td class="py-3 pr-4 text-muted-foreground">
+                                        {{ visio.groupe_numero ? `Groupe ${visio.groupe_numero}` : 'Tous les groupes' }}
+                                    </td>
+                                    <td class="py-3 pr-4 tabular-nums">
+                                        <span class="flex items-center gap-1">
+                                            <Calendar class="h-3.5 w-3.5 text-muted-foreground" />
+                                            {{ formatDateVisio(visio.scheduled_at) }}
+                                        </span>
+                                    </td>
+                                    <td class="py-3">
+                                        <Button
+                                            v-if="visio.started_at"
+                                            size="sm"
+                                            @click="rejoindreVisio(visio.jitsi_room)"
+                                        >
+                                            <Video class="mr-1.5 h-4 w-4" />
+                                            Rejoindre
+                                        </Button>
                                     </td>
                                 </tr>
                             </tbody>

@@ -315,15 +315,20 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
     Route::patch('/cours/{cours}/echeancier/{etape}/toggle', [EcheancierController::class, 'toggleDone'])
         ->name('echeancier.toggle');
 
-    // Visioconférences — créées et gérées par l'enseignant
-    Route::post('/cours/{cours}/visio', [VisioConferenceController::class, 'store'])
-        ->name('cours.visio.store');
-
     Route::put('/cours/{cours}/visio/{visio}', [VisioConferenceController::class, 'update'])
         ->name('cours.visio.update');
 
     Route::delete('/cours/{cours}/visio/{visio}', [VisioConferenceController::class, 'destroy'])
         ->name('cours.visio.destroy');
+
+    Route::post('/cours/{cours}/visio/{visio}/recording', [VisioConferenceController::class, 'storeRecording'])
+        ->name('cours.visio.recording.store');
+});
+
+// Streaming de l'enregistrement — accessible à tous les rôles authentifiés (auth contrôlée dans le controller)
+Route::middleware(['auth'])->group(function () {
+    Route::get('/cours/{cours}/visio/{visio}/recording', [VisioConferenceController::class, 'streamRecording'])
+        ->name('cours.visio.recording');
 });
 
 // ─── Étudiant ─────────────────────────────────────────────────────────────────
@@ -362,6 +367,10 @@ Route::middleware(['auth', 'role:etudiant'])->group(function () {
 
 // ─── Échanges groupe ↔ témoin + Consentement vidéo (tous les rôles auth concernés) ──
 Route::middleware(['auth', 'role:etudiant,enseignant,admin,personne_agee', 'cours.accessible'])->group(function () {
+    // Détail d'un groupe — accessible aussi aux témoins (personne_agee) associés au groupe
+    Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}', [GroupeController::class, 'show'])
+        ->name('groupes.show');
+
     Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/echanges', [GroupeEchangeController::class, 'index'])
         ->name('groupes.echanges.index');
 
@@ -396,10 +405,6 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin', 'cours.accessible']
     // Détail d'une classe (section)
     Route::get('/cours/{cours}/classes/{classe}', [ClasseController::class, 'show'])
         ->name('classes.show');
-
-    // Détail d'un groupe
-    Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}', [GroupeController::class, 'show'])
-        ->name('groupes.show');
 
     // Médias du groupe
     Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/medias', [GroupeMediaController::class, 'store'])
@@ -575,6 +580,18 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin', 'cours.accessible']
 
     Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/taches/{tache}/toggle', [GroupeTacheController::class, 'toggleCompleted'])
         ->name('groupes.taches.toggle');
+
+    // Visioconférences — création accessible à l'enseignant et aux membres d'un groupe (auth contrôlée dans le controller)
+    Route::post('/cours/{cours}/visio', [VisioConferenceController::class, 'store'])
+        ->name('cours.visio.store');
+
+    // Démarrage d'une session — enseignant ou membre du groupe (auth contrôlée dans le controller)
+    Route::patch('/cours/{cours}/visio/{visio}/start', [VisioConferenceController::class, 'startSession'])
+        ->name('cours.visio.start');
+
+    // Fin d'une session — enseignant ou membre du groupe (auth contrôlée dans le controller)
+    Route::patch('/cours/{cours}/visio/{visio}/end', [VisioConferenceController::class, 'endSession'])
+        ->name('cours.visio.end');
 });
 
 require __DIR__.'/settings.php';

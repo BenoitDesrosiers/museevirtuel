@@ -134,6 +134,16 @@ type Props = {
 const props = defineProps<Props>();
 const { t } = useI18n();
 
+// ─── Sections repliables ──────────────────────────────────────────────────────
+const ouvert = ref({
+    classes: true,
+    documents: true,
+    objectifs: true,
+    typesProjets: true,
+    echeancier: true,
+    visios: true,
+});
+
 // ─── Créer une classe ─────────────────────────────────────────────────────────
 const showCreateClasseDialog = ref(false);
 const createClasseForm = useForm({
@@ -420,21 +430,25 @@ function submitTransfert() {
             <!-- Classes du cours -->
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle>
-                        <span class="flex items-center gap-2">
-                            <Users class="h-5 w-5" />
-                            {{ $t('cours.show.classes_title') }}
-                            <span class="text-sm font-normal text-muted-foreground">
-                                ({{ classes.length }})
-                            </span>
-                        </span>
-                    </CardTitle>
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.classes = !ouvert.classes"
+                    >
+                        <Users class="h-5 w-5" />
+                        <CardTitle>{{ $t('cours.show.classes_title') }}</CardTitle>
+                        <span class="text-sm font-normal text-muted-foreground">({{ classes.length }})</span>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.classes }"
+                        />
+                    </button>
                     <Button size="sm" @click="showCreateClasseDialog = true">
                         <Plus class="mr-2 h-4 w-4" />
                         Classe
                     </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent v-show="ouvert.classes">
                     <div v-if="classes.length === 0" class="py-4 text-center text-sm text-muted-foreground">
                         {{ $t('cours.show.no_classes') }}
                     </div>
@@ -489,15 +503,19 @@ function submitTransfert() {
             <!-- Documents du cours -->
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle>
-                        <span class="flex items-center gap-2">
-                            <FileText class="h-5 w-5" />
-                            {{ $t('classes.show.documents_title') }}
-                            <span class="text-sm font-normal text-muted-foreground">
-                                ({{ documents.length }})
-                            </span>
-                        </span>
-                    </CardTitle>
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.documents = !ouvert.documents"
+                    >
+                        <FileText class="h-5 w-5" />
+                        <CardTitle>{{ $t('classes.show.documents_title') }}</CardTitle>
+                        <span class="text-sm font-normal text-muted-foreground">({{ documents.length }})</span>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.documents }"
+                        />
+                    </button>
                     <div>
                         <input
                             ref="docFileInput"
@@ -512,7 +530,7 @@ function submitTransfert() {
                         </Button>
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent v-show="ouvert.documents">
                     <p v-if="docForm.errors.document" class="mb-3 text-sm text-destructive">
                         {{ docForm.errors.document }}
                     </p>
@@ -563,18 +581,22 @@ function submitTransfert() {
 
             <!-- Objectifs pédagogiques -->
             <Card>
-                <CardHeader>
-                    <CardTitle>
-                        <span class="flex items-center gap-2">
-                            <BookOpen class="h-5 w-5" />
-                            Objectifs pédagogiques
-                            <span class="text-sm font-normal text-muted-foreground">
-                                ({{ objectifs.length }})
-                            </span>
-                        </span>
-                    </CardTitle>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.objectifs = !ouvert.objectifs"
+                    >
+                        <BookOpen class="h-5 w-5" />
+                        <CardTitle>Objectifs pédagogiques</CardTitle>
+                        <span class="text-sm font-normal text-muted-foreground">({{ objectifs.length }})</span>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.objectifs }"
+                        />
+                    </button>
                 </CardHeader>
-                <CardContent>
+                <CardContent v-show="ouvert.objectifs">
                     <CoursObjectifs :cours-id="cours.id" :objectifs="objectifs" />
                 </CardContent>
             </Card>
@@ -582,15 +604,19 @@ function submitTransfert() {
             <!-- Types de projet -->
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle>
-                        <span class="flex items-center gap-2">
-                            <ClipboardList class="h-5 w-5" />
-                            Types de projet
-                            <span class="text-sm font-normal text-muted-foreground">
-                                ({{ typesProjets.length }})
-                            </span>
-                        </span>
-                    </CardTitle>
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.typesProjets = !ouvert.typesProjets"
+                    >
+                        <ClipboardList class="h-5 w-5" />
+                        <CardTitle>Types de projet</CardTitle>
+                        <span class="text-sm font-normal text-muted-foreground">({{ typesProjets.length }})</span>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.typesProjets }"
+                        />
+                    </button>
                     <Button size="sm" as-child>
                         <Link :href="typesProjetsRoutes.create.url(cours.id)">
                             <Plus class="mr-2 h-4 w-4" />
@@ -598,7 +624,7 @@ function submitTransfert() {
                         </Link>
                     </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent v-show="ouvert.typesProjets">
                     <div v-if="typesProjets.length === 0" class="py-4 text-center text-sm text-muted-foreground">
                         Aucun type de projet. Créez-en un pour commencer.
                     </div>
@@ -677,15 +703,19 @@ function submitTransfert() {
             <!-- Échéancier -->
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle>
-                        <span class="flex items-center gap-2">
-                            <Calendar class="h-5 w-5" />
-                            Échéancier
-                            <span class="text-sm font-normal text-muted-foreground">
-                                ({{ echeancierEtapes.length }} étapes)
-                            </span>
-                        </span>
-                    </CardTitle>
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.echeancier = !ouvert.echeancier"
+                    >
+                        <Calendar class="h-5 w-5" />
+                        <CardTitle>Échéancier</CardTitle>
+                        <span class="text-sm font-normal text-muted-foreground">({{ echeancierEtapes.length }} étapes)</span>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.echeancier }"
+                        />
+                    </button>
                     <div class="flex gap-2">
                         <Button
                             v-if="echeancierEtapes.length > 0"
@@ -703,7 +733,7 @@ function submitTransfert() {
                         </Button>
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent v-show="ouvert.echeancier">
                     <div v-if="echeancierEtapes.length === 0" class="py-4 text-center text-sm text-muted-foreground">
                         Aucune étape dans l'échéancier.
                     </div>
@@ -796,18 +826,24 @@ function submitTransfert() {
             <!-- Visioconférences -->
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle>
-                        <span class="flex items-center gap-2">
-                            <Video class="h-5 w-5" />
-                            Visioconférences
-                        </span>
-                    </CardTitle>
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.visios = !ouvert.visios"
+                    >
+                        <Video class="h-5 w-5" />
+                        <CardTitle>Visioconférences</CardTitle>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.visios }"
+                        />
+                    </button>
                     <Button size="sm" @click="showVisioDialog = true">
                         <Plus class="mr-1.5 h-4 w-4" />
                         Planifier
                     </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent v-show="ouvert.visios">
                     <div v-if="visioConferences.length === 0" class="text-sm text-muted-foreground">
                         Aucune visioconférence planifiée.
                     </div>

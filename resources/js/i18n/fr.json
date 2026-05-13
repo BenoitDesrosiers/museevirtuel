@@ -127,8 +127,8 @@
             "back_to_cours": "Retour au cours"
         },
         "groupes": {
-            "page_title": "Groupes",
-            "heading": "Groupes",
+            "page_title": "Groupe",
+            "heading": "Groupe",
             "back": "Retour à mes classes",
             "my_group": "Mon groupe",
             "access": "Accéder",
@@ -148,11 +148,11 @@
     },
     "cours": {
         "index": {
-            "page_title": "Mes cours",
-            "heading_title": "Mes cours",
+            "page_title": "Mon cours",
+            "heading_title": "Mon cours",
             "heading_description": "Vos cours inscrits pour cette session",
             "no_courses": "Aucun cours accessible pour l'instant.",
-            "my_sections": "Mes sections"
+            "my_sections": "Accéder au cours"
         },
         "show": {
             "classes_title": "Classes",
@@ -163,7 +163,7 @@
             "page_title": "Mes sections",
             "back": "Retour à mes cours",
             "no_classes": "Vous n'êtes inscrit à aucune section de ce cours.",
-            "groups_count": "{n} groupe(s)",
+            "groups_count": "Groupe",
             "my_group": "Mon groupe",
             "schedule_title": "Échéancier du cours",
             "schedule_empty": "Aucune étape dans l'échéancier.",

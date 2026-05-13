@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { ArrowLeft, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Download, FileText, ImagePlus, MessageSquare, Music, Pencil, Search, Trash2, Video } from 'lucide-vue-next';
+import { ArrowLeft, BookOpen, CalendarPlus, ChevronDown, ChevronLeft, ChevronRight, Download, FileText, ImagePlus, MessageSquare, Music, Pencil, Search, Trash2, Video } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import FormDialog from '@/components/FormDialog.vue';
@@ -103,6 +103,9 @@ type VisioConference = {
     started_at: string | null;
     ended_at: string | null;
     recording_url: string | null;
+    recording_stream_url: string | null;
+    has_recording: boolean;
+    recording_is_local: boolean;
     animateur: { id: number; prenom: string; nom: string };
 };
 
@@ -112,6 +115,7 @@ type Props = {
     cours: Cours;
     estMembre: boolean;
     estEnseignant: boolean;
+    estTemoin: boolean;
     estCreateur: boolean;
     thematiquesDispo: Thematique[];
     etudiantsDispo: EtudiantDispo[];
@@ -334,6 +338,58 @@ function toggleToutesNotes(): void {
     }
 }
 
+// ─── Sections repliables ──────────────────────────────────────────────────────
+const ouvert = ref({
+    temoin: true,
+    membres: true,
+    thematiques: true,
+    photos: true,
+    documents: true,
+    audios: true,
+    upload: true,
+    notes: true,
+    visios: true,
+});
+
+// ─── Planifier une visioconférence (membres + enseignant) ─────────────────────
+const showPlanifierDialog = ref(false);
+const planifierForm = useForm({
+    titre: '',
+    scheduled_at: '',
+});
+
+function openPlanifier() {
+    planifierForm.reset();
+    showPlanifierDialog.value = true;
+}
+
+function submitPlanifier() {
+    planifierForm
+        .transform((data) => ({
+            ...data,
+            groupe_id: props.groupe.id,
+            scheduled_at: data.scheduled_at || null,
+        }))
+        .post(`/cours/${props.cours.id}/visio`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                showPlanifierDialog.value = false;
+            },
+        });
+}
+
+// ─── Séparer les rencontres à venir des rencontres effectuées ─────────────────
+const rencontresAVenir = computed(() =>
+    props.visioConferences.filter((v) => !v.ended_at),
+);
+
+const rencontresEffectuees = computed(() =>
+    props.visioConferences.filter((v) => !!v.ended_at),
+);
+
+// Onglet actif dans la section visioconférences
+const ongletVisio = ref<'avenir' | 'effectuees'>('avenir');
+
 // ─── Assigner / désassigner un témoin (enseignant seulement) ──────────────────
 const temoinForm = useForm({
     personne_agee_id: props.groupe.personne_agee_id as number | null,
@@ -444,10 +500,20 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
 
             <!-- Carte Témoin (enseignant seulement) -->
             <Card v-if="estEnseignant">
-                <CardHeader>
-                    <CardTitle>Témoin assigné</CardTitle>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.temoin = !ouvert.temoin"
+                    >
+                        <CardTitle>Témoin assigné</CardTitle>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.temoin }"
+                        />
+                    </button>
                 </CardHeader>
-                <CardContent>
+                <CardContent v-show="ouvert.temoin">
                     <div v-if="groupe.temoin" class="mb-4 flex items-center justify-between gap-3">
                         <div class="flex items-center gap-3">
                             <span class="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium">
@@ -542,7 +608,17 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                 <!-- Membres -->
                 <Card>
                     <CardHeader class="flex flex-row items-center justify-between">
-                        <CardTitle>{{ $t('groupes.show.members') }}</CardTitle>
+                        <button
+                            type="button"
+                            class="flex cursor-pointer items-center gap-2 text-left select-none"
+                            @click="ouvert.membres = !ouvert.membres"
+                        >
+                            <CardTitle>{{ $t('groupes.show.members') }}</CardTitle>
+                            <ChevronDown
+                                class="text-muted-foreground h-4 w-4 transition-transform"
+                                :class="{ '-rotate-180': ouvert.membres }"
+                            />
+                        </button>
                         <Button
                             v-if="estCreateur"
                             size="sm"
@@ -553,7 +629,7 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                             {{ $t('groupes.show.manage') }}
                         </Button>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent v-show="ouvert.membres">
                         <ul class="space-y-2">
                             <li
                                 v-for="membre in groupe.membres"
@@ -580,7 +656,17 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                 <!-- Thématiques -->
                 <Card>
                     <CardHeader class="flex flex-row items-center justify-between">
-                        <CardTitle>{{ $t('groupes.show.thematic') }}</CardTitle>
+                        <button
+                            type="button"
+                            class="flex cursor-pointer items-center gap-2 text-left select-none"
+                            @click="ouvert.thematiques = !ouvert.thematiques"
+                        >
+                            <CardTitle>{{ $t('groupes.show.thematic') }}</CardTitle>
+                            <ChevronDown
+                                class="text-muted-foreground h-4 w-4 transition-transform"
+                                :class="{ '-rotate-180': ouvert.thematiques }"
+                            />
+                        </button>
                         <Button
                             v-if="estMembre"
                             size="sm"
@@ -591,7 +677,7 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                             {{ $t('groupes.show.edit') }}
                         </Button>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent v-show="ouvert.thematiques">
                         <div v-if="groupe.thematiques.length === 0" class="text-muted-foreground text-sm">
                             {{ $t('groupes.show.no_thematic') }}
                         </div>
@@ -616,12 +702,22 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
             <!-- Carrousel photos -->
             <Card v-if="photos.length > 0">
                 <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle>{{ $t('groupes.show.photos') }}</CardTitle>
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.photos = !ouvert.photos"
+                    >
+                        <CardTitle>{{ $t('groupes.show.photos') }}</CardTitle>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.photos }"
+                        />
+                    </button>
                     <span class="text-muted-foreground text-sm">
                         {{ photoIndex + 1 }} / {{ photos.length }}
                     </span>
                 </CardHeader>
-                <CardContent>
+                <CardContent v-show="ouvert.photos">
                     <div class="relative overflow-hidden rounded-lg">
                         <!-- Image -->
                         <img
@@ -683,10 +779,20 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
 
             <!-- Documents du groupe -->
             <Card v-if="documents.length > 0">
-                <CardHeader>
-                    <CardTitle>{{ $t('groupes.show.documents') }}</CardTitle>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.documents = !ouvert.documents"
+                    >
+                        <CardTitle>{{ $t('groupes.show.documents') }}</CardTitle>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.documents }"
+                        />
+                    </button>
                 </CardHeader>
-                <CardContent>
+                <CardContent v-show="ouvert.documents">
                     <div class="flex flex-col divide-y">
                         <div
                             v-for="doc in documents"
@@ -730,10 +836,20 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
 
             <!-- Fichiers audio -->
             <Card v-if="audios.length > 0">
-                <CardHeader>
-                    <CardTitle>{{ $t('groupes.show.audio') }}</CardTitle>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.audios = !ouvert.audios"
+                    >
+                        <CardTitle>{{ $t('groupes.show.audio') }}</CardTitle>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.audios }"
+                        />
+                    </button>
                 </CardHeader>
-                <CardContent>
+                <CardContent v-show="ouvert.audios">
                     <div class="flex flex-col divide-y">
                         <div
                             v-for="audio in audios"
@@ -771,10 +887,20 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
 
             <!-- Zone upload (membres seulement) -->
             <Card v-if="estMembre">
-                <CardHeader>
-                    <CardTitle>{{ $t('groupes.show.add_files') }}</CardTitle>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.upload = !ouvert.upload"
+                    >
+                        <CardTitle>{{ $t('groupes.show.add_files') }}</CardTitle>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.upload }"
+                        />
+                    </button>
                 </CardHeader>
-                <CardContent>
+                <CardContent v-show="ouvert.upload">
                     <input
                         ref="mediaFileInput"
                         type="file"
@@ -804,25 +930,29 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
 
             <!-- Notes -->
             <Card>
-                <CardHeader>
-                    <div class="flex items-center justify-between">
-                        <CardTitle>
-                            {{ $t('groupes.show.notes') }}
-                            <span class="text-muted-foreground ml-2 text-sm font-normal">
-                                ({{ groupe.notes.length }})
-                            </span>
-                        </CardTitle>
-                        <Button
-                            v-if="groupe.notes.length > 0"
-                            variant="ghost"
-                            size="sm"
-                            @click="toggleToutesNotes"
-                        >
-                            {{ toutesNotesReduites ? $t('groupes.show.afficher_tout') : $t('groupes.show.masquer_tout') }}
-                        </Button>
-                    </div>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.notes = !ouvert.notes"
+                    >
+                        <CardTitle>{{ $t('groupes.show.notes') }}</CardTitle>
+                        <span class="text-muted-foreground text-sm font-normal">({{ groupe.notes.length }})</span>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.notes }"
+                        />
+                    </button>
+                    <Button
+                        v-if="groupe.notes.length > 0"
+                        variant="ghost"
+                        size="sm"
+                        @click.stop="toggleToutesNotes"
+                    >
+                        {{ toutesNotesReduites ? $t('groupes.show.afficher_tout') : $t('groupes.show.masquer_tout') }}
+                    </Button>
                 </CardHeader>
-                <CardContent class="flex flex-col gap-4">
+                <CardContent v-show="ouvert.notes" class="flex flex-col gap-4">
                     <!-- Liste des notes -->
                     <div v-if="groupe.notes.length === 0" class="text-muted-foreground py-4 text-center text-sm">
                         {{ $t('groupes.show.no_notes') }}
@@ -898,26 +1028,89 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
             </Card>
 
             <!-- Visioconférences -->
-            <Card v-if="visioConferences.length > 0 || estEnseignant">
-                <CardHeader>
-                    <CardTitle>
-                        <span class="flex items-center gap-2">
-                            <Video class="h-5 w-5" />
-                            Visioconférences
-                        </span>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div v-if="visioConferences.length === 0" class="text-sm text-muted-foreground">
-                        Aucune visioconférence planifiée pour ce groupe.
-                    </div>
-                    <div v-else class="flex flex-col gap-3">
-                        <VisioSession
-                            v-for="visio in visioConferences"
-                            :key="visio.id"
-                            :visio="visio"
-                            :can-manage="estEnseignant"
+            <Card v-if="visioConferences.length > 0 || estEnseignant || estMembre || estTemoin">
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.visios = !ouvert.visios"
+                    >
+                        <Video class="h-5 w-5" />
+                        <CardTitle>Visioconférences</CardTitle>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.visios }"
                         />
+                    </button>
+                    <Button
+                        v-if="estMembre || estEnseignant"
+                        size="sm"
+                        variant="outline"
+                        @click="openPlanifier"
+                    >
+                        <CalendarPlus class="mr-2 h-4 w-4" />
+                        Planifier
+                    </Button>
+                </CardHeader>
+                <CardContent v-show="ouvert.visios">
+                    <!-- Toggle à venir / effectuées -->
+                    <div class="mb-4 flex rounded-lg border p-1 text-sm">
+                        <button
+                            type="button"
+                            class="flex-1 rounded-md px-3 py-1.5 font-medium transition-colors"
+                            :class="ongletVisio === 'avenir'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'text-muted-foreground hover:text-foreground'"
+                            @click="ongletVisio = 'avenir'"
+                        >
+                            À venir
+                            <span v-if="rencontresAVenir.length > 0" class="ml-1 opacity-70">({{ rencontresAVenir.length }})</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="flex-1 rounded-md px-3 py-1.5 font-medium transition-colors"
+                            :class="ongletVisio === 'effectuees'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'text-muted-foreground hover:text-foreground'"
+                            @click="ongletVisio = 'effectuees'"
+                        >
+                            Effectuées
+                            <span v-if="rencontresEffectuees.length > 0" class="ml-1 opacity-70">({{ rencontresEffectuees.length }})</span>
+                        </button>
+                    </div>
+
+                    <!-- Rencontres à venir -->
+                    <div v-if="ongletVisio === 'avenir'">
+                        <div v-if="rencontresAVenir.length === 0" class="text-sm text-muted-foreground">
+                            Aucune rencontre à venir pour ce groupe.
+                        </div>
+                        <div v-else class="flex flex-col gap-3">
+                            <VisioSession
+                                v-for="visio in rencontresAVenir"
+                                :key="visio.id"
+                                :visio="visio"
+                                :can-manage="estEnseignant"
+                                :can-start="estMembre || estEnseignant"
+                                :est-temoin="estTemoin"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Rencontres effectuées -->
+                    <div v-if="ongletVisio === 'effectuees'">
+                        <div v-if="rencontresEffectuees.length === 0" class="text-sm text-muted-foreground">
+                            Aucune rencontre effectuée pour ce groupe.
+                        </div>
+                        <div v-else class="flex flex-col gap-3">
+                            <VisioSession
+                                v-for="visio in rencontresEffectuees"
+                                :key="visio.id"
+                                :visio="visio"
+                                :can-manage="estEnseignant"
+                                :can-start="estMembre || estEnseignant"
+                                :est-temoin="estTemoin"
+                            />
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -984,6 +1177,49 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                         </Button>
                         <Button type="submit" :disabled="membresForm.processing">
                             {{ $t('common.save') }}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Dialog : planifier une visioconférence -->
+        <Dialog v-model:open="showPlanifierDialog">
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Planifier une visioconférence</DialogTitle>
+                </DialogHeader>
+                <form class="space-y-4" @submit.prevent="submitPlanifier">
+                    <div class="grid gap-2">
+                        <Label for="planifier-titre">Titre</Label>
+                        <input
+                            id="planifier-titre"
+                            v-model="planifierForm.titre"
+                            type="text"
+                            required
+                            maxlength="255"
+                            placeholder="Ex : Rencontre du groupe 2"
+                            class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-1 focus-visible:outline-none"
+                        />
+                        <p v-if="planifierForm.errors.titre" class="text-sm text-destructive">
+                            {{ planifierForm.errors.titre }}
+                        </p>
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="planifier-date">Date et heure (optionnel)</Label>
+                        <input
+                            id="planifier-date"
+                            v-model="planifierForm.scheduled_at"
+                            type="datetime-local"
+                            class="border-input bg-background focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-1 focus-visible:outline-none"
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" @click="showPlanifierDialog = false">
+                            Annuler
+                        </Button>
+                        <Button type="submit" :disabled="planifierForm.processing">
+                            Créer
                         </Button>
                     </DialogFooter>
                 </form>

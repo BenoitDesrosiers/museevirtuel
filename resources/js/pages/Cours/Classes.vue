@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ArrowLeft, CalendarDays, CheckCircle2, Circle, Users } from 'lucide-vue-next';
 import Heading from '@/components/Heading.vue';
-import { Button } from '@/components/ui/button';
+import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
 
@@ -90,7 +90,7 @@ function toggleEtape(etape: EcheancierEtape) {
                 {{ $t('cours.classes.no_classes') }}
             </div>
 
-            <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div v-else class="flex flex-col gap-4">
                 <Card
                     v-for="classe in classes"
                     :key="classe.id"
@@ -108,16 +108,20 @@ function toggleEtape(etape: EcheancierEtape) {
                     <CardContent class="flex flex-1 flex-col gap-2 text-sm text-muted-foreground">
                         <div class="flex items-center gap-1">
                             <Users class="h-3 w-3" />
-                            {{ $t('cours.classes.groups_count', { n: classe.groupes_count }) }}
+                            {{ $t('cours.classes.groups_count') }}
                         </div>
                     </CardContent>
-                    <CardFooter class="border-t pt-3">
-                        <Button variant="outline" size="sm" class="w-full" as-child>
+                    <CardFooter class="border-t pt-3 flex justify-end">
+                        <BoutonTooltip
+                            :texte="$t('cours.classes.my_group')"
+                            size="sm"
+                            variant="outline"
+                            as-child
+                        >
                             <Link :href="`/cours/${cours.id}/classes/${classe.id}/groupes`">
-                                <Users class="mr-2 h-4 w-4" />
-                                {{ $t('cours.classes.my_group') }}
+                                <Users class="h-4 w-4" />
                             </Link>
-                        </Button>
+                        </BoutonTooltip>
                     </CardFooter>
                 </Card>
             </div>

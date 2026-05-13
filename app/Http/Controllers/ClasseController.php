@@ -86,11 +86,49 @@ class ClasseController extends Controller
             ? $cours->typesProjets()->get(['id', 'nom', 'ponderation', 'is_sommatif'])
             : collect();
 
+        // Échéancier, documents et objectifs — pour les étudiants uniquement
+        $echeancierEtapes = collect();
+        $documents = collect();
+        $objectifs = collect();
+
+        if (! $estEnseignant) {
+            $etapes = $cours->echeancierEtapes()->get();
+            $progressions = EcheancierEtudiantProgress::whereIn('echeancier_etape_id', $etapes->pluck('id'))
+                ->where('user_id', $user->id)
+                ->pluck('is_done', 'echeancier_etape_id');
+
+            $echeancierEtapes = $etapes->map(fn ($etape) => [
+                'id' => $etape->id,
+                'semaine' => $etape->semaine,
+                'etape' => $etape->etape,
+                'is_done' => $etape->is_done,
+                'ordre' => $etape->ordre,
+                'etudiant_done' => (bool) ($progressions[$etape->id] ?? false),
+            ]);
+
+            $documents = $cours->documents()->get()->map(fn ($doc) => [
+                'id' => $doc->id,
+                'nom_original' => $doc->nom_original,
+                'url' => $doc->url,
+                'type' => $doc->type,
+                'taille' => $doc->taille,
+            ]);
+
+            $objectifs = $cours->objectifs()->orderBy('ordre')->get()->map(fn ($o) => [
+                'id' => $o->id,
+                'contenu' => $o->contenu,
+                'ordre' => $o->ordre,
+            ]);
+        }
+
         return Inertia::render('Classes/Show', [
             'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
             'classe' => $classe,
             'estEnseignant' => $estEnseignant,
             'typesProjets' => $typesProjets,
+            'echeancierEtapes' => $echeancierEtapes,
+            'documents' => $documents,
+            'objectifs' => $objectifs,
         ]);
     }
 

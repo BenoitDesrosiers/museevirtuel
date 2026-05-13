@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useForm } from '@inertiajs/vue3';
-import { Pencil, Trash2, Video, VideoOff } from 'lucide-vue-next';
+import { router, useForm } from '@inertiajs/vue3';
+import { Pencil, Play, PlayCircle, Square, Trash2, Upload, Video } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,15 +24,18 @@ type VisioConference = {
     started_at: string | null;
     ended_at: string | null;
     recording_url: string | null;
+    recording_stream_url: string | null;
+    has_recording: boolean;
+    recording_is_local: boolean;
     animateur: { id: number; prenom: string; nom: string };
 };
 
 const props = defineProps<{
     visio: VisioConference;
     canManage: boolean;
+    canStart: boolean;
+    estTemoin: boolean;
 }>();
-
-const actif = ref(false);
 
 const statut = computed(() => {
     if (props.visio.ended_at) return 'terminée';
@@ -60,6 +63,50 @@ function formatDate(iso: string | null): string {
 const jitsiUrl = computed(
     () => `https://meet.jit.si/${props.visio.jitsi_room}`,
 );
+
+// ─── Rejoindre (nouvel onglet) ─────────────────────────────────────────────────
+function rejoindre() {
+    window.open(jitsiUrl.value, '_blank', 'noopener,noreferrer');
+}
+
+// ─── Démarrer ─────────────────────────────────────────────────────────────────
+const demarrerProcessing = ref(false);
+
+function demarrerSession() {
+    // window.open doit être appelé synchroniquement depuis l'événement clic
+    window.open(jitsiUrl.value, '_blank', 'noopener,noreferrer');
+
+    demarrerProcessing.value = true;
+    router.patch(
+        `/cours/${props.visio.cours_id}/visio/${props.visio.id}/start`,
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                demarrerProcessing.value = false;
+            },
+        },
+    );
+}
+
+// ─── Terminer ─────────────────────────────────────────────────────────────────
+const terminerProcessing = ref(false);
+
+function terminerSession() {
+    if (!confirm(`Terminer « ${props.visio.titre} » ?`)) return;
+
+    terminerProcessing.value = true;
+    router.patch(
+        `/cours/${props.visio.cours_id}/visio/${props.visio.id}/end`,
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                terminerProcessing.value = false;
+            },
+        },
+    );
+}
 
 // ─── Modifier ─────────────────────────────────────────────────────────────────
 const showEditDialog = ref(false);
@@ -90,6 +137,58 @@ function supprimerVisio() {
         { preserveScroll: true },
     );
 }
+
+// ─── Révisionner l'enregistrement (toggle lecteur) ───────────────────────────
+const showPlayer = ref(false);
+
+// ─── Upload enregistrement ────────────────────────────────────────────────────
+const showUploadDialog = ref(false);
+const uploadFile = ref<File | null>(null);
+const uploadProcessing = ref(false);
+const uploadProgress = ref(0);
+const uploadError = ref<string | null>(null);
+
+function handleFileChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    uploadFile.value = input.files?.[0] ?? null;
+    uploadError.value = null;
+}
+
+function submitUpload() {
+    if (!uploadFile.value) return;
+
+    const data = new FormData();
+    data.append('recording', uploadFile.value);
+
+    uploadProcessing.value = true;
+    uploadProgress.value = 0;
+    uploadError.value = null;
+
+    router.post(
+        `/cours/${props.visio.cours_id}/visio/${props.visio.id}/recording`,
+        data,
+        {
+            preserveScroll: true,
+            onProgress: (progress) => {
+                uploadProgress.value = progress?.percentage ?? 0;
+            },
+            onSuccess: () => {
+                showUploadDialog.value = false;
+                uploadFile.value = null;
+                uploadProgress.value = 0;
+            },
+            onError: (errors) => {
+                uploadError.value =
+                    (errors.recording as string) ??
+                    (Object.values(errors)[0] as string) ??
+                    "Erreur lors de l'envoi.";
+            },
+            onFinish: () => {
+                uploadProcessing.value = false;
+            },
+        },
+    );
+}
 </script>
 
 <template>
@@ -106,30 +205,79 @@ function supprimerVisio() {
                 <p v-if="visio.scheduled_at" class="mt-1 text-sm text-muted-foreground">
                     Prévu : {{ formatDate(visio.scheduled_at) }}
                 </p>
+                <p v-if="visio.started_at" class="mt-1 text-sm text-muted-foreground">
+                    Démarrée : {{ formatDate(visio.started_at) }}
+                </p>
                 <p class="mt-1 text-xs text-muted-foreground">
                     Animateur : {{ visio.animateur.prenom }} {{ visio.animateur.nom }}
                 </p>
-                <p v-if="visio.recording_url" class="mt-1">
+                <!-- Lien externe (non-local) visible aux non-témoins seulement -->
+                <p v-if="!estTemoin && visio.has_recording && !visio.recording_is_local && visio.recording_stream_url" class="mt-1">
                     <a
-                        :href="visio.recording_url"
+                        :href="visio.recording_stream_url"
                         target="_blank"
                         rel="noopener noreferrer"
                         class="text-sm text-primary underline-offset-2 hover:underline"
                     >
-                        Enregistrement disponible
+                        Voir l'enregistrement
                     </a>
                 </p>
             </div>
 
-            <div class="flex shrink-0 items-center gap-1">
+            <div class="flex shrink-0 flex-wrap items-center gap-1">
+                <!-- Démarrer : enseignant ou membre, session non encore démarrée -->
                 <Button
+                    v-if="canStart && !visio.started_at && !visio.ended_at"
                     size="sm"
-                    :variant="actif ? 'destructive' : 'default'"
-                    @click="actif = !actif"
+                    :disabled="demarrerProcessing"
+                    @click="demarrerSession"
                 >
-                    <VideoOff v-if="actif" class="mr-1.5 h-4 w-4" />
-                    <Video v-else class="mr-1.5 h-4 w-4" />
-                    {{ actif ? 'Quitter' : 'Rejoindre' }}
+                    <Play class="mr-1.5 h-4 w-4" />
+                    Démarrer
+                </Button>
+
+                <!-- Rejoindre : session en cours (pour tous) -->
+                <Button
+                    v-if="visio.started_at && !visio.ended_at"
+                    size="sm"
+                    @click="rejoindre"
+                >
+                    <Video class="mr-1.5 h-4 w-4" />
+                    Rejoindre
+                </Button>
+
+                <!-- Terminer : enseignant ou membre, session en cours -->
+                <Button
+                    v-if="canStart && visio.started_at && !visio.ended_at"
+                    size="sm"
+                    variant="outline"
+                    :disabled="terminerProcessing"
+                    @click="terminerSession"
+                >
+                    <Square class="mr-1.5 h-4 w-4" />
+                    Terminer
+                </Button>
+
+                <!-- Révisionner : membres et enseignant sur sessions terminées avec enregistrement local -->
+                <Button
+                    v-if="!estTemoin && visio.ended_at && visio.has_recording && visio.recording_is_local"
+                    size="sm"
+                    variant="outline"
+                    @click="showPlayer = !showPlayer"
+                >
+                    <PlayCircle class="mr-1.5 h-4 w-4" />
+                    {{ showPlayer ? 'Masquer' : 'Révisionner' }}
+                </Button>
+
+                <!-- Upload enregistrement : enseignant, session terminée -->
+                <Button
+                    v-if="canManage && visio.ended_at"
+                    size="sm"
+                    variant="outline"
+                    @click="showUploadDialog = true"
+                >
+                    <Upload class="mr-1.5 h-4 w-4" />
+                    {{ visio.has_recording ? "Remplacer l'enregistrement" : "Ajouter l'enregistrement" }}
                 </Button>
 
                 <template v-if="canManage">
@@ -154,17 +302,16 @@ function supprimerVisio() {
             </div>
         </div>
 
-        <!-- Iframe Jitsi -->
-        <div v-if="actif" class="mt-4">
-            <p class="mb-2 text-xs text-muted-foreground">
-                L'enregistrement n'est pas garanti sur meet.jit.si public.
-            </p>
-            <iframe
-                :src="jitsiUrl"
-                allow="camera; microphone; display-capture; fullscreen"
-                class="h-[600px] w-full rounded-md border"
-                title="Visioconférence Jitsi"
-            />
+        <!-- Lecteur vidéo intégré — affiché uniquement si le témoin n'est pas l'utilisateur et le player est ouvert -->
+        <div v-if="!estTemoin && showPlayer && visio.recording_is_local && visio.recording_stream_url" class="mt-4">
+            <video
+                controls
+                preload="metadata"
+                class="w-full rounded-md"
+                :src="visio.recording_stream_url"
+            >
+                Votre navigateur ne supporte pas la lecture vidéo.
+            </video>
         </div>
     </div>
 
@@ -191,7 +338,7 @@ function supprimerVisio() {
                     />
                 </div>
                 <div class="grid gap-2">
-                    <Label for="edit-recording">URL de l'enregistrement (optionnel)</Label>
+                    <Label for="edit-recording">URL externe de l'enregistrement (optionnel)</Label>
                     <Input
                         id="edit-recording"
                         v-model="editForm.recording_url"
@@ -211,6 +358,57 @@ function supprimerVisio() {
                     </Button>
                 </DialogFooter>
             </form>
+        </DialogContent>
+    </Dialog>
+
+    <!-- Dialog : Upload enregistrement -->
+    <Dialog v-model:open="showUploadDialog">
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>
+                    {{ visio.has_recording ? "Remplacer l'enregistrement" : "Ajouter l'enregistrement" }}
+                </DialogTitle>
+            </DialogHeader>
+            <div class="space-y-4">
+                <div class="grid gap-2">
+                    <Label for="upload-recording">Fichier vidéo (mp4, mov, webm, avi — max 1 Go)</Label>
+                    <Input
+                        id="upload-recording"
+                        type="file"
+                        accept="video/mp4,video/quicktime,video/webm,video/x-msvideo"
+                        :disabled="uploadProcessing"
+                        @change="handleFileChange"
+                    />
+                    <p v-if="uploadError" class="text-sm text-destructive">{{ uploadError }}</p>
+                </div>
+                <div v-if="uploadProcessing" class="space-y-1">
+                    <p class="text-sm text-muted-foreground">Envoi en cours… {{ uploadProgress }}%</p>
+                    <div class="h-2 overflow-hidden rounded-full bg-secondary">
+                        <div
+                            class="h-full rounded-full bg-primary transition-all duration-300"
+                            :style="{ width: `${uploadProgress}%` }"
+                        />
+                    </div>
+                </div>
+            </div>
+            <DialogFooter>
+                <Button
+                    type="button"
+                    variant="outline"
+                    :disabled="uploadProcessing"
+                    @click="showUploadDialog = false"
+                >
+                    Annuler
+                </Button>
+                <Button
+                    type="button"
+                    :disabled="!uploadFile || uploadProcessing"
+                    @click="submitUpload"
+                >
+                    <Upload class="mr-1.5 h-4 w-4" />
+                    Envoyer
+                </Button>
+            </DialogFooter>
         </DialogContent>
     </Dialog>
 </template>
