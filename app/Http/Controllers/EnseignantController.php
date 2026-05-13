@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ProjetRecherche;
 use App\Models\Thematique;
 use App\Models\User;
+use App\Models\VisioConference;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
@@ -68,12 +69,38 @@ class EnseignantController extends Controller
             ->orderBy('created_at')
             ->get(['id', 'prenom', 'nom', 'email', 'description', 'created_at']);
 
+        // Prochaines visioconférences planifiées dans les cours de cet enseignant
+        $prochainesVisios = VisioConference::whereHas('cours', fn ($q) => $q->where('enseignant_id', $user->id))
+            ->whereNull('ended_at')
+            ->whereNotNull('scheduled_at')
+            ->where('scheduled_at', '>=', now())
+            ->with(['cours:id,nom_cours,code,groupe', 'groupe', 'animateur:id,prenom,nom'])
+            ->orderBy('scheduled_at')
+            ->limit(10)
+            ->get()
+            ->map(fn (VisioConference $v) => [
+                'id' => $v->id,
+                'titre' => $v->titre,
+                'scheduled_at' => $v->scheduled_at->toIso8601String(),
+                'started_at' => $v->started_at?->toIso8601String(),
+                'jitsi_room' => $v->jitsi_room,
+                'cours' => [
+                    'id' => $v->cours->id,
+                    'nom_cours' => $v->cours->nom_cours,
+                    'code' => $v->cours->code,
+                    'groupe' => $v->cours->groupe,
+                ],
+                'groupe_numero' => $v->groupe?->numero,
+                'animateur' => ['prenom' => $v->animateur->prenom, 'nom' => $v->animateur->nom],
+            ]);
+
         return Inertia::render('Enseignant/Index', [
             'cours' => $cours,
             'thematiques' => $thematiques,
             'travauxRemis' => $travauxRemis,
             'temoinsEnAttente' => $temoinsEnAttente,
             'temoinsApprouves' => $temoinsApprouves,
+            'prochainesVisios' => $prochainesVisios,
         ]);
     }
 

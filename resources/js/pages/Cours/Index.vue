@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { BookOpen, Users } from 'lucide-vue-next';
-import Heading from '@/components/Heading.vue';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { BookOpen, Calendar, ChevronDown, ChevronRight, ExternalLink, FolderOpen, Users, Video } from 'lucide-vue-next';
+import { ref } from 'vue';
+import { Badge } from '@/components/ui/badge';
+import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 type Cours = {
@@ -19,76 +20,199 @@ type Cours = {
         prenom: string;
         nom: string;
     };
+    classe_id: number | null;
+};
+
+type Projet = {
+    id: number;
+    titre: string | null;
+    type_projet: { id: number; nom: string };
+    groupe_id: number;
+    classe_id: number;
+    cours_id: number;
+};
+
+type ProchaineVisio = {
+    id: number;
+    titre: string;
+    scheduled_at: string;
+    started_at: string | null;
+    jitsi_room: string;
+    cours: { id: number; nom_cours: string };
+    animateur: { prenom: string; nom: string };
 };
 
 const sessionLabel: Record<string, string> = { hiver: 'Hiver', ete: 'Été', automne: 'Automne' };
 
 type Props = {
     cours: Cours[];
+    projets: Projet[];
+    prochainesVisios: ProchaineVisio[];
 };
 
 defineProps<Props>();
+
+const ouvert = ref({ projets: true, visios: true });
+
+function formatDate(iso: string): string {
+    return new Date(iso).toLocaleString('fr-CA', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    });
+}
+
+function rejoindre(jitsiRoom: string) {
+    window.open(`https://meet.jit.si/${jitsiRoom}`, '_blank', 'noopener,noreferrer');
+}
+
+function projetUrl(projet: Projet): string {
+    return `/cours/${projet.cours_id}/classes/${projet.classe_id}/groupes/${projet.groupe_id}/projets/${projet.type_projet.id}/edit`;
+}
 </script>
 
 <template>
     <AppLayout>
         <Head :title="$t('cours.index.page_title')" />
 
-        <div class="flex flex-col gap-6 p-6">
-            <Heading
-                :title="$t('cours.index.heading_title')"
-                :description="$t('cours.index.heading_description')"
-            />
-
-            <div v-if="cours.length === 0" class="text-muted-foreground py-12 text-center">
-                {{ $t('cours.index.no_courses') }}
-            </div>
-
-            <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Card
-                    v-for="unCours in cours"
-                    :key="unCours.id"
-                    class="flex flex-col"
-                >
-                    <CardHeader>
-                        <div class="flex items-start justify-between gap-2">
-                            <div>
-                                <span class="text-muted-foreground font-mono text-xs">
-                                    {{ unCours.code }} — Groupe {{ unCours.groupe }}
-                                </span>
-                                <span class="text-muted-foreground text-xs">
-                                    {{ sessionLabel[unCours.session] }} {{ unCours.annee }}
-                                </span>
-                                <CardTitle class="mt-1 text-base">{{ unCours.nom_cours }}</CardTitle>
-                            </div>
-                            <BookOpen class="text-muted-foreground mt-1 h-5 w-5 shrink-0" />
-                        </div>
-                    </CardHeader>
-                    <CardContent class="flex flex-1 flex-col gap-3">
-                        <p
-                            v-if="unCours.description"
-                            class="text-muted-foreground text-sm"
+        <div class="flex flex-col gap-4 p-6">
+            <!-- Section : Mes cours (toujours ouverte) -->
+            <Card>
+                <CardHeader class="flex flex-row items-center gap-2">
+                    <BookOpen class="h-5 w-5" />
+                    <CardTitle>{{ $t('cours.index.heading_title') }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div v-if="cours.length === 0" class="py-6 text-center text-sm text-muted-foreground">
+                        {{ $t('cours.index.no_courses') }}
+                    </div>
+                    <div v-else class="flex flex-col divide-y">
+                        <div
+                            v-for="unCours in cours"
+                            :key="unCours.id"
+                            class="flex items-center justify-between gap-4 py-3"
                         >
-                            {{ unCours.description }}
-                        </p>
-
-                        <div class="text-muted-foreground flex flex-col gap-1 text-xs">
-                            <div class="flex items-center gap-1">
-                                <Users class="h-3 w-3" />
-                                {{ unCours.enseignant.prenom }} {{ unCours.enseignant.nom }}
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="text-sm font-medium">{{ unCours.nom_cours }}</span>
+                                    <span class="font-mono text-xs text-muted-foreground">
+                                        {{ unCours.code }} — Groupe {{ unCours.groupe }}
+                                    </span>
+                                    <Badge variant="outline" class="text-xs">
+                                        {{ sessionLabel[unCours.session] }} {{ unCours.annee }}
+                                    </Badge>
+                                </div>
+                                <div class="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                                    <Users class="h-3 w-3" />
+                                    {{ unCours.enseignant.prenom }} {{ unCours.enseignant.nom }}
+                                </div>
                             </div>
+                            <BoutonTooltip
+                                :texte="$t('cours.index.my_sections')"
+                                size="sm"
+                                variant="outline"
+                                as-child
+                            >
+                                <Link :href="`/cours/${unCours.id}/classes/${unCours.classe_id}`">
+                                    <ExternalLink class="h-4 w-4" />
+                                </Link>
+                            </BoutonTooltip>
                         </div>
-                    </CardContent>
-                    <CardFooter class="border-t pt-3">
-                        <Button variant="outline" size="sm" class="w-full" as-child>
-                            <Link :href="`/cours/${unCours.id}/classes`">
-                                <Users class="mr-2 h-4 w-4" />
-                                {{ $t('cours.index.my_sections') }}
-                            </Link>
-                        </Button>
-                    </CardFooter>
-                </Card>
-            </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Section : Mes projets -->
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer select-none items-center gap-2 text-left"
+                        @click="ouvert.projets = !ouvert.projets"
+                    >
+                        <FolderOpen class="h-5 w-5" />
+                        <CardTitle>Mes projets</CardTitle>
+                        <ChevronDown
+                            class="h-4 w-4 text-muted-foreground transition-transform"
+                            :class="{ '-rotate-180': ouvert.projets }"
+                        />
+                    </button>
+                </CardHeader>
+                <CardContent v-show="ouvert.projets">
+                    <div v-if="projets.length === 0" class="py-6 text-center text-sm text-muted-foreground">
+                        Aucun projet disponible pour l'instant.
+                    </div>
+                    <div v-else class="flex flex-col divide-y">
+                        <Link
+                            v-for="projet in projets"
+                            :key="projet.id"
+                            :href="projetUrl(projet)"
+                            class="-mx-6 flex items-center justify-between gap-4 px-6 py-3 transition-colors hover:bg-muted/50"
+                        >
+                            <div class="min-w-0 flex-1">
+                                <span class="text-sm font-medium">{{ projet.type_projet.nom }}</span>
+                                <p v-if="projet.titre" class="text-xs text-muted-foreground">
+                                    {{ projet.titre }}
+                                </p>
+                                <p v-else class="text-xs italic text-muted-foreground/60">Sans titre</p>
+                            </div>
+                            <ChevronRight class="h-4 w-4 shrink-0 text-muted-foreground" />
+                        </Link>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Section : Prochaines visioconférences -->
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer select-none items-center gap-2 text-left"
+                        @click="ouvert.visios = !ouvert.visios"
+                    >
+                        <Video class="h-5 w-5" />
+                        <CardTitle>Prochaines visioconférences</CardTitle>
+                        <ChevronDown
+                            class="h-4 w-4 text-muted-foreground transition-transform"
+                            :class="{ '-rotate-180': ouvert.visios }"
+                        />
+                    </button>
+                </CardHeader>
+                <CardContent v-show="ouvert.visios">
+                    <div v-if="prochainesVisios.length === 0" class="py-6 text-center text-sm text-muted-foreground">
+                        Aucune visioconférence planifiée.
+                    </div>
+                    <div v-else class="flex flex-col divide-y">
+                        <div
+                            v-for="visio in prochainesVisios"
+                            :key="visio.id"
+                            class="flex items-center justify-between gap-4 py-3"
+                        >
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="text-sm font-medium">{{ visio.titre }}</span>
+                                    <Badge v-if="visio.started_at" variant="default" class="text-xs">En cours</Badge>
+                                    <Badge v-else variant="outline" class="text-xs">Planifiée</Badge>
+                                </div>
+                                <div class="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
+                                    <span class="flex items-center gap-1">
+                                        <Calendar class="h-3 w-3" />
+                                        {{ formatDate(visio.scheduled_at) }}
+                                    </span>
+                                    <span>{{ visio.cours.nom_cours }}</span>
+                                </div>
+                            </div>
+                            <Button
+                                v-if="visio.started_at"
+                                size="sm"
+                                @click="rejoindre(visio.jitsi_room)"
+                            >
+                                <Video class="mr-1.5 h-4 w-4" />
+                                Rejoindre
+                            </Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     </AppLayout>
 </template>

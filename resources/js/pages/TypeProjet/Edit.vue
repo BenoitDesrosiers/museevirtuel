@@ -2,6 +2,7 @@
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, GripVertical, Plus, Trash2 } from 'lucide-vue-next';
 import { computed } from 'vue';
+import { VueDraggable } from 'vue-draggable-plus';
 import { useI18n } from 'vue-i18n';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -282,17 +283,11 @@ function sauvegarder() {
 
             <!-- Sections -->
             <div class="flex flex-col gap-3">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h2 class="text-sm font-semibold">{{ $t('types_projet.edit.sections_title') }}</h2>
-                        <p class="text-xs text-muted-foreground">
-                            {{ $t('types_projet.edit.sections_hint') }}
-                        </p>
-                    </div>
-                    <Button type="button" size="sm" variant="outline" @click="ajouterSection">
-                        <Plus class="mr-2 h-3.5 w-3.5" />
-                        {{ $t('types_projet.edit.add_section') }}
-                    </Button>
+                <div>
+                    <h2 class="text-sm font-semibold">{{ $t('types_projet.edit.sections_title') }}</h2>
+                    <p class="text-xs text-muted-foreground">
+                        {{ $t('types_projet.edit.sections_hint') }}
+                    </p>
                 </div>
 
                 <!-- Message vide -->
@@ -302,16 +297,17 @@ function sauvegarder() {
                     </CardContent>
                 </Card>
 
-                <!-- Liste des sections -->
-                <Card
-                    v-for="(section, idx) in form.sections"
-                    :key="section.id ?? `new-${idx}`"
-                    class="border"
-                >
+                <!-- Liste des sections (drag-and-drop) -->
+                <VueDraggable v-model="form.sections" handle=".drag-handle" :animation="150" class="flex flex-col gap-3">
+                    <Card
+                        v-for="(section, idx) in form.sections"
+                        :key="section.id ?? `new-${idx}`"
+                        class="border"
+                    >
                     <CardContent class="grid gap-4 pt-5">
                         <!-- Numéro + label + supprimer -->
                         <div class="flex items-start gap-2">
-                            <GripVertical class="mt-2.5 h-4 w-4 shrink-0 text-muted-foreground/40" />
+                            <GripVertical class="drag-handle mt-2.5 h-4 w-4 shrink-0 cursor-grab text-muted-foreground active:cursor-grabbing" />
                             <span class="mt-2 w-5 shrink-0 text-center text-xs font-medium text-muted-foreground">
                                 {{ idx + 1 }}
                             </span>
@@ -362,7 +358,14 @@ function sauvegarder() {
                             </div>
                         </div>
                     </CardContent>
-                </Card>
+                    </Card>
+                </VueDraggable>
+
+                <!-- Bouton ajouter une section -->
+                <Button type="button" size="sm" variant="outline" class="self-start" @click="ajouterSection">
+                    <Plus class="mr-2 h-3.5 w-3.5" />
+                    {{ $t('types_projet.edit.add_section') }}
+                </Button>
             </div>
 
             <!-- Bouton enregistrer -->

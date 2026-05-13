@@ -127,8 +127,8 @@
             "back_to_cours": "Back to course"
         },
         "groupes": {
-            "page_title": "Groups",
-            "heading": "Groups",
+            "page_title": "Group",
+            "heading": "Group",
             "back": "Back to my classes",
             "my_group": "My group",
             "access": "Access",
@@ -150,11 +150,11 @@
     },
     "cours": {
         "index": {
-            "page_title": "My courses",
-            "heading_title": "My courses",
+            "page_title": "My course",
+            "heading_title": "My course",
             "heading_description": "Your enrolled courses for this session",
             "no_courses": "No courses are currently accessible.",
-            "my_sections": "My sections"
+            "my_sections": "Access course"
         },
         "show": {
             "classes_title": "Classes",
@@ -168,7 +168,7 @@
             "schedule_title": "Course schedule",
             "schedule_empty": "No steps in the schedule.",
             "schedule_week": "Week {n}",
-            "groups_count": "{n} group(s)",
+            "groups_count": "Group",
             "my_group": "My group"
         }
     },

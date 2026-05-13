@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { apercuNotesAccumulees } from '@/actions/App/Http/Controllers/ClasseController';
-import { ArrowLeft, ExternalLink, FileBarChart, Pencil, Sigma, Trash2, Upload, Users } from 'lucide-vue-next';
+import { ArrowLeft, CalendarDays, CheckCircle2, ChevronDown, Circle, ExternalLink, FileBarChart, FileText, ListChecks, Pencil, Sigma, Trash2, Upload, Users } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
@@ -85,18 +85,84 @@ type TypeProjet = {
     is_sommatif: boolean;
 };
 
+type EcheancierEtape = {
+    id: number;
+    semaine: number;
+    etape: string;
+    is_done: boolean;
+    ordre: number;
+    etudiant_done: boolean;
+};
+
+type Document = {
+    id: number;
+    nom_original: string;
+    url: string;
+    type: string;
+    taille: number;
+};
+
+type Objectif = {
+    id: number;
+    contenu: string;
+    ordre: number;
+};
+
 type Props = {
     cours: Cours;
     classe: Classe;
     estEnseignant: boolean;
     typesProjets: TypeProjet[];
+    echeancierEtapes: EcheancierEtape[];
+    documents: Document[];
+    objectifs: Objectif[];
 };
 
 const props = defineProps<Props>();
 const { t } = useI18n();
 
+const page = usePage();
+
+/** Groupe auquel appartient l'étudiant authentifié (null si non trouvé). */
+const monGroupe = computed(() =>
+    props.classe.groupes.find((g) => g.membres.some((m) => m.id === (page.props.auth as any).user.id)) ?? null,
+);
+
+// ─── Sections repliables ──────────────────────────────────────────────────────
+const ouvert = ref({
+    groupes: true,
+    notes: true,
+    etudiants: true,
+    monGroupe: true,
+    echeancier: true,
+    documents: true,
+    objectifs: true,
+});
+
 /** Vrai si au moins un TypeProjet a une pondération définie — affiche le bouton notes accumulées. */
 const aPonderation = computed(() => props.typesProjets.some((tp) => tp.ponderation !== null && tp.is_sommatif));
+
+// ─── Échéancier (étudiants seulement) ─────────────────────────────────────────
+const echeancierParSemaine = computed(() => {
+    const map = new Map<number, EcheancierEtape[]>();
+    for (const etape of props.echeancierEtapes) {
+        if (!map.has(etape.semaine)) map.set(etape.semaine, []);
+        map.get(etape.semaine)!.push(etape);
+    }
+    return map;
+});
+
+const semaines = computed(() =>
+    [...echeancierParSemaine.value.keys()].sort((a, b) => a - b),
+);
+
+function toggleEtape(etape: EcheancierEtape) {
+    router.patch(
+        `/cours/${props.cours.id}/echeancier/${etape.id}/toggle-etudiant`,
+        {},
+        { preserveScroll: true },
+    );
+}
 
 // ─── Gestion étudiants de la section ──────────────────────────────────────────
 const showAddEtudiantDialog = ref(false);
@@ -216,7 +282,7 @@ function executeDeleteGroupe() {
             <!-- Retour -->
             <div>
                 <Button variant="ghost" size="sm" as-child>
-                    <Link :href="`/cours/${cours.id}`">
+                    <Link :href="estEnseignant ? `/cours/${cours.id}` : '/cours'">
                         <ArrowLeft class="mr-2 h-4 w-4" />
                         {{ $t('classes.show.back_to_cours') }}
                     </Link>
@@ -229,20 +295,24 @@ function executeDeleteGroupe() {
                 :description="`${cours.code} · ${classe.numero}${classe.jour_semaine || classe.plage_horaire ? ` · ${[classe.jour_semaine, classe.plage_horaire].filter(Boolean).join(' ')}` : ''} · ${cours.nom_cours}`"
             />
 
-            <!-- Groupes dans la section -->
-            <Card>
+            <!-- Groupes dans la section — enseignant seulement -->
+            <Card v-if="estEnseignant">
                 <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle>
-                        <span class="flex items-center gap-2">
-                            <Users class="h-5 w-5" />
-                            {{ $t('classes.show.groups_title') }}
-                            <span class="text-sm font-normal text-muted-foreground">
-                                ({{ classe.groupes.length }})
-                            </span>
-                        </span>
-                    </CardTitle>
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.groupes = !ouvert.groupes"
+                    >
+                        <Users class="h-5 w-5" />
+                        <CardTitle>{{ $t('classes.show.groups_title') }}</CardTitle>
+                        <span class="text-sm font-normal text-muted-foreground">({{ classe.groupes.length }})</span>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.groupes }"
+                        />
+                    </button>
                 </CardHeader>
-                <CardContent>
+                <CardContent v-show="ouvert.groupes">
                     <div
                         v-if="classe.groupes.length === 0"
                         class="py-6 text-center text-sm text-muted-foreground"
@@ -281,7 +351,6 @@ function executeDeleteGroupe() {
                                         </Link>
                                     </BoutonTooltip>
                                     <BoutonTooltip
-                                        v-if="estEnseignant"
                                         texte="Supprimer ce groupe"
                                         size="sm"
                                         variant="destructive"
@@ -334,15 +403,99 @@ function executeDeleteGroupe() {
                 </CardContent>
             </Card>
 
+            <!-- Mon groupe — étudiant seulement -->
+            <Card v-if="!estEnseignant && monGroupe">
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.monGroupe = !ouvert.monGroupe"
+                    >
+                        <Users class="h-5 w-5" />
+                        <CardTitle>{{ $t('classes.show.groups_title') }}</CardTitle>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.monGroupe }"
+                        />
+                    </button>
+                    <BoutonTooltip
+                        texte="Accéder au détail de ce groupe"
+                        size="sm"
+                        variant="outline"
+                        as-child
+                    >
+                        <Link :href="`/cours/${cours.id}/classes/${classe.id}/groupes/${monGroupe.id}`">
+                            <ExternalLink class="h-4 w-4" />
+                        </Link>
+                    </BoutonTooltip>
+                </CardHeader>
+                <CardContent v-show="ouvert.monGroupe">
+                    <div class="flex flex-col gap-3">
+                        <!-- Numéro + témoin -->
+                        <div>
+                            <p class="text-sm font-medium">
+                                {{ $t('classes.groupes.group_number', { n: monGroupe.numero }) }}
+                            </p>
+                            <p v-if="monGroupe.temoin" class="text-xs text-muted-foreground">
+                                Témoin : {{ monGroupe.temoin.prenom }} {{ monGroupe.temoin.nom }}
+                            </p>
+                        </div>
+
+                        <!-- Membres -->
+                        <div>
+                            <p class="mb-1 text-xs font-medium text-muted-foreground">
+                                {{ $t('groupes.show.members') }}
+                            </p>
+                            <div class="flex flex-wrap gap-1">
+                                <span
+                                    v-for="membre in monGroupe.membres"
+                                    :key="membre.id"
+                                    class="rounded-full bg-muted px-2 py-0.5 text-xs"
+                                >
+                                    {{ membre.prenom }} {{ membre.nom }}
+                                </span>
+                                <span v-if="monGroupe.membres.length === 0" class="text-xs text-muted-foreground">
+                                    —
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Thématiques -->
+                        <div v-if="monGroupe.thematiques.length > 0">
+                            <p class="mb-1 text-xs font-medium text-muted-foreground">
+                                {{ $t('groupes.show.thematic') }}
+                            </p>
+                            <div class="flex flex-wrap gap-1">
+                                <span
+                                    v-for="th in monGroupe.thematiques"
+                                    :key="th.id"
+                                    class="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary"
+                                >
+                                    {{ th.nom }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
             <!-- Aperçu notes par TypeProjet — enseignant seulement -->
             <Card v-if="estEnseignant && typesProjets.length > 0">
-                <CardHeader>
-                    <CardTitle class="flex items-center gap-2">
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.notes = !ouvert.notes"
+                    >
                         <FileBarChart class="h-5 w-5" />
-                        Aperçu des notes
-                    </CardTitle>
+                        <CardTitle>Aperçu des notes</CardTitle>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.notes }"
+                        />
+                    </button>
                 </CardHeader>
-                <CardContent class="flex flex-col gap-4">
+                <CardContent v-show="ouvert.notes" class="flex flex-col gap-4">
                     <!-- Notes par type de projet -->
                     <div class="flex flex-wrap gap-2">
                         <BoutonTooltip
@@ -380,15 +533,21 @@ function executeDeleteGroupe() {
                 </CardContent>
             </Card>
 
-            <!-- Étudiants de la section -->
-            <Card>
+            <!-- Étudiants de la section — enseignant seulement -->
+            <Card v-if="estEnseignant">
                 <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle>
-                        {{ $t('classes.show.students') }}
-                        <span class="ml-2 text-sm font-normal text-muted-foreground">
-                            ({{ classe.etudiants.length }})
-                        </span>
-                    </CardTitle>
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.etudiants = !ouvert.etudiants"
+                    >
+                        <CardTitle>{{ $t('classes.show.students') }}</CardTitle>
+                        <span class="text-sm font-normal text-muted-foreground">({{ classe.etudiants.length }})</span>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.etudiants }"
+                        />
+                    </button>
                     <div v-if="estEnseignant" class="flex gap-2">
                         <BoutonTooltip
                             texte="Importer une liste d'étudiants depuis un fichier CSV"
@@ -404,7 +563,7 @@ function executeDeleteGroupe() {
                         </Button>
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent v-show="ouvert.etudiants">
                     <div
                         v-if="classe.etudiants.length === 0"
                         class="py-4 text-center text-sm text-muted-foreground"
@@ -462,6 +621,134 @@ function executeDeleteGroupe() {
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                </CardContent>
+            </Card>
+            <!-- Objectifs du cours — étudiants seulement -->
+            <Card v-if="!estEnseignant">
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.objectifs = !ouvert.objectifs"
+                    >
+                        <ListChecks class="h-5 w-5" />
+                        <CardTitle>Objectifs du cours</CardTitle>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.objectifs }"
+                        />
+                    </button>
+                </CardHeader>
+                <CardContent v-show="ouvert.objectifs">
+                    <div v-if="objectifs.length === 0" class="py-4 text-center text-sm text-muted-foreground">
+                        Aucun objectif défini pour ce cours.
+                    </div>
+                    <ol v-else class="flex flex-col gap-2">
+                        <li
+                            v-for="objectif in objectifs"
+                            :key="objectif.id"
+                            class="flex items-start gap-3 text-sm"
+                        >
+                            <span class="mt-0.5 shrink-0 font-mono text-xs text-muted-foreground">
+                                {{ objectif.ordre }}.
+                            </span>
+                            <span>{{ objectif.contenu }}</span>
+                        </li>
+                    </ol>
+                </CardContent>
+            </Card>
+
+            <!-- Échéancier du cours — étudiants seulement -->
+            <Card v-if="!estEnseignant">
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.echeancier = !ouvert.echeancier"
+                    >
+                        <CalendarDays class="h-5 w-5" />
+                        <CardTitle>{{ $t('cours.classes.schedule_title') }}</CardTitle>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.echeancier }"
+                        />
+                    </button>
+                </CardHeader>
+                <CardContent v-show="ouvert.echeancier">
+                    <div v-if="echeancierEtapes.length === 0" class="py-4 text-center text-sm text-muted-foreground">
+                        {{ $t('cours.classes.schedule_empty') }}
+                    </div>
+                    <div v-else class="flex flex-col gap-4">
+                        <div v-for="semaine in semaines" :key="semaine">
+                            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                {{ $t('cours.classes.schedule_week', { n: semaine }) }}
+                            </p>
+                            <ul class="flex flex-col gap-1">
+                                <li
+                                    v-for="etape in echeancierParSemaine.get(semaine)"
+                                    :key="etape.id"
+                                    class="flex items-start gap-2"
+                                >
+                                    <button
+                                        class="mt-0.5 shrink-0 text-muted-foreground transition-colors hover:text-primary"
+                                        :class="{ 'text-primary': etape.etudiant_done }"
+                                        @click="toggleEtape(etape)"
+                                    >
+                                        <CheckCircle2 v-if="etape.etudiant_done" class="h-4 w-4" />
+                                        <Circle v-else class="h-4 w-4" />
+                                    </button>
+                                    <span
+                                        class="text-sm"
+                                        :class="{
+                                            'text-muted-foreground line-through': etape.is_done,
+                                            'font-medium': etape.etudiant_done,
+                                        }"
+                                    >
+                                        {{ etape.etape }}
+                                    </span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Documents du cours — étudiants seulement -->
+            <Card v-if="!estEnseignant">
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.documents = !ouvert.documents"
+                    >
+                        <FileText class="h-5 w-5" />
+                        <CardTitle>Documents du cours</CardTitle>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.documents }"
+                        />
+                    </button>
+                </CardHeader>
+                <CardContent v-show="ouvert.documents">
+                    <div v-if="documents.length === 0" class="py-4 text-center text-sm text-muted-foreground">
+                        Aucun document disponible pour l'instant.
+                    </div>
+                    <div v-else class="flex flex-col divide-y">
+                        <a
+                            v-for="doc in documents"
+                            :key="doc.id"
+                            :href="doc.url"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="-mx-6 flex items-center gap-3 px-6 py-3 transition-colors hover:bg-muted/50"
+                        >
+                            <FileText class="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <span class="min-w-0 flex-1 truncate text-sm">{{ doc.nom_original }}</span>
+                            <span class="shrink-0 text-xs text-muted-foreground">
+                                {{ doc.type.toUpperCase() }}
+                            </span>
+                        </a>
                     </div>
                 </CardContent>
             </Card>

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class VisioConference extends Model
 {
@@ -19,7 +20,21 @@ class VisioConference extends Model
         'started_at',
         'ended_at',
         'recording_url',
+        'recording_path',
     ];
+
+    /**
+     * Supprime le fichier d'enregistrement associé avant la suppression du modèle.
+     * Évite les fichiers orphelins dans le storage.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (VisioConference $visio): void {
+            if ($visio->recording_path) {
+                Storage::delete($visio->recording_path);
+            }
+        });
+    }
 
     /**
      * Retourne les casts de colonnes pour l'hydratation automatique.
