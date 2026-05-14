@@ -19,10 +19,21 @@ class ThematiqueController extends Controller
             return back()->withErrors(['nom' => __('thematique.no_etablissement')])->withInput();
         }
 
-        auth()->user()->thematiques()->create(array_merge(
-            $request->validated(),
-            ['etablissement_id' => auth()->user()->etablissement_id],
-        ));
+        // firstOrCreate sur (nom, etablissement_id) pour éviter les doublons
+        // quand plusieurs enseignants du même établissement créent la même thématique.
+        Thematique::firstOrCreate(
+            [
+                'nom' => $request->validated('nom'),
+                'etablissement_id' => auth()->user()->etablissement_id,
+            ],
+            array_merge(
+                $request->validated(),
+                [
+                    'enseignant_id' => auth()->user()->id,
+                    'etablissement_id' => auth()->user()->etablissement_id,
+                ],
+            ),
+        );
 
         return back()->with('success', __('thematique.created'));
     }

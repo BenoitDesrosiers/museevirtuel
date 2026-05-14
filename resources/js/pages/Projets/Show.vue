@@ -53,6 +53,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { edit as editTypeProjet } from '@/routes/types-projets';
 import type { Auth } from '@/types/auth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1469,7 +1470,12 @@ function handleRenvoisUtilises(editorId: string, ids: number[]): void {
 
     // IDs retirés de cet éditeur ET absents de tous les autres éditeurs → demander confirmation
     const tousLesIds = new Set([...renvoisParEditor.value.values()].flat());
-    const aSupprimer = previousIds.filter((id) => !tousLesIds.has(id));
+    const aSupprimer = previousIds.filter((id) => {
+        if (tousLesIds.has(id)) return false; // Toujours présent dans un autre éditeur
+        if (id === renvoisSupprimerCibleId.value) return false; // Déjà en cours de confirmation
+        if (renvoisSupprimerFile.value.some((f) => f.id === id)) return false; // Déjà en file
+        return true;
+    });
     aSupprimer.forEach((id) => demanderSupprimerRenvoi(id, 'editeur', editorId));
 }
 
@@ -1701,9 +1707,13 @@ function demanderSupprimerRenvoi(renvoiId: number, source: 'bouton' | 'editeur' 
 
 /** Traite la prochaine demande en file d'attente, si elle existe. */
 function processerFileSuppressionRenvois(): void {
-    const next = renvoisSupprimerFile.value.shift();
+    let next = renvoisSupprimerFile.value.shift();
+    // Ignorer silencieusement les entrées dont le renvoi a déjà été supprimé (doublons)
+    while (next && !renvoisLocaux.value.some((r) => r.id === next!.id)) {
+        next = renvoisSupprimerFile.value.shift();
+    }
     if (next) {
-        nextTick().then(() => demanderSupprimerRenvoi(next.id, next.source, next.editorId));
+        nextTick().then(() => demanderSupprimerRenvoi(next!.id, next!.source, next!.editorId));
     }
 }
 
@@ -2081,7 +2091,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         size="sm"
                         as-child
                     >
-                        <Link href="/types-projets">
+                        <Link :href="editTypeProjet.url({ cours: classe.cours_id, typeProjet: typeProjet.id })">
                             <Settings2 class="h-4 w-4" />
                             Sections
                         </Link>
@@ -3362,7 +3372,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             <span v-if="retardPermis" class="text-amber-600 dark:text-amber-400">Retard permis ✓</span>
                         </div>
                         <Link
-                            :href="`/types-projets/${typeProjet.id}/edit`"
+                            :href="editTypeProjet.url({ cours: classe.cours_id, typeProjet: typeProjet.id })"
                             class="inline-flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
                         >
                             <Settings2 class="h-3 w-3" />

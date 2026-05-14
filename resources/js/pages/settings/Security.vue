@@ -38,7 +38,7 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
                 />
 
                 <Form
-                    v-bind="SecurityController.update()"
+                    :action="SecurityController.update()"
                     :options="{
                         preserveScroll: true,
                     }"

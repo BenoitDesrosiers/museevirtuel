@@ -1,4 +1,13 @@
 {
+    "auth.failed": "Ces identifiants ne correspondent pas à nos enregistrements.",
+    "auth.password": "Le mot de passe actuel est incorrect.",
+    "auth.throttle": "Trop de tentatives de connexion. Réessayez dans :seconds secondes.",
+    "passwords.password": "Le mot de passe actuel est incorrect.",
+    "passwords.reset": "Votre mot de passe a été réinitialisé.",
+    "passwords.sent": "Le lien de réinitialisation a été envoyé par e-mail.",
+    "passwords.throttled": "Veuillez patienter avant de réessayer.",
+    "passwords.token": "Ce lien de réinitialisation est invalide ou a expiré.",
+    "passwords.user": "Aucun compte trouvé avec cette adresse e-mail.",
     "classe.created": "Classe créée avec succès.",
     "classe.updated": "Classe mise à jour avec succès.",
     "classe.deleted": "Classe supprimée.",

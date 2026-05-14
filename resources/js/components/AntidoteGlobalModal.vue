@@ -13,7 +13,7 @@ import Underline from '@tiptap/extension-underline';
 import StarterKit from '@tiptap/starter-kit';
 import { EditorContent, useEditor } from '@tiptap/vue-3';
 import { BookOpen, BookText, SpellCheck, X } from 'lucide-vue-next';
-import { onBeforeUnmount, watch } from 'vue';
+import { nextTick, onBeforeUnmount, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -23,6 +23,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { AntidoteExtension, generateAntidoteGroupeId } from '@/extensions/AntidoteExtension';
+import { RenvoiMark } from '@/extensions/RenvoiMark';
 import { SectionSeparatorNode } from '@/extensions/SectionSeparatorNode';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -66,6 +67,7 @@ const extensions = [
     Typography,
     Placeholder.configure({ placeholder: '' }),
     CharacterCount,
+    RenvoiMark,
     SectionSeparatorNode,
     AntidoteExtension.configure({ groupeId: antidoteGroupeId }),
 ];
@@ -104,6 +106,19 @@ watch(
     (isOpen) => {
         if (isOpen && editor.value) {
             editor.value.commands.setContent(buildCombinedHtml(props.sections), false);
+            // Réactiver l'API Antidote après l'ouverture du dialog — au montage initial,
+            // l'éditeur était caché et Antidote peut avoir ignoré les éléments non visibles.
+            nextTick(() => {
+                if (typeof window.activeAntidoteAPI_JSConnect === 'function') {
+                    const ed = editor.value!;
+                    window.activeAntidoteAPI_JSConnect(() => {
+                        ed.commands.setContent(
+                            (ed.view.dom as HTMLElement).innerHTML,
+                            { emitUpdate: false },
+                        );
+                    });
+                }
+            });
         }
     },
 );

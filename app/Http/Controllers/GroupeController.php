@@ -488,10 +488,13 @@ class GroupeController extends Controller
     /**
      * Retourne un query builder pour les thématiques visibles par un enseignant :
      * les siennes + celles de son établissement (si applicable).
+     *
+     * Le distinct() évite les doublons quand une thématique satisfait les deux
+     * conditions (enseignant_id et etablissement_id tous deux définis).
      */
     private function thematiquesVisibles(User $enseignant): Builder
     {
-        return Thematique::where(function ($q) use ($enseignant) {
+        return Thematique::distinct()->where(function ($q) use ($enseignant) {
             $q->where('enseignant_id', $enseignant->id);
             if ($enseignant->etablissement_id) {
                 $q->orWhere('etablissement_id', $enseignant->etablissement_id);

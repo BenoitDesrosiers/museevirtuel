@@ -1,4 +1,13 @@
 {
+    "auth.failed": "These credentials do not match our records.",
+    "auth.password": "The provided password is incorrect.",
+    "auth.throttle": "Too many login attempts. Please try again in :seconds seconds.",
+    "passwords.password": "The provided password is incorrect.",
+    "passwords.reset": "Your password has been reset.",
+    "passwords.sent": "We have emailed your password reset link.",
+    "passwords.throttled": "Please wait before retrying.",
+    "passwords.token": "This password reset link is invalid or has expired.",
+    "passwords.user": "We cannot find a user with that email address.",
     "classe.created": "Class created successfully.",
     "classe.updated": "Class updated successfully.",
     "classe.deleted": "Class deleted.",

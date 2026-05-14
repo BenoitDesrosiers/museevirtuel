@@ -534,7 +534,7 @@ test('un étudiant voit sa note quand correction_visible est true', function () 
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('correctionVisible', true)
-            ->where("noteFinaleParEtudiant.{$etudiant->id}", 10) // 4/4 * 10 = 10
+            ->where("noteFinaleParEtudiant.{$etudiant->id}", 100.0) // normes_presentation=4/4, autres critères = 4 par défaut → 100
         );
 });
 
@@ -554,7 +554,7 @@ test("l'enseignant voit toujours les notes même si correction_visible est false
         ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where("noteFinaleParEtudiant.{$etudiant->id}", 5) // 2/4 * 10 = 5
+            ->where("noteFinaleParEtudiant.{$etudiant->id}", 95.0) // normes_presentation=2/4*10=5, autres critères = 4 par défaut → 95
         );
 });
 

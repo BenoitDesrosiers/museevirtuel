@@ -60,20 +60,17 @@ const sectionsVisibles = computed(() =>
           ),
 );
 
-/** Note finale pondérée calculée côté frontend (miroir de ProjetNote::noteFinale). */
-const noteFinale = computed<number | null>(() => {
-    const entries = Object.entries(props.criteres).filter(
-        ([cle]) => props.notes[cle] !== undefined,
-    );
-
-    if (entries.length === 0) {
-        return null;
-    }
-
+/**
+ * Note finale pondérée calculée côté frontend (miroir de ProjetNote::noteFinale).
+ * Les critères non remplis valent 4 (excellent) par défaut — toujours entre 0 et 100.
+ */
+const noteFinale = computed<number>(() => {
     return (
         Math.round(
-            entries.reduce((total, [cle, config]) => {
-                return total + ((props.notes[cle]! / 4) * config.poids);
+            Object.entries(props.criteres).reduce((total, [cle, config]) => {
+                // Critère non rempli → note maximale (4 = excellent) par défaut
+                const note = props.notes[cle] ?? 4;
+                return total + ((note / 4) * config.poids);
             }, 0) * 100,
         ) / 100
     );
@@ -175,14 +172,14 @@ const labelSection: Record<string, string> = {
                 <div
                     class="flex items-center justify-between rounded-lg border-2 px-3 py-2"
                     :class="
-                        noteFinale !== null && noteFinale >= 60
+                        noteFinale >= 60
                             ? 'border-green-400 bg-green-50'
                             : 'border-red-400 bg-red-50'
                     "
                 >
                     <span class="text-sm font-semibold">Note finale</span>
                     <span class="text-sm font-bold">
-                        {{ noteFinale !== null ? `${noteFinale} / 100` : '—' }}
+                        {{ noteFinale }} / 100
                     </span>
                 </div>
             </div>

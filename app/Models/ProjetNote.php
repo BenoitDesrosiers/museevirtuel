@@ -55,27 +55,24 @@ class ProjetNote extends Model
 
     /**
      * Calcule la note finale pondérée d'un étudiant sur 100 pour un projet donné.
-     * Seules les notes ayant l'user_id de cet étudiant sont prises en compte.
+     * Les critères non remplis valent 4 (excellent) par défaut — un étudiant non noté
+     * part donc de 100 %, et la note descend à mesure que l'enseignant évalue.
      *
-     * @return float|null null si aucune note n'a encore été saisie pour cet étudiant.
+     * @return float Toujours entre 0 et 100. Vaut 100.0 si aucune note n'a été saisie.
      */
-    public static function noteFinale(ProjetRecherche $projet, User $etudiant): ?float
+    public static function noteFinale(ProjetRecherche $projet, User $etudiant): float
     {
         // Réutiliser la collection déjà chargée si disponible — évite N+1 sur show() et upsertNote()
         $notes = $projet->relationLoaded('notes')
             ? $projet->notes->where('user_id', $etudiant->id)->keyBy('critere')
             : $projet->notes()->where('user_id', $etudiant->id)->get()->keyBy('critere');
 
-        if ($notes->isEmpty()) {
-            return null;
-        }
-
         $total = 0.0;
 
         foreach (self::CRITERES as $cle => $config) {
-            if ($notes->has($cle)) {
-                $total += ($notes[$cle]->note / 4) * $config['poids'];
-            }
+            // Critère non rempli → note maximale (4 = excellent) par défaut
+            $note = $notes->has($cle) ? $notes[$cle]->note : 4;
+            $total += ($note / 4) * $config['poids'];
         }
 
         return round($total, 2);

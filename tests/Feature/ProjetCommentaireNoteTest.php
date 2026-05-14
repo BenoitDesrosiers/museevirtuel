@@ -285,8 +285,9 @@ test('la note finale par étudiant est correctement calculée sur 100', function
     expect((float) $noteFinaleParEtudiant[$etudiant->id])->toBe(100.0);
 });
 
-test('la note finale est nulle si aucune note n\'a été saisie pour cet étudiant', function () {
+test('la note finale vaut 100 si aucune note n\'a été saisie pour cet étudiant', function () {
     ['projet' => $projet, 'etudiant' => $etudiant] = creerContexteProjet();
 
-    expect(ProjetNote::noteFinale($projet, $etudiant))->toBeNull();
+    // Critères non remplis → 4 (excellent) par défaut → total = 100
+    expect(ProjetNote::noteFinale($projet, $etudiant))->toBe(100.0);
 });

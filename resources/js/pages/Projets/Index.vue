@@ -6,6 +6,7 @@ import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
+import typesProjets from '@/routes/types-projets';
 
 type Etudiant = {
     id: number;
@@ -139,7 +140,7 @@ function projetUrl(typeProjetId: number): string {
                                 class="h-7 gap-1.5 px-2 text-xs text-muted-foreground"
                                 as-child
                             >
-                                <Link href="/types-projets">
+                                <Link :href="typesProjets.edit.url({ cours: classe.cours_id, typeProjet: card.typeProjet.id })">
                                     <Settings2 class="h-3 w-3" />
                                     Configurer les sections
                                 </Link>
