@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TypeCours;
 use App\Http\Requests\StoreCoursRequest;
 use App\Http\Requests\UpdateCoursRequest;
 use App\Models\Cours;
@@ -9,8 +10,10 @@ use App\Models\Groupe;
 use App\Models\ProjetRecherche;
 use App\Models\TypeProjet;
 use App\Models\VisioConference;
+use App\Services\AppliquerGabaritService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -47,7 +50,7 @@ class CoursController extends Controller
                 'projets' => fn ($q) => $q->with('typeProjet:id,nom'),
             ])
             ->get()
-            ->flatMap(function (Groupe $groupe): \Illuminate\Support\Collection {
+            ->flatMap(function (Groupe $groupe): Collection {
                 return $groupe->projets->map(fn (ProjetRecherche $projet): array => [
                     'id' => $projet->id,
                     'titre' => $projet->titre_projet,
@@ -186,11 +189,25 @@ class CoursController extends Controller
     /**
      * Enregistre un nouveau cours pour l'enseignant authentifié.
      *
+     * Si le type est 'cours_complet' et que `utiliser_gabarit` est activé,
+     * le gabarit standard est automatiquement appliqué au cours créé.
+     *
      * La validation et l'autorisation sont déléguées à StoreCoursRequest.
      */
-    public function store(StoreCoursRequest $request): RedirectResponse
+    public function store(StoreCoursRequest $request, AppliquerGabaritService $gabaritService): RedirectResponse
     {
-        auth()->user()->cours()->create($request->validated());
+        $validated = $request->validated();
+
+        // On extrait le flag avant la création — il ne fait pas partie du modèle
+        $utiliserGabarit = (bool) ($validated['utiliser_gabarit'] ?? false);
+        unset($validated['utiliser_gabarit']);
+
+        /** @var Cours $cours */
+        $cours = auth()->user()->cours()->create($validated);
+
+        if ($utiliserGabarit && $cours->type_cours === TypeCours::CoursComplet) {
+            $gabaritService->appliquer($cours, 'cours_complet');
+        }
 
         return back()->with('success', __('cours.created'));
     }

@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Classe;
 use App\Models\Cours;
+use App\Models\CoursObjectif;
 use App\Models\EntrevueConcept;
 use App\Models\EntrevueLigne;
 use App\Models\GrilleCorrection;
@@ -102,6 +103,26 @@ class DemoSeeder extends Seeder
 
         // S'assurer que le type est bien à jour si le cours existait déjà
         $cours->update(['type_cours' => 'cours_complet']);
+
+        // ─── Objectifs pédagogiques ───────────────────────────────────────────
+        // Suppression + recréation pour refléter les objectifs officiels du cours
+        $cours->objectifs()->delete();
+
+        foreach ([
+            'Effectuer une étude de cas en lien avec l\'histoire du Québec par l\'entremise d\'une entrevue semi-dirigée.',
+            'Appliquer la méthode historique sur une réalité humaine.',
+            'Lier les différents concepts abordés dans le cours par l\'analyse d\'un récit de vie en lien avec un ou des événements ayant construit le Québec d\'aujourd\'hui.',
+            'Construire son esprit critique et d\'ouverture vis-à-vis la perception d\'une situation historique.',
+            'Développer ses qualités humaines en interagissant avec une personne aînée, témoin du passé.',
+            'Développer des habiletés d\'écoute et de communication dans le cadre d\'une entrevue avec une personne aînée, témoin du passé.',
+            'Contribuer au développement et à la pérennité des connaissances et du savoir de l\'héritage historique du patrimoine québécois.',
+        ] as $ordre => $contenu) {
+            CoursObjectif::create([
+                'cours_id' => $cours->id,
+                'contenu' => $contenu,
+                'ordre' => $ordre + 1,
+            ]);
+        }
 
         // ─── Étudiants ────────────────────────────────────────────────────────
         $etudiantsData = [
