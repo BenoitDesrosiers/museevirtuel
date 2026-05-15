@@ -72,6 +72,7 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
                             autocomplete="new-password"
                             :placeholder="$t('settings.security.placeholder_new_password')"
                         />
+                        <p class="text-sm text-neutral-500">{{ $t('settings.security.password_hint') }}</p>
                         <InputError :message="errors.password" />
                     </div>
 

@@ -56,6 +56,7 @@ const inputEmail = ref(props.email);
                         autofocus
                         :placeholder="$t('auth.reset_password.placeholder_password')"
                     />
+                    <p class="text-sm text-neutral-500">{{ $t('auth.reset_password.password_hint') }}</p>
                     <InputError :message="errors.password" />
                 </div>
 
