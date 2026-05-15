@@ -107,7 +107,15 @@ const coursForm = useForm({
     type_cours: '' as '' | 'dep' | 'cours_complementaire' | 'cours_complet',
     taille_equipe_min: null as number | null,
     taille_equipe_max: null as number | null,
+    utiliser_gabarit: false,
 });
+
+function onTypeCoursCree(val: string) {
+    coursForm.type_cours = val as typeof coursForm.type_cours;
+    if (val !== 'cours_complet') {
+        coursForm.utiliser_gabarit = false;
+    }
+}
 
 function sessionLabel(session: string): string {
     const labels: Record<string, string> = { hiver: 'Hiver', ete: 'Été', automne: 'Automne' };
@@ -760,7 +768,7 @@ function rejoindreVisio(jitsiRoom: string) {
             </div>
             <div class="grid gap-2">
                 <Label>Niveau du cours</Label>
-                <Select v-model="coursForm.type_cours">
+                <Select :model-value="coursForm.type_cours" @update:model-value="onTypeCoursCree">
                     <SelectTrigger>
                         <SelectValue placeholder="Choisir un niveau…" />
                     </SelectTrigger>
@@ -772,6 +780,37 @@ function rejoindreVisio(jitsiRoom: string) {
                 </Select>
                 <InputError :message="coursForm.errors.type_cours" />
             </div>
+
+            <!-- Gabarit — affiché uniquement pour cours complet -->
+            <div
+                v-if="coursForm.type_cours === 'cours_complet'"
+                class="cursor-pointer rounded-md border p-3"
+                :class="coursForm.utiliser_gabarit ? 'border-primary bg-primary/5' : 'border-border'"
+                @click="coursForm.utiliser_gabarit = !coursForm.utiliser_gabarit"
+            >
+                <div class="flex items-start gap-3">
+                    <button
+                        type="button"
+                        role="switch"
+                        :aria-checked="coursForm.utiliser_gabarit"
+                        class="relative mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                        :class="coursForm.utiliser_gabarit ? 'bg-primary' : 'bg-input'"
+                        @click.stop="coursForm.utiliser_gabarit = !coursForm.utiliser_gabarit"
+                    >
+                        <span
+                            class="inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform"
+                            :class="coursForm.utiliser_gabarit ? 'translate-x-5' : 'translate-x-1'"
+                        />
+                    </button>
+                    <div class="grid gap-0.5">
+                        <span class="text-sm font-medium leading-none">Créer avec le gabarit</span>
+                        <span class="text-muted-foreground text-xs">
+                            Pré-remplit le cours avec les types de projets (plan de travail, schéma d'entrevue, projet de recherche), l'échéancier sur 13 semaines et les objectifs pédagogiques.
+                        </span>
+                    </div>
+                </div>
+            </div>
+
             <div class="grid grid-cols-2 gap-4">
                 <div class="grid gap-2">
                     <Label>Taille équipe min.</Label>
