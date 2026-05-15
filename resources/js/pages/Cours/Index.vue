@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { BookOpen, Calendar, ChevronDown, ChevronRight, ExternalLink, FolderOpen, Users, Video } from 'lucide-vue-next';
+import { BookOpen, BookMarked, Calendar, ChevronDown, ChevronRight, ExternalLink, FolderOpen, Users, Video } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import EtudiantReferences from '@/components/EtudiantReferences.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 type Cours = {
@@ -42,17 +43,37 @@ type ProchaineVisio = {
     animateur: { prenom: string; nom: string };
 };
 
+type MesReference = {
+    id: number;
+    titre: string;
+    auteurs: { prenom: string; nom: string }[] | null;
+    annee: number | null;
+    type_source: string | null;
+    url: string | null;
+    doi: string | null;
+    publication: string | null;
+    ordre: number;
+    est_depuis_zotero: boolean;
+};
+
+type ZoteroConfig = {
+    configure: boolean;
+    synchronise_le: string | null;
+};
+
 const sessionLabel: Record<string, string> = { hiver: 'Hiver', ete: 'Été', automne: 'Automne' };
 
 type Props = {
     cours: Cours[];
     projets: Projet[];
     prochainesVisios: ProchaineVisio[];
+    mesReferences: MesReference[];
+    zoteroConfig: ZoteroConfig;
 };
 
 defineProps<Props>();
 
-const ouvert = ref({ projets: true, visios: true });
+const ouvert = ref({ projets: true, references: true, visios: true });
 
 function formatDate(iso: string): string {
     return new Date(iso).toLocaleString('fr-CA', {
@@ -158,6 +179,27 @@ function projetUrl(projet: Projet): string {
                             <ChevronRight class="h-4 w-4 shrink-0 text-muted-foreground" />
                         </Link>
                     </div>
+                </CardContent>
+            </Card>
+
+            <!-- Section : Mes références bibliographiques -->
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer select-none items-center gap-2 text-left"
+                        @click="ouvert.references = !ouvert.references"
+                    >
+                        <BookMarked class="h-5 w-5" />
+                        <CardTitle>Mes références</CardTitle>
+                        <ChevronDown
+                            class="h-4 w-4 text-muted-foreground transition-transform"
+                            :class="{ '-rotate-180': ouvert.references }"
+                        />
+                    </button>
+                </CardHeader>
+                <CardContent v-show="ouvert.references">
+                    <EtudiantReferences :references="mesReferences" :zotero-config="zoteroConfig" />
                 </CardContent>
             </Card>
 

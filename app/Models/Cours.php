@@ -100,6 +100,14 @@ class Cours extends Model
     }
 
     /**
+     * Retourne les références bibliographiques du cours, triées par ordre.
+     */
+    public function references(): HasMany
+    {
+        return $this->hasMany(CoursReference::class)->orderBy('ordre');
+    }
+
+    /**
      * Retourne les visioconférences de ce cours, triées de la plus récente à la plus ancienne.
      */
     public function visioConferences(): HasMany

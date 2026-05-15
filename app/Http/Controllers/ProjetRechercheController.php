@@ -210,6 +210,20 @@ class ProjetRechercheController extends Controller
 
         $estMembre = ! $estEnseignant && $groupe->membres->contains('id', $user->id);
 
+        // Références personnelles de l'étudiant — alimentent l'onglet "Ma bibliothèque" du modal APA
+        $mesReferences = (! $estEnseignant && $user->role !== 'admin')
+            ? $user->etudiantReferences()->get()->map(fn ($r) => [
+                'id' => $r->id,
+                'titre' => $r->titre,
+                'auteurs' => $r->auteurs,
+                'annee' => $r->annee,
+                'type_source' => $r->type_source,
+                'url' => $r->url,
+                'doi' => $r->doi,
+                'publication' => $r->publication,
+            ])->values()
+            : collect();
+
         // Condition commune : membre + non verrouillé + remise encore possible
         $peutAgir = $estMembre && ! $projet->verrouille && $projet->peutEtreRemis();
 
@@ -291,6 +305,7 @@ class ProjetRechercheController extends Controller
                 return $data;
             })->values(),
             'consentement' => $this->construireConsentement($projet->id, $user->id),
+            'mesReferences' => $mesReferences,
         ]);
     }
 
