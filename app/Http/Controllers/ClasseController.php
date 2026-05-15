@@ -86,10 +86,11 @@ class ClasseController extends Controller
             ? $cours->typesProjets()->get(['id', 'nom', 'ponderation', 'is_sommatif'])
             : collect();
 
-        // Échéancier, documents et objectifs — pour les étudiants uniquement
+        // Échéancier, documents, objectifs et références — pour les étudiants uniquement
         $echeancierEtapes = collect();
         $documents = collect();
         $objectifs = collect();
+        $references = collect();
 
         if (! $estEnseignant) {
             $etapes = $cours->echeancierEtapes()->get();
@@ -119,6 +120,13 @@ class ClasseController extends Controller
                 'contenu' => $o->contenu,
                 'ordre' => $o->ordre,
             ]);
+
+            $references = $cours->references()->get()->map(fn ($r) => [
+                'id' => $r->id,
+                'nom' => $r->nom,
+                'url' => $r->url,
+                'ordre' => $r->ordre,
+            ]);
         }
 
         return Inertia::render('Classes/Show', [
@@ -129,6 +137,7 @@ class ClasseController extends Controller
             'echeancierEtapes' => $echeancierEtapes,
             'documents' => $documents,
             'objectifs' => $objectifs,
+            'references' => $references,
         ]);
     }
 

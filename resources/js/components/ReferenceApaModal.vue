@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BookOpen } from 'lucide-vue-next';
+import { BookOpen, Copy } from 'lucide-vue-next';
 import { computed, reactive, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,12 +37,25 @@ type ChampConfig = {
     optional?: boolean;
 };
 
+type MesReference = {
+    id: number;
+    titre: string;
+    auteurs: { prenom: string; nom: string }[] | null;
+    annee: number | null;
+    type_source: string | null;
+    url: string | null;
+    doi: string | null;
+    publication: string | null;
+};
+
 // ─── Props / Emits ────────────────────────────────────────────────────────────
 
 const props = defineProps<{
     open: boolean;
     /** Renvoi existant à modifier — absent en mode création */
     renvoi?: { id: number; type_reference: string; champs_reference: Record<string, string> } | null;
+    /** Références personnelles de l'étudiant — alimentent l'onglet Ma bibliothèque */
+    mesReferences?: MesReference[];
 }>();
 
 const emit = defineEmits<{
@@ -145,6 +158,10 @@ const ORDRE_TYPES: TypeRef[] = [
 
 const typeRef = ref<TypeRef>('livre');
 const champs = reactive<Record<string, string>>({});
+const onglet = ref<'nouveau' | 'bibliotheque'>('nouveau');
+const filtreRecherche = ref('');
+const referenceSelectionnee = ref<MesReference | null>(null);
+const copieApa = ref(false);
 
 const champsActuels = computed(() => TYPES_CONFIG[typeRef.value].champs);
 
@@ -161,13 +178,15 @@ watch(typeRef, reinitialiserChamps, { flush: 'sync' });
 
 /**
  * Pré-remplit le formulaire à l'ouverture en mode édition, ou réinitialise en mode création.
- * Le watch(typeRef, { flush: 'sync' }) vide champs de façon synchrone quand typeRef change,
- * donc le Object.assign qui suit injecte bien les valeurs persistées.
+ * Remet aussi l'onglet, le filtre et la sélection à zéro.
  */
 watch(
     () => props.open,
     (ouvert) => {
-        if (!ouvert) return;
+        if (! ouvert) return;
+        onglet.value = 'nouveau';
+        filtreRecherche.value = '';
+        referenceSelectionnee.value = null;
         if (props.renvoi?.type_reference) {
             typeRef.value = props.renvoi.type_reference as TypeRef;
             // reinitialiserChamps a déjà été appelé de façon synchrone par le watch(typeRef)
@@ -179,7 +198,197 @@ watch(
     },
 );
 
-// ─── Formatage APA ────────────────────────────────────────────────────────────
+// Désélectionner quand le filtre change — la référence cherchée peut ne plus être visible.
+watch(filtreRecherche, () => {
+    referenceSelectionnee.value = null;
+});
+
+// ─── Bibliothèque personnelle ──────────────────────────────────────────────────
+
+/**
+ * Vrai si l'étudiant a au moins une référence personnelle et que le modal est en mode création.
+ * L'onglet bibliothèque n'a pas de sens en mode édition d'un renvoi existant.
+ */
+const afficherOngletBibliotheque = computed(
+    () => ! props.renvoi && (props.mesReferences?.length ?? 0) > 0,
+);
+
+const referencesFiltrees = computed(() => {
+    if (! props.mesReferences) return [];
+    const filtre = filtreRecherche.value.toLowerCase().trim();
+    if (! filtre) return props.mesReferences;
+    return props.mesReferences.filter((r) => r.titre.toLowerCase().includes(filtre));
+});
+
+/**
+ * Formate un tableau d'auteurs au format APA : « Nom, P. » ou « Nom, P., & Nom2, Q. ».
+ */
+function formatAuteursApa(auteurs: { prenom: string; nom: string }[] | null): string {
+    if (! auteurs || auteurs.length === 0) return '';
+    const formattes = auteurs.map((a) => {
+        const initiale = a.prenom ? `${a.prenom.charAt(0).toUpperCase()}.` : '';
+        return initiale ? `${a.nom}, ${initiale}` : a.nom;
+    });
+    if (formattes.length === 1) return formattes[0];
+    const dernier = formattes.pop()!;
+    return `${formattes.join(', ')}, & ${dernier}`;
+}
+
+/**
+ * Résumé court (premier auteur + année) pour l'affichage dans la liste bibliothèque.
+ */
+function auteursResume(ref: MesReference): string {
+    const premierNom = ref.auteurs?.[0]?.nom ?? '';
+    const suffix = (ref.auteurs?.length ?? 0) > 1 ? ' et al.' : '';
+    const annee = ref.annee ? ` (${ref.annee})` : '';
+    return `${premierNom}${suffix}${annee}`;
+}
+
+/**
+ * Mappe un type_source Zotero vers un TypeRef APA.
+ */
+function typeZoteroVersApa(typeSource: string | null): TypeRef {
+    switch (typeSource) {
+        case 'journalArticle':
+            return 'article_periodique';
+        case 'book':
+            return 'livre';
+        case 'webpage':
+            return 'site_internet';
+        case 'thesis':
+            return 'memoire_these';
+        case 'videoRecording':
+        case 'film':
+            return 'document_audiovisuel';
+        case 'newspaperArticle':
+            return 'article_journal';
+        default:
+            return 'livre';
+    }
+}
+
+/**
+ * Génère un aperçu APA en meilleur effort à partir des données Zotero disponibles.
+ *
+ * Certains champs (volume, numéro, pages) ne sont pas stockés en base et seront absents —
+ * l'étudiant devra les compléter via "Compléter et insérer" si nécessaire.
+ */
+function apercuApaDepuisZotero(ref: MesReference): string {
+    const auteursStr = formatAuteursApa(ref.auteurs);
+    const annee = ref.annee ? String(ref.annee) : 's.d.';
+    const type = typeZoteroVersApa(ref.type_source);
+
+    switch (type) {
+        case 'article_periodique': {
+            const revue = ref.publication ? ` <em>${ref.publication}</em>.` : '';
+            const lien = ref.doi ? ` ${ref.doi}` : ref.url ? ` ${ref.url}` : '';
+            return `${auteursStr}. (${annee}). ${ref.titre}.${revue}${lien}`;
+        }
+        case 'livre': {
+            const editeur = ref.publication ? ` ${ref.publication}.` : '';
+            return `${auteursStr}. (${annee}). <em>${ref.titre}</em>.${editeur}`;
+        }
+        case 'site_internet': {
+            const site = ref.publication ? ` <em>${ref.publication}</em>.` : '';
+            const url = ref.url ? ` ${ref.url}` : '';
+            return `${auteursStr}. (${annee}). ${ref.titre}.${site}${url}`;
+        }
+        case 'memoire_these': {
+            const url = ref.url ? ` ${ref.url}` : '';
+            return `${auteursStr}. (${annee}). <em>${ref.titre}</em>.${url}`;
+        }
+        case 'document_audiovisuel': {
+            const url = ref.url ? ` ${ref.url}` : '';
+            return `${auteursStr}. (${annee}). <em>${ref.titre}</em>.${url}`;
+        }
+        case 'article_journal': {
+            const journal = ref.publication ? ` <em>${ref.publication}</em>.` : '';
+            const url = ref.url ? ` ${ref.url}` : '';
+            return `${auteursStr}. ${ref.titre}.${journal}${url}`;
+        }
+        default:
+            return `${auteursStr}. (${annee}). <em>${ref.titre}</em>.`;
+    }
+}
+
+const apercuApaZotero = computed(() =>
+    referenceSelectionnee.value ? apercuApaDepuisZotero(referenceSelectionnee.value) : '',
+);
+
+/**
+ * Copie l'aperçu APA dans le presse-papiers (balises HTML retirées pour texte brut).
+ */
+async function copierApa(): Promise<void> {
+    const texte = apercuApaZotero.value.replace(/<[^>]+>/g, '');
+    try {
+        await navigator.clipboard.writeText(texte);
+    } catch {
+        // Clipboard API indisponible (contexte non sécurisé) — échec silencieux
+    }
+    copieApa.value = true;
+    setTimeout(() => (copieApa.value = false), 2000);
+}
+
+/**
+ * Pré-remplit le formulaire APA depuis une référence de la bibliothèque personnelle,
+ * puis bascule sur l'onglet de saisie pour que l'étudiant complète les champs manquants.
+ *
+ * Le watch(typeRef, { flush: 'sync' }) vide champs de façon synchrone quand typeRef change,
+ * donc les affectations qui suivent injectent bien les valeurs issues de Zotero.
+ */
+function preRemplirDepuisZotero(ref: MesReference): void {
+    const type = typeZoteroVersApa(ref.type_source);
+    typeRef.value = type;
+
+    const auteursStr = formatAuteursApa(ref.auteurs);
+    const anneeStr = ref.annee ? String(ref.annee) : '';
+
+    switch (type) {
+        case 'article_periodique':
+            if (auteursStr) champs.auteurs = auteursStr;
+            if (anneeStr) champs.annee = anneeStr;
+            if (ref.titre) champs.titre_article = ref.titre;
+            if (ref.publication) champs.titre_revue = ref.publication;
+            if (ref.doi) champs.doi = ref.doi;
+            else if (ref.url) champs.doi = ref.url;
+            break;
+        case 'livre':
+            if (auteursStr) champs.auteurs = auteursStr;
+            if (anneeStr) champs.annee = anneeStr;
+            if (ref.titre) champs.titre = ref.titre;
+            if (ref.publication) champs.editeur = ref.publication;
+            break;
+        case 'site_internet':
+            if (auteursStr) champs.auteur_organisme = auteursStr;
+            if (anneeStr) champs.annee = anneeStr;
+            if (ref.titre) champs.titre_page = ref.titre;
+            if (ref.publication) champs.nom_site = ref.publication;
+            if (ref.url) champs.url = ref.url;
+            break;
+        case 'memoire_these':
+            if (auteursStr) champs.auteur = auteursStr;
+            if (anneeStr) champs.annee = anneeStr;
+            if (ref.titre) champs.titre = ref.titre;
+            if (ref.url) champs.url = ref.url;
+            break;
+        case 'document_audiovisuel':
+            if (auteursStr) champs.auteur = auteursStr;
+            if (anneeStr) champs.annee = anneeStr;
+            if (ref.titre) champs.titre = ref.titre;
+            if (ref.url) champs.url = ref.url;
+            break;
+        case 'article_journal':
+            if (auteursStr) champs.auteurs = auteursStr;
+            if (ref.titre) champs.titre_article = ref.titre;
+            if (ref.publication) champs.nom_journal = ref.publication;
+            if (ref.url) champs.url = ref.url;
+            break;
+    }
+
+    onglet.value = 'nouveau';
+}
+
+// ─── Formatage APA (onglet Nouveau) ───────────────────────────────────────────
 
 /**
  * Retourne la valeur d'un champ en la nettoyant, ou une chaîne vide.
@@ -238,7 +447,7 @@ const referenceFormatee = computed<string>(() => {
  */
 const formulaireValide = computed<boolean>(() =>
     champsActuels.value
-        .filter((c) => !c.optional)
+        .filter((c) => ! c.optional)
         .every((c) => (champs[c.key] ?? '').trim() !== ''),
 );
 
@@ -247,12 +456,9 @@ const formulaireValide = computed<boolean>(() =>
 /**
  * Émet le contenu APA formaté avec le type et les champs bruts,
  * réinitialise le formulaire et ferme le modal.
- *
- * La réinitialisation se fait ici (après insertion) plutôt qu'à la fermeture,
- * pour que l'étudiant retrouve ses champs s'il ferme et rouvre accidentellement.
  */
 function inserer(): void {
-    if (!formulaireValide.value) return;
+    if (! formulaireValide.value) return;
     emit('inserer', referenceFormatee.value, typeRef.value, { ...champs });
     typeRef.value = 'livre';
     reinitialiserChamps();
@@ -274,7 +480,64 @@ function fermer(): void {
                 </DialogTitle>
             </DialogHeader>
 
-            <div class="grid gap-5">
+            <!-- Onglets Nouveau / Ma bibliothèque -->
+            <div v-if="afficherOngletBibliotheque" class="flex overflow-hidden rounded-md border text-sm">
+                <button
+                    type="button"
+                    class="flex-1 py-1.5 text-center transition-colors"
+                    :class="onglet === 'nouveau' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'"
+                    @click="onglet = 'nouveau'"
+                >
+                    Nouveau
+                </button>
+                <button
+                    type="button"
+                    class="flex-1 border-l py-1.5 text-center transition-colors"
+                    :class="onglet === 'bibliotheque' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'"
+                    @click="onglet = 'bibliotheque'"
+                >
+                    Ma bibliothèque
+                </button>
+            </div>
+
+            <!-- ─── Onglet Ma bibliothèque ────────────────────────────────────── -->
+            <template v-if="onglet === 'bibliotheque'">
+                <Input v-model="filtreRecherche" placeholder="Filtrer par titre…" />
+
+                <!-- Liste des références -->
+                <div class="max-h-52 divide-y overflow-y-auto rounded-md border">
+                    <p
+                        v-if="referencesFiltrees.length === 0"
+                        class="py-6 text-center text-sm text-muted-foreground"
+                    >
+                        Aucune référence trouvée.
+                    </p>
+                    <button
+                        v-for="ref in referencesFiltrees"
+                        :key="ref.id"
+                        type="button"
+                        class="w-full px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+                        :class="{ 'bg-muted': referenceSelectionnee?.id === ref.id }"
+                        @click="referenceSelectionnee = ref"
+                    >
+                        <p class="truncate text-sm font-medium">{{ ref.titre }}</p>
+                        <p class="text-xs text-muted-foreground">{{ auteursResume(ref) }}</p>
+                    </button>
+                </div>
+
+                <!-- Aperçu APA de la référence sélectionnée -->
+                <div v-if="referenceSelectionnee" class="rounded-md border bg-muted/40 px-4 py-3">
+                    <p class="mb-2 text-xs font-medium text-muted-foreground">Aperçu APA</p>
+                    <!-- eslint-disable-next-line vue/no-v-html -->
+                    <p class="text-sm leading-relaxed" v-html="apercuApaZotero" />
+                    <p class="mt-2 text-xs text-muted-foreground/70">
+                        Certains champs (volume, pages…) peuvent manquer selon les données Zotero.
+                    </p>
+                </div>
+            </template>
+
+            <!-- ─── Onglet Nouveau (formulaire APA) ──────────────────────────── -->
+            <div v-else class="grid gap-5">
                 <!-- Sélection du type -->
                 <div class="grid gap-2">
                     <Label>Type de source</Label>
@@ -303,7 +566,7 @@ function fermer(): void {
                     >
                         <Label :for="`ref-${champ.key}`">
                             {{ champ.label }}
-                            <span v-if="champ.optional" class="text-muted-foreground font-normal"> (optionnel)</span>
+                            <span v-if="champ.optional" class="font-normal text-muted-foreground"> (optionnel)</span>
                         </Label>
                         <Input
                             :id="`ref-${champ.key}`"
@@ -323,7 +586,20 @@ function fermer(): void {
 
             <DialogFooter>
                 <Button variant="outline" type="button" @click="fermer">Annuler</Button>
-                <Button :disabled="!formulaireValide" @click="inserer">
+
+                <!-- Boutons de l'onglet Ma bibliothèque -->
+                <template v-if="onglet === 'bibliotheque' && referenceSelectionnee">
+                    <Button variant="outline" type="button" @click="copierApa">
+                        <Copy class="mr-1.5 h-4 w-4" />
+                        {{ copieApa ? 'Copié !' : 'Copier' }}
+                    </Button>
+                    <Button type="button" @click="preRemplirDepuisZotero(referenceSelectionnee)">
+                        Compléter et insérer
+                    </Button>
+                </template>
+
+                <!-- Bouton de l'onglet Nouveau -->
+                <Button v-else-if="onglet === 'nouveau'" :disabled="!formulaireValide" @click="inserer">
                     {{ renvoi ? 'Mettre à jour la référence' : 'Insérer dans le texte' }}
                 </Button>
             </DialogFooter>

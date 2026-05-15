@@ -22,7 +22,7 @@ class CoursController extends Controller
     /**
      * Affiche la liste des cours dans lesquels l'étudiant authentifié est inscrit.
      * Les cours verrouillés par l'enseignant sont masqués.
-     * Inclut également les prochaines visioconférences planifiées pour l'étudiant.
+     * Inclut les prochaines visioconférences, les références personnelles et la config Zotero.
      */
     public function index(): Response
     {
@@ -82,6 +82,30 @@ class CoursController extends Controller
                 'animateur' => ['prenom' => $v->animateur->prenom, 'nom' => $v->animateur->nom],
             ]);
 
+        // Références personnelles de l'étudiant
+        $mesReferences = $user->etudiantReferences()
+            ->get()
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'titre' => $r->titre,
+                'auteurs' => $r->auteurs,
+                'annee' => $r->annee,
+                'type_source' => $r->type_source,
+                'url' => $r->url,
+                'doi' => $r->doi,
+                'publication' => $r->publication,
+                'ordre' => $r->ordre,
+                'est_depuis_zotero' => $r->estDepuisZotero(),
+            ]);
+
+        // Configuration Zotero de l'étudiant (null si non configuré)
+        $zoteroConfig = $user->zoteroCredential
+            ? [
+                'configure' => true,
+                'synchronise_le' => $user->zoteroCredential->synchronise_le?->toIso8601String(),
+            ]
+            : ['configure' => false, 'synchronise_le' => null];
+
         return Inertia::render('Cours/Index', [
             'cours' => $cours->map(fn ($c) => [
                 'id' => $c->id,
@@ -100,6 +124,8 @@ class CoursController extends Controller
             ]),
             'projets' => $projets,
             'prochainesVisios' => $prochainesVisios,
+            'mesReferences' => $mesReferences,
+            'zoteroConfig' => $zoteroConfig,
         ]);
     }
 
@@ -138,6 +164,15 @@ class CoursController extends Controller
                 'ordre' => $o->ordre,
             ]);
 
+        $references = $cours->references()
+            ->get()
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'nom' => $r->nom,
+                'url' => $r->url,
+                'ordre' => $r->ordre,
+            ]);
+
         $typesProjets = TypeProjet::where('cours_id', $cours->id)
             ->with(['grille:id,type_projet_id,nom', 'sections'])
             ->orderBy('nom')
@@ -169,6 +204,7 @@ class CoursController extends Controller
             'documents' => $documents,
             'echeancierEtapes' => $echeancierEtapes,
             'objectifs' => $objectifs,
+            'references' => $references,
             'typesProjets' => $typesProjets->map(fn (TypeProjet $tp) => [
                 'id' => $tp->id,
                 'nom' => $tp->nom,

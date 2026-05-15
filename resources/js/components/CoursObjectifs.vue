@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { router, useForm } from '@inertiajs/vue3';
-import { Check, GripVertical, Pencil, Plus, Trash2, X } from 'lucide-vue-next';
+import { useForm } from '@inertiajs/vue3';
+import { Check, Pencil, Plus, Trash2, X } from 'lucide-vue-next';
 import { ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -85,45 +85,6 @@ function supprimerObjectif(objectif: Objectif) {
     });
 }
 
-// ─── Réordonnancement (drag-and-drop simplifié) ───────────────────────────────
-
-/**
- * Déplace un objectif vers le haut dans la liste.
- */
-function monterObjectif(index: number) {
-    if (index === 0) return;
-
-    const ordered = [...props.objectifs].sort((a, b) => a.ordre - b.ordre);
-    const ids = ordered.map((o) => o.id);
-
-    // Échanger avec l'élément précédent
-    [ids[index - 1], ids[index]] = [ids[index], ids[index - 1]];
-
-    router.patch(
-        objectifsRoutes.reorder.url(props.coursId),
-        { ordre: ids },
-        { preserveScroll: true },
-    );
-}
-
-/**
- * Déplace un objectif vers le bas dans la liste.
- */
-function descendreObjectif(index: number) {
-    const ordered = [...props.objectifs].sort((a, b) => a.ordre - b.ordre);
-    if (index === ordered.length - 1) return;
-
-    const ids = ordered.map((o) => o.id);
-
-    // Échanger avec l'élément suivant
-    [ids[index], ids[index + 1]] = [ids[index + 1], ids[index]];
-
-    router.patch(
-        objectifsRoutes.reorder.url(props.coursId),
-        { ordre: ids },
-        { preserveScroll: true },
-    );
-}
 </script>
 
 <template>
@@ -163,28 +124,6 @@ function descendreObjectif(index: number) {
                 <!-- Affichage normal -->
                 <template v-else>
                     <span class="flex-1 text-sm">{{ objectif.contenu }}</span>
-
-                    <!-- Boutons de réordonnancement -->
-                    <div class="flex shrink-0 flex-col gap-0.5">
-                        <button
-                            type="button"
-                            class="h-3 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                            :disabled="index === 0"
-                            title="Monter"
-                            @click="monterObjectif(index)"
-                        >
-                            <GripVertical class="h-3 w-3 rotate-90" />
-                        </button>
-                        <button
-                            type="button"
-                            class="h-3 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                            :disabled="index === objectifs.length - 1"
-                            title="Descendre"
-                            @click="descendreObjectif(index)"
-                        >
-                            <GripVertical class="h-3 w-3 -rotate-90" />
-                        </button>
-                    </div>
 
                     <Button size="sm" variant="ghost" class="h-7 w-7 p-0" @click="openEdit(objectif)">
                         <Pencil class="h-3.5 w-3.5" />

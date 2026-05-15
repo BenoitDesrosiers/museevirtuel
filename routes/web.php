@@ -8,6 +8,8 @@ use App\Http\Controllers\CoursController;
 use App\Http\Controllers\CoursDocumentController;
 use App\Http\Controllers\CoursLienEntrevueController;
 use App\Http\Controllers\CoursObjectifController;
+use App\Http\Controllers\CoursReferenceController;
+use App\Http\Controllers\EtudiantReferenceController;
 use App\Http\Controllers\EcheancierController;
 use App\Http\Controllers\EnseignantController;
 use App\Http\Controllers\EntrevueConceptController;
@@ -286,6 +288,19 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
     Route::delete('/cours/{cours}/types-projets/{typeProjet}/taches/{tache}', [TypeProjetTacheController::class, 'destroy'])
         ->name('types-projets.taches.destroy');
 
+    // Références bibliographiques du cours
+    Route::post('/cours/{cours}/references', [CoursReferenceController::class, 'store'])
+        ->name('cours.references.store');
+
+    Route::patch('/cours/{cours}/references/reorder', [CoursReferenceController::class, 'reorder'])
+        ->name('cours.references.reorder');
+
+    Route::put('/cours/{cours}/references/{reference}', [CoursReferenceController::class, 'update'])
+        ->name('cours.references.update');
+
+    Route::delete('/cours/{cours}/references/{reference}', [CoursReferenceController::class, 'destroy'])
+        ->name('cours.references.destroy');
+
     // Liens d'entrevue du cours (définis par l'enseignant)
     Route::post('/cours/{cours}/liens-entrevue', [CoursLienEntrevueController::class, 'store'])
         ->name('cours.liens-entrevue.store');
@@ -338,6 +353,23 @@ Route::middleware(['auth', 'role:etudiant'])->group(function () {
 
     Route::get('/etudiant', [EtudiantController::class, 'index'])
         ->name('etudiant.index');
+
+    // Références personnelles de l'étudiant
+    Route::post('/etudiant/references', [EtudiantReferenceController::class, 'store'])
+        ->name('etudiant.references.store');
+
+    Route::delete('/etudiant/references/{reference}', [EtudiantReferenceController::class, 'destroy'])
+        ->name('etudiant.references.destroy');
+
+    Route::post('/etudiant/references/sync', [EtudiantReferenceController::class, 'syncZotero'])
+        ->name('etudiant.references.sync');
+
+    // Credentials Zotero de l'étudiant
+    Route::post('/etudiant/zotero/credential', [EtudiantReferenceController::class, 'saveCredential'])
+        ->name('etudiant.zotero.credential.store');
+
+    Route::delete('/etudiant/zotero/credential', [EtudiantReferenceController::class, 'destroyCredential'])
+        ->name('etudiant.zotero.credential.destroy');
 
     // Routes sur un cours spécifique — bloquées si le cours est verrouillé
     Route::middleware('cours.accessible')->group(function () {

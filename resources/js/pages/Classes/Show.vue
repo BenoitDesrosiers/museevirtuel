@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { apercuNotesAccumulees } from '@/actions/App/Http/Controllers/ClasseController';
-import { ArrowLeft, CalendarDays, CheckCircle2, ChevronDown, Circle, ExternalLink, FileBarChart, FileText, ListChecks, Pencil, Sigma, Trash2, Upload, Users } from 'lucide-vue-next';
+import { ArrowLeft, BookMarked, CalendarDays, CheckCircle2, ChevronDown, Circle, ExternalLink, FileBarChart, FileText, ListChecks, Pencil, Sigma, Trash2, Upload, Users } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
@@ -108,6 +108,13 @@ type Objectif = {
     ordre: number;
 };
 
+type Reference = {
+    id: number;
+    nom: string;
+    url: string | null;
+    ordre: number;
+};
+
 type Props = {
     cours: Cours;
     classe: Classe;
@@ -116,6 +123,7 @@ type Props = {
     echeancierEtapes: EcheancierEtape[];
     documents: Document[];
     objectifs: Objectif[];
+    references: Reference[];
 };
 
 const props = defineProps<Props>();
@@ -137,6 +145,7 @@ const ouvert = ref({
     echeancier: true,
     documents: true,
     objectifs: true,
+    references: true,
 });
 
 /** Vrai si au moins un TypeProjet a une pondération définie — affiche le bouton notes accumulées. */
@@ -654,6 +663,49 @@ function executeDeleteGroupe() {
                                 {{ objectif.ordre }}.
                             </span>
                             <span>{{ objectif.contenu }}</span>
+                        </li>
+                    </ol>
+                </CardContent>
+            </Card>
+
+            <!-- Références bibliographiques — étudiants seulement -->
+            <Card v-if="!estEnseignant">
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.references = !ouvert.references"
+                    >
+                        <BookMarked class="h-5 w-5" />
+                        <CardTitle>Références bibliographiques</CardTitle>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.references }"
+                        />
+                    </button>
+                </CardHeader>
+                <CardContent v-show="ouvert.references">
+                    <div v-if="references.length === 0" class="py-4 text-center text-sm text-muted-foreground">
+                        Aucune référence bibliographique pour ce cours.
+                    </div>
+                    <ol v-else class="space-y-1.5">
+                        <li
+                            v-for="(reference, index) in [...references].sort((a, b) => a.ordre - b.ordre)"
+                            :key="reference.id"
+                            class="flex items-center gap-2 rounded-md border bg-card px-3 py-2"
+                        >
+                            <span class="w-5 shrink-0 text-right text-xs font-medium text-muted-foreground">
+                                {{ index + 1 }}.
+                            </span>
+                            <component
+                                :is="reference.url ? 'a' : 'span'"
+                                v-bind="reference.url ? { href: reference.url, target: '_blank', rel: 'noopener noreferrer' } : {}"
+                                class="flex flex-1 items-center gap-1.5 overflow-hidden"
+                                :class="reference.url ? 'group cursor-pointer' : ''"
+                            >
+                                <span class="truncate text-sm" :class="reference.url ? 'group-hover:underline' : ''">{{ reference.nom }}</span>
+                                <ExternalLink v-if="reference.url" class="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
+                            </component>
                         </li>
                     </ol>
                 </CardContent>

@@ -49,4 +49,12 @@ class GabaritCours extends Model
     {
         return $this->hasMany(GabaritEcheancierEtape::class)->orderBy('semaine')->orderBy('ordre');
     }
+
+    /**
+     * Références bibliographiques du gabarit, triées par ordre.
+     */
+    public function references(): HasMany
+    {
+        return $this->hasMany(GabaritCoursReference::class)->orderBy('ordre');
+    }
 }

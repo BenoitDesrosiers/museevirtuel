@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Models\Cours;
 use App\Models\CoursObjectif;
+use App\Models\CoursReference;
 use App\Models\EcheancierEtape;
 use App\Models\GabaritCours;
+use App\Models\GabaritCoursReference;
 use App\Models\GabaritEcheancierEtape;
 use App\Models\GabaritTypeProjet;
 use App\Models\TypeProjet;
@@ -31,7 +33,7 @@ class AppliquerGabaritService
     public function appliquer(Cours $cours, string $slug): void
     {
         $gabarit = GabaritCours::where('slug', $slug)
-            ->with(['objectifs', 'typesProjets.sections', 'echeancierEtapes'])
+            ->with(['objectifs', 'typesProjets.sections', 'echeancierEtapes', 'references'])
             ->first();
 
         // Le gabarit n'existe pas encore — rien à faire
@@ -42,6 +44,7 @@ class AppliquerGabaritService
         $this->cloneObjectifs($cours, $gabarit);
         $this->cloneTypesProjets($cours, $gabarit);
         $this->cloneEcheancier($cours, $gabarit);
+        $this->cloneReferences($cours, $gabarit);
     }
 
     /**
@@ -135,6 +138,31 @@ class AppliquerGabaritService
 
         if ($inserts) {
             EcheancierEtape::insert($inserts);
+        }
+    }
+
+    /**
+     * Clone les références bibliographiques du gabarit vers le cours.
+     *
+     * Ignoré si le cours possède déjà au moins une référence.
+     */
+    private function cloneReferences(Cours $cours, GabaritCours $gabarit): void
+    {
+        if ($cours->references()->exists()) {
+            return;
+        }
+
+        $inserts = $gabarit->references->map(fn (GabaritCoursReference $r) => [
+            'cours_id' => $cours->id,
+            'nom' => $r->nom,
+            'url' => $r->url,
+            'ordre' => $r->ordre,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ])->all();
+
+        if ($inserts) {
+            CoursReference::insert($inserts);
         }
     }
 }

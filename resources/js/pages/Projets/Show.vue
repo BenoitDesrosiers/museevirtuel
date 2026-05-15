@@ -235,6 +235,17 @@ type ConsentementExistant = {
     signed_at: string | null;
 } | null;
 
+type MesReference = {
+    id: number;
+    titre: string;
+    auteurs: { prenom: string; nom: string }[] | null;
+    annee: number | null;
+    type_source: string | null;
+    url: string | null;
+    doi: string | null;
+    publication: string | null;
+};
+
 type Props = {
     groupe: Groupe;
     classe: Classe;
@@ -283,6 +294,8 @@ type Props = {
     pageTitreContenu: string | null;
     /** Contenu manuel de la table des matières (utilisé quand genererTableMatieres est false) */
     tableMatieresContenu: string | null;
+    /** Références personnelles de l'étudiant (vide pour l'enseignant) */
+    mesReferences: MesReference[];
 };
 
 const props = defineProps<Props>();
@@ -3559,6 +3572,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
             v-if="aideReference"
             v-model:open="referenceModalOuvert"
             :renvoi="renvoisEnEdition"
+            :mes-references="mesReferences"
             @inserer="confirmerReferenceApa"
         />
 

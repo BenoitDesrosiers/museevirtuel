@@ -210,4 +210,21 @@ class User extends Authenticatable
         return $this->belongsToMany(Etablissement::class, 'user_etablissement')
             ->withPivot('theme_libre');
     }
+
+    /**
+     * Retourne les credentials Zotero de l'étudiant (clé API chiffrée).
+     */
+    public function zoteroCredential(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(EtudiantZoteroCredential::class);
+    }
+
+    /**
+     * Retourne les références bibliographiques personnelles de l'étudiant,
+     * triées par ordre d'affichage.
+     */
+    public function etudiantReferences(): HasMany
+    {
+        return $this->hasMany(EtudiantReference::class)->orderBy('ordre');
+    }
 }

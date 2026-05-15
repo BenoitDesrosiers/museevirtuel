@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\GabaritCours;
 use App\Models\GabaritCoursObjectif;
+use App\Models\GabaritCoursReference;
 use App\Models\GabaritEcheancierEtape;
 use App\Models\GabaritTypeProjet;
 use App\Models\GabaritTypeProjetSection;
@@ -32,6 +33,31 @@ class GabaritCoursCompletSeeder extends Seeder
         'Développer ses qualités humaines en interagissant avec une personne aînée, témoin du passé.',
         'Développer des habiletés d\'écoute et de communication dans le cadre d\'une entrevue avec une personne aînée, témoin du passé.',
         'Contribuer au développement et à la pérennité des connaissances et du savoir de l\'héritage historique du patrimoine québécois.',
+    ];
+
+    /**
+     * Revues historiques recommandées pour la recherche documentaire.
+     * Source : consignes du projet "Votre histoire, notre histoire".
+     *
+     * @var list<array{nom: string, url: string}>
+     */
+    private const REFERENCES = [
+        ['nom' => 'Cahier d\'histoire',                                                                    'url' => 'https://www.erudit.org/en/journals/histoire/'],
+        ['nom' => 'Les Cahiers des Dix',                                                                   'url' => 'https://www.erudit.org/en/journals/cdd/'],
+        ['nom' => 'Cap-aux-Diamants — La revue d\'histoire du Québec',                                     'url' => 'https://www.capauxdiamants.org/'],
+        ['nom' => 'Courrier international',                                                                'url' => 'https://www.courrierinternational.com/'],
+        ['nom' => 'Études d\'histoire religieuse',                                                         'url' => 'https://www.erudit.org/en/journals/ehr/'],
+        ['nom' => 'Géo Histoire',                                                                          'url' => 'https://www.geo.fr/histoire'],
+        ['nom' => 'Globe — Revue internationale d\'études québécoises',                                    'url' => 'https://www.erudit.org/en/journals/globe/'],
+        ['nom' => 'Histoire Québec',                                                                       'url' => 'https://histoirequebec.qc.ca/'],
+        ['nom' => 'Histoire sociale — Social History',                                                     'url' => 'https://hssh.journals.yorku.ca/'],
+        ['nom' => 'L\'Histoire',                                                                           'url' => 'https://www.lhistoire.fr/'],
+        ['nom' => 'Historia',                                                                              'url' => 'https://www.historia.fr/'],
+        ['nom' => 'Journal of the Canadian Historical Association — Revue de la Société historique du Canada', 'url' => 'https://www.erudit.org/en/journals/jcha/'],
+        ['nom' => 'Le Monde diplomatique',                                                                 'url' => 'https://www.monde-diplomatique.fr/'],
+        ['nom' => 'National Geographic France',                                                            'url' => 'https://www.nationalgeographic.fr/'],
+        ['nom' => 'Revue d\'histoire de l\'Amérique française',                                            'url' => 'https://www.erudit.org/en/journals/haf/'],
+        ['nom' => 'Urban History Review — Revue d\'histoire urbaine',                                      'url' => 'https://www.erudit.org/en/journals/uhr/'],
     ];
 
     /**
@@ -164,6 +190,7 @@ class GabaritCoursCompletSeeder extends Seeder
         $this->seederObjectifs($gabarit);
         $this->seederTypesProjets($gabarit);
         $this->seederEcheancier($gabarit);
+        $this->seederReferences($gabarit);
     }
 
     /**
@@ -241,5 +268,23 @@ class GabaritCoursCompletSeeder extends Seeder
         }
 
         GabaritEcheancierEtape::insert($inserts);
+    }
+
+    /**
+     * Recrée les références bibliographiques (supprime et réinsère pour rester à jour).
+     */
+    private function seederReferences(GabaritCours $gabarit): void
+    {
+        // Suppression + recréation pour que relancer le seeder mette les références à jour
+        $gabarit->references()->delete();
+
+        foreach (self::REFERENCES as $ordre => $data) {
+            GabaritCoursReference::create([
+                'gabarit_cours_id' => $gabarit->id,
+                'nom' => $data['nom'],
+                'url' => $data['url'],
+                'ordre' => $ordre + 1,
+            ]);
+        }
     }
 }

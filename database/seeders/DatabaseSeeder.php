@@ -23,6 +23,8 @@ class DatabaseSeeder extends Seeder
         );
 
         $this->call(GabaritCoursCompletSeeder::class);
+        $this->call(GabaritCoursComplementaireSeeder::class);
+        $this->call(GabaritDepSeeder::class);
         $this->call(DemoSeeder::class);
         $this->call(DepDemoSeeder::class);
         $this->call(CoursComplementaireDemoSeeder::class);

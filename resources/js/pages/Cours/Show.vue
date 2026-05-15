@@ -2,6 +2,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     ArrowLeft,
+    BookMarked,
     BookOpen,
     Calendar,
     Check,
@@ -23,6 +24,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
 import CoursObjectifs from '@/components/CoursObjectifs.vue';
+import CoursReferences from '@/components/CoursReferences.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import VisioSession from '@/components/VisioSession.vue';
@@ -90,6 +92,13 @@ type Objectif = {
     ordre: number;
 };
 
+type Reference = {
+    id: number;
+    nom: string;
+    url: string | null;
+    ordre: number;
+};
+
 type GrilleResume = { id: number; nom: string } | null;
 
 type TypeProjetSection = {
@@ -127,6 +136,7 @@ type Props = {
     documents: Document[];
     echeancierEtapes: EcheancierEtape[];
     objectifs: Objectif[];
+    references: Reference[];
     typesProjets: TypeProjet[];
     visioConferences: VisioConference[];
 };
@@ -139,6 +149,7 @@ const ouvert = ref({
     classes: true,
     documents: true,
     objectifs: true,
+    references: true,
     typesProjets: true,
     echeancier: true,
     visios: true,
@@ -598,6 +609,28 @@ function submitTransfert() {
                 </CardHeader>
                 <CardContent v-show="ouvert.objectifs">
                     <CoursObjectifs :cours-id="cours.id" :objectifs="objectifs" />
+                </CardContent>
+            </Card>
+
+            <!-- Références bibliographiques -->
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.references = !ouvert.references"
+                    >
+                        <BookMarked class="h-5 w-5" />
+                        <CardTitle>Références bibliographiques</CardTitle>
+                        <span class="text-sm font-normal text-muted-foreground">({{ references.length }})</span>
+                        <ChevronDown
+                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            :class="{ '-rotate-180': ouvert.references }"
+                        />
+                    </button>
+                </CardHeader>
+                <CardContent v-show="ouvert.references">
+                    <CoursReferences :cours-id="cours.id" :references="references" />
                 </CardContent>
             </Card>
 
