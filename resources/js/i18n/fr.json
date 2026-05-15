@@ -36,7 +36,8 @@
             "placeholder_password": "Mot de passe",
             "label_password_confirmation": "Confirmer le mot de passe",
             "placeholder_password_confirmation": "Confirmer le mot de passe",
-            "submit": "Réinitialiser le mot de passe"
+            "submit": "Réinitialiser le mot de passe",
+            "password_hint": "Minimum 8 caractères avec au moins un chiffre."
         },
         "verify_email": {
             "title": "Vérifier l'e-mail",
@@ -391,6 +392,7 @@
             "placeholder_current_password": "Mot de passe actuel",
             "label_new_password": "Nouveau mot de passe",
             "placeholder_new_password": "Nouveau mot de passe",
+            "password_hint": "Minimum 8 caractères avec au moins un chiffre.",
             "label_password_confirmation": "Confirmer le mot de passe",
             "placeholder_password_confirmation": "Confirmer le mot de passe",
             "save_password": "Enregistrer le mot de passe",

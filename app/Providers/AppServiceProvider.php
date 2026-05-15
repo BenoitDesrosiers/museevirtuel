@@ -27,7 +27,8 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * Configure default behaviors for production-ready applications.
+     * Configure les comportements par défaut de l'application.
+     * Règles mot de passe : minimum 8 caractères avec au moins un chiffre.
      */
     protected function configureDefaults(): void
     {
@@ -37,14 +38,6 @@ class AppServiceProvider extends ServiceProvider
             app()->isProduction(),
         );
 
-        Password::defaults(fn (): ?Password => app()->isProduction()
-            ? Password::min(12)
-                ->mixedCase()
-                ->letters()
-                ->numbers()
-                ->symbols()
-                ->uncompromised()
-            : null,
-        );
+        Password::defaults(fn (): Password => Password::min(8)->numbers());
     }
 }
