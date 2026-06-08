@@ -49,7 +49,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class ProjetRechercheController extends Controller
 {
     /** Pattern regex validant les noms de champs annotables (développement_{id}, section_{id}, section_paragraphe_{id} ou renvoi_{id}). */
-    private const CHAMP_ANNOTABLE_REGEX = '/^(developpement_\d+|section_\d+|section_paragraphe_\d+|renvoi_\d+)$/';
+    private const CHAMP_ANNOTABLE_REGEX = '/^(developpement_\d+|section_\d+|section_paragraphe_\d+|renvoi_\d+|page_titre_contenu|table_matieres_contenu)$/';
 
     /**
      * Affiche toutes les cartes de projets disponibles pour ce groupe.
@@ -204,6 +204,8 @@ class ProjetRechercheController extends Controller
                         'contenu' => $a->contenu,
                         'type' => $a->type,
                         'user_id' => $a->user_id,
+                        'cible_user_id' => $a->cible_user_id,
+                        'points_malus' => $a->points_malus,
                     ])
                     ->values();
             });
@@ -1766,14 +1768,19 @@ class ProjetRechercheController extends Controller
     /**
      * Met à jour le contenu HTML d'un champ annotable.
      *
+     * Supporte les champs fixes : `page_titre_contenu`, `table_matieres_contenu`.
      * Supporte les préfixes : `developpement_`, `section_paragraphe_`, `section_`, `renvoi_`.
-     * Tout autre préfixe est rejeté par le CHAMP_ANNOTABLE_REGEX en amont.
+     * Tout autre valeur est rejetée par le CHAMP_ANNOTABLE_REGEX en amont.
      *
      * @throws HttpException si la ressource n'appartient pas au projet
      */
     private function mettreAJourChampHtml(ProjetRecherche $projet, string $champ, string $html): void
     {
-        if (str_starts_with($champ, 'developpement_')) {
+        if ($champ === 'page_titre_contenu') {
+            $projet->update(['page_titre_contenu' => $html]);
+        } elseif ($champ === 'table_matieres_contenu') {
+            $projet->update(['table_matieres_contenu' => $html]);
+        } elseif (str_starts_with($champ, 'developpement_')) {
             $devId = (int) mb_substr($champ, mb_strlen('developpement_'));
             $dev = ProjetDeveloppement::where('id', $devId)
                 ->where('projet_id', $projet->id)

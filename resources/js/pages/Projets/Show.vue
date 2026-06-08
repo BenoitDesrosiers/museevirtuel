@@ -1581,7 +1581,7 @@ async function voterRemise(): Promise<void> {
     voteEnCours.value = true;
 
     try {
-        const response = await axios.post(`${baseUrl.value}/voter-remise`);
+        const response = await axios.post(`${baseUrl.value}/voter-remise`, { vote: true });
 
         // Mise à jour optimiste du vote local
         const idx = votes.value.findIndex((v) => v.user_id === userId.value);
@@ -2434,6 +2434,25 @@ async function toggleMalusGrille(
     }
 }
 
+/**
+ * Applique ou retire un malus à tous les membres du groupe en parallèle.
+ */
+async function toggleMalusGrillePourTous(
+    malusId: number,
+    applique: boolean,
+): Promise<void> {
+    const key = `malus_${malusId}_tous`;
+    malusSaving[key] = true;
+
+    try {
+        await Promise.all(
+            props.membres.map((m) => toggleMalusGrille(malusId, m.id, applique)),
+        );
+    } finally {
+        malusSaving[key] = false;
+    }
+}
+
 // Onglet étudiant actif par section — 'tous' = appliquer à tous les étudiants
 const ongletActif = reactive<Record<string, number | 'tous'>>({});
 
@@ -2465,7 +2484,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
             "
         />
 
-        <div class="mx-auto flex max-w-6xl flex-col gap-3 p-3">
+        <div class="mx-auto flex w-full max-w-6xl flex-col gap-3 p-3">
             <!-- En-tête navigation -->
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <Button variant="ghost" size="sm" as-child>
@@ -4907,6 +4926,10 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         @toggle-malus="
                             (malusId, membreId, applique) =>
                                 toggleMalusGrille(malusId, membreId, applique)
+                        "
+                        @toggle-malus-pour-tous="
+                            (malusId, applique) =>
+                                toggleMalusGrillePourTous(malusId, applique)
                         "
                     />
                 </div>

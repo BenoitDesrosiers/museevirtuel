@@ -40,6 +40,7 @@ const emit = defineEmits<{
     'save-note': [critereId: number, membreId: number, valeur: number];
     'save-note-pour-tous': [critereId: number, valeur: number];
     'toggle-malus': [malusId: number, membreId: number, applique: boolean];
+    'toggle-malus-pour-tous': [malusId: number, applique: boolean];
 }>();
 
 const labelNote: Record<number, string> = {
@@ -66,6 +67,14 @@ function tousOntNote(critereId: number, valeur: number): boolean {
     return (
         props.membres.length > 0 &&
         props.membres.every((m) => props.notes[m.id]?.[critereId] === valeur)
+    );
+}
+
+/** Retourne true si tous les membres ont ce malus appliqué. */
+function tousOntMalus(malusId: number): boolean {
+    return (
+        props.membres.length > 0 &&
+        props.membres.every((m) => props.malusAppliques[m.id]?.[malusId] === true)
     );
 }
 
@@ -150,6 +159,69 @@ function totalMalus(membreId: number): number {
                     >
                         {{ valeur }} — {{ labelNote[valeur] }}
                     </button>
+                </div>
+            </div>
+
+            <!-- Section malus — onglet Tous -->
+            <div v-if="malus.length > 0" class="space-y-2 border-t pt-3">
+                <p
+                    class="text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                >
+                    Malus
+                </p>
+                <div
+                    v-for="m in malus"
+                    :key="m.id"
+                    class="flex items-center gap-2"
+                >
+                    <button
+                        type="button"
+                        :disabled="malusSaving[`malus_${m.id}_tous`]"
+                        class="flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors disabled:opacity-60"
+                        :class="
+                            tousOntMalus(m.id)
+                                ? 'border-destructive bg-destructive text-destructive-foreground'
+                                : 'border-border hover:border-destructive'
+                        "
+                        :title="
+                            tousOntMalus(m.id)
+                                ? 'Retirer ce malus à tous'
+                                : 'Appliquer ce malus à tous'
+                        "
+                        @click="
+                            emit(
+                                'toggle-malus-pour-tous',
+                                m.id,
+                                !tousOntMalus(m.id),
+                            )
+                        "
+                    >
+                        <span
+                            v-if="tousOntMalus(m.id)"
+                            class="text-[10px] font-bold"
+                            >✓</span
+                        >
+                    </button>
+                    <span
+                        class="text-xs"
+                        :class="
+                            tousOntMalus(m.id)
+                                ? 'font-medium text-destructive'
+                                : 'text-muted-foreground'
+                        "
+                    >
+                        {{ m.label }}
+                        <span class="tabular-nums"
+                            >− {{ m.deduction }} pt{{
+                                m.deduction !== 1 ? 's' : ''
+                            }}</span
+                        >
+                    </span>
+                    <span
+                        v-if="m.description"
+                        class="text-xs text-muted-foreground"
+                        >({{ m.description }})</span
+                    >
                 </div>
             </div>
         </div>

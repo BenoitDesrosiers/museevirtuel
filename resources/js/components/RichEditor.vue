@@ -521,6 +521,8 @@ const editingId = ref<number | null>(null);
 const panelAnnotationsVisible = ref(true);
 const activeAnnotationId = ref<string | null>(null);
 const editingContent = ref('');
+const editingPoints = ref<number | null>(null);
+const editingCible = ref<number | null>(null);
 const annotationType = ref<'commentaire' | 'correction'>('commentaire');
 
 /**
@@ -627,6 +629,8 @@ function cancelBubble(): void {
 function startEdit(correction: Annotation): void {
     editingId.value = correction.id;
     editingContent.value = correction.contenu;
+    editingPoints.value = correction.points_malus ?? null;
+    editingCible.value = correction.cible_user_id ?? null;
     showBubble.value = false;
     brouillon.value = '';
 }
@@ -637,6 +641,8 @@ function startEdit(correction: Annotation): void {
 function cancelEdit(): void {
     editingId.value = null;
     editingContent.value = '';
+    editingPoints.value = null;
+    editingCible.value = null;
 }
 
 /**
@@ -661,9 +667,13 @@ function saveEdit(correction: Annotation): void {
         contenu: editingContent.value.trim(),
         html: editor.value.getHTML(),
         type: correction.type,
+        cible_user_id: correction.type === 'correction' ? editingCible.value : null,
+        points_malus: correction.type === 'correction' ? editingPoints.value : null,
     });
     editingId.value = null;
     editingContent.value = '';
+    editingPoints.value = null;
+    editingCible.value = null;
 }
 
 /**
@@ -1252,6 +1262,52 @@ function togglePanel(): void {
                 >
                     <!-- Mode édition inline -->
                     <template v-if="editingId === correction.id">
+                        <!-- Champs malus — uniquement pour les corrections -->
+                        <template
+                            v-if="
+                                correction.type === 'correction' &&
+                                membres?.length
+                            "
+                        >
+                            <div class="mb-1.5 flex gap-2">
+                                <div class="flex-1">
+                                    <label
+                                        class="mb-0.5 block text-xs font-medium text-rose-700 dark:text-rose-300"
+                                    >
+                                        Étudiant
+                                    </label>
+                                    <select
+                                        v-model="editingCible"
+                                        class="w-full rounded border border-rose-300 bg-white px-1.5 py-1 text-xs dark:border-rose-700 dark:bg-rose-950 dark:text-rose-100"
+                                    >
+                                        <option :value="null">— tous —</option>
+                                        <option
+                                            v-for="m in membres"
+                                            :key="m.id"
+                                            :value="m.id"
+                                        >
+                                            {{ m.prenom }} {{ m.nom }}
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="w-20">
+                                    <label
+                                        class="mb-0.5 block text-xs font-medium text-rose-700 dark:text-rose-300"
+                                    >
+                                        Pts à enlever
+                                    </label>
+                                    <input
+                                        v-model.number="editingPoints"
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        step="0.25"
+                                        placeholder="0"
+                                        class="w-full rounded border border-rose-300 bg-white px-1.5 py-1 text-xs dark:border-rose-700 dark:bg-rose-950 dark:text-rose-100"
+                                    />
+                                </div>
+                            </div>
+                        </template>
                         <Textarea
                             v-model="editingContent"
                             class="min-h-[60px] text-sm"
