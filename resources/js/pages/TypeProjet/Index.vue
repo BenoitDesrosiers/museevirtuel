@@ -79,6 +79,7 @@ function supprimer(tp: TypeProjet) {
     if (!confirm(t('types_projet.index.confirm_delete', { nom: tp.nom }))) {
         return;
     }
+
     deleteForm.delete(
         typesProjetsRoutes.destroy.url({
             cours: props.cours.id,

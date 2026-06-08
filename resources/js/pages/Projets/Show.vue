@@ -40,19 +40,19 @@ import {
 import { useI18n } from 'vue-i18n';
 import AntidoteGlobalModal from '@/components/AntidoteGlobalModal.vue';
 import type { GlobalSection } from '@/components/AntidoteGlobalModal.vue';
-import ConfirmationModal from '@/components/ConfirmationModal.vue';
-import ReferenceApaModal from '@/components/ReferenceApaModal.vue';
 import CommentaireEnseignant from '@/components/CommentaireEnseignant.vue';
+import ConfirmationModal from '@/components/ConfirmationModal.vue';
 import ConsentementVideo from '@/components/ConsentementVideo.vue';
+import Heading from '@/components/Heading.vue';
+import NotesGrillePersonnalisee from '@/components/NotesGrillePersonnalisee.vue';
+import ReferenceApaModal from '@/components/ReferenceApaModal.vue';
+import RichEditor from '@/components/RichEditor.vue';
 import SectionAudio from '@/components/SectionAudio.vue';
 import SectionChoixQuestions from '@/components/SectionChoixQuestions.vue';
 import SectionEntrevueCC from '@/components/SectionEntrevueCC.vue';
-import SectionTache from '@/components/SectionTache.vue';
 import SectionSchemaVisuel from '@/components/SectionSchemaVisuel.vue';
+import SectionTache from '@/components/SectionTache.vue';
 import SectionVideo from '@/components/SectionVideo.vue';
-import Heading from '@/components/Heading.vue';
-import NotesGrillePersonnalisee from '@/components/NotesGrillePersonnalisee.vue';
-import RichEditor from '@/components/RichEditor.vue';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -617,7 +617,10 @@ const showAntidoteGlobal = ref(false);
  * version du contenu écrase les corrections appliquées par Antidote.
  */
 function clearAllDebounces() {
-    if (debounceShared) clearTimeout(debounceShared);
+    if (debounceShared) {
+        clearTimeout(debounceShared);
+    }
+
     debounceConclusions.forEach((t) => clearTimeout(t));
     debounceSections.forEach((t) => clearTimeout(t));
     debounceDev.forEach((t) => clearTimeout(t));
@@ -635,7 +638,9 @@ function clearAllDebounces() {
  * la liste de références et les exposants au prochain chargement.
  */
 async function flushAllPendingSaves(): Promise<void> {
-    if (!props.peutEditer) return;
+    if (!props.peutEditer) {
+        return;
+    }
 
     const saves: Promise<void>[] = [];
 
@@ -658,10 +663,15 @@ async function flushAllPendingSaves(): Promise<void> {
         ...debounceSectionParagraphesData.entries(),
     ]) {
         const timer = debounceSectionParagraphes.get(paragrapheId);
-        if (timer) clearTimeout(timer);
+
+        if (timer) {
+            clearTimeout(timer);
+        }
+
         debounceSectionParagraphes.delete(paragrapheId);
         saves.push(saveSectionParagraphe(paragrapheId, sectionId));
     }
+
     debounceSectionParagraphesData.clear();
 
     // Conclusions de sections individuelles (clé = "${sectionId}_${userId}")
@@ -721,6 +731,7 @@ function buildSectionsForAntidote(): GlobalSection[] {
                 html: form.introduction_diviser,
             },
         );
+
         for (const dev of developpements.value) {
             result.push({
                 id: `dev_${dev.id}`,
@@ -728,6 +739,7 @@ function buildSectionsForAntidote(): GlobalSection[] {
                 html: dev.contenu ?? '',
             });
         }
+
         for (const m of props.membres) {
             result.push({
                 id: `concl_${m.id}`,
@@ -754,10 +766,12 @@ function onSectionsCorrigees(corrigees: GlobalSection[]) {
             scheduleSectionSave(id);
         } else if (s.id.startsWith('para_')) {
             const paraId = Number(s.id.replace('para_', ''));
+
             for (const [rawSectionId, paragraphes] of Object.entries(
                 sectionParagraphesLocaux,
             )) {
                 const para = paragraphes.find((p) => p.id === paraId);
+
                 if (para) {
                     para.contenu = s.html;
                     scheduleSectionParagrapheSave(paraId, Number(rawSectionId));
@@ -773,6 +787,7 @@ function onSectionsCorrigees(corrigees: GlobalSection[]) {
         } else if (s.id.startsWith('dev_')) {
             const devId = Number(s.id.replace('dev_', ''));
             const dev = developpements.value.find((d) => d.id === devId);
+
             if (dev) {
                 dev.contenu = s.html;
                 scheduleDeveloppementSave(devId);
@@ -839,10 +854,17 @@ function scheduleSectionParagrapheSave(
     paragrapheId: number,
     sectionId: number,
 ) {
-    if (!props.peutEditer) return;
+    if (!props.peutEditer) {
+        return;
+    }
+
     saveStatus.value = 'saving';
     const existing = debounceSectionParagraphes.get(paragrapheId);
-    if (existing) clearTimeout(existing);
+
+    if (existing) {
+        clearTimeout(existing);
+    }
+
     debounceSectionParagraphes.set(
         paragrapheId,
         setTimeout(() => saveSectionParagraphe(paragrapheId, sectionId), 1500),
@@ -851,11 +873,22 @@ function scheduleSectionParagrapheSave(
 }
 
 async function saveSectionParagraphe(paragrapheId: number, sectionId: number) {
-    if (!props.peutEditer) return;
+    if (!props.peutEditer) {
+        return;
+    }
+
     const paragraphes = sectionParagraphesLocaux[sectionId];
-    if (!paragraphes) return;
+
+    if (!paragraphes) {
+        return;
+    }
+
     const p = paragraphes.find((p) => p.id === paragrapheId);
-    if (!p) return;
+
+    if (!p) {
+        return;
+    }
+
     try {
         await axios.patch(
             `${baseUrl.value}/sections/${sectionId}/paragraphes/${paragrapheId}`,
@@ -874,14 +907,21 @@ async function saveSectionParagraphe(paragrapheId: number, sectionId: number) {
 }
 
 async function ajouterSectionParagraphe(sectionId: number) {
-    if (sectionParagrapheEnCours[sectionId]) return;
+    if (sectionParagrapheEnCours[sectionId]) {
+        return;
+    }
+
     sectionParagrapheEnCours[sectionId] = true;
+
     try {
         const response = await axios.post(
             `${baseUrl.value}/sections/${sectionId}/paragraphes`,
         );
-        if (!sectionParagraphesLocaux[sectionId])
+
+        if (!sectionParagraphesLocaux[sectionId]) {
             sectionParagraphesLocaux[sectionId] = [];
+        }
+
         sectionParagraphesLocaux[sectionId].push(response.data.paragraphe);
     } finally {
         sectionParagrapheEnCours[sectionId] = false;
@@ -893,9 +933,17 @@ async function supprimerSectionParagraphe(
     sectionId: number,
 ) {
     const paragraphes = sectionParagraphesLocaux[sectionId];
-    if (!paragraphes || paragraphes.length <= 1) return;
-    if (sectionParagrapheEnCours[sectionId]) return;
+
+    if (!paragraphes || paragraphes.length <= 1) {
+        return;
+    }
+
+    if (sectionParagrapheEnCours[sectionId]) {
+        return;
+    }
+
     sectionParagrapheEnCours[sectionId] = true;
+
     try {
         await axios.delete(
             `${baseUrl.value}/sections/${sectionId}/paragraphes/${paragrapheId}`,
@@ -918,11 +966,18 @@ const debounceSectionConclusions = new Map<
 >();
 
 function scheduleSectionConclusionSave(sectionId: number, userId: number) {
-    if (!props.peutEditer) return;
+    if (!props.peutEditer) {
+        return;
+    }
+
     saveStatus.value = 'saving';
     const key = `${sectionId}_${userId}`;
     const existing = debounceSectionConclusions.get(key);
-    if (existing) clearTimeout(existing);
+
+    if (existing) {
+        clearTimeout(existing);
+    }
+
     debounceSectionConclusions.set(
         key,
         setTimeout(() => saveSectionConclusion(sectionId, userId), 1500),
@@ -930,7 +985,10 @@ function scheduleSectionConclusionSave(sectionId: number, userId: number) {
 }
 
 async function saveSectionConclusion(sectionId: number, userId: number) {
-    if (!props.peutEditer) return;
+    if (!props.peutEditer) {
+        return;
+    }
+
     try {
         await axios.put(`${baseUrl.value}/conclusion`, {
             user_id: userId,
@@ -953,10 +1011,17 @@ const debounceLignes = new Map<number, ReturnType<typeof setTimeout>>();
 const conceptEnCours = reactive<Record<number, boolean>>({});
 
 function scheduleConceptLabelSave(conceptId: number, sectionId: number) {
-    if (!props.peutEditer) return;
+    if (!props.peutEditer) {
+        return;
+    }
+
     saveStatus.value = 'saving';
     const existing = debounceConceptsLabel.get(conceptId);
-    if (existing) clearTimeout(existing);
+
+    if (existing) {
+        clearTimeout(existing);
+    }
+
     debounceConceptsLabel.set(
         conceptId,
         setTimeout(() => saveConceptLabel(conceptId, sectionId), 1500),
@@ -964,11 +1029,22 @@ function scheduleConceptLabelSave(conceptId: number, sectionId: number) {
 }
 
 async function saveConceptLabel(conceptId: number, sectionId: number) {
-    if (!props.peutEditer) return;
+    if (!props.peutEditer) {
+        return;
+    }
+
     const concepts = sectionConceptsLocaux[sectionId];
-    if (!concepts) return;
+
+    if (!concepts) {
+        return;
+    }
+
     const c = concepts.find((c) => c.id === conceptId);
-    if (!c) return;
+
+    if (!c) {
+        return;
+    }
+
     try {
         await axios.patch(
             `${baseUrl.value}/sections/${sectionId}/concepts/${conceptId}`,
@@ -988,10 +1064,17 @@ function scheduleLigneSave(
     conceptId: number,
     sectionId: number,
 ) {
-    if (!props.peutEditer) return;
+    if (!props.peutEditer) {
+        return;
+    }
+
     saveStatus.value = 'saving';
     const existing = debounceLignes.get(ligneId);
-    if (existing) clearTimeout(existing);
+
+    if (existing) {
+        clearTimeout(existing);
+    }
+
     debounceLignes.set(
         ligneId,
         setTimeout(() => saveLigne(ligneId, conceptId, sectionId), 1500),
@@ -1003,13 +1086,28 @@ async function saveLigne(
     conceptId: number,
     sectionId: number,
 ) {
-    if (!props.peutEditer) return;
+    if (!props.peutEditer) {
+        return;
+    }
+
     const concepts = sectionConceptsLocaux[sectionId];
-    if (!concepts) return;
+
+    if (!concepts) {
+        return;
+    }
+
     const c = concepts.find((c) => c.id === conceptId);
-    if (!c) return;
+
+    if (!c) {
+        return;
+    }
+
     const l = c.lignes.find((l) => l.id === ligneId);
-    if (!l) return;
+
+    if (!l) {
+        return;
+    }
+
     try {
         await axios.patch(
             `${baseUrl.value}/sections/${sectionId}/concepts/${conceptId}/lignes/${ligneId}`,
@@ -1029,15 +1127,22 @@ async function saveLigne(
 }
 
 async function ajouterConcept(sectionId: number) {
-    if (conceptEnCours[sectionId]) return;
+    if (conceptEnCours[sectionId]) {
+        return;
+    }
+
     conceptEnCours[sectionId] = true;
+
     try {
         const response = await axios.post(
             `${baseUrl.value}/sections/${sectionId}/concepts`,
             { label: 'Nouveau concept' },
         );
-        if (!sectionConceptsLocaux[sectionId])
+
+        if (!sectionConceptsLocaux[sectionId]) {
             sectionConceptsLocaux[sectionId] = [];
+        }
+
         sectionConceptsLocaux[sectionId].push({
             ...response.data.concept,
             lignes: [],
@@ -1048,8 +1153,12 @@ async function ajouterConcept(sectionId: number) {
 }
 
 async function supprimerConcept(conceptId: number, sectionId: number) {
-    if (conceptEnCours[sectionId]) return;
+    if (conceptEnCours[sectionId]) {
+        return;
+    }
+
     conceptEnCours[sectionId] = true;
+
     try {
         await axios.delete(
             `${baseUrl.value}/sections/${sectionId}/concepts/${conceptId}`,
@@ -1064,13 +1173,20 @@ async function supprimerConcept(conceptId: number, sectionId: number) {
 
 async function ajouterLigne(conceptId: number, sectionId: number) {
     const concepts = sectionConceptsLocaux[sectionId];
-    if (!concepts) return;
+
+    if (!concepts) {
+        return;
+    }
+
     try {
         const response = await axios.post(
             `${baseUrl.value}/sections/${sectionId}/concepts/${conceptId}/lignes`,
         );
         const c = concepts.find((c) => c.id === conceptId);
-        if (c) c.lignes.push({ ...response.data.ligne, questions: [] });
+
+        if (c) {
+            c.lignes.push({ ...response.data.ligne, questions: [] });
+        }
     } catch {
         saveStatus.value = 'error';
     }
@@ -1082,12 +1198,17 @@ async function supprimerLigne(
     sectionId: number,
 ) {
     const concepts = sectionConceptsLocaux[sectionId];
-    if (!concepts) return;
+
+    if (!concepts) {
+        return;
+    }
+
     try {
         await axios.delete(
             `${baseUrl.value}/sections/${sectionId}/concepts/${conceptId}/lignes/${ligneId}`,
         );
         const c = concepts.find((c) => c.id === conceptId);
+
         if (c) {
             c.lignes = c.lignes
                 .filter((l) => l.id !== ligneId)
@@ -1167,6 +1288,7 @@ const codeComplet = computed(() => {
     const cours = (props as any).cours as
         | { code?: string; groupe?: string }
         | undefined;
+
     return `${cours?.code ?? props.classe.code} / Gr. ${cours?.groupe ?? ''}`;
 });
 
@@ -1604,10 +1726,12 @@ async function supprimerAnnotation(
                 champ.replace('section_paragraphe_', ''),
                 10,
             );
+
             for (const paragraphes of Object.values(sectionParagraphesLocaux)) {
                 const p = (paragraphes as SectionParagraphe[]).find(
                     (p) => p.id === paragId,
                 );
+
                 if (p) {
                     p.contenu = payload.html;
                     break;
@@ -1633,10 +1757,12 @@ async function supprimerAnnotation(
                 champ.replace('section_paragraphe_', ''),
                 10,
             );
+
             for (const paragraphes of Object.values(sectionParagraphesLocaux)) {
                 const p = (paragraphes as SectionParagraphe[]).find(
                     (p) => p.id === paragId,
                 );
+
                 if (p) {
                     p.contenu = payload.htmlOriginal;
                     break;
@@ -1694,14 +1820,25 @@ function handleRenvoisUtilises(editorId: string, ids: number[]): void {
     renvoisParEditor.value.set(editorId, ids);
     editorsInitialises.value.add(editorId);
 
-    if (isFirstReport) return;
+    if (isFirstReport) {
+        return;
+    }
 
     // IDs retirés de cet éditeur ET absents de tous les autres éditeurs → demander confirmation
     const tousLesIds = new Set([...renvoisParEditor.value.values()].flat());
     const aSupprimer = previousIds.filter((id) => {
-        if (tousLesIds.has(id)) return false; // Toujours présent dans un autre éditeur
-        if (id === renvoisSupprimerCibleId.value) return false; // Déjà en cours de confirmation
-        if (renvoisSupprimerFile.value.some((f) => f.id === id)) return false; // Déjà en file
+        if (tousLesIds.has(id)) {
+            return false;
+        } // Toujours présent dans un autre éditeur
+
+        if (id === renvoisSupprimerCibleId.value) {
+            return false;
+        } // Déjà en cours de confirmation
+
+        if (renvoisSupprimerFile.value.some((f) => f.id === id)) {
+            return false;
+        } // Déjà en file
+
         return true;
     });
     aSupprimer.forEach((id) =>
@@ -1724,8 +1861,12 @@ async function creerEtInsererRenvoi(
     typeReference: string | null = null,
     champsReference: Record<string, string> | null = null,
 ) {
-    if (renvoiEnCours.value) return;
+    if (renvoiEnCours.value) {
+        return;
+    }
+
     renvoiEnCours.value = true;
+
     try {
         const response = await axios.post(`${baseUrl.value}/renvois`, {
             contenu: contenuInitial,
@@ -1797,7 +1938,10 @@ async function confirmerReferenceApa(
             champsReference,
         );
     } else {
-        if (!insertFnEnAttente.value) return;
+        if (!insertFnEnAttente.value) {
+            return;
+        }
+
         await creerEtInsererRenvoi(
             insertFnEnAttente.value,
             contenu,
@@ -1830,6 +1974,7 @@ async function mettreAJourRenvoi(
         champs_reference: champsReference,
     });
     const renvoi = renvoisLocaux.value.find((r) => r.id === renvoiId);
+
     if (renvoi) {
         renvoi.contenu = contenu;
         renvoi.type_reference = typeReference;
@@ -1846,9 +1991,15 @@ const debounceRenvois = new Map<number, ReturnType<typeof setTimeout>>();
  * on les enveloppe dans un <p> pour que TipTap les charge correctement.
  */
 function renvoiContenuHtml(contenu: string | null): string {
-    if (!contenu) return '';
+    if (!contenu) {
+        return '';
+    }
+
     // Déjà du HTML (sauvegardé par TipTap lors d'une session précédente)
-    if (contenu.trimStart().startsWith('<')) return contenu;
+    if (contenu.trimStart().startsWith('<')) {
+        return contenu;
+    }
+
     return `<p>${contenu}</p>`;
 }
 
@@ -1856,9 +2007,16 @@ function renvoiContenuHtml(contenu: string | null): string {
  * Planifie la sauvegarde du contenu d'un renvoi après 1,5 s sans frappe.
  */
 function scheduleRenvoiSave(renvoiId: number) {
-    if (!props.peutEditer) return;
+    if (!props.peutEditer) {
+        return;
+    }
+
     const existing = debounceRenvois.get(renvoiId);
-    if (existing) clearTimeout(existing);
+
+    if (existing) {
+        clearTimeout(existing);
+    }
+
     debounceRenvois.set(
         renvoiId,
         setTimeout(() => saveRenvoi(renvoiId), 1500),
@@ -1867,7 +2025,11 @@ function scheduleRenvoiSave(renvoiId: number) {
 
 async function saveRenvoi(renvoiId: number) {
     const renvoi = renvoisLocaux.value.find((r) => r.id === renvoiId);
-    if (!renvoi) return;
+
+    if (!renvoi) {
+        return;
+    }
+
     try {
         await axios.patch(`${baseUrl.value}/renvois/${renvoiId}`, {
             contenu: renvoi.contenu,
@@ -1879,9 +2041,14 @@ async function saveRenvoi(renvoiId: number) {
 
 async function supprimerRenvoi(renvoiId: number) {
     const cible = renvoisLocaux.value.find((r) => r.id === renvoiId);
-    if (!cible) return;
+
+    if (!cible) {
+        return;
+    }
+
     const numeroCible = cible.numero;
     const url = `${baseUrl.value}/renvois/${renvoiId}`;
+
     try {
         await axios.delete(url);
         renvoisLocaux.value = renvoisLocaux.value.filter(
@@ -1955,8 +2122,10 @@ function demanderSupprimerRenvoi(
 ): void {
     if (renvoisSupprimerModalOuvert.value) {
         renvoisSupprimerFile.value.push({ id: renvoiId, source, editorId });
+
         return;
     }
+
     renvoisSupprimerCibleId.value = renvoiId;
     renvoisSupprimerSource.value = source;
     renvoisSupprimerEditorId.value = editorId ?? null;
@@ -1966,10 +2135,12 @@ function demanderSupprimerRenvoi(
 /** Traite la prochaine demande en file d'attente, si elle existe. */
 function processerFileSuppressionRenvois(): void {
     let next = renvoisSupprimerFile.value.shift();
+
     // Ignorer silencieusement les entrées dont le renvoi a déjà été supprimé (doublons)
     while (next && !renvoisLocaux.value.some((r) => r.id === next!.id)) {
         next = renvoisSupprimerFile.value.shift();
     }
+
     if (next) {
         nextTick().then(() =>
             demanderSupprimerRenvoi(next!.id, next!.source, next!.editorId),
@@ -1979,8 +2150,12 @@ function processerFileSuppressionRenvois(): void {
 
 /** Confirme et exécute la suppression après validation dans le modal. */
 async function confirmerSupprimerRenvoi(): Promise<void> {
-    if (!renvoisSupprimerCibleId.value) return;
+    if (!renvoisSupprimerCibleId.value) {
+        return;
+    }
+
     renvoisSupprimerEnCours.value = true;
+
     try {
         await supprimerRenvoi(renvoisSupprimerCibleId.value);
         renvoisSupprimerModalOuvert.value = false;
@@ -2000,6 +2175,7 @@ async function confirmerSupprimerRenvoi(): Promise<void> {
  */
 function onModalRenvoisUpdateOpen(ouvert: boolean): void {
     renvoisSupprimerModalOuvert.value = ouvert;
+
     if (!ouvert) {
         // Si l'utilisateur annule et que c'est l'éditeur qui avait retiré l'exposant,
         // on demande au RichEditor concerné d'effectuer un undo pour le restaurer.
@@ -2012,6 +2188,7 @@ function onModalRenvoisUpdateOpen(ouvert: boolean): void {
                 version: (renvoisUndoTarget.value?.version ?? 0) + 1,
             };
         }
+
         renvoisSupprimerCibleId.value = null;
         renvoisSupprimerEditorId.value = null;
         processerFileSuppressionRenvois();
@@ -2034,6 +2211,7 @@ async function renumeroterapresSupression(numeroSupprime: number) {
     affectees.forEach((r) => {
         r.numero -= 1;
     });
+
     for (const r of affectees) {
         await axios.patch(`${baseUrl.value}/renvois/${r.id}`, {
             numero: r.numero,
@@ -2053,19 +2231,26 @@ const renvoiCommentaireEnCours = reactive<Record<number, boolean>>({});
  */
 async function ajouterCommentaireRenvoi(renvoiId: number): Promise<void> {
     const contenu = (renvoiNouveauCommentaire[renvoiId] ?? '').trim();
-    if (!contenu || renvoiCommentaireEnCours[renvoiId]) return;
+
+    if (!contenu || renvoiCommentaireEnCours[renvoiId]) {
+        return;
+    }
+
     renvoiCommentaireEnCours[renvoiId] = true;
+
     try {
         const response = await axios.post(
             `${baseUrl.value}/renvois/${renvoiId}/commentaires`,
             { contenu },
         );
         const renvoi = renvoisLocaux.value.find((r) => r.id === renvoiId);
+
         if (renvoi) {
             renvoi.commentaires.push(
                 response.data.commentaire as RenvoiCommentaire,
             );
         }
+
         renvoiNouveauCommentaire[renvoiId] = '';
     } finally {
         renvoiCommentaireEnCours[renvoiId] = false;
@@ -2083,6 +2268,7 @@ async function supprimerCommentaireRenvoi(
         `${baseUrl.value}/renvois/${renvoiId}/commentaires/${commentaireId}`,
     );
     const renvoi = renvoisLocaux.value.find((r) => r.id === renvoiId);
+
     if (renvoi) {
         renvoi.commentaires = renvoi.commentaires.filter(
             (c) => c.id !== commentaireId,
@@ -2134,16 +2320,24 @@ const annotationsMalusParEtudiant = computed<
         number,
         Array<{ contenu: string; points_malus: number }>
     > = {};
+
     for (const fieldAnnotations of Object.values(annotations)) {
         for (const a of fieldAnnotations) {
-            if (a.type !== 'correction' || a.points_malus == null) continue;
+            if (a.type !== 'correction' || a.points_malus == null) {
+                continue;
+            }
+
             const cibles =
                 a.cible_user_id == null
                     ? // null = tous les membres
                       props.membres.map((m) => m.id)
                     : [a.cible_user_id];
+
             for (const uid of cibles) {
-                if (!result[uid]) result[uid] = [];
+                if (!result[uid]) {
+                    result[uid] = [];
+                }
+
                 result[uid].push({
                     contenu: a.contenu,
                     points_malus: a.points_malus,
@@ -2151,6 +2345,7 @@ const annotationsMalusParEtudiant = computed<
             }
         }
     }
+
     return result;
 });
 

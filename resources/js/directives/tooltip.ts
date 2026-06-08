@@ -39,6 +39,7 @@ function getOrCreateEl(): HTMLElement {
         ].join(';');
         document.body.appendChild(el);
     }
+
     return el;
 }
 
@@ -69,6 +70,7 @@ function show(text: string, event: MouseEvent): void {
         clearTimeout(hideTimer);
         hideTimer = null;
     }
+
     const tooltip = getOrCreateEl();
     tooltip.textContent = text;
     tooltip.style.display = 'block';

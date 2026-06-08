@@ -339,12 +339,15 @@ const sortedCorrections = computed(() => {
         if (pa === undefined && pb === undefined) {
             return a.id - b.id;
         }
+
         if (pa === undefined) {
             return 1;
         }
+
         if (pb === undefined) {
             return -1;
         }
+
         if (pa !== pb) {
             return pa - pb;
         }

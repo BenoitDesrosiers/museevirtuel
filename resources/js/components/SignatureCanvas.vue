@@ -68,6 +68,7 @@ function getCanvasCoords(e: MouseEvent): { x: number; y: number } {
     // Ajuster pour la différence entre taille CSS et taille réelle du canvas
     const scaleX = props.width / rect.width;
     const scaleY = props.height / rect.height;
+
     return {
         x: (e.clientX - rect.left) * scaleX,
         y: (e.clientY - rect.top) * scaleY,
@@ -79,6 +80,7 @@ function getTouchCoords(e: TouchEvent): { x: number; y: number } {
     const touch = e.touches[0];
     const scaleX = props.width / rect.width;
     const scaleY = props.height / rect.height;
+
     return {
         x: (touch.clientX - rect.left) * scaleX,
         y: (touch.clientY - rect.top) * scaleY,
@@ -100,7 +102,10 @@ function startDrawingTouch(e: TouchEvent): void {
 }
 
 function draw(e: MouseEvent): void {
-    if (!isDrawing.value) return;
+    if (!isDrawing.value) {
+        return;
+    }
+
     const { x, y } = getCanvasCoords(e);
     drawLine(lastX, lastY, x, y);
     lastX = x;
@@ -108,7 +113,10 @@ function draw(e: MouseEvent): void {
 }
 
 function drawTouch(e: TouchEvent): void {
-    if (!isDrawing.value) return;
+    if (!isDrawing.value) {
+        return;
+    }
+
     const { x, y } = getTouchCoords(e);
     drawLine(lastX, lastY, x, y);
     lastX = x;
@@ -117,7 +125,11 @@ function drawTouch(e: TouchEvent): void {
 
 function drawLine(x1: number, y1: number, x2: number, y2: number): void {
     const ctx = getContext();
-    if (!ctx) return;
+
+    if (!ctx) {
+        return;
+    }
+
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
@@ -136,7 +148,11 @@ function stopDrawing(): void {
 
 function clear(): void {
     const ctx = getContext();
-    if (!ctx || !canvasRef.value) return;
+
+    if (!ctx || !canvasRef.value) {
+        return;
+    }
+
     ctx.clearRect(0, 0, props.width, props.height);
     isEmpty.value = true;
     emit('update:modelValue', null);
@@ -159,6 +175,7 @@ watch(
     (val) => {
         if (!val) {
             const ctx = getContext();
+
             if (ctx && canvasRef.value) {
                 ctx.clearRect(0, 0, props.width, props.height);
                 isEmpty.value = true;

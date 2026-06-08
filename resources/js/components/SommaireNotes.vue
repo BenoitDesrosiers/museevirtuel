@@ -76,6 +76,7 @@ const noteFinale = computed<number>(() => {
             Object.entries(props.criteres).reduce((total, [cle, config]) => {
                 // Critère non rempli → note maximale (4 = excellent) par défaut
                 const note = props.notes[cle] ?? 4;
+
                 return total + (note / 4) * config.poids;
             }, 0) * 100,
         ) / 100

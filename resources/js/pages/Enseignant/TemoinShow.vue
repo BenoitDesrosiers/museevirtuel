@@ -48,6 +48,7 @@ function declinerTemoin() {
     ) {
         return;
     }
+
     declinerForm.put(decliner.url(props.temoin.id));
 }
 
@@ -62,6 +63,7 @@ function desapprouverTemoin() {
     ) {
         return;
     }
+
     desapprouverForm.put(desapprouver.url(props.temoin.id));
 }
 

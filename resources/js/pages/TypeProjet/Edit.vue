@@ -89,7 +89,10 @@ const props = defineProps<Props>();
  * Convertit une date ISO en format attendu par datetime-local (YYYY-MM-DDTHH:mm).
  */
 function toDatetimeLocal(iso: string | null | undefined): string {
-    if (!iso) return '';
+    if (!iso) {
+        return '';
+    }
+
     return iso.slice(0, 16);
 }
 

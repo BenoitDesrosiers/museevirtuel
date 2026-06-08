@@ -311,10 +311,14 @@ watch(typeRef, reinitialiserChamps, { flush: 'sync' });
 watch(
     () => props.open,
     (ouvert) => {
-        if (!ouvert) return;
+        if (!ouvert) {
+            return;
+        }
+
         onglet.value = 'nouveau';
         filtreRecherche.value = '';
         referenceSelectionnee.value = null;
+
         if (props.renvoi?.type_reference) {
             typeRef.value = props.renvoi.type_reference as TypeRef;
             // reinitialiserChamps a déjà été appelé de façon synchrone par le watch(typeRef)
@@ -342,9 +346,16 @@ const afficherOngletBibliotheque = computed(
 );
 
 const referencesFiltrees = computed(() => {
-    if (!props.mesReferences) return [];
+    if (!props.mesReferences) {
+        return [];
+    }
+
     const filtre = filtreRecherche.value.toLowerCase().trim();
-    if (!filtre) return props.mesReferences;
+
+    if (!filtre) {
+        return props.mesReferences;
+    }
+
     return props.mesReferences.filter((r) =>
         r.titre.toLowerCase().includes(filtre),
     );
@@ -356,13 +367,22 @@ const referencesFiltrees = computed(() => {
 function formatAuteursApa(
     auteurs: { prenom: string; nom: string }[] | null,
 ): string {
-    if (!auteurs || auteurs.length === 0) return '';
+    if (!auteurs || auteurs.length === 0) {
+        return '';
+    }
+
     const formattes = auteurs.map((a) => {
         const initiale = a.prenom ? `${a.prenom.charAt(0).toUpperCase()}.` : '';
+
         return initiale ? `${a.nom}, ${initiale}` : a.nom;
     });
-    if (formattes.length === 1) return formattes[0];
+
+    if (formattes.length === 1) {
+        return formattes[0];
+    }
+
     const dernier = formattes.pop()!;
+
     return `${formattes.join(', ')}, & ${dernier}`;
 }
 
@@ -373,6 +393,7 @@ function auteursResume(ref: MesReference): string {
     const premierNom = ref.auteurs?.[0]?.nom ?? '';
     const suffix = (ref.auteurs?.length ?? 0) > 1 ? ' et al.' : '';
     const annee = ref.annee ? ` (${ref.annee})` : '';
+
     return `${premierNom}${suffix}${annee}`;
 }
 
@@ -416,23 +437,28 @@ function apercuApaDepuisZotero(ref: MesReference): string {
                 ? ` <em>${ref.publication}</em>.`
                 : '';
             const lien = ref.doi ? ` ${ref.doi}` : ref.url ? ` ${ref.url}` : '';
+
             return `${auteursStr}. (${annee}). ${ref.titre}.${revue}${lien}`;
         }
         case 'livre': {
             const editeur = ref.publication ? ` ${ref.publication}.` : '';
+
             return `${auteursStr}. (${annee}). <em>${ref.titre}</em>.${editeur}`;
         }
         case 'site_internet': {
             const site = ref.publication ? ` <em>${ref.publication}</em>.` : '';
             const url = ref.url ? ` ${ref.url}` : '';
+
             return `${auteursStr}. (${annee}). ${ref.titre}.${site}${url}`;
         }
         case 'memoire_these': {
             const url = ref.url ? ` ${ref.url}` : '';
+
             return `${auteursStr}. (${annee}). <em>${ref.titre}</em>.${url}`;
         }
         case 'document_audiovisuel': {
             const url = ref.url ? ` ${ref.url}` : '';
+
             return `${auteursStr}. (${annee}). <em>${ref.titre}</em>.${url}`;
         }
         case 'article_journal': {
@@ -440,6 +466,7 @@ function apercuApaDepuisZotero(ref: MesReference): string {
                 ? ` <em>${ref.publication}</em>.`
                 : '';
             const url = ref.url ? ` ${ref.url}` : '';
+
             return `${auteursStr}. ${ref.titre}.${journal}${url}`;
         }
         default:
@@ -458,11 +485,13 @@ const apercuApaZotero = computed(() =>
  */
 async function copierApa(): Promise<void> {
     const texte = apercuApaZotero.value.replace(/<[^>]+>/g, '');
+
     try {
         await navigator.clipboard.writeText(texte);
     } catch {
         // Clipboard API indisponible (contexte non sécurisé) — échec silencieux
     }
+
     copieApa.value = true;
     setTimeout(() => (copieApa.value = false), 2000);
 }
@@ -483,43 +512,122 @@ function preRemplirDepuisZotero(ref: MesReference): void {
 
     switch (type) {
         case 'article_periodique':
-            if (auteursStr) champs.auteurs = auteursStr;
-            if (anneeStr) champs.annee = anneeStr;
-            if (ref.titre) champs.titre_article = ref.titre;
-            if (ref.publication) champs.titre_revue = ref.publication;
-            if (ref.doi) champs.doi = ref.doi;
-            else if (ref.url) champs.doi = ref.url;
+            if (auteursStr) {
+                champs.auteurs = auteursStr;
+            }
+
+            if (anneeStr) {
+                champs.annee = anneeStr;
+            }
+
+            if (ref.titre) {
+                champs.titre_article = ref.titre;
+            }
+
+            if (ref.publication) {
+                champs.titre_revue = ref.publication;
+            }
+
+            if (ref.doi) {
+                champs.doi = ref.doi;
+            } else if (ref.url) {
+                champs.doi = ref.url;
+            }
+
             break;
         case 'livre':
-            if (auteursStr) champs.auteurs = auteursStr;
-            if (anneeStr) champs.annee = anneeStr;
-            if (ref.titre) champs.titre = ref.titre;
-            if (ref.publication) champs.editeur = ref.publication;
+            if (auteursStr) {
+                champs.auteurs = auteursStr;
+            }
+
+            if (anneeStr) {
+                champs.annee = anneeStr;
+            }
+
+            if (ref.titre) {
+                champs.titre = ref.titre;
+            }
+
+            if (ref.publication) {
+                champs.editeur = ref.publication;
+            }
+
             break;
         case 'site_internet':
-            if (auteursStr) champs.auteur_organisme = auteursStr;
-            if (anneeStr) champs.annee = anneeStr;
-            if (ref.titre) champs.titre_page = ref.titre;
-            if (ref.publication) champs.nom_site = ref.publication;
-            if (ref.url) champs.url = ref.url;
+            if (auteursStr) {
+                champs.auteur_organisme = auteursStr;
+            }
+
+            if (anneeStr) {
+                champs.annee = anneeStr;
+            }
+
+            if (ref.titre) {
+                champs.titre_page = ref.titre;
+            }
+
+            if (ref.publication) {
+                champs.nom_site = ref.publication;
+            }
+
+            if (ref.url) {
+                champs.url = ref.url;
+            }
+
             break;
         case 'memoire_these':
-            if (auteursStr) champs.auteur = auteursStr;
-            if (anneeStr) champs.annee = anneeStr;
-            if (ref.titre) champs.titre = ref.titre;
-            if (ref.url) champs.url = ref.url;
+            if (auteursStr) {
+                champs.auteur = auteursStr;
+            }
+
+            if (anneeStr) {
+                champs.annee = anneeStr;
+            }
+
+            if (ref.titre) {
+                champs.titre = ref.titre;
+            }
+
+            if (ref.url) {
+                champs.url = ref.url;
+            }
+
             break;
         case 'document_audiovisuel':
-            if (auteursStr) champs.auteur = auteursStr;
-            if (anneeStr) champs.annee = anneeStr;
-            if (ref.titre) champs.titre = ref.titre;
-            if (ref.url) champs.url = ref.url;
+            if (auteursStr) {
+                champs.auteur = auteursStr;
+            }
+
+            if (anneeStr) {
+                champs.annee = anneeStr;
+            }
+
+            if (ref.titre) {
+                champs.titre = ref.titre;
+            }
+
+            if (ref.url) {
+                champs.url = ref.url;
+            }
+
             break;
         case 'article_journal':
-            if (auteursStr) champs.auteurs = auteursStr;
-            if (ref.titre) champs.titre_article = ref.titre;
-            if (ref.publication) champs.nom_journal = ref.publication;
-            if (ref.url) champs.url = ref.url;
+            if (auteursStr) {
+                champs.auteurs = auteursStr;
+            }
+
+            if (ref.titre) {
+                champs.titre_article = ref.titre;
+            }
+
+            if (ref.publication) {
+                champs.nom_journal = ref.publication;
+            }
+
+            if (ref.url) {
+                champs.url = ref.url;
+            }
+
             break;
     }
 
@@ -545,6 +653,7 @@ const referenceFormatee = computed<string>(() => {
     switch (typeRef.value) {
         case 'livre': {
             const editionPart = get('edition') ? ` (${get('edition')})` : '';
+
             return `${get('auteurs')}. (${get('annee')}). <em>${get('titre')}</em>${editionPart}. ${get('editeur')}.`;
         }
         case 'article_periodique': {
@@ -552,10 +661,12 @@ const referenceFormatee = computed<string>(() => {
                 ? `${get('volume')}(${get('numero')})`
                 : get('volume');
             const doiPart = get('doi') ? ` ${get('doi')}` : '';
+
             return `${get('auteurs')}. (${get('annee')}). ${get('titre_article')}. <em>${get('titre_revue')}</em>, ${volNum}, ${get('pages')}.${doiPart}`;
         }
         case 'article_journal': {
             const urlPart = get('url') ? ` ${get('url')}` : '';
+
             return `${get('auteurs')}. (${get('date')}). ${get('titre_article')}. <em>${get('nom_journal')}</em>.${urlPart}`;
         }
         case 'site_internet': {
@@ -563,10 +674,12 @@ const referenceFormatee = computed<string>(() => {
         }
         case 'document_audiovisuel': {
             const urlPart = get('url') ? ` ${get('url')}` : '';
+
             return `${get('auteur')}. (${get('annee')}). <em>${get('titre')}</em> [${get('type_doc')}]. ${get('producteur')}.${urlPart}`;
         }
         case 'memoire_these': {
             const urlPart = get('url') ? ` ${get('url')}` : '';
+
             return `${get('auteur')}. (${get('annee')}). <em>${get('titre')}</em> [${get('type_doc')}, ${get('universite')}].${urlPart}`;
         }
         case 'ouvrage_reference': {
@@ -575,6 +688,7 @@ const referenceFormatee = computed<string>(() => {
             const corpsPart = titreEntree
                 ? `${titreEntree}. Dans ${get('auteur_editeur')}, <em>${get('titre_ouvrage')}</em>`
                 : `<em>${get('titre_ouvrage')}</em>`;
+
             return `${get('auteur_editeur')}. (${get('annee')}). ${corpsPart}. ${get('editeur')}.${urlPart}`;
         }
         default:
@@ -598,7 +712,10 @@ const formulaireValide = computed<boolean>(() =>
  * réinitialise le formulaire et ferme le modal.
  */
 function inserer(): void {
-    if (!formulaireValide.value) return;
+    if (!formulaireValide.value) {
+        return;
+    }
+
     emit('inserer', referenceFormatee.value, typeRef.value, { ...champs });
     typeRef.value = 'livre';
     reinitialiserChamps();

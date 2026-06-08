@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { apercuNotesAccumulees } from '@/actions/App/Http/Controllers/ClasseController';
 import {
     ArrowLeft,
     BookMarked,
@@ -20,6 +19,7 @@ import {
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { apercuNotesAccumulees } from '@/actions/App/Http/Controllers/ClasseController';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -175,10 +175,15 @@ const aPonderation = computed(() =>
 // ─── Échéancier (étudiants seulement) ─────────────────────────────────────────
 const echeancierParSemaine = computed(() => {
     const map = new Map<number, EcheancierEtape[]>();
+
     for (const etape of props.echeancierEtapes) {
-        if (!map.has(etape.semaine)) map.set(etape.semaine, []);
+        if (!map.has(etape.semaine)) {
+            map.set(etape.semaine, []);
+        }
+
         map.get(etape.semaine)!.push(etape);
     }
+
     return map;
 });
 
@@ -283,6 +288,7 @@ function removeEtudiant(etudiant: Etudiant): void {
 
 function handleImportFileChange(event: Event): void {
     const input = event.target as HTMLInputElement;
+
     if (input.files && input.files[0]) {
         importEtudiantForm.csv = input.files[0];
     }
@@ -309,7 +315,9 @@ function confirmDeleteGroupe(groupe: Groupe) {
 }
 
 function executeDeleteGroupe() {
-    if (!groupeASupprimer.value) return;
+    if (!groupeASupprimer.value) {
+        return;
+    }
 
     deleteGroupeForm.delete(
         `/cours/${props.cours.id}/classes/${props.classe.id}/groupes/${groupeASupprimer.value.id}`,

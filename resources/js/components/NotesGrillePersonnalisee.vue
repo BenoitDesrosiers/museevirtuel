@@ -80,6 +80,7 @@ function totalMalus(membreId: number): number {
         (total, a) => total + a.points_malus,
         0,
     );
+
     // Arrondi au centième pour éviter les erreurs de précision flottante JS (ex. 0.1 + 0.2)
     return Math.round((malusGrille + malusAnnotations) * 100) / 100;
 }

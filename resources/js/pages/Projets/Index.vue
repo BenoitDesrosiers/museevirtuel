@@ -67,14 +67,26 @@ type Props = {
 const props = defineProps<Props>();
 
 function completionColor(pct: number): string {
-    if (pct >= 80) return 'text-green-600 dark:text-green-400';
-    if (pct >= 40) return 'text-yellow-600 dark:text-yellow-400';
+    if (pct >= 80) {
+        return 'text-green-600 dark:text-green-400';
+    }
+
+    if (pct >= 40) {
+        return 'text-yellow-600 dark:text-yellow-400';
+    }
+
     return 'text-muted-foreground';
 }
 
 function completionBarClass(pct: number): string {
-    if (pct >= 80) return 'bg-green-500';
-    if (pct >= 40) return 'bg-yellow-500';
+    if (pct >= 80) {
+        return 'bg-green-500';
+    }
+
+    if (pct >= 40) {
+        return 'bg-yellow-500';
+    }
+
     return 'bg-primary/40';
 }
 

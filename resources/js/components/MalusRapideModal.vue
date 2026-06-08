@@ -72,19 +72,35 @@ function isMalusApplique(malusId: number, membreId: number): boolean {
  * false si aucun, null si état mixte.
  */
 const etatTous = computed((): boolean | null => {
-    if (!selectedMalusId.value || props.membres.length === 0) return null;
+    if (!selectedMalusId.value || props.membres.length === 0) {
+        return null;
+    }
+
     const etats = props.membres.map((m) =>
         isMalusApplique(selectedMalusId.value!, m.id),
     );
-    if (etats.every(Boolean)) return true;
-    if (etats.every((e) => !e)) return false;
+
+    if (etats.every(Boolean)) {
+        return true;
+    }
+
+    if (etats.every((e) => !e)) {
+        return false;
+    }
+
     return null;
 });
 
 /** true/false selon la cible sélectionnée, null si état mixte (tous + partiel). */
 const etatCible = computed((): boolean | null => {
-    if (!selectedMalusId.value) return null;
-    if (selectedTarget.value === 'tous') return etatTous.value;
+    if (!selectedMalusId.value) {
+        return null;
+    }
+
+    if (selectedTarget.value === 'tous') {
+        return etatTous.value;
+    }
+
     return isMalusApplique(
         selectedMalusId.value,
         selectedTarget.value as number,
@@ -93,20 +109,29 @@ const etatCible = computed((): boolean | null => {
 
 /** L'action Appliquer est disponible quand la cible n'a pas encore le malus (ou partiellement). */
 const peutAppliquer = computed(() => {
-    if (!selectedMalusId.value || props.saving) return false;
+    if (!selectedMalusId.value || props.saving) {
+        return false;
+    }
+
     return etatCible.value !== true;
 });
 
 /** L'action Retirer est disponible quand la cible a déjà le malus (ou partiellement). */
 const peutRetirer = computed(() => {
-    if (!selectedMalusId.value || props.saving) return false;
+    if (!selectedMalusId.value || props.saving) {
+        return false;
+    }
+
     return etatCible.value !== false;
 });
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
 function appliquer(): void {
-    if (!selectedMalusId.value) return;
+    if (!selectedMalusId.value) {
+        return;
+    }
+
     if (selectedTarget.value === 'tous') {
         emit('toggle-pour-tous', selectedMalusId.value, true);
     } else {
@@ -120,7 +145,10 @@ function appliquer(): void {
 }
 
 function retirer(): void {
-    if (!selectedMalusId.value) return;
+    if (!selectedMalusId.value) {
+        return;
+    }
+
     if (selectedTarget.value === 'tous') {
         emit('toggle-pour-tous', selectedMalusId.value, false);
     } else {

@@ -27,11 +27,11 @@ import CoursObjectifs from '@/components/CoursObjectifs.vue';
 import CoursReferences from '@/components/CoursReferences.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
-import VisioSession from '@/components/VisioSession.vue';
 import { Badge } from '@/components/ui/badge';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogContent,
@@ -39,7 +39,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -49,6 +48,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import VisioSession from '@/components/VisioSession.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import typesProjetsRoutes from '@/routes/types-projets';
 
@@ -242,7 +242,9 @@ function openEditEtape(etape: EcheancierEtape) {
 }
 
 function submitEditEtape() {
-    if (!editingEtape.value) return;
+    if (!editingEtape.value) {
+        return;
+    }
 
     editEtapeForm.put(
         `/cours/${props.cours.id}/echeancier/${editingEtape.value.id}`,
@@ -257,7 +259,9 @@ function submitEditEtape() {
 }
 
 function handleClasseDialogUpdate(isOpen: boolean) {
-    if (!isOpen) classeASupprimer.value = null;
+    if (!isOpen) {
+        classeASupprimer.value = null;
+    }
 }
 
 const deleteEtapeForm = useForm({});
@@ -377,6 +381,7 @@ function supprimerTp(tp: TypeProjet) {
     ) {
         return;
     }
+
     deleteTpForm.delete(
         typesProjetsRoutes.destroy.url({
             cours: props.cours.id,

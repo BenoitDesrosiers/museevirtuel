@@ -81,6 +81,7 @@ const baseUrl = `/cours/${props.classe.cours_id}/classes/${props.groupe.classe_i
 /** Retrouve le nom d'un membre par son userId. */
 function nomMembre(userId: number): string {
     const m = props.membres.find((m) => m.id === userId);
+
     return m ? `${m.prenom} ${m.nom}` : '—';
 }
 </script>

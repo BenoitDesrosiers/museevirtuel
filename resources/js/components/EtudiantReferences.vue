@@ -39,7 +39,7 @@ type ZoteroConfig = {
     synchronise_le: string | null;
 };
 
-const props = defineProps<{
+defineProps<{
     references: Reference[];
     zoteroConfig: ZoteroConfig;
 }>();
@@ -68,7 +68,9 @@ const deleteForm = useForm({});
  * Supprime une référence après confirmation.
  */
 function supprimerReference(reference: Reference) {
-    if (!confirm(`Supprimer « ${reference.titre.slice(0, 60)} » ?`)) return;
+    if (!confirm(`Supprimer « ${reference.titre.slice(0, 60)} » ?`)) {
+        return;
+    }
 
     deleteForm.delete(referencesRoutes.destroy.url(reference.id), {
         preserveScroll: true,
@@ -112,8 +114,9 @@ function destroyCredential() {
         !confirm(
             'Déconnecter votre compte Zotero ? Les références importées de Zotero seront supprimées.',
         )
-    )
+    ) {
         return;
+    }
 
     destroyCredentialForm.delete(credentialRoutes.destroy.url(), {
         preserveScroll: true,
@@ -139,7 +142,9 @@ function toggleApercu(id: number): void {
  * Formate les auteurs d'une référence en une chaîne lisible.
  */
 function formatAuteurs(auteurs: Reference['auteurs']): string {
-    if (!auteurs || auteurs.length === 0) return '';
+    if (!auteurs || auteurs.length === 0) {
+        return '';
+    }
 
     return (
         auteurs
@@ -156,13 +161,22 @@ function formatAuteurs(auteurs: Reference['auteurs']): string {
  * Formate un tableau d'auteurs au format APA : « Nom, P. » ou « Nom, P., & Nom2, Q. ».
  */
 function formatAuteursApa(auteurs: Reference['auteurs']): string {
-    if (!auteurs || auteurs.length === 0) return '';
+    if (!auteurs || auteurs.length === 0) {
+        return '';
+    }
+
     const formattes = auteurs.map((a) => {
         const initiale = a.prenom ? `${a.prenom.charAt(0).toUpperCase()}.` : '';
+
         return initiale ? `${a.nom}, ${initiale}` : a.nom;
     });
-    if (formattes.length === 1) return formattes[0];
+
+    if (formattes.length === 1) {
+        return formattes[0];
+    }
+
     const dernier = formattes.pop()!;
+
     return `${formattes.join(', ')}, & ${dernier}`;
 }
 
@@ -181,24 +195,29 @@ function apercuApa(ref: Reference): string {
                 ? ` <em>${ref.publication}</em>.`
                 : '';
             const lien = ref.doi ? ` ${ref.doi}` : ref.url ? ` ${ref.url}` : '';
+
             return `${auteursStr}. (${annee}). ${ref.titre}.${revue}${lien}`;
         }
         case 'book': {
             const editeur = ref.publication ? ` ${ref.publication}.` : '';
+
             return `${auteursStr}. (${annee}). <em>${ref.titre}</em>.${editeur}`;
         }
         case 'webpage': {
             const site = ref.publication ? ` <em>${ref.publication}</em>.` : '';
             const url = ref.url ? ` ${ref.url}` : '';
+
             return `${auteursStr}. (${annee}). ${ref.titre}.${site}${url}`;
         }
         case 'thesis': {
             const url = ref.url ? ` ${ref.url}` : '';
+
             return `${auteursStr}. (${annee}). <em>${ref.titre}</em>.${url}`;
         }
         case 'videoRecording':
         case 'film': {
             const url = ref.url ? ` ${ref.url}` : '';
+
             return `${auteursStr}. (${annee}). <em>${ref.titre}</em>.${url}`;
         }
         case 'newspaperArticle': {
@@ -206,11 +225,13 @@ function apercuApa(ref: Reference): string {
                 ? ` <em>${ref.publication}</em>.`
                 : '';
             const url = ref.url ? ` ${ref.url}` : '';
+
             return `${auteursStr}. ${ref.titre}.${journal}${url}`;
         }
         default: {
             const publication = ref.publication ? ` ${ref.publication}.` : '';
             const lien = ref.doi ? ` ${ref.doi}` : ref.url ? ` ${ref.url}` : '';
+
             return `${auteursStr}. (${annee}). <em>${ref.titre}</em>.${publication}${lien}`;
         }
     }
@@ -221,11 +242,13 @@ function apercuApa(ref: Reference): string {
  */
 async function copierApa(ref: Reference): Promise<void> {
     const texte = apercuApa(ref).replace(/<[^>]+>/g, '');
+
     try {
         await navigator.clipboard.writeText(texte);
     } catch {
         // Clipboard API indisponible (contexte non sécurisé) — échec silencieux
     }
+
     copieId.value = ref.id;
     setTimeout(() => (copieId.value = null), 2000);
 }
@@ -234,7 +257,9 @@ async function copierApa(ref: Reference): Promise<void> {
  * Formate la date de la dernière synchronisation Zotero.
  */
 function formatSyncDate(iso: string | null): string {
-    if (!iso) return 'jamais';
+    if (!iso) {
+        return 'jamais';
+    }
 
     return new Date(iso).toLocaleString('fr-CA', {
         dateStyle: 'medium',

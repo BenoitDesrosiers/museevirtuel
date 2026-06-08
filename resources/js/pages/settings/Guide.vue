@@ -107,6 +107,7 @@ const roleWorkspaceLinks: Record<string, { labelKey: string; href: string }> = {
  */
 function getSteps(path: string): string[] {
     const steps = tm(path);
+
     return Array.isArray(steps) ? (steps as string[]) : [];
 }
 

@@ -61,7 +61,9 @@ const formQuestion = useForm({
  * Crée la question principale si elle n'existe pas encore.
  */
 function creerQuestionPrincipale(): void {
-    if (questionPrincipale.value || props.readonly) return;
+    if (questionPrincipale.value || props.readonly) {
+        return;
+    }
 
     formQuestion.post(conceptsRoutes.store.url(props.params), {
         preserveScroll: true,
@@ -75,7 +77,9 @@ function creerQuestionPrincipale(): void {
  * Met à jour le texte de la question principale.
  */
 function mettreAJourQuestion(): void {
-    if (!questionPrincipale.value || props.readonly) return;
+    if (!questionPrincipale.value || props.readonly) {
+        return;
+    }
 
     useForm({ label: formQuestion.label }).patch(
         conceptsRoutes.update.url({
@@ -94,9 +98,13 @@ const nouvelleSousQuestion = ref('');
  * Ajoute une sous-question (stockée dans `indicateur`).
  */
 function ajouterSousQuestion(): void {
-    if (!questionPrincipale.value || props.readonly || !peutAjouter.value)
+    if (!questionPrincipale.value || props.readonly || !peutAjouter.value) {
         return;
-    if (!nouvelleSousQuestion.value.trim()) return;
+    }
+
+    if (!nouvelleSousQuestion.value.trim()) {
+        return;
+    }
 
     useForm({
         dimension: '',
@@ -120,7 +128,9 @@ function ajouterSousQuestion(): void {
  * Supprime une sous-question.
  */
 function supprimerSousQuestion(ligne: Ligne): void {
-    if (!questionPrincipale.value || props.readonly) return;
+    if (!questionPrincipale.value || props.readonly) {
+        return;
+    }
 
     useForm({}).delete(
         conceptsRoutes.lignes.destroy.url({

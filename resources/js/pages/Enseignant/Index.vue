@@ -132,6 +132,7 @@ const coursForm = useForm({
 
 function onTypeCoursCree(val: string) {
     coursForm.type_cours = val as typeof coursForm.type_cours;
+
     if (val !== 'cours_complet') {
         coursForm.utiliser_gabarit = false;
     }
@@ -143,6 +144,7 @@ function sessionLabel(session: string): string {
         ete: 'Été',
         automne: 'Automne',
     };
+
     return labels[session] ?? session;
 }
 
@@ -278,6 +280,7 @@ const props = defineProps<Props>();
 
 function filtrerTemoins(liste: TemoinEnAttente[]): TemoinEnAttente[] {
     const texte = rechercheTexte.value.trim().toLowerCase();
+
     return liste.filter((t) => {
         const matchTexte =
             texte === '' ||
@@ -287,6 +290,7 @@ function filtrerTemoins(liste: TemoinEnAttente[]): TemoinEnAttente[] {
             t.thematiques_choisies.some(
                 (th) => th.id === filtreThematiqueId.value,
             );
+
         return matchTexte && matchThematique;
     });
 }

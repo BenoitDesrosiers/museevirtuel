@@ -57,6 +57,7 @@ async function copierTexte(): Promise<void> {
     } catch {
         // Clipboard API indisponible (contexte non sécurisé ou permission refusée) — échec silencieux
     }
+
     copie.value = true;
     setTimeout(() => {
         copie.value = false;
@@ -67,7 +68,10 @@ async function copierTexte(): Promise<void> {
  * Formate une note décimale pour l'affichage (2 décimales, '—' si null).
  */
 function formaterNote(note: number | null): string {
-    if (note === null) return '—';
+    if (note === null) {
+        return '—';
+    }
+
     return note.toFixed(2);
 }
 </script>

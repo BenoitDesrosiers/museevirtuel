@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import { Plus, Trash2, Link, Upload } from 'lucide-vue-next';
-import mediasRoutes from '@/routes/projets/sections/medias';
+import { ref } from 'vue';
 import InputError from '@/components/InputError.vue';
+import mediasRoutes from '@/routes/projets/sections/medias';
 
 type RouteParams = {
     cours: number;
@@ -67,7 +67,10 @@ const deleteForm = useForm({});
  * Supprime un média après confirmation.
  */
 function supprimerMedia(media: Media): void {
-    if (!confirm('Supprimer cette vidéo ?')) return;
+    if (!confirm('Supprimer cette vidéo ?')) {
+        return;
+    }
+
     deleteForm.delete(
         mediasRoutes.destroy.url({ ...props.params, media: media.id }),
         {

@@ -36,7 +36,9 @@ const props = defineProps<{
  * Bascule l'état complété/non-complété d'une tâche.
  */
 function toggleCompleted(tache: Tache): void {
-    if (props.readonly) return;
+    if (props.readonly) {
+        return;
+    }
 
     router.patch(
         groupesTachesRoutes.toggle.url({ ...props.params, tache: tache.id }),
@@ -49,7 +51,9 @@ function toggleCompleted(tache: Tache): void {
  * Assigne un membre à une tâche.
  */
 function assigner(tache: Tache, membreId: number | null): void {
-    if (props.readonly) return;
+    if (props.readonly) {
+        return;
+    }
 
     router.patch(
         groupesTachesRoutes.assigner.url({ ...props.params, tache: tache.id }),

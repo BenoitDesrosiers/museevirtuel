@@ -22,17 +22,9 @@ import { useI18n } from 'vue-i18n';
 import FormDialog from '@/components/FormDialog.vue';
 import Heading from '@/components/Heading.vue';
 import NoteAvecCorrections from '@/components/NoteAvecCorrections.vue';
-import VisioSession from '@/components/VisioSession.vue';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
@@ -42,6 +34,14 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import VisioSession from '@/components/VisioSession.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { Auth } from '@/types/auth';
 
@@ -456,7 +456,11 @@ const rechercheTemoin = ref('');
 
 const resultsRecherche = computed(() => {
     const q = rechercheTemoin.value.trim().toLowerCase();
-    if (!q) return [];
+
+    if (!q) {
+        return [];
+    }
+
     return props.tousLesTemoins.filter((t) =>
         `${t.prenom} ${t.nom}`.toLowerCase().includes(q),
     );

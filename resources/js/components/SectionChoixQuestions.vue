@@ -33,6 +33,7 @@ const form = useForm({
  */
 function toggleQuestion(id: number): void {
     const idx = form.question_ids.indexOf(id);
+
     if (idx === -1) {
         form.question_ids.push(id);
     } else {

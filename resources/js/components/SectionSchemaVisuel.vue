@@ -64,6 +64,7 @@ const uploadEnCours = reactive<Record<string, boolean>>({});
 
 const urlSchema = computed(() => {
     const p = props.params;
+
     return `/cours/${p.cours}/classes/${p.classe}/groupes/${p.groupe}/projets/${p.typeProjet}/sections/${p.section}/schema`;
 });
 
@@ -72,15 +73,25 @@ const urlSchema = computed(() => {
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 function planifierSauvegarde(): void {
-    if (props.readOnly) return;
-    if (saveTimer) clearTimeout(saveTimer);
+    if (props.readOnly) {
+        return;
+    }
+
+    if (saveTimer) {
+        clearTimeout(saveTimer);
+    }
+
     saveTimer = setTimeout(() => sauvegarder(), 800);
 }
 
 async function sauvegarder(): Promise<void> {
-    if (props.readOnly) return;
+    if (props.readOnly) {
+        return;
+    }
+
     enregistrement.value = true;
     erreurSauvegarde.value = null;
+
     try {
         await axios.put(
             urlSchema.value,
@@ -143,9 +154,14 @@ async function uploadImage(
 async function onImageCentrale(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const fichier = input.files?.[0];
-    if (!fichier) return;
+
+    if (!fichier) {
+        return;
+    }
+
     const cle = 'centrale';
     uploadEnCours[cle] = true;
+
     try {
         await uploadImage(fichier, (url) => {
             etat.image_centrale = url;
@@ -163,13 +179,21 @@ async function onImageCarte(
 ): Promise<void> {
     const input = event.target as HTMLInputElement;
     const fichier = input.files?.[0];
-    if (!fichier) return;
+
+    if (!fichier) {
+        return;
+    }
+
     const cle = `${zone}-${id}`;
     uploadEnCours[cle] = true;
+
     try {
         await uploadImage(fichier, (url) => {
             const carte = etat.zones[zone].find((c) => c.id === id);
-            if (carte) carte.image = url;
+
+            if (carte) {
+                carte.image = url;
+            }
         });
     } finally {
         uploadEnCours[cle] = false;

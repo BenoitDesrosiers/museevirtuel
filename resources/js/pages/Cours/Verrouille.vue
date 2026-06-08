@@ -2,10 +2,10 @@
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { LockKeyhole } from 'lucide-vue-next';
 import { computed } from 'vue';
+import * as EnseignantController from '@/actions/App/Http/Controllers/EnseignantController';
+import * as EtudiantController from '@/actions/App/Http/Controllers/EtudiantController';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
-import * as EtudiantController from '@/actions/App/Http/Controllers/EtudiantController';
-import * as EnseignantController from '@/actions/App/Http/Controllers/EnseignantController';
 
 type Props = {
     cours: {

@@ -46,6 +46,7 @@ export const RenvoiMark = Node.create({
                 default: null,
                 parseHTML: (el: HTMLElement) => {
                     const val = el.getAttribute('data-renvoi-id');
+
                     return val !== null ? parseInt(val, 10) : null;
                 },
                 renderHTML: (attrs: Record<string, unknown>) => ({
@@ -56,6 +57,7 @@ export const RenvoiMark = Node.create({
                 default: null,
                 parseHTML: (el: HTMLElement) => {
                     const val = el.getAttribute('data-renvoi-numero');
+
                     return val !== null ? parseInt(val, 10) : null;
                 },
                 renderHTML: (attrs: Record<string, unknown>) => ({
@@ -102,9 +104,13 @@ export const RenvoiMark = Node.create({
                     }> = [];
 
                     tr.doc.descendants((node, pos) => {
-                        if (node.type.name !== 'renvoiMark') return;
+                        if (node.type.name !== 'renvoiMark') {
+                            return;
+                        }
+
                         const renvoiId = node.attrs.renvoiId as number;
                         const newNumero = renvoisMap.get(renvoiId);
+
                         if (newNumero === undefined) {
                             toDelete.push(pos);
                         } else if (node.attrs.numero !== newNumero) {
@@ -135,6 +141,7 @@ export const RenvoiMark = Node.create({
                         });
 
                     dispatch(tr);
+
                     return true;
                 },
         };

@@ -19,8 +19,10 @@ const Superscript = SuperscriptBase.extend({
             {
                 tag: 'sup',
                 getAttrs: (node) => {
-                    if ((node as HTMLElement).hasAttribute('data-renvoi-id'))
+                    if ((node as HTMLElement).hasAttribute('data-renvoi-id')) {
                         return false;
+                    }
+
                     return null;
                 },
             },
@@ -177,14 +179,17 @@ const editor = useEditor({
     // y compris après un rechargement de page où onUpdate ne se déclenche pas au démarrage.
     onCreate({ editor: e }) {
         currentHtml.value = e.getHTML();
+
         if (props.editorId) {
             const ids: number[] = [];
             e.state.doc.descendants((node) => {
-                if (node.type.name === 'renvoiMark')
+                if (node.type.name === 'renvoiMark') {
                     ids.push(node.attrs.renvoiId as number);
+                }
             });
             emit('renvois-utilises', props.editorId, ids);
         }
+
         // Délai court pour laisser Vue propager les props avant d'activer la détection.
         setTimeout(() => {
             editorMonte.value = true;
@@ -193,11 +198,13 @@ const editor = useEditor({
     onUpdate({ editor: e }) {
         currentHtml.value = e.getHTML();
         emit('update:modelValue', e.getHTML());
+
         if (props.editorId) {
             const ids: number[] = [];
             e.state.doc.descendants((node) => {
-                if (node.type.name === 'renvoiMark')
+                if (node.type.name === 'renvoiMark') {
                     ids.push(node.attrs.renvoiId as number);
+                }
             });
             emit('renvois-utilises', props.editorId, ids);
         }
@@ -208,6 +215,7 @@ watch(
     () => props.modelValue,
     (val) => {
         currentHtml.value = val || '';
+
         if (editor.value && editor.value.getHTML() !== val) {
             editor.value.commands.setContent(val || '', false);
         }
@@ -230,7 +238,10 @@ watch(
 watch(
     [() => props.renvois, () => props.renvoisSyncVersion, editor] as const,
     ([newRenvois, , newEditor]) => {
-        if (!newEditor || newRenvois === undefined) return;
+        if (!newEditor || newRenvois === undefined) {
+            return;
+        }
+
         const map = new Map(newRenvois.map((r) => [r.id, r.numero]));
         newEditor.commands.syncRenvois(map);
     },
@@ -251,6 +262,7 @@ watch(
     () => (renvoisUndoTarget as typeof defaultUndoTarget).value?.version,
     () => {
         const target = (renvoisUndoTarget as typeof defaultUndoTarget).value;
+
         if (
             target?.editorId === props.editorId &&
             props.editorId &&
@@ -285,6 +297,7 @@ watch(currentHtml, (html) => {
         const regex = /data-comment-id="([^"]+)"/g;
         const idsPresents = new Set<string>();
         let m: RegExpExecArray | null;
+
         while ((m = regex.exec(html)) !== null) {
             idsPresents.add(m[1]);
         }
@@ -304,6 +317,7 @@ watch(currentHtml, (html) => {
 
 onBeforeUnmount(() => {
     editor.value?.destroy();
+
     if (detectTimer) {
         clearTimeout(detectTimer);
     }
@@ -314,17 +328,21 @@ function getCommentIdOrder(html: string): Map<string, number> {
     const regex = /data-comment-id="([^"]+)"/g;
     let match: RegExpExecArray | null = null;
     let i = 0;
+
     while ((match = regex.exec(html)) !== null) {
         const id = match[1];
+
         if (!order.has(id)) {
             order.set(id, i++);
         }
     }
+
     return order;
 }
 
 const sortedCorrections = computed(() => {
     const list = props.corrections ?? [];
+
     if (list.length <= 1) {
         return list;
     }
@@ -338,15 +356,19 @@ const sortedCorrections = computed(() => {
         if (pa === undefined && pb === undefined) {
             return a.id - b.id;
         }
+
         if (pa === undefined) {
             return 1;
         }
+
         if (pb === undefined) {
             return -1;
         }
+
         if (pa !== pb) {
             return pa - pb;
         }
+
         return a.id - b.id;
     });
 });
@@ -630,6 +652,7 @@ function saveEdit(correction: Annotation): void {
         deleteAnnotation(correction);
         editingId.value = null;
         editingContent.value = '';
+
         return;
     }
 

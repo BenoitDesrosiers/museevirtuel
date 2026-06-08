@@ -81,6 +81,7 @@ function supprimerCritere(index: number) {
     if (form.criteres.length <= 1) {
         return;
     }
+
     form.criteres.splice(index, 1);
 }
 

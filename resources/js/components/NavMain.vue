@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import NavCollapsible from '@/components/NavCollapsible.vue';
 import {
     SidebarGroup,
     SidebarGroupLabel,
     SidebarMenu,
 } from '@/components/ui/sidebar';
-import NavCollapsible from '@/components/NavCollapsible.vue';
 import type { NavItem } from '@/types';
 
 defineProps<{

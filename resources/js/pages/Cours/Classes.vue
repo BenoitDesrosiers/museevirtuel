@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import {
     ArrowLeft,
@@ -8,6 +7,7 @@ import {
     Circle,
     Users,
 } from 'lucide-vue-next';
+import { computed } from 'vue';
 import Heading from '@/components/Heading.vue';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import {
@@ -56,10 +56,15 @@ const props = defineProps<Props>();
 
 const echeancierParSemaine = computed(() => {
     const map = new Map<number, EcheancierEtape[]>();
+
     for (const etape of props.echeancierEtapes) {
-        if (!map.has(etape.semaine)) map.set(etape.semaine, []);
+        if (!map.has(etape.semaine)) {
+            map.set(etape.semaine, []);
+        }
+
         map.get(etape.semaine)!.push(etape);
     }
+
     return map;
 });
 

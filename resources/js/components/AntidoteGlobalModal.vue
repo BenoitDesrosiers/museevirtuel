@@ -99,6 +99,7 @@ function buildCombinedHtml(sections: GlobalSection[]): string {
         .map((s) => {
             const content = s.html?.trim() || '<p></p>';
             const sep = `<div data-type="section-separator" data-section-id="${s.id}" data-section-label="${s.label}"></div>`;
+
             return content + sep;
         })
         .join('');
@@ -136,7 +137,9 @@ watch(
  * Retourne un tableau de sections corrigées dans le même ordre que `props.sections`.
  */
 function parseCorrigee(): GlobalSection[] {
-    if (!editor.value) return [];
+    if (!editor.value) {
+        return [];
+    }
 
     const fullHtml = editor.value.getHTML();
     const parser = new DOMParser();
@@ -149,15 +152,18 @@ function parseCorrigee(): GlobalSection[] {
 
     for (const node of children) {
         const el = node as Element;
+
         if (
             el.nodeType === 1 &&
             el.getAttribute('data-type') === 'section-separator'
         ) {
             // On a atteint un séparateur : on ferme la section courante
             const source = props.sections[sectionIndex];
+
             if (source) {
                 result.push({ ...source, html: currentHtml.trim() });
             }
+
             currentHtml = '';
             sectionIndex++;
         } else {

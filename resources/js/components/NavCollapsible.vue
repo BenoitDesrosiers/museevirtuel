@@ -36,7 +36,10 @@ const hasChildren = !!props.item.children?.length;
  * Utilisé pour ouvrir automatiquement le collapsible au chargement de la page.
  */
 function itemIsActive(item: NavItem): boolean {
-    if (item.href && isCurrentOrParentUrl(item.href)) return true;
+    if (item.href && isCurrentOrParentUrl(item.href)) {
+        return true;
+    }
+
     return item.children?.some(itemIsActive) ?? false;
 }
 

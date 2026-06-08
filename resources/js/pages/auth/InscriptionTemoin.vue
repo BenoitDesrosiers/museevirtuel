@@ -78,7 +78,10 @@ function getEtablissement(id: number): Etablissement | undefined {
 
 function ajouterCegep() {
     const id = Number(cegepAjouter.value);
-    if (!id) return;
+
+    if (!id) {
+        return;
+    }
 
     form.choix.push({
         etablissement_id: id,

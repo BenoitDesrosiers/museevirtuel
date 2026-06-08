@@ -12,8 +12,6 @@ import {
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     Dialog,
     DialogContent,
@@ -21,6 +19,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type VisioConference = {
     id: number;
@@ -46,22 +46,40 @@ const props = defineProps<{
 }>();
 
 const statut = computed(() => {
-    if (props.visio.ended_at) return 'terminée';
-    if (props.visio.started_at) return 'en cours';
-    if (props.visio.scheduled_at) return 'planifiée';
+    if (props.visio.ended_at) {
+        return 'terminée';
+    }
+
+    if (props.visio.started_at) {
+        return 'en cours';
+    }
+
+    if (props.visio.scheduled_at) {
+        return 'planifiée';
+    }
+
     return 'non planifiée';
 });
 
 const statutVariant = computed(
     (): 'default' | 'secondary' | 'outline' | 'destructive' => {
-        if (props.visio.ended_at) return 'secondary';
-        if (props.visio.started_at) return 'default';
+        if (props.visio.ended_at) {
+            return 'secondary';
+        }
+
+        if (props.visio.started_at) {
+            return 'default';
+        }
+
         return 'outline';
     },
 );
 
 function formatDate(iso: string | null): string {
-    if (!iso) return '';
+    if (!iso) {
+        return '';
+    }
+
     return new Date(iso).toLocaleString('fr-CA', {
         dateStyle: 'medium',
         timeStyle: 'short',
@@ -101,7 +119,9 @@ function demarrerSession() {
 const terminerProcessing = ref(false);
 
 function terminerSession() {
-    if (!confirm(`Terminer « ${props.visio.titre} » ?`)) return;
+    if (!confirm(`Terminer « ${props.visio.titre} » ?`)) {
+        return;
+    }
 
     terminerProcessing.value = true;
     router.patch(
@@ -139,7 +159,10 @@ function submitEdit() {
 const deleteForm = useForm({});
 
 function supprimerVisio() {
-    if (!confirm(`Supprimer « ${props.visio.titre} » ?`)) return;
+    if (!confirm(`Supprimer « ${props.visio.titre} » ?`)) {
+        return;
+    }
+
     deleteForm.delete(
         `/cours/${props.visio.cours_id}/visio/${props.visio.id}`,
         { preserveScroll: true },
@@ -163,7 +186,9 @@ function handleFileChange(event: Event) {
 }
 
 function submitUpload() {
-    if (!uploadFile.value) return;
+    if (!uploadFile.value) {
+        return;
+    }
 
     const data = new FormData();
     data.append('recording', uploadFile.value);
