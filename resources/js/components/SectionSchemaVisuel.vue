@@ -179,20 +179,23 @@ async function onImageCarte(
 
 // ─── Labels des zones ─────────────────────────────────────────────────────────
 
-const zonesConfig: { key: keyof ZonesSchema; label: string; couleur: string }[] =
-    [
-        { key: 'causes', label: 'Causes', couleur: 'bg-red-50 border-red-200' },
-        {
-            key: 'activites',
-            label: 'Activités',
-            couleur: 'bg-blue-50 border-blue-200',
-        },
-        {
-            key: 'consequences',
-            label: 'Conséquences',
-            couleur: 'bg-green-50 border-green-200',
-        },
-    ];
+const zonesConfig: {
+    key: keyof ZonesSchema;
+    label: string;
+    couleur: string;
+}[] = [
+    { key: 'causes', label: 'Causes', couleur: 'bg-red-50 border-red-200' },
+    {
+        key: 'activites',
+        label: 'Activités',
+        couleur: 'bg-blue-50 border-blue-200',
+    },
+    {
+        key: 'consequences',
+        label: 'Conséquences',
+        couleur: 'bg-green-50 border-green-200',
+    },
+];
 </script>
 
 <template>
@@ -203,7 +206,9 @@ const zonesConfig: { key: keyof ZonesSchema; label: string; couleur: string }[] 
             <span v-else-if="erreurSauvegarde" class="text-destructive">
                 {{ erreurSauvegarde }}
             </span>
-            <span v-else>Les modifications sont sauvegardées automatiquement.</span>
+            <span v-else
+                >Les modifications sont sauvegardées automatiquement.</span
+            >
         </div>
 
         <!-- Image centrale du sujet ─────────────────────────────────────────── -->
@@ -222,7 +227,7 @@ const zonesConfig: { key: keyof ZonesSchema; label: string; couleur: string }[] 
                 <button
                     v-if="!readOnly"
                     type="button"
-                    class="absolute right-2 top-2 rounded-full bg-destructive/90 p-1 text-white hover:bg-destructive"
+                    class="absolute top-2 right-2 rounded-full bg-destructive/90 p-1 text-white hover:bg-destructive"
                     @click="etat.image_centrale = null"
                 >
                     <Trash2 class="h-3.5 w-3.5" />
@@ -235,7 +240,11 @@ const zonesConfig: { key: keyof ZonesSchema; label: string; couleur: string }[] 
             >
                 <Button type="button" variant="outline" size="sm" as="span">
                     <ImagePlus class="mr-1.5 h-4 w-4" />
-                    {{ etat.image_centrale ? 'Remplacer l\'image' : 'Ajouter une image' }}
+                    {{
+                        etat.image_centrale
+                            ? "Remplacer l'image"
+                            : 'Ajouter une image'
+                    }}
                 </Button>
                 <input
                     type="file"
@@ -244,7 +253,10 @@ const zonesConfig: { key: keyof ZonesSchema; label: string; couleur: string }[] 
                     @change="onImageCentrale"
                 />
             </label>
-            <span v-if="uploadEnCours['centrale']" class="text-xs text-muted-foreground">
+            <span
+                v-if="uploadEnCours['centrale']"
+                class="text-xs text-muted-foreground"
+            >
                 Téléversement en cours…
             </span>
         </div>
@@ -321,16 +333,21 @@ const zonesConfig: { key: keyof ZonesSchema; label: string; couleur: string }[] 
                                 class="w-full rounded object-cover"
                                 style="max-height: 120px"
                             />
-                            <div v-if="!readOnly" class="mt-1 flex items-center gap-1">
+                            <div
+                                v-if="!readOnly"
+                                class="mt-1 flex items-center gap-1"
+                            >
                                 <label class="cursor-pointer">
                                     <span
                                         class="text-xs text-muted-foreground underline-offset-2 hover:underline"
                                     >
                                         {{
-                                            uploadEnCours[`${zone.key}-${carte.id}`]
+                                            uploadEnCours[
+                                                `${zone.key}-${carte.id}`
+                                            ]
                                                 ? 'Téléversement…'
                                                 : carte.image
-                                                  ? 'Changer l\'image'
+                                                  ? "Changer l'image"
                                                   : '+ image'
                                         }}
                                     </span>
@@ -338,7 +355,14 @@ const zonesConfig: { key: keyof ZonesSchema; label: string; couleur: string }[] 
                                         type="file"
                                         accept="image/*"
                                         class="hidden"
-                                        @change="(e) => onImageCarte(zone.key, carte.id, e)"
+                                        @change="
+                                            (e) =>
+                                                onImageCarte(
+                                                    zone.key,
+                                                    carte.id,
+                                                    e,
+                                                )
+                                        "
                                     />
                                 </label>
                                 <button

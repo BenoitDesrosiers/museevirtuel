@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 
 type Etudiant = {
     id: number;
@@ -45,7 +50,8 @@ const couleurNoteActif: Record<number, string> = {
     4: 'bg-green-100 text-green-700 border-green-400',
 };
 
-const couleurNoteInactif = 'border-border text-muted-foreground hover:border-primary hover:text-primary';
+const couleurNoteInactif =
+    'border-border text-muted-foreground hover:border-primary hover:text-primary';
 
 /**
  * Sections à afficher.
@@ -70,7 +76,7 @@ const noteFinale = computed<number>(() => {
             Object.entries(props.criteres).reduce((total, [cle, config]) => {
                 // Critère non rempli → note maximale (4 = excellent) par défaut
                 const note = props.notes[cle] ?? 4;
-                return total + ((note / 4) * config.poids);
+                return total + (note / 4) * config.poids;
             }, 0) * 100,
         ) / 100
     );
@@ -109,13 +115,21 @@ const labelSection: Record<string, string> = {
                 </DialogTitle>
             </DialogHeader>
 
-            <div v-if="sectionsVisibles.length === 0" class="py-4 text-center text-sm text-muted-foreground">
+            <div
+                v-if="sectionsVisibles.length === 0"
+                class="py-4 text-center text-sm text-muted-foreground"
+            >
                 Aucune note saisie pour cet étudiant.
             </div>
 
             <div v-else class="space-y-4">
-                <div v-for="[section, criteres] in sectionsVisibles" :key="section">
-                    <p class="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                <div
+                    v-for="[section, criteres] in sectionsVisibles"
+                    :key="section"
+                >
+                    <p
+                        class="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                    >
                         {{ labelSection[section] ?? section }}
                     </p>
                     <div class="space-y-2">
@@ -125,18 +139,25 @@ const labelSection: Record<string, string> = {
                             class="rounded-md border bg-muted/30 px-3 py-2"
                         >
                             <!-- Label + score -->
-                            <div class="mb-1.5 flex items-center justify-between gap-2">
+                            <div
+                                class="mb-1.5 flex items-center justify-between gap-2"
+                            >
                                 <span class="text-xs text-muted-foreground">
                                     {{ props.criteres[critere]?.label }}
                                     ({{ props.criteres[critere]?.poids }}%)
                                 </span>
-                                <span class="shrink-0 text-xs text-muted-foreground">
+                                <span
+                                    class="shrink-0 text-xs text-muted-foreground"
+                                >
                                     {{ scorePartiel(critere) }}
                                 </span>
                             </div>
 
                             <!-- Boutons d'édition (enseignant) -->
-                            <div v-if="estEnseignant" class="flex flex-wrap gap-1">
+                            <div
+                                v-if="estEnseignant"
+                                class="flex flex-wrap gap-1"
+                            >
                                 <button
                                     v-for="valeur in [0, 2, 3, 4]"
                                     :key="valeur"
@@ -162,7 +183,11 @@ const labelSection: Record<string, string> = {
                                 >
                                     {{ labelNote[notes[critere]!] }}
                                 </span>
-                                <span v-else class="text-xs text-muted-foreground">—</span>
+                                <span
+                                    v-else
+                                    class="text-xs text-muted-foreground"
+                                    >—</span
+                                >
                             </div>
                         </div>
                     </div>

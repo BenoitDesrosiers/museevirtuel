@@ -37,10 +37,14 @@ const page = usePage();
 const user = computed(() => page.props.auth.user);
 
 const switchLocale = (locale: string) => {
-    router.patch(LocaleController.update.url(), { locale }, {
-        preserveScroll: true,
-        onSuccess: () => router.reload(),
-    });
+    router.patch(
+        LocaleController.update.url(),
+        { locale },
+        {
+            preserveScroll: true,
+            onSuccess: () => router.reload(),
+        },
+    );
 };
 </script>
 
@@ -65,7 +69,9 @@ const switchLocale = (locale: string) => {
                 >
                     <div class="grid grid-cols-2 gap-4">
                         <div class="grid gap-2">
-                            <Label for="prenom">{{ $t('settings.profile.label_first_name') }}</Label>
+                            <Label for="prenom">{{
+                                $t('settings.profile.label_first_name')
+                            }}</Label>
                             <Input
                                 id="prenom"
                                 class="mt-1 block w-full"
@@ -73,12 +79,18 @@ const switchLocale = (locale: string) => {
                                 :default-value="user.prenom"
                                 required
                                 autocomplete="given-name"
-                                :placeholder="$t('settings.profile.placeholder_first_name')"
+                                :placeholder="
+                                    $t(
+                                        'settings.profile.placeholder_first_name',
+                                    )
+                                "
                             />
                             <InputError class="mt-2" :message="errors.prenom" />
                         </div>
                         <div class="grid gap-2">
-                            <Label for="nom">{{ $t('settings.profile.label_last_name') }}</Label>
+                            <Label for="nom">{{
+                                $t('settings.profile.label_last_name')
+                            }}</Label>
                             <Input
                                 id="nom"
                                 class="mt-1 block w-full"
@@ -86,14 +98,18 @@ const switchLocale = (locale: string) => {
                                 :default-value="user.nom"
                                 required
                                 autocomplete="family-name"
-                                :placeholder="$t('settings.profile.placeholder_last_name')"
+                                :placeholder="
+                                    $t('settings.profile.placeholder_last_name')
+                                "
                             />
                             <InputError class="mt-2" :message="errors.nom" />
                         </div>
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="email">{{ $t('settings.profile.label_email') }}</Label>
+                        <Label for="email">{{
+                            $t('settings.profile.label_email')
+                        }}</Label>
                         <Input
                             id="email"
                             type="email"
@@ -102,7 +118,9 @@ const switchLocale = (locale: string) => {
                             :default-value="user.email"
                             required
                             autocomplete="username"
-                            :placeholder="$t('settings.profile.placeholder_email')"
+                            :placeholder="
+                                $t('settings.profile.placeholder_email')
+                            "
                         />
                         <InputError class="mt-2" :message="errors.email" />
                     </div>
@@ -128,7 +146,9 @@ const switchLocale = (locale: string) => {
                     </div>
 
                     <div class="flex items-center gap-4">
-                        <Button :disabled="processing">{{ $t('settings.profile.save') }}</Button>
+                        <Button :disabled="processing">{{
+                            $t('settings.profile.save')
+                        }}</Button>
 
                         <Transition
                             enter-active-class="transition ease-in-out"
@@ -136,7 +156,10 @@ const switchLocale = (locale: string) => {
                             leave-active-class="transition ease-in-out"
                             leave-to-class="opacity-0"
                         >
-                            <p v-show="recentlySuccessful" class="text-sm text-neutral-600">
+                            <p
+                                v-show="recentlySuccessful"
+                                class="text-sm text-neutral-600"
+                            >
                                 {{ $t('settings.profile.saved') }}
                             </p>
                         </Transition>
@@ -149,7 +172,9 @@ const switchLocale = (locale: string) => {
                 <Heading
                     variant="small"
                     :title="$t('settings.profile.language_section_title')"
-                    :description="$t('settings.profile.language_section_description')"
+                    :description="
+                        $t('settings.profile.language_section_description')
+                    "
                 />
                 <div class="flex gap-2">
                     <Button
@@ -169,10 +194,18 @@ const switchLocale = (locale: string) => {
                 </div>
             </div>
 
-            <DeleteUser v-if="user.role === 'admin' || (user.role === 'personne_agee' && !props.temoinAssocieAGroupe)" />
+            <DeleteUser
+                v-if="
+                    user.role === 'admin' ||
+                    (user.role === 'personne_agee' &&
+                        !props.temoinAssocieAGroupe)
+                "
+            />
 
             <div
-                v-if="user.role === 'personne_agee' && props.temoinAssocieAGroupe"
+                v-if="
+                    user.role === 'personne_agee' && props.temoinAssocieAGroupe
+                "
                 class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-200/20 dark:bg-amber-800/10 dark:text-amber-300"
             >
                 {{ $t('settings.delete_account.locked_by_groupe') }}

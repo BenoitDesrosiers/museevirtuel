@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { BookOpen, CheckCircle2, ChevronRight, FileEdit, FolderOpen, Settings2, XCircle } from 'lucide-vue-next';
+import {
+    BookOpen,
+    CheckCircle2,
+    ChevronRight,
+    FileEdit,
+    FolderOpen,
+    Settings2,
+    XCircle,
+} from 'lucide-vue-next';
 import Heading from '@/components/Heading.vue';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
@@ -83,7 +91,9 @@ function projetUrl(typeProjetId: number): string {
             <!-- Retour à la classe -->
             <div>
                 <Button variant="ghost" size="sm" as-child>
-                    <Link :href="`/cours/${classe.cours_id}/classes/${classe.id}`">
+                    <Link
+                        :href="`/cours/${classe.cours_id}/classes/${classe.id}`"
+                    >
                         ← Retour à la classe
                     </Link>
                 </Button>
@@ -132,7 +142,10 @@ function projetUrl(typeProjetId: number): string {
 
                     <CardContent class="flex flex-1 flex-col gap-4">
                         <!-- Lien configuration sections (enseignant seulement) -->
-                        <div v-if="estEnseignant" class="flex items-center justify-end">
+                        <div
+                            v-if="estEnseignant"
+                            class="flex items-center justify-end"
+                        >
                             <BoutonTooltip
                                 texte="Gérer les sections disponibles pour ce type de projet"
                                 variant="ghost"
@@ -140,7 +153,14 @@ function projetUrl(typeProjetId: number): string {
                                 class="h-7 gap-1.5 px-2 text-xs text-muted-foreground"
                                 as-child
                             >
-                                <Link :href="typesProjets.edit.url({ cours: classe.cours_id, typeProjet: card.typeProjet.id })">
+                                <Link
+                                    :href="
+                                        typesProjets.edit.url({
+                                            cours: classe.cours_id,
+                                            typeProjet: card.typeProjet.id,
+                                        })
+                                    "
+                                >
                                     <Settings2 class="h-3 w-3" />
                                     Configurer les sections
                                 </Link>
@@ -150,31 +170,48 @@ function projetUrl(typeProjetId: number): string {
                         <div v-if="card.projet">
                             <div class="mb-1 flex items-center justify-between">
                                 <span class="text-xs text-muted-foreground">
-                                    {{ card.projet.titre_projet ?? 'Sans titre' }}
+                                    {{
+                                        card.projet.titre_projet ?? 'Sans titre'
+                                    }}
                                 </span>
                                 <span
                                     class="text-xs font-medium"
-                                    :class="completionColor(card.projet.completion)"
+                                    :class="
+                                        completionColor(card.projet.completion)
+                                    "
                                 >
                                     {{ card.projet.completion }}%
                                 </span>
                             </div>
-                            <div class="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                            <div
+                                class="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+                            >
                                 <div
                                     class="h-full rounded-full transition-all"
-                                    :class="completionBarClass(card.projet.completion)"
-                                    :style="{ width: `${card.projet.completion}%` }"
+                                    :class="
+                                        completionBarClass(
+                                            card.projet.completion,
+                                        )
+                                    "
+                                    :style="{
+                                        width: `${card.projet.completion}%`,
+                                    }"
                                 />
                             </div>
                         </div>
 
-                        <div v-else class="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                        <div
+                            v-else
+                            class="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground"
+                        >
                             Pas encore démarré
                         </div>
 
                         <!-- Conclusions par membre -->
                         <div>
-                            <p class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            <p
+                                class="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                            >
                                 Conclusions individuelles
                             </p>
                             <div class="space-y-1">
@@ -191,8 +228,15 @@ function projetUrl(typeProjetId: number): string {
                                         v-else
                                         class="h-4 w-4 shrink-0 text-muted-foreground"
                                     />
-                                    <span :class="item.a_redige ? '' : 'text-muted-foreground'">
-                                        {{ item.etudiant.prenom }} {{ item.etudiant.nom }}
+                                    <span
+                                        :class="
+                                            item.a_redige
+                                                ? ''
+                                                : 'text-muted-foreground'
+                                        "
+                                    >
+                                        {{ item.etudiant.prenom }}
+                                        {{ item.etudiant.nom }}
                                     </span>
                                 </div>
                             </div>
@@ -202,17 +246,29 @@ function projetUrl(typeProjetId: number): string {
                         <div class="mt-auto pt-2">
                             <BoutonTooltip
                                 size="sm"
-                                :texte="!estEnseignant ? 'Ouvrir et éditer votre projet' : 'Consulter le projet du groupe'"
-                                :variant="!estEnseignant ? 'default' : 'outline'"
+                                :texte="
+                                    !estEnseignant
+                                        ? 'Ouvrir et éditer votre projet'
+                                        : 'Consulter le projet du groupe'
+                                "
+                                :variant="
+                                    !estEnseignant ? 'default' : 'outline'
+                                "
                                 class="w-full"
                                 as-child
                             >
                                 <Link :href="projetUrl(card.typeProjet.id)">
                                     <component
-                                        :is="!estEnseignant ? FileEdit : BookOpen"
+                                        :is="
+                                            !estEnseignant ? FileEdit : BookOpen
+                                        "
                                         class="mr-2 h-4 w-4"
                                     />
-                                    {{ !estEnseignant ? 'Ouvrir le projet' : 'Consulter' }}
+                                    {{
+                                        !estEnseignant
+                                            ? 'Ouvrir le projet'
+                                            : 'Consulter'
+                                    }}
                                     <ChevronRight class="ml-auto h-4 w-4" />
                                 </Link>
                             </BoutonTooltip>

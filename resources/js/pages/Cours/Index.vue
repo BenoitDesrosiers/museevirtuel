@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { BookOpen, BookMarked, Calendar, ChevronDown, ChevronRight, ExternalLink, FolderOpen, Users, Video } from 'lucide-vue-next';
+import {
+    BookOpen,
+    BookMarked,
+    Calendar,
+    ChevronDown,
+    ChevronRight,
+    ExternalLink,
+    FolderOpen,
+    Users,
+    Video,
+} from 'lucide-vue-next';
 import { ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
@@ -61,7 +71,11 @@ type ZoteroConfig = {
     synchronise_le: string | null;
 };
 
-const sessionLabel: Record<string, string> = { hiver: 'Hiver', ete: 'Été', automne: 'Automne' };
+const sessionLabel: Record<string, string> = {
+    hiver: 'Hiver',
+    ete: 'Été',
+    automne: 'Automne',
+};
 
 type Props = {
     cours: Cours[];
@@ -83,7 +97,11 @@ function formatDate(iso: string): string {
 }
 
 function rejoindre(jitsiRoom: string) {
-    window.open(`https://meet.jit.si/${jitsiRoom}`, '_blank', 'noopener,noreferrer');
+    window.open(
+        `https://meet.jit.si/${jitsiRoom}`,
+        '_blank',
+        'noopener,noreferrer',
+    );
 }
 
 function projetUrl(projet: Projet): string {
@@ -103,7 +121,10 @@ function projetUrl(projet: Projet): string {
                     <CardTitle>{{ $t('cours.index.heading_title') }}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div v-if="cours.length === 0" class="py-6 text-center text-sm text-muted-foreground">
+                    <div
+                        v-if="cours.length === 0"
+                        class="py-6 text-center text-sm text-muted-foreground"
+                    >
                         {{ $t('cours.index.no_courses') }}
                     </div>
                     <div v-else class="flex flex-col divide-y">
@@ -114,17 +135,26 @@ function projetUrl(projet: Projet): string {
                         >
                             <div class="min-w-0 flex-1">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <span class="text-sm font-medium">{{ unCours.nom_cours }}</span>
-                                    <span class="font-mono text-xs text-muted-foreground">
-                                        {{ unCours.code }} — Groupe {{ unCours.groupe }}
+                                    <span class="text-sm font-medium">{{
+                                        unCours.nom_cours
+                                    }}</span>
+                                    <span
+                                        class="font-mono text-xs text-muted-foreground"
+                                    >
+                                        {{ unCours.code }} — Groupe
+                                        {{ unCours.groupe }}
                                     </span>
                                     <Badge variant="outline" class="text-xs">
-                                        {{ sessionLabel[unCours.session] }} {{ unCours.annee }}
+                                        {{ sessionLabel[unCours.session] }}
+                                        {{ unCours.annee }}
                                     </Badge>
                                 </div>
-                                <div class="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                                <div
+                                    class="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground"
+                                >
                                     <Users class="h-3 w-3" />
-                                    {{ unCours.enseignant.prenom }} {{ unCours.enseignant.nom }}
+                                    {{ unCours.enseignant.prenom }}
+                                    {{ unCours.enseignant.nom }}
                                 </div>
                             </div>
                             <BoutonTooltip
@@ -133,7 +163,9 @@ function projetUrl(projet: Projet): string {
                                 variant="outline"
                                 as-child
                             >
-                                <Link :href="`/cours/${unCours.id}/classes/${unCours.classe_id}`">
+                                <Link
+                                    :href="`/cours/${unCours.id}/classes/${unCours.classe_id}`"
+                                >
                                     <ExternalLink class="h-4 w-4" />
                                 </Link>
                             </BoutonTooltip>
@@ -147,7 +179,7 @@ function projetUrl(projet: Projet): string {
                 <CardHeader class="flex flex-row items-center justify-between">
                     <button
                         type="button"
-                        class="flex cursor-pointer select-none items-center gap-2 text-left"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
                         @click="ouvert.projets = !ouvert.projets"
                     >
                         <FolderOpen class="h-5 w-5" />
@@ -159,7 +191,10 @@ function projetUrl(projet: Projet): string {
                     </button>
                 </CardHeader>
                 <CardContent v-show="ouvert.projets">
-                    <div v-if="projets.length === 0" class="py-6 text-center text-sm text-muted-foreground">
+                    <div
+                        v-if="projets.length === 0"
+                        class="py-6 text-center text-sm text-muted-foreground"
+                    >
                         Aucun projet disponible pour l'instant.
                     </div>
                     <div v-else class="flex flex-col divide-y">
@@ -170,13 +205,25 @@ function projetUrl(projet: Projet): string {
                             class="-mx-6 flex items-center justify-between gap-4 px-6 py-3 transition-colors hover:bg-muted/50"
                         >
                             <div class="min-w-0 flex-1">
-                                <span class="text-sm font-medium">{{ projet.type_projet.nom }}</span>
-                                <p v-if="projet.titre" class="text-xs text-muted-foreground">
+                                <span class="text-sm font-medium">{{
+                                    projet.type_projet.nom
+                                }}</span>
+                                <p
+                                    v-if="projet.titre"
+                                    class="text-xs text-muted-foreground"
+                                >
                                     {{ projet.titre }}
                                 </p>
-                                <p v-else class="text-xs italic text-muted-foreground/60">Sans titre</p>
+                                <p
+                                    v-else
+                                    class="text-xs text-muted-foreground/60 italic"
+                                >
+                                    Sans titre
+                                </p>
                             </div>
-                            <ChevronRight class="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <ChevronRight
+                                class="h-4 w-4 shrink-0 text-muted-foreground"
+                            />
                         </Link>
                     </div>
                 </CardContent>
@@ -187,7 +234,7 @@ function projetUrl(projet: Projet): string {
                 <CardHeader class="flex flex-row items-center justify-between">
                     <button
                         type="button"
-                        class="flex cursor-pointer select-none items-center gap-2 text-left"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
                         @click="ouvert.references = !ouvert.references"
                     >
                         <BookMarked class="h-5 w-5" />
@@ -199,7 +246,10 @@ function projetUrl(projet: Projet): string {
                     </button>
                 </CardHeader>
                 <CardContent v-show="ouvert.references">
-                    <EtudiantReferences :references="mesReferences" :zotero-config="zoteroConfig" />
+                    <EtudiantReferences
+                        :references="mesReferences"
+                        :zotero-config="zoteroConfig"
+                    />
                 </CardContent>
             </Card>
 
@@ -208,7 +258,7 @@ function projetUrl(projet: Projet): string {
                 <CardHeader class="flex flex-row items-center justify-between">
                     <button
                         type="button"
-                        class="flex cursor-pointer select-none items-center gap-2 text-left"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
                         @click="ouvert.visios = !ouvert.visios"
                     >
                         <Video class="h-5 w-5" />
@@ -220,7 +270,10 @@ function projetUrl(projet: Projet): string {
                     </button>
                 </CardHeader>
                 <CardContent v-show="ouvert.visios">
-                    <div v-if="prochainesVisios.length === 0" class="py-6 text-center text-sm text-muted-foreground">
+                    <div
+                        v-if="prochainesVisios.length === 0"
+                        class="py-6 text-center text-sm text-muted-foreground"
+                    >
                         Aucune visioconférence planifiée.
                     </div>
                     <div v-else class="flex flex-col divide-y">
@@ -231,11 +284,25 @@ function projetUrl(projet: Projet): string {
                         >
                             <div class="min-w-0 flex-1">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <span class="text-sm font-medium">{{ visio.titre }}</span>
-                                    <Badge v-if="visio.started_at" variant="default" class="text-xs">En cours</Badge>
-                                    <Badge v-else variant="outline" class="text-xs">Planifiée</Badge>
+                                    <span class="text-sm font-medium">{{
+                                        visio.titre
+                                    }}</span>
+                                    <Badge
+                                        v-if="visio.started_at"
+                                        variant="default"
+                                        class="text-xs"
+                                        >En cours</Badge
+                                    >
+                                    <Badge
+                                        v-else
+                                        variant="outline"
+                                        class="text-xs"
+                                        >Planifiée</Badge
+                                    >
                                 </div>
-                                <div class="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
+                                <div
+                                    class="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground"
+                                >
                                     <span class="flex items-center gap-1">
                                         <Calendar class="h-3 w-3" />
                                         {{ formatDate(visio.scheduled_at) }}

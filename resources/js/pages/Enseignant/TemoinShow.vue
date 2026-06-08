@@ -38,14 +38,28 @@ function approuverTemoin() {
 }
 
 function declinerTemoin() {
-    if (!confirm(t('enseignant.index.confirm_decline_temoin', { prenom: props.temoin.prenom, nom: props.temoin.nom }))) {
+    if (
+        !confirm(
+            t('enseignant.index.confirm_decline_temoin', {
+                prenom: props.temoin.prenom,
+                nom: props.temoin.nom,
+            }),
+        )
+    ) {
         return;
     }
     declinerForm.put(decliner.url(props.temoin.id));
 }
 
 function desapprouverTemoin() {
-    if (!confirm(t('enseignant.temoin_show.confirm_unapprove', { prenom: props.temoin.prenom, nom: props.temoin.nom }))) {
+    if (
+        !confirm(
+            t('enseignant.temoin_show.confirm_unapprove', {
+                prenom: props.temoin.prenom,
+                nom: props.temoin.nom,
+            }),
+        )
+    ) {
         return;
     }
     desapprouverForm.put(desapprouver.url(props.temoin.id));
@@ -57,7 +71,10 @@ const statusLabel: Record<Temoin['statut'], string> = {
     refuse: 'enseignant.temoin_show.status_refused',
 };
 
-const statusVariant: Record<Temoin['statut'], 'default' | 'secondary' | 'destructive'> = {
+const statusVariant: Record<
+    Temoin['statut'],
+    'default' | 'secondary' | 'destructive'
+> = {
     en_attente: 'secondary',
     actif: 'default',
     refuse: 'destructive',
@@ -88,7 +105,9 @@ const statusVariant: Record<Temoin['statut'], 'default' | 'secondary' | 'destruc
                 <Card class="lg:col-span-2">
                     <CardHeader>
                         <div class="flex items-center justify-between">
-                            <CardTitle>{{ $t('enseignant.temoin_show.page_title') }}</CardTitle>
+                            <CardTitle>{{
+                                $t('enseignant.temoin_show.page_title')
+                            }}</CardTitle>
                             <Badge :variant="statusVariant[temoin.statut]">
                                 {{ $t(statusLabel[temoin.statut]) }}
                             </Badge>
@@ -97,25 +116,57 @@ const statusVariant: Record<Temoin['statut'], 'default' | 'secondary' | 'destruc
                     <CardContent class="grid gap-6">
                         <!-- Description -->
                         <div>
-                            <p class="text-muted-foreground mb-1 text-xs font-medium uppercase tracking-wide">
-                                {{ $t('administration.index.temoins_header_description') }}
+                            <p
+                                class="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                            >
+                                {{
+                                    $t(
+                                        'administration.index.temoins_header_description',
+                                    )
+                                }}
                             </p>
-                            <p v-if="temoin.description" class="text-sm leading-relaxed">{{ temoin.description }}</p>
-                            <p v-else class="text-muted-foreground text-sm italic">{{ $t('enseignant.temoin_show.no_description') }}</p>
+                            <p
+                                v-if="temoin.description"
+                                class="text-sm leading-relaxed"
+                            >
+                                {{ temoin.description }}
+                            </p>
+                            <p
+                                v-else
+                                class="text-sm text-muted-foreground italic"
+                            >
+                                {{
+                                    $t('enseignant.temoin_show.no_description')
+                                }}
+                            </p>
                         </div>
 
                         <!-- Thème libre -->
                         <div>
-                            <p class="text-muted-foreground mb-1 text-xs font-medium uppercase tracking-wide">
+                            <p
+                                class="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                            >
                                 {{ $t('enseignant.temoin_show.free_theme') }}
                             </p>
-                            <p v-if="temoin.theme_libre" class="text-sm leading-relaxed">{{ temoin.theme_libre }}</p>
-                            <p v-else class="text-muted-foreground text-sm italic">{{ $t('enseignant.temoin_show.no_free_theme') }}</p>
+                            <p
+                                v-if="temoin.theme_libre"
+                                class="text-sm leading-relaxed"
+                            >
+                                {{ temoin.theme_libre }}
+                            </p>
+                            <p
+                                v-else
+                                class="text-sm text-muted-foreground italic"
+                            >
+                                {{ $t('enseignant.temoin_show.no_free_theme') }}
+                            </p>
                         </div>
 
                         <!-- Provenance -->
                         <div v-if="temoin.provenance">
-                            <p class="text-muted-foreground mb-1 text-xs font-medium uppercase tracking-wide">
+                            <p
+                                class="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                            >
                                 {{ $t('enseignant.temoin_show.provenance') }}
                             </p>
                             <p class="text-sm">{{ temoin.provenance }}</p>
@@ -128,10 +179,15 @@ const statusVariant: Record<Temoin['statut'], 'default' | 'secondary' | 'destruc
                     <!-- Thématiques -->
                     <Card>
                         <CardHeader>
-                            <CardTitle class="text-sm">{{ $t('administration.index.temoins_header_theme') }}</CardTitle>
+                            <CardTitle class="text-sm">{{
+                                $t('administration.index.temoins_header_theme')
+                            }}</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div v-if="temoin.thematiques_choisies.length" class="flex flex-wrap gap-2">
+                            <div
+                                v-if="temoin.thematiques_choisies.length"
+                                class="flex flex-wrap gap-2"
+                            >
                                 <Badge
                                     v-for="th in temoin.thematiques_choisies"
                                     :key="th.id"
@@ -140,18 +196,26 @@ const statusVariant: Record<Temoin['statut'], 'default' | 'secondary' | 'destruc
                                     {{ th.nom }}
                                 </Badge>
                             </div>
-                            <p v-else class="text-muted-foreground text-sm">—</p>
+                            <p v-else class="text-sm text-muted-foreground">
+                                —
+                            </p>
                         </CardContent>
                     </Card>
 
                     <!-- Inscription -->
                     <Card>
                         <CardContent class="pt-6">
-                            <p class="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                            <p
+                                class="text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                            >
                                 {{ $t('enseignant.temoin_show.registered_on') }}
                             </p>
                             <p class="mt-1 text-sm">
-                                {{ new Date(temoin.created_at).toLocaleDateString() }}
+                                {{
+                                    new Date(
+                                        temoin.created_at,
+                                    ).toLocaleDateString()
+                                }}
                             </p>
                         </CardContent>
                     </Card>
@@ -159,32 +223,61 @@ const statusVariant: Record<Temoin['statut'], 'default' | 'secondary' | 'destruc
                     <!-- Consentement -->
                     <Card>
                         <CardHeader>
-                            <CardTitle class="text-sm">{{ $t('enseignant.temoin_show.consent_title') }}</CardTitle>
+                            <CardTitle class="text-sm">{{
+                                $t('enseignant.temoin_show.consent_title')
+                            }}</CardTitle>
                         </CardHeader>
                         <CardContent class="grid gap-3">
                             <template v-if="temoin.engagements_acceptes_le">
-                                <div class="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
+                                <div
+                                    class="flex items-center gap-2 text-sm text-green-700 dark:text-green-400"
+                                >
                                     <CheckCircle class="h-4 w-4 shrink-0" />
                                     <span>
-                                        {{ $t('enseignant.temoin_show.consent_accepted') }}
-                                        {{ new Date(temoin.engagements_acceptes_le).toLocaleDateString() }}
+                                        {{
+                                            $t(
+                                                'enseignant.temoin_show.consent_accepted',
+                                            )
+                                        }}
+                                        {{
+                                            new Date(
+                                                temoin.engagements_acceptes_le,
+                                            ).toLocaleDateString()
+                                        }}
                                     </span>
                                 </div>
                                 <div v-if="temoin.signature_electronique">
-                                    <p class="text-muted-foreground mb-1 text-xs font-medium uppercase tracking-wide">
-                                        {{ $t('enseignant.temoin_show.signature') }}
+                                    <p
+                                        class="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                                    >
+                                        {{
+                                            $t(
+                                                'enseignant.temoin_show.signature',
+                                            )
+                                        }}
                                     </p>
                                     <p
                                         class="rounded border border-dashed px-3 py-2 text-xl text-gray-700 dark:text-gray-300"
-                                        style="font-family: 'Brush Script MT', cursive, serif;"
+                                        style="
+                                            font-family:
+                                                'Brush Script MT', cursive,
+                                                serif;
+                                        "
                                     >
                                         {{ temoin.signature_electronique }}
                                     </p>
                                 </div>
                             </template>
-                            <div v-else class="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
+                            <div
+                                v-else
+                                class="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400"
+                            >
                                 <XCircle class="h-4 w-4 shrink-0" />
-                                <span>{{ $t('enseignant.temoin_show.consent_not_signed') }}</span>
+                                <span>{{
+                                    $t(
+                                        'enseignant.temoin_show.consent_not_signed',
+                                    )
+                                }}</span>
                             </div>
                         </CardContent>
                     </Card>
@@ -195,16 +288,22 @@ const statusVariant: Record<Temoin['statut'], 'default' | 'secondary' | 'destruc
                             <Button
                                 class="w-full text-green-600 hover:text-green-700"
                                 variant="outline"
-                                :disabled="approuverForm.processing || declinerForm.processing"
+                                :disabled="
+                                    approuverForm.processing ||
+                                    declinerForm.processing
+                                "
                                 @click="approuverTemoin"
                             >
                                 <CheckCircle class="mr-2 h-4 w-4" />
                                 {{ $t('enseignant.temoin_show.approve_btn') }}
                             </Button>
                             <Button
-                                class="text-destructive hover:text-destructive w-full"
+                                class="w-full text-destructive hover:text-destructive"
                                 variant="outline"
-                                :disabled="approuverForm.processing || declinerForm.processing"
+                                :disabled="
+                                    approuverForm.processing ||
+                                    declinerForm.processing
+                                "
                                 @click="declinerTemoin"
                             >
                                 <XCircle class="mr-2 h-4 w-4" />
@@ -217,7 +316,7 @@ const statusVariant: Record<Temoin['statut'], 'default' | 'secondary' | 'destruc
                     <Card v-if="temoin.statut === 'actif'">
                         <CardContent class="pt-6">
                             <Button
-                                class="text-destructive hover:text-destructive w-full"
+                                class="w-full text-destructive hover:text-destructive"
                                 variant="outline"
                                 :disabled="desapprouverForm.processing"
                                 @click="desapprouverTemoin"

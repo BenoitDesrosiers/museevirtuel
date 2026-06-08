@@ -88,7 +88,9 @@ function buildEtudiantItems(): NavItem[] {
     // - le groupe est un lien direct vers la page du groupe
     return cours.map((c: CoursSidebar) => ({
         title: `${c.code}–${c.groupe}`,
-        href: c.classes[0] ? `/cours/${c.id}/classes/${c.classes[0].id}` : undefined,
+        href: c.classes[0]
+            ? `/cours/${c.id}/classes/${c.classes[0].id}`
+            : undefined,
         icon: BookOpen,
         children: c.classes.flatMap((cl) =>
             cl.groupes.map((g) => ({

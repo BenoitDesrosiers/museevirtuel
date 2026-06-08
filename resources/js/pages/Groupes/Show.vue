@@ -1,6 +1,22 @@
 <script setup lang="ts">
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { ArrowLeft, BookOpen, CalendarPlus, ChevronDown, ChevronLeft, ChevronRight, Download, FileText, ImagePlus, MessageSquare, Music, Pencil, Search, Trash2, Video } from 'lucide-vue-next';
+import {
+    ArrowLeft,
+    BookOpen,
+    CalendarPlus,
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    Download,
+    FileText,
+    ImagePlus,
+    MessageSquare,
+    Music,
+    Pencil,
+    Search,
+    Trash2,
+    Video,
+} from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import FormDialog from '@/components/FormDialog.vue';
@@ -10,7 +26,13 @@ import VisioSession from '@/components/VisioSession.vue';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
@@ -182,10 +204,11 @@ function submitMembres() {
             {
                 preserveScroll: true,
                 onSuccess: () => {
- showMembresDialog.value = false; 
-},
+                    showMembresDialog.value = false;
+                },
                 onError: (errors) => {
-                    membresError.value = Object.values(errors)[0] ?? t('common.error');
+                    membresError.value =
+                        Object.values(errors)[0] ?? t('common.error');
                 },
             },
         );
@@ -207,7 +230,9 @@ function openThematiques() {
     showThematiquesDialog.value = true;
 }
 
-const thematiquesMax = computed(() => thematiquesSelectionnees.value.length >= 3);
+const thematiquesMax = computed(
+    () => thematiquesSelectionnees.value.length >= 3,
+);
 
 function toggleThematique(id: number) {
     const idx = thematiquesSelectionnees.value.indexOf(id);
@@ -231,24 +256,32 @@ function submitThematiques() {
             {
                 preserveScroll: true,
                 onSuccess: () => {
- showThematiquesDialog.value = false; 
-},
+                    showThematiquesDialog.value = false;
+                },
                 onError: (errors) => {
-                    thematiquesError.value = Object.values(errors)[0] ?? t('common.error');
+                    thematiquesError.value =
+                        Object.values(errors)[0] ?? t('common.error');
                 },
             },
         );
 }
 
 // ─── Carrousel photos ─────────────────────────────────────────────────────────
-const photos = computed(() => props.groupe.medias.filter((m) => m.type === 'photo'));
-const documents = computed(() => props.groupe.medias.filter((m) => m.type === 'document'));
-const audios = computed(() => props.groupe.medias.filter((m) => m.type === 'audio'));
+const photos = computed(() =>
+    props.groupe.medias.filter((m) => m.type === 'photo'),
+);
+const documents = computed(() =>
+    props.groupe.medias.filter((m) => m.type === 'document'),
+);
+const audios = computed(() =>
+    props.groupe.medias.filter((m) => m.type === 'audio'),
+);
 
 const photoIndex = ref(0);
 
 function prevPhoto() {
-    photoIndex.value = (photoIndex.value - 1 + photos.value.length) % photos.value.length;
+    photoIndex.value =
+        (photoIndex.value - 1 + photos.value.length) % photos.value.length;
 }
 
 function nextPhoto() {
@@ -264,15 +297,18 @@ function handleMediaChange(e: Event) {
 
     if (input.files && input.files[0]) {
         mediaForm.fichier = input.files[0];
-        mediaForm.post(`/cours/${props.cours.id}/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/medias`, {
-            onSuccess: () => {
-                mediaForm.reset();
+        mediaForm.post(
+            `/cours/${props.cours.id}/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/medias`,
+            {
+                onSuccess: () => {
+                    mediaForm.reset();
 
-                if (mediaFileInput.value) {
-mediaFileInput.value.value = '';
-}
+                    if (mediaFileInput.value) {
+                        mediaFileInput.value.value = '';
+                    }
+                },
             },
-        });
+        );
     }
 }
 
@@ -280,9 +316,13 @@ mediaFileInput.value.value = '';
 const deleteMediaForm = useForm({});
 
 function deleteMedia(media: Media) {
-    if (!confirm(t('groupes.show.confirm_delete_media', { nom: media.nom_original }))) {
-return;
-}
+    if (
+        !confirm(
+            t('groupes.show.confirm_delete_media', { nom: media.nom_original }),
+        )
+    ) {
+        return;
+    }
 
     deleteMediaForm.delete(
         `/cours/${props.cours.id}/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/medias/${media.id}`,
@@ -307,8 +347,8 @@ const deleteNoteForm = useForm({});
 
 function deleteNote(note: Note) {
     if (!confirm(t('groupes.show.confirm_delete_note'))) {
-return;
-}
+        return;
+    }
 
     deleteNoteForm.delete(`/groupes/${props.groupe.id}/notes/${note.id}`);
 }
@@ -317,7 +357,9 @@ return;
 const notesReduites = ref<number[]>([]);
 
 const toutesNotesReduites = computed(
-    () => props.groupe.notes.length > 0 && props.groupe.notes.every((n) => notesReduites.value.includes(n.id)),
+    () =>
+        props.groupe.notes.length > 0 &&
+        props.groupe.notes.every((n) => notesReduites.value.includes(n.id)),
 );
 
 function toggleNote(id: number): void {
@@ -396,9 +438,12 @@ const temoinForm = useForm({
 });
 
 function submitTemoin() {
-    temoinForm.put(`/cours/${props.cours.id}/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/temoin`, {
-        preserveScroll: true,
-    });
+    temoinForm.put(
+        `/cours/${props.cours.id}/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/temoin`,
+        {
+            preserveScroll: true,
+        },
+    );
 }
 
 function desassignerTemoin() {
@@ -412,8 +457,8 @@ const rechercheTemoin = ref('');
 const resultsRecherche = computed(() => {
     const q = rechercheTemoin.value.trim().toLowerCase();
     if (!q) return [];
-    return props.tousLesTemoins.filter(
-        (t) => `${t.prenom} ${t.nom}`.toLowerCase().includes(q),
+    return props.tousLesTemoins.filter((t) =>
+        `${t.prenom} ${t.nom}`.toLowerCase().includes(q),
     );
 });
 
@@ -436,12 +481,12 @@ function formatDate(dateStr: string): string {
 
 function formatSize(bytes: number): string {
     if (bytes < 1024) {
-return `${bytes} o`;
-}
+        return `${bytes} o`;
+    }
 
     if (bytes < 1024 * 1024) {
-return `${(bytes / 1024).toFixed(0)} Ko`;
-}
+        return `${(bytes / 1024).toFixed(0)} Ko`;
+    }
 
     return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
 }
@@ -449,13 +494,17 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
 
 <template>
     <AppLayout>
-        <Head :title="$t('classes.groupes.group_number', { n: groupe.numero })" />
+        <Head
+            :title="$t('classes.groupes.group_number', { n: groupe.numero })"
+        />
 
         <div class="flex flex-col gap-6 p-6">
             <!-- Retour -->
             <div>
                 <Button variant="ghost" size="sm" as-child>
-                    <Link :href="`/cours/${cours.id}/classes/${groupe.classe_id}/groupes`">
+                    <Link
+                        :href="`/cours/${cours.id}/classes/${groupe.classe_id}/groupes`"
+                    >
                         <ArrowLeft class="mr-2 h-4 w-4" />
                         {{ $t('groupes.show.back') }}
                     </Link>
@@ -464,7 +513,9 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
 
             <!-- Heading -->
             <Heading
-                :title="$t('classes.groupes.group_number', { n: groupe.numero })"
+                :title="
+                    $t('classes.groupes.group_number', { n: groupe.numero })
+                "
                 :description="`${groupe.classe.code} — Groupe ${groupe.classe.groupe} · ${groupe.classe.nom_cours}`"
             />
 
@@ -476,7 +527,9 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                     size="sm"
                     as-child
                 >
-                    <Link :href="`/cours/${cours.id}/classes/${groupe.classe_id}/groupes/${groupe.id}/projets`">
+                    <Link
+                        :href="`/cours/${cours.id}/classes/${groupe.classe_id}/groupes/${groupe.id}/projets`"
+                    >
                         <BookOpen class="mr-2 h-4 w-4" />
                         Projets
                     </Link>
@@ -488,10 +541,15 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                     size="sm"
                     as-child
                 >
-                    <Link :href="`/cours/${cours.id}/classes/${groupe.classe_id}/groupes/${groupe.id}/echanges`">
+                    <Link
+                        :href="`/cours/${cours.id}/classes/${groupe.classe_id}/groupes/${groupe.id}/echanges`"
+                    >
                         <MessageSquare class="mr-2 h-4 w-4" />
                         Échanges avec le témoin
-                        <span v-if="groupe.temoin" class="ml-1 text-xs text-muted-foreground">
+                        <span
+                            v-if="groupe.temoin"
+                            class="ml-1 text-xs text-muted-foreground"
+                        >
                             ({{ groupe.temoin.prenom }} {{ groupe.temoin.nom }})
                         </span>
                     </Link>
@@ -508,18 +566,27 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                     >
                         <CardTitle>Témoin assigné</CardTitle>
                         <ChevronDown
-                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.temoin }"
                         />
                     </button>
                 </CardHeader>
                 <CardContent v-show="ouvert.temoin">
-                    <div v-if="groupe.temoin" class="mb-4 flex items-center justify-between gap-3">
+                    <div
+                        v-if="groupe.temoin"
+                        class="mb-4 flex items-center justify-between gap-3"
+                    >
                         <div class="flex items-center gap-3">
-                            <span class="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium">
-                                {{ groupe.temoin.prenom[0] }}{{ groupe.temoin.nom[0] }}
+                            <span
+                                class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary"
+                            >
+                                {{ groupe.temoin.prenom[0]
+                                }}{{ groupe.temoin.nom[0] }}
                             </span>
-                            <span class="text-sm font-medium">{{ groupe.temoin.prenom }} {{ groupe.temoin.nom }}</span>
+                            <span class="text-sm font-medium"
+                                >{{ groupe.temoin.prenom }}
+                                {{ groupe.temoin.nom }}</span
+                            >
                         </div>
                         <BoutonTooltip
                             texte="Retirer le témoin assigné à ce groupe"
@@ -532,22 +599,45 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                             Désassigner
                         </BoutonTooltip>
                     </div>
-                    <p v-else class="text-muted-foreground mb-4 text-sm">Aucun témoin assigné à ce groupe.</p>
+                    <p v-else class="mb-4 text-sm text-muted-foreground">
+                        Aucun témoin assigné à ce groupe.
+                    </p>
 
                     <!-- Témoins suggérés (correspondance thématiques) -->
                     <div class="mb-4">
-                        <p class="text-muted-foreground mb-1.5 text-xs font-medium uppercase tracking-wide">Témoins suggérés</p>
-                        <form class="flex items-end gap-3" @submit.prevent="submitTemoin">
+                        <p
+                            class="mb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                        >
+                            Témoins suggérés
+                        </p>
+                        <form
+                            class="flex items-end gap-3"
+                            @submit.prevent="submitTemoin"
+                        >
                             <div class="flex-1">
                                 <Select
-                                    :model-value="temoinForm.personne_agee_id ? String(temoinForm.personne_agee_id) : 'none'"
-                                    @update:model-value="(v) => temoinForm.personne_agee_id = v === 'none' ? null : Number(v)"
+                                    :model-value="
+                                        temoinForm.personne_agee_id
+                                            ? String(
+                                                  temoinForm.personne_agee_id,
+                                              )
+                                            : 'none'
+                                    "
+                                    @update:model-value="
+                                        (v) =>
+                                            (temoinForm.personne_agee_id =
+                                                v === 'none' ? null : Number(v))
+                                    "
                                 >
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Sélectionner un témoin…" />
+                                        <SelectValue
+                                            placeholder="Sélectionner un témoin…"
+                                        />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="none">Aucun témoin</SelectItem>
+                                        <SelectItem value="none"
+                                            >Aucun témoin</SelectItem
+                                        >
                                         <SelectItem
                                             v-for="t in temoinsDisponibles"
                                             :key="t.id"
@@ -557,14 +647,29 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <p v-if="temoinsDisponibles.length === 0 && groupe.thematiques.length === 0" class="text-muted-foreground mt-1.5 text-xs">
-                                    Aucun témoin disponible — sélectionnez d'abord une thématique pour ce groupe.
+                                <p
+                                    v-if="
+                                        temoinsDisponibles.length === 0 &&
+                                        groupe.thematiques.length === 0
+                                    "
+                                    class="mt-1.5 text-xs text-muted-foreground"
+                                >
+                                    Aucun témoin disponible — sélectionnez
+                                    d'abord une thématique pour ce groupe.
                                 </p>
-                                <p v-else-if="temoinsDisponibles.length === 0" class="text-muted-foreground mt-1.5 text-xs">
-                                    Aucun témoin actif ne correspond aux thématiques de ce groupe.
+                                <p
+                                    v-else-if="temoinsDisponibles.length === 0"
+                                    class="mt-1.5 text-xs text-muted-foreground"
+                                >
+                                    Aucun témoin actif ne correspond aux
+                                    thématiques de ce groupe.
                                 </p>
                             </div>
-                            <Button type="submit" size="sm" :disabled="temoinForm.processing">
+                            <Button
+                                type="submit"
+                                size="sm"
+                                :disabled="temoinForm.processing"
+                            >
                                 Enregistrer
                             </Button>
                         </form>
@@ -572,33 +677,50 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
 
                     <!-- Recherche manuelle par nom -->
                     <div>
-                        <p class="text-muted-foreground mb-1.5 text-xs font-medium uppercase tracking-wide">Rechercher un autre témoin</p>
+                        <p
+                            class="mb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                        >
+                            Rechercher un autre témoin
+                        </p>
                         <div class="relative">
-                            <Search class="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+                            <Search
+                                class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                            />
                             <input
                                 v-model="rechercheTemoin"
                                 type="text"
-                                class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-md border py-2 pr-3 pl-9 text-sm focus-visible:ring-1 focus-visible:outline-none"
+                                class="w-full rounded-md border border-input bg-background py-2 pr-3 pl-9 text-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                                 placeholder="Rechercher par prénom ou nom…"
                             />
                         </div>
-                        <ul v-if="resultsRecherche.length > 0" class="border-input mt-1 max-h-40 overflow-y-auto rounded-md border">
+                        <ul
+                            v-if="resultsRecherche.length > 0"
+                            class="mt-1 max-h-40 overflow-y-auto rounded-md border border-input"
+                        >
                             <li
                                 v-for="t in resultsRecherche"
                                 :key="t.id"
-                                class="hover:bg-accent flex cursor-pointer items-center justify-between px-3 py-2 text-sm"
+                                class="flex cursor-pointer items-center justify-between px-3 py-2 text-sm hover:bg-accent"
                                 @click="selectionnerTemoinRecherche(t)"
                             >
                                 <span>{{ t.prenom }} {{ t.nom }}</span>
-                                <span class="text-muted-foreground text-xs">Assigner</span>
+                                <span class="text-xs text-muted-foreground"
+                                    >Assigner</span
+                                >
                             </li>
                         </ul>
-                        <p v-else-if="rechercheTemoin.trim().length > 0" class="text-muted-foreground mt-1 text-xs">
+                        <p
+                            v-else-if="rechercheTemoin.trim().length > 0"
+                            class="mt-1 text-xs text-muted-foreground"
+                        >
                             Aucun témoin trouvé pour « {{ rechercheTemoin }} ».
                         </p>
                     </div>
 
-                    <p v-if="temoinForm.errors.personne_agee_id" class="text-destructive mt-2 text-sm">
+                    <p
+                        v-if="temoinForm.errors.personne_agee_id"
+                        class="mt-2 text-sm text-destructive"
+                    >
                         {{ temoinForm.errors.personne_agee_id }}
                     </p>
                 </CardContent>
@@ -607,15 +729,19 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
             <div class="grid gap-6 lg:grid-cols-2">
                 <!-- Membres -->
                 <Card>
-                    <CardHeader class="flex flex-row items-center justify-between">
+                    <CardHeader
+                        class="flex flex-row items-center justify-between"
+                    >
                         <button
                             type="button"
                             class="flex cursor-pointer items-center gap-2 text-left select-none"
                             @click="ouvert.membres = !ouvert.membres"
                         >
-                            <CardTitle>{{ $t('groupes.show.members') }}</CardTitle>
+                            <CardTitle>{{
+                                $t('groupes.show.members')
+                            }}</CardTitle>
                             <ChevronDown
-                                class="text-muted-foreground h-4 w-4 transition-transform"
+                                class="h-4 w-4 text-muted-foreground transition-transform"
                                 :class="{ '-rotate-180': ouvert.membres }"
                             />
                         </button>
@@ -637,14 +763,16 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                                 class="flex items-center gap-2 text-sm"
                             >
                                 <span
-                                    class="bg-primary/10 text-primary flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium"
+                                    class="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary"
                                 >
                                     {{ membre.prenom[0] }}{{ membre.nom[0] }}
                                 </span>
-                                <span>{{ membre.prenom }} {{ membre.nom }}</span>
+                                <span
+                                    >{{ membre.prenom }} {{ membre.nom }}</span
+                                >
                                 <span
                                     v-if="membre.id === groupe.created_by"
-                                    class="text-muted-foreground text-xs"
+                                    class="text-xs text-muted-foreground"
                                 >
                                     (créateur)
                                 </span>
@@ -655,15 +783,19 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
 
                 <!-- Thématiques -->
                 <Card>
-                    <CardHeader class="flex flex-row items-center justify-between">
+                    <CardHeader
+                        class="flex flex-row items-center justify-between"
+                    >
                         <button
                             type="button"
                             class="flex cursor-pointer items-center gap-2 text-left select-none"
                             @click="ouvert.thematiques = !ouvert.thematiques"
                         >
-                            <CardTitle>{{ $t('groupes.show.thematic') }}</CardTitle>
+                            <CardTitle>{{
+                                $t('groupes.show.thematic')
+                            }}</CardTitle>
                             <ChevronDown
-                                class="text-muted-foreground h-4 w-4 transition-transform"
+                                class="h-4 w-4 text-muted-foreground transition-transform"
                                 :class="{ '-rotate-180': ouvert.thematiques }"
                             />
                         </button>
@@ -678,7 +810,10 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                         </Button>
                     </CardHeader>
                     <CardContent v-show="ouvert.thematiques">
-                        <div v-if="groupe.thematiques.length === 0" class="text-muted-foreground text-sm">
+                        <div
+                            v-if="groupe.thematiques.length === 0"
+                            class="text-sm text-muted-foreground"
+                        >
                             {{ $t('groupes.show.no_thematic') }}
                         </div>
                         <ul v-else class="space-y-3">
@@ -686,10 +821,12 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                                 v-for="thematique in groupe.thematiques"
                                 :key="thematique.id"
                             >
-                                <p class="font-medium text-sm">{{ thematique.nom }}</p>
+                                <p class="text-sm font-medium">
+                                    {{ thematique.nom }}
+                                </p>
                                 <p
                                     v-if="thematique.periode_historique"
-                                    class="text-muted-foreground text-xs"
+                                    class="text-xs text-muted-foreground"
                                 >
                                     {{ thematique.periode_historique }}
                                 </p>
@@ -709,11 +846,11 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                     >
                         <CardTitle>{{ $t('groupes.show.photos') }}</CardTitle>
                         <ChevronDown
-                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.photos }"
                         />
                     </button>
-                    <span class="text-muted-foreground text-sm">
+                    <span class="text-sm text-muted-foreground">
                         {{ photoIndex + 1 }} / {{ photos.length }}
                     </span>
                 </CardHeader>
@@ -723,20 +860,20 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                         <img
                             :src="photos[photoIndex].url"
                             :alt="photos[photoIndex].nom_original"
-                            class="w-full max-h-96 object-contain bg-muted"
+                            class="max-h-96 w-full bg-muted object-contain"
                         />
 
                         <!-- Boutons navigation -->
                         <button
                             v-if="photos.length > 1"
-                            class="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
+                            class="absolute top-1/2 left-2 -translate-y-1/2 rounded-full bg-black/40 p-1.5 text-white transition-colors hover:bg-black/60"
                             @click="prevPhoto"
                         >
                             <ChevronLeft class="h-5 w-5" />
                         </button>
                         <button
                             v-if="photos.length > 1"
-                            class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
+                            class="absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-black/40 p-1.5 text-white transition-colors hover:bg-black/60"
                             @click="nextPhoto"
                         >
                             <ChevronRight class="h-5 w-5" />
@@ -745,7 +882,7 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                         <!-- Bouton supprimer (uploader ou enseignant) -->
                         <button
                             v-if="peutSupprimerMedia(photos[photoIndex])"
-                            class="absolute top-2 right-2 bg-destructive/80 hover:bg-destructive text-white rounded-full p-1.5 transition-colors"
+                            class="absolute top-2 right-2 rounded-full bg-destructive/80 p-1.5 text-white transition-colors hover:bg-destructive"
                             @click="deleteMedia(photos[photoIndex])"
                         >
                             <Trash2 class="h-4 w-4" />
@@ -753,18 +890,30 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                     </div>
 
                     <!-- Légende -->
-                    <div class="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                    <div
+                        class="mt-2 flex items-center justify-between text-xs text-muted-foreground"
+                    >
                         <span>{{ photos[photoIndex].nom_original }}</span>
-                        <span>par {{ photos[photoIndex].auteur.prenom }} {{ photos[photoIndex].auteur.nom }}</span>
+                        <span
+                            >par {{ photos[photoIndex].auteur.prenom }}
+                            {{ photos[photoIndex].auteur.nom }}</span
+                        >
                     </div>
 
                     <!-- Miniatures -->
-                    <div v-if="photos.length > 1" class="mt-3 flex gap-2 overflow-x-auto pb-1">
+                    <div
+                        v-if="photos.length > 1"
+                        class="mt-3 flex gap-2 overflow-x-auto pb-1"
+                    >
                         <button
                             v-for="(photo, idx) in photos"
                             :key="photo.id"
-                            class="shrink-0 h-14 w-14 rounded overflow-hidden border-2 transition-colors"
-                            :class="idx === photoIndex ? 'border-primary' : 'border-transparent'"
+                            class="h-14 w-14 shrink-0 overflow-hidden rounded border-2 transition-colors"
+                            :class="
+                                idx === photoIndex
+                                    ? 'border-primary'
+                                    : 'border-transparent'
+                            "
                             @click="photoIndex = idx"
                         >
                             <img
@@ -785,9 +934,11 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                         class="flex cursor-pointer items-center gap-2 text-left select-none"
                         @click="ouvert.documents = !ouvert.documents"
                     >
-                        <CardTitle>{{ $t('groupes.show.documents') }}</CardTitle>
+                        <CardTitle>{{
+                            $t('groupes.show.documents')
+                        }}</CardTitle>
                         <ChevronDown
-                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.documents }"
                         />
                     </button>
@@ -799,13 +950,21 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                             :key="doc.id"
                             class="flex items-center justify-between gap-3 py-3"
                         >
-                            <div class="flex items-center gap-3 min-w-0">
-                                <FileText class="text-muted-foreground h-5 w-5 shrink-0" />
+                            <div class="flex min-w-0 items-center gap-3">
+                                <FileText
+                                    class="h-5 w-5 shrink-0 text-muted-foreground"
+                                />
                                 <div class="min-w-0">
-                                    <p class="truncate text-sm font-medium">{{ doc.nom_original }}</p>
-                                    <p class="text-muted-foreground text-xs">
-                                        {{ doc.type.toUpperCase() }} · {{ formatSize(doc.taille) }} ·
-                                        <span>{{ doc.auteur.prenom }} {{ doc.auteur.nom }}</span>
+                                    <p class="truncate text-sm font-medium">
+                                        {{ doc.nom_original }}
+                                    </p>
+                                    <p class="text-xs text-muted-foreground">
+                                        {{ doc.type.toUpperCase() }} ·
+                                        {{ formatSize(doc.taille) }} ·
+                                        <span
+                                            >{{ doc.auteur.prenom }}
+                                            {{ doc.auteur.nom }}</span
+                                        >
                                     </p>
                                 </div>
                             </div>
@@ -844,7 +1003,7 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                     >
                         <CardTitle>{{ $t('groupes.show.audio') }}</CardTitle>
                         <ChevronDown
-                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.audios }"
                         />
                     </button>
@@ -856,14 +1015,25 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                             :key="audio.id"
                             class="flex flex-col gap-2 py-3"
                         >
-                            <div class="flex items-center justify-between gap-3">
-                                <div class="flex items-center gap-3 min-w-0">
-                                    <Music class="text-muted-foreground h-5 w-5 shrink-0" />
+                            <div
+                                class="flex items-center justify-between gap-3"
+                            >
+                                <div class="flex min-w-0 items-center gap-3">
+                                    <Music
+                                        class="h-5 w-5 shrink-0 text-muted-foreground"
+                                    />
                                     <div class="min-w-0">
-                                        <p class="truncate text-sm font-medium">{{ audio.nom_original }}</p>
-                                        <p class="text-muted-foreground text-xs">
+                                        <p class="truncate text-sm font-medium">
+                                            {{ audio.nom_original }}
+                                        </p>
+                                        <p
+                                            class="text-xs text-muted-foreground"
+                                        >
                                             {{ formatSize(audio.taille) }} ·
-                                            <span>{{ audio.auteur.prenom }} {{ audio.auteur.nom }}</span>
+                                            <span
+                                                >{{ audio.auteur.prenom }}
+                                                {{ audio.auteur.nom }}</span
+                                            >
                                         </p>
                                     </div>
                                 </div>
@@ -876,9 +1046,11 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                                     <Trash2 class="h-4 w-4" />
                                 </Button>
                             </div>
-                            <audio controls class="w-full h-10">
+                            <audio controls class="h-10 w-full">
                                 <source :src="audio.url" />
-                                {{ $t('groupes.show.browser_no_audio_support') }}
+                                {{
+                                    $t('groupes.show.browser_no_audio_support')
+                                }}
                             </audio>
                         </div>
                     </div>
@@ -893,9 +1065,11 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                         class="flex cursor-pointer items-center gap-2 text-left select-none"
                         @click="ouvert.upload = !ouvert.upload"
                     >
-                        <CardTitle>{{ $t('groupes.show.add_files') }}</CardTitle>
+                        <CardTitle>{{
+                            $t('groupes.show.add_files')
+                        }}</CardTitle>
                         <ChevronDown
-                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.upload }"
                         />
                     </button>
@@ -908,19 +1082,26 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                         class="hidden"
                         @change="handleMediaChange"
                     />
-                    <p v-if="mediaForm.errors.fichier" class="text-destructive mb-3 text-sm">
+                    <p
+                        v-if="mediaForm.errors.fichier"
+                        class="mb-3 text-sm text-destructive"
+                    >
                         {{ mediaForm.errors.fichier }}
                     </p>
                     <div
-                        class="border-2 border-dashed rounded-lg p-8 flex flex-col items-center gap-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                        class="flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed p-8 transition-colors hover:bg-muted/50"
                         @click="mediaFileInput?.click()"
                     >
-                        <ImagePlus class="text-muted-foreground h-8 w-8" />
+                        <ImagePlus class="h-8 w-8 text-muted-foreground" />
                         <div class="text-center">
                             <p class="text-sm font-medium">
-                                {{ mediaForm.processing ? $t('groupes.show.uploading') : $t('groupes.show.click_to_add') }}
+                                {{
+                                    mediaForm.processing
+                                        ? $t('groupes.show.uploading')
+                                        : $t('groupes.show.click_to_add')
+                                }}
                             </p>
-                            <p class="text-muted-foreground text-xs mt-1">
+                            <p class="mt-1 text-xs text-muted-foreground">
                                 {{ $t('groupes.show.upload_help') }}
                             </p>
                         </div>
@@ -937,9 +1118,11 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                         @click="ouvert.notes = !ouvert.notes"
                     >
                         <CardTitle>{{ $t('groupes.show.notes') }}</CardTitle>
-                        <span class="text-muted-foreground text-sm font-normal">({{ groupe.notes.length }})</span>
+                        <span class="text-sm font-normal text-muted-foreground"
+                            >({{ groupe.notes.length }})</span
+                        >
                         <ChevronDown
-                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.notes }"
                         />
                     </button>
@@ -949,12 +1132,19 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                         size="sm"
                         @click.stop="toggleToutesNotes"
                     >
-                        {{ toutesNotesReduites ? $t('groupes.show.afficher_tout') : $t('groupes.show.masquer_tout') }}
+                        {{
+                            toutesNotesReduites
+                                ? $t('groupes.show.afficher_tout')
+                                : $t('groupes.show.masquer_tout')
+                        }}
                     </Button>
                 </CardHeader>
                 <CardContent v-show="ouvert.notes" class="flex flex-col gap-4">
                     <!-- Liste des notes -->
-                    <div v-if="groupe.notes.length === 0" class="text-muted-foreground py-4 text-center text-sm">
+                    <div
+                        v-if="groupe.notes.length === 0"
+                        class="py-4 text-center text-sm text-muted-foreground"
+                    >
                         {{ $t('groupes.show.no_notes') }}
                     </div>
 
@@ -963,20 +1153,27 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                         :key="note.id"
                         class="border-b pb-4 last:border-0 last:pb-0"
                     >
-                        <div class="mb-1 flex items-start justify-between gap-2">
+                        <div
+                            class="mb-1 flex items-start justify-between gap-2"
+                        >
                             <button
                                 type="button"
                                 class="flex flex-1 cursor-pointer items-center gap-2 text-left"
                                 @click="toggleNote(note.id)"
                             >
                                 <ChevronDown
-                                    class="text-muted-foreground h-4 w-4 shrink-0 transition-transform"
-                                    :class="{ 'rotate-180': !notesReduites.includes(note.id) }"
+                                    class="h-4 w-4 shrink-0 text-muted-foreground transition-transform"
+                                    :class="{
+                                        'rotate-180': !notesReduites.includes(
+                                            note.id,
+                                        ),
+                                    }"
                                 />
                                 <span class="text-sm font-medium">
-                                    {{ note.auteur.prenom }} {{ note.auteur.nom }}
+                                    {{ note.auteur.prenom }}
+                                    {{ note.auteur.nom }}
                                 </span>
-                                <span class="text-muted-foreground text-xs">
+                                <span class="text-xs text-muted-foreground">
                                     {{ formatDate(note.created_at) }}
                                 </span>
                             </button>
@@ -984,7 +1181,7 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                                 v-if="note.user_id === userId"
                                 size="sm"
                                 variant="ghost"
-                                class="text-destructive hover:text-destructive h-7 w-7 p-0"
+                                class="h-7 w-7 p-0 text-destructive hover:text-destructive"
                                 @click="deleteNote(note)"
                             >
                                 <Trash2 class="h-4 w-4" />
@@ -1001,22 +1198,31 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                     <!-- Formulaire nouvelle note (membres seulement) -->
                     <template v-if="estMembre">
                         <div class="border-t pt-4">
-                            <form class="flex flex-col gap-2" @submit.prevent="submitNote">
+                            <form
+                                class="flex flex-col gap-2"
+                                @submit.prevent="submitNote"
+                            >
                                 <textarea
                                     v-model="noteForm.contenu"
                                     rows="3"
                                     maxlength="2000"
                                     :placeholder="$t('groupes.show.write_note')"
-                                    class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                                 />
-                                <p v-if="noteForm.errors.contenu" class="text-destructive text-sm">
+                                <p
+                                    v-if="noteForm.errors.contenu"
+                                    class="text-sm text-destructive"
+                                >
                                     {{ noteForm.errors.contenu }}
                                 </p>
                                 <div class="flex justify-end">
                                     <Button
                                         type="submit"
                                         size="sm"
-                                        :disabled="noteForm.processing || !noteForm.contenu.trim()"
+                                        :disabled="
+                                            noteForm.processing ||
+                                            !noteForm.contenu.trim()
+                                        "
                                     >
                                         {{ $t('groupes.show.publish') }}
                                     </Button>
@@ -1028,7 +1234,14 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
             </Card>
 
             <!-- Visioconférences -->
-            <Card v-if="visioConferences.length > 0 || estEnseignant || estMembre || estTemoin">
+            <Card
+                v-if="
+                    visioConferences.length > 0 ||
+                    estEnseignant ||
+                    estMembre ||
+                    estTemoin
+                "
+            >
                 <CardHeader class="flex flex-row items-center justify-between">
                     <button
                         type="button"
@@ -1038,7 +1251,7 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                         <Video class="h-5 w-5" />
                         <CardTitle>Visioconférences</CardTitle>
                         <ChevronDown
-                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.visios }"
                         />
                     </button>
@@ -1058,30 +1271,45 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                         <button
                             type="button"
                             class="flex-1 rounded-md px-3 py-1.5 font-medium transition-colors"
-                            :class="ongletVisio === 'avenir'
-                                ? 'bg-primary text-primary-foreground'
-                                : 'text-muted-foreground hover:text-foreground'"
+                            :class="
+                                ongletVisio === 'avenir'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            "
                             @click="ongletVisio = 'avenir'"
                         >
                             À venir
-                            <span v-if="rencontresAVenir.length > 0" class="ml-1 opacity-70">({{ rencontresAVenir.length }})</span>
+                            <span
+                                v-if="rencontresAVenir.length > 0"
+                                class="ml-1 opacity-70"
+                                >({{ rencontresAVenir.length }})</span
+                            >
                         </button>
                         <button
                             type="button"
                             class="flex-1 rounded-md px-3 py-1.5 font-medium transition-colors"
-                            :class="ongletVisio === 'effectuees'
-                                ? 'bg-primary text-primary-foreground'
-                                : 'text-muted-foreground hover:text-foreground'"
+                            :class="
+                                ongletVisio === 'effectuees'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            "
                             @click="ongletVisio = 'effectuees'"
                         >
                             Effectuées
-                            <span v-if="rencontresEffectuees.length > 0" class="ml-1 opacity-70">({{ rencontresEffectuees.length }})</span>
+                            <span
+                                v-if="rencontresEffectuees.length > 0"
+                                class="ml-1 opacity-70"
+                                >({{ rencontresEffectuees.length }})</span
+                            >
                         </button>
                     </div>
 
                     <!-- Rencontres à venir -->
                     <div v-if="ongletVisio === 'avenir'">
-                        <div v-if="rencontresAVenir.length === 0" class="text-sm text-muted-foreground">
+                        <div
+                            v-if="rencontresAVenir.length === 0"
+                            class="text-sm text-muted-foreground"
+                        >
                             Aucune rencontre à venir pour ce groupe.
                         </div>
                         <div v-else class="flex flex-col gap-3">
@@ -1098,7 +1326,10 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
 
                     <!-- Rencontres effectuées -->
                     <div v-if="ongletVisio === 'effectuees'">
-                        <div v-if="rencontresEffectuees.length === 0" class="text-sm text-muted-foreground">
+                        <div
+                            v-if="rencontresEffectuees.length === 0"
+                            class="text-sm text-muted-foreground"
+                        >
                             Aucune rencontre effectuée pour ce groupe.
                         </div>
                         <div v-else class="flex flex-col gap-3">
@@ -1119,14 +1350,20 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
         <Dialog v-model:open="showMembresDialog">
             <DialogContent class="max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>{{ $t('groupes.show.modal_manage_members') }}</DialogTitle>
+                    <DialogTitle>{{
+                        $t('groupes.show.modal_manage_members')
+                    }}</DialogTitle>
                 </DialogHeader>
                 <form class="space-y-5" @submit.prevent="submitMembres">
-
                     <!-- Inviter des étudiants -->
                     <div>
-                        <p class="text-sm font-medium mb-2">{{ $t('groupes.show.modal_invite_students') }}</p>
-                        <div v-if="etudiantsDispo.length === 0" class="text-muted-foreground text-sm">
+                        <p class="mb-2 text-sm font-medium">
+                            {{ $t('groupes.show.modal_invite_students') }}
+                        </p>
+                        <div
+                            v-if="etudiantsDispo.length === 0"
+                            class="text-sm text-muted-foreground"
+                        >
                             {{ $t('groupes.show.modal_all_members') }}
                         </div>
                         <div v-else class="space-y-2">
@@ -1137,10 +1374,17 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                             >
                                 <Checkbox
                                     :id="`ajouter-${etudiant.id}`"
-                                    :checked="membresAjouter.includes(etudiant.id)"
-                                    @click.prevent="() => toggleAjouter(etudiant.id)"
+                                    :checked="
+                                        membresAjouter.includes(etudiant.id)
+                                    "
+                                    @click.prevent="
+                                        () => toggleAjouter(etudiant.id)
+                                    "
                                 />
-                                <Label :for="`ajouter-${etudiant.id}`" class="cursor-pointer font-normal">
+                                <Label
+                                    :for="`ajouter-${etudiant.id}`"
+                                    class="cursor-pointer font-normal"
+                                >
                                     {{ etudiant.prenom }} {{ etudiant.nom }}
                                 </Label>
                             </div>
@@ -1149,33 +1393,51 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
 
                     <!-- Retirer des membres -->
                     <div>
-                        <p class="text-sm font-medium mb-2">{{ $t('groupes.show.modal_remove_members') }}</p>
+                        <p class="mb-2 text-sm font-medium">
+                            {{ $t('groupes.show.modal_remove_members') }}
+                        </p>
                         <div class="space-y-2">
                             <div
-                                v-for="membre in groupe.membres.filter(m => m.id !== userId)"
+                                v-for="membre in groupe.membres.filter(
+                                    (m) => m.id !== userId,
+                                )"
                                 :key="membre.id"
                                 class="flex items-center gap-3"
                             >
                                 <Checkbox
                                     :id="`retirer-${membre.id}`"
-                                    :checked="membresRetirer.includes(membre.id)"
-                                    @click.prevent="() => toggleRetirer(membre.id)"
+                                    :checked="
+                                        membresRetirer.includes(membre.id)
+                                    "
+                                    @click.prevent="
+                                        () => toggleRetirer(membre.id)
+                                    "
                                 />
-                                <Label :for="`retirer-${membre.id}`" class="cursor-pointer font-normal">
+                                <Label
+                                    :for="`retirer-${membre.id}`"
+                                    class="cursor-pointer font-normal"
+                                >
                                     {{ membre.prenom }} {{ membre.nom }}
                                 </Label>
                             </div>
                         </div>
                     </div>
 
-                    <p v-if="membresError" class="text-destructive text-sm">
+                    <p v-if="membresError" class="text-sm text-destructive">
                         {{ membresError }}
                     </p>
                     <DialogFooter>
-                        <Button type="button" variant="outline" @click="showMembresDialog = false">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            @click="showMembresDialog = false"
+                        >
                             {{ $t('common.cancel') }}
                         </Button>
-                        <Button type="submit" :disabled="membresForm.processing">
+                        <Button
+                            type="submit"
+                            :disabled="membresForm.processing"
+                        >
                             {{ $t('common.save') }}
                         </Button>
                     </DialogFooter>
@@ -1199,26 +1461,38 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                             required
                             maxlength="255"
                             placeholder="Ex : Rencontre du groupe 2"
-                            class="border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-1 focus-visible:outline-none"
+                            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                         />
-                        <p v-if="planifierForm.errors.titre" class="text-sm text-destructive">
+                        <p
+                            v-if="planifierForm.errors.titre"
+                            class="text-sm text-destructive"
+                        >
                             {{ planifierForm.errors.titre }}
                         </p>
                     </div>
                     <div class="grid gap-2">
-                        <Label for="planifier-date">Date et heure (optionnel)</Label>
+                        <Label for="planifier-date"
+                            >Date et heure (optionnel)</Label
+                        >
                         <input
                             id="planifier-date"
                             v-model="planifierForm.scheduled_at"
                             type="datetime-local"
-                            class="border-input bg-background focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-1 focus-visible:outline-none"
+                            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                         />
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="outline" @click="showPlanifierDialog = false">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            @click="showPlanifierDialog = false"
+                        >
                             Annuler
                         </Button>
-                        <Button type="submit" :disabled="planifierForm.processing">
+                        <Button
+                            type="submit"
+                            :disabled="planifierForm.processing"
+                        >
                             Créer
                         </Button>
                     </DialogFooter>
@@ -1234,12 +1508,17 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
             scrollable
             @submit="submitThematiques"
         >
-            <p class="text-muted-foreground text-sm">
+            <p class="text-sm text-muted-foreground">
                 {{ $t('groupes.show.modal_thematic_help') }}
-                <span class="font-medium">({{ thematiquesSelectionnees.length }}/3)</span>
+                <span class="font-medium"
+                    >({{ thematiquesSelectionnees.length }}/3)</span
+                >
             </p>
 
-            <div v-if="thematiquesDispo.length === 0" class="text-muted-foreground text-sm">
+            <div
+                v-if="thematiquesDispo.length === 0"
+                class="text-sm text-muted-foreground"
+            >
                 {{ $t('groupes.show.modal_no_thematic_available') }}
             </div>
 
@@ -1251,24 +1530,40 @@ return `${(bytes / 1024).toFixed(0)} Ko`;
                 >
                     <Checkbox
                         :id="`t-${thematique.id}`"
-                        :checked="thematiquesSelectionnees.includes(thematique.id)"
-                        :disabled="thematiquesMax && !thematiquesSelectionnees.includes(thematique.id)"
+                        :checked="
+                            thematiquesSelectionnees.includes(thematique.id)
+                        "
+                        :disabled="
+                            thematiquesMax &&
+                            !thematiquesSelectionnees.includes(thematique.id)
+                        "
                         @click.prevent="() => toggleThematique(thematique.id)"
                     />
                     <Label
                         :for="`t-${thematique.id}`"
-                        class="cursor-pointer font-normal leading-snug"
-                        :class="{ 'text-muted-foreground': thematiquesMax && !thematiquesSelectionnees.includes(thematique.id) }"
+                        class="cursor-pointer leading-snug font-normal"
+                        :class="{
+                            'text-muted-foreground':
+                                thematiquesMax &&
+                                !thematiquesSelectionnees.includes(
+                                    thematique.id,
+                                ),
+                        }"
                     >
                         {{ thematique.nom }}
-                        <span v-if="thematique.periode_historique" class="ml-1 text-xs text-muted-foreground">
+                        <span
+                            v-if="thematique.periode_historique"
+                            class="ml-1 text-xs text-muted-foreground"
+                        >
                             — {{ thematique.periode_historique }}
                         </span>
                     </Label>
                 </div>
             </div>
 
-            <p v-if="thematiquesError" class="text-sm text-destructive">{{ thematiquesError }}</p>
+            <p v-if="thematiquesError" class="text-sm text-destructive">
+                {{ thematiquesError }}
+            </p>
         </FormDialog>
     </AppLayout>
 </template>

@@ -65,10 +65,18 @@ function formatDate(isoDate: string): string {
         >
             <CheckCircle
                 class="h-4 w-4"
-                :class="consentement?.accepte ? 'text-green-600' : 'text-muted-foreground'"
+                :class="
+                    consentement?.accepte
+                        ? 'text-green-600'
+                        : 'text-muted-foreground'
+                "
             />
             <span v-if="consentement?.accepte && consentement.signed_at">
-                {{ $t('consentement.signed_on', { date: formatDate(consentement.signed_at) }) }}
+                {{
+                    $t('consentement.signed_on', {
+                        date: formatDate(consentement.signed_at),
+                    })
+                }}
             </span>
             <span v-else class="text-muted-foreground">
                 {{ $t('consentement.not_signed') }}
@@ -83,7 +91,9 @@ function formatDate(isoDate: string): string {
                 class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
                 @click.self="showModal = false"
             >
-                <div class="w-full max-w-lg rounded-xl bg-background p-6 shadow-xl">
+                <div
+                    class="w-full max-w-lg rounded-xl bg-background p-6 shadow-xl"
+                >
                     <h2 class="mb-1 text-lg font-semibold">
                         {{ $t('consentement.title') }}
                     </h2>
@@ -92,13 +102,15 @@ function formatDate(isoDate: string): string {
                     </p>
 
                     <!-- Checkbox acceptation -->
-                    <label class="mb-4 flex items-center gap-3 cursor-pointer">
+                    <label class="mb-4 flex cursor-pointer items-center gap-3">
                         <input
                             v-model="form.accepte"
                             type="checkbox"
                             class="h-4 w-4 rounded border-gray-300"
                         />
-                        <span class="text-sm">{{ $t('consentement.accept') }}</span>
+                        <span class="text-sm">{{
+                            $t('consentement.accept')
+                        }}</span>
                     </label>
 
                     <!-- Signature canvas (affiché seulement si accepté) -->
@@ -119,7 +131,9 @@ function formatDate(isoDate: string): string {
                         <button
                             type="button"
                             class="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                            :disabled="form.processing || (form.accepte && !signature)"
+                            :disabled="
+                                form.processing || (form.accepte && !signature)
+                            "
                             @click="soumettre"
                         >
                             {{ $t('consentement.save') }}

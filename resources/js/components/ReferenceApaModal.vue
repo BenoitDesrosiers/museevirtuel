@@ -53,96 +53,224 @@ type MesReference = {
 const props = defineProps<{
     open: boolean;
     /** Renvoi existant à modifier — absent en mode création */
-    renvoi?: { id: number; type_reference: string; champs_reference: Record<string, string> } | null;
+    renvoi?: {
+        id: number;
+        type_reference: string;
+        champs_reference: Record<string, string>;
+    } | null;
     /** Références personnelles de l'étudiant — alimentent l'onglet Ma bibliothèque */
     mesReferences?: MesReference[];
 }>();
 
 const emit = defineEmits<{
     'update:open': [value: boolean];
-    inserer: [contenu: string, typeReference: string, champsReference: Record<string, string>];
+    inserer: [
+        contenu: string,
+        typeReference: string,
+        champsReference: Record<string, string>,
+    ];
 }>();
 
 // ─── Configuration des types de références ────────────────────────────────────
 
-const TYPES_CONFIG: Record<TypeRef, { label: string; champs: ChampConfig[] }> = {
-    livre: {
-        label: 'Livre',
-        champs: [
-            { key: 'auteurs', label: 'Auteur(s)', placeholder: 'Nom, P.  ou  Nom, P., & Nom, P.' },
-            { key: 'annee', label: 'Année de publication', placeholder: '2023' },
-            { key: 'titre', label: 'Titre du livre', placeholder: 'Histoire du Québec moderne' },
-            { key: 'edition', label: 'Édition', placeholder: '2e éd.', optional: true },
-            { key: 'editeur', label: 'Éditeur', placeholder: 'Les Presses de l\'Université Laval' },
-        ],
-    },
-    article_periodique: {
-        label: 'Article de périodique',
-        champs: [
-            { key: 'auteurs', label: 'Auteur(s)', placeholder: 'Nom, P.  ou  Nom, P., & Nom, P.' },
-            { key: 'annee', label: 'Année', placeholder: '2023' },
-            { key: 'titre_article', label: 'Titre de l\'article', placeholder: 'La Révolution tranquille revisitée' },
-            { key: 'titre_revue', label: 'Titre de la revue', placeholder: 'Revue d\'histoire de l\'Amérique française' },
-            { key: 'volume', label: 'Volume', placeholder: '76' },
-            { key: 'numero', label: 'Numéro', placeholder: '2' },
-            { key: 'pages', label: 'Pages', placeholder: '45–78' },
-            { key: 'doi', label: 'DOI ou URL', placeholder: 'https://doi.org/…', optional: true },
-        ],
-    },
-    article_journal: {
-        label: 'Article de journal',
-        champs: [
-            { key: 'auteurs', label: 'Auteur(s)', placeholder: 'Nom, P.' },
-            { key: 'date', label: 'Date', placeholder: '2023, 15 mars' },
-            { key: 'titre_article', label: 'Titre de l\'article', placeholder: 'La crise du logement à Montréal' },
-            { key: 'nom_journal', label: 'Nom du journal', placeholder: 'Le Devoir' },
-            { key: 'url', label: 'URL', placeholder: 'https://…', optional: true },
-        ],
-    },
-    site_internet: {
-        label: 'Site Internet',
-        champs: [
-            { key: 'auteur_organisme', label: 'Auteur ou organisme', placeholder: 'Gouvernement du Québec' },
-            { key: 'annee', label: 'Année', placeholder: '2023  ou  s.d.' },
-            { key: 'titre_page', label: 'Titre de la page', placeholder: 'Histoire de la Révolution tranquille' },
-            { key: 'nom_site', label: 'Nom du site', placeholder: 'Québec.ca' },
-            { key: 'url', label: 'URL', placeholder: 'https://…' },
-        ],
-    },
-    document_audiovisuel: {
-        label: 'Document audiovisuel',
-        champs: [
-            { key: 'auteur', label: 'Auteur ou réalisateur', placeholder: 'Nom, P. (Réalisateur)' },
-            { key: 'annee', label: 'Année', placeholder: '2023' },
-            { key: 'titre', label: 'Titre', placeholder: 'La Révolution tranquille' },
-            { key: 'type_doc', label: 'Type', placeholder: 'Documentaire, Vidéo, Film…' },
-            { key: 'producteur', label: 'Producteur / Diffuseur', placeholder: 'Office national du film' },
-            { key: 'url', label: 'URL', placeholder: 'https://…', optional: true },
-        ],
-    },
-    memoire_these: {
-        label: 'Mémoire ou thèse',
-        champs: [
-            { key: 'auteur', label: 'Auteur', placeholder: 'Nom, P.' },
-            { key: 'annee', label: 'Année', placeholder: '2023' },
-            { key: 'titre', label: 'Titre', placeholder: 'Titre du mémoire ou de la thèse' },
-            { key: 'type_doc', label: 'Type', placeholder: 'Mémoire de maîtrise  ou  Thèse de doctorat' },
-            { key: 'universite', label: 'Université', placeholder: 'Université du Québec à Montréal' },
-            { key: 'url', label: 'URL ou base de données', placeholder: 'https://…', optional: true },
-        ],
-    },
-    ouvrage_reference: {
-        label: 'Ouvrage de référence',
-        champs: [
-            { key: 'auteur_editeur', label: 'Auteur ou directeur', placeholder: 'Nom, P.  ou  Nom, P. (Dir.)' },
-            { key: 'annee', label: 'Année', placeholder: '2023' },
-            { key: 'titre_entree', label: 'Titre de l\'entrée', placeholder: 'Révolution tranquille', optional: true },
-            { key: 'titre_ouvrage', label: 'Titre de l\'ouvrage', placeholder: 'Dictionnaire historique du Québec' },
-            { key: 'editeur', label: 'Éditeur', placeholder: 'Fides' },
-            { key: 'url', label: 'URL', placeholder: 'https://…', optional: true },
-        ],
-    },
-};
+const TYPES_CONFIG: Record<TypeRef, { label: string; champs: ChampConfig[] }> =
+    {
+        livre: {
+            label: 'Livre',
+            champs: [
+                {
+                    key: 'auteurs',
+                    label: 'Auteur(s)',
+                    placeholder: 'Nom, P.  ou  Nom, P., & Nom, P.',
+                },
+                {
+                    key: 'annee',
+                    label: 'Année de publication',
+                    placeholder: '2023',
+                },
+                {
+                    key: 'titre',
+                    label: 'Titre du livre',
+                    placeholder: 'Histoire du Québec moderne',
+                },
+                {
+                    key: 'edition',
+                    label: 'Édition',
+                    placeholder: '2e éd.',
+                    optional: true,
+                },
+                {
+                    key: 'editeur',
+                    label: 'Éditeur',
+                    placeholder: "Les Presses de l'Université Laval",
+                },
+            ],
+        },
+        article_periodique: {
+            label: 'Article de périodique',
+            champs: [
+                {
+                    key: 'auteurs',
+                    label: 'Auteur(s)',
+                    placeholder: 'Nom, P.  ou  Nom, P., & Nom, P.',
+                },
+                { key: 'annee', label: 'Année', placeholder: '2023' },
+                {
+                    key: 'titre_article',
+                    label: "Titre de l'article",
+                    placeholder: 'La Révolution tranquille revisitée',
+                },
+                {
+                    key: 'titre_revue',
+                    label: 'Titre de la revue',
+                    placeholder: "Revue d'histoire de l'Amérique française",
+                },
+                { key: 'volume', label: 'Volume', placeholder: '76' },
+                { key: 'numero', label: 'Numéro', placeholder: '2' },
+                { key: 'pages', label: 'Pages', placeholder: '45–78' },
+                {
+                    key: 'doi',
+                    label: 'DOI ou URL',
+                    placeholder: 'https://doi.org/…',
+                    optional: true,
+                },
+            ],
+        },
+        article_journal: {
+            label: 'Article de journal',
+            champs: [
+                { key: 'auteurs', label: 'Auteur(s)', placeholder: 'Nom, P.' },
+                { key: 'date', label: 'Date', placeholder: '2023, 15 mars' },
+                {
+                    key: 'titre_article',
+                    label: "Titre de l'article",
+                    placeholder: 'La crise du logement à Montréal',
+                },
+                {
+                    key: 'nom_journal',
+                    label: 'Nom du journal',
+                    placeholder: 'Le Devoir',
+                },
+                {
+                    key: 'url',
+                    label: 'URL',
+                    placeholder: 'https://…',
+                    optional: true,
+                },
+            ],
+        },
+        site_internet: {
+            label: 'Site Internet',
+            champs: [
+                {
+                    key: 'auteur_organisme',
+                    label: 'Auteur ou organisme',
+                    placeholder: 'Gouvernement du Québec',
+                },
+                { key: 'annee', label: 'Année', placeholder: '2023  ou  s.d.' },
+                {
+                    key: 'titre_page',
+                    label: 'Titre de la page',
+                    placeholder: 'Histoire de la Révolution tranquille',
+                },
+                {
+                    key: 'nom_site',
+                    label: 'Nom du site',
+                    placeholder: 'Québec.ca',
+                },
+                { key: 'url', label: 'URL', placeholder: 'https://…' },
+            ],
+        },
+        document_audiovisuel: {
+            label: 'Document audiovisuel',
+            champs: [
+                {
+                    key: 'auteur',
+                    label: 'Auteur ou réalisateur',
+                    placeholder: 'Nom, P. (Réalisateur)',
+                },
+                { key: 'annee', label: 'Année', placeholder: '2023' },
+                {
+                    key: 'titre',
+                    label: 'Titre',
+                    placeholder: 'La Révolution tranquille',
+                },
+                {
+                    key: 'type_doc',
+                    label: 'Type',
+                    placeholder: 'Documentaire, Vidéo, Film…',
+                },
+                {
+                    key: 'producteur',
+                    label: 'Producteur / Diffuseur',
+                    placeholder: 'Office national du film',
+                },
+                {
+                    key: 'url',
+                    label: 'URL',
+                    placeholder: 'https://…',
+                    optional: true,
+                },
+            ],
+        },
+        memoire_these: {
+            label: 'Mémoire ou thèse',
+            champs: [
+                { key: 'auteur', label: 'Auteur', placeholder: 'Nom, P.' },
+                { key: 'annee', label: 'Année', placeholder: '2023' },
+                {
+                    key: 'titre',
+                    label: 'Titre',
+                    placeholder: 'Titre du mémoire ou de la thèse',
+                },
+                {
+                    key: 'type_doc',
+                    label: 'Type',
+                    placeholder: 'Mémoire de maîtrise  ou  Thèse de doctorat',
+                },
+                {
+                    key: 'universite',
+                    label: 'Université',
+                    placeholder: 'Université du Québec à Montréal',
+                },
+                {
+                    key: 'url',
+                    label: 'URL ou base de données',
+                    placeholder: 'https://…',
+                    optional: true,
+                },
+            ],
+        },
+        ouvrage_reference: {
+            label: 'Ouvrage de référence',
+            champs: [
+                {
+                    key: 'auteur_editeur',
+                    label: 'Auteur ou directeur',
+                    placeholder: 'Nom, P.  ou  Nom, P. (Dir.)',
+                },
+                { key: 'annee', label: 'Année', placeholder: '2023' },
+                {
+                    key: 'titre_entree',
+                    label: "Titre de l'entrée",
+                    placeholder: 'Révolution tranquille',
+                    optional: true,
+                },
+                {
+                    key: 'titre_ouvrage',
+                    label: "Titre de l'ouvrage",
+                    placeholder: 'Dictionnaire historique du Québec',
+                },
+                { key: 'editeur', label: 'Éditeur', placeholder: 'Fides' },
+                {
+                    key: 'url',
+                    label: 'URL',
+                    placeholder: 'https://…',
+                    optional: true,
+                },
+            ],
+        },
+    };
 
 const ORDRE_TYPES: TypeRef[] = [
     'livre',
@@ -183,7 +311,7 @@ watch(typeRef, reinitialiserChamps, { flush: 'sync' });
 watch(
     () => props.open,
     (ouvert) => {
-        if (! ouvert) return;
+        if (!ouvert) return;
         onglet.value = 'nouveau';
         filtreRecherche.value = '';
         referenceSelectionnee.value = null;
@@ -210,21 +338,25 @@ watch(filtreRecherche, () => {
  * L'onglet bibliothèque n'a pas de sens en mode édition d'un renvoi existant.
  */
 const afficherOngletBibliotheque = computed(
-    () => ! props.renvoi && (props.mesReferences?.length ?? 0) > 0,
+    () => !props.renvoi && (props.mesReferences?.length ?? 0) > 0,
 );
 
 const referencesFiltrees = computed(() => {
-    if (! props.mesReferences) return [];
+    if (!props.mesReferences) return [];
     const filtre = filtreRecherche.value.toLowerCase().trim();
-    if (! filtre) return props.mesReferences;
-    return props.mesReferences.filter((r) => r.titre.toLowerCase().includes(filtre));
+    if (!filtre) return props.mesReferences;
+    return props.mesReferences.filter((r) =>
+        r.titre.toLowerCase().includes(filtre),
+    );
 });
 
 /**
  * Formate un tableau d'auteurs au format APA : « Nom, P. » ou « Nom, P., & Nom2, Q. ».
  */
-function formatAuteursApa(auteurs: { prenom: string; nom: string }[] | null): string {
-    if (! auteurs || auteurs.length === 0) return '';
+function formatAuteursApa(
+    auteurs: { prenom: string; nom: string }[] | null,
+): string {
+    if (!auteurs || auteurs.length === 0) return '';
     const formattes = auteurs.map((a) => {
         const initiale = a.prenom ? `${a.prenom.charAt(0).toUpperCase()}.` : '';
         return initiale ? `${a.nom}, ${initiale}` : a.nom;
@@ -280,7 +412,9 @@ function apercuApaDepuisZotero(ref: MesReference): string {
 
     switch (type) {
         case 'article_periodique': {
-            const revue = ref.publication ? ` <em>${ref.publication}</em>.` : '';
+            const revue = ref.publication
+                ? ` <em>${ref.publication}</em>.`
+                : '';
             const lien = ref.doi ? ` ${ref.doi}` : ref.url ? ` ${ref.url}` : '';
             return `${auteursStr}. (${annee}). ${ref.titre}.${revue}${lien}`;
         }
@@ -302,7 +436,9 @@ function apercuApaDepuisZotero(ref: MesReference): string {
             return `${auteursStr}. (${annee}). <em>${ref.titre}</em>.${url}`;
         }
         case 'article_journal': {
-            const journal = ref.publication ? ` <em>${ref.publication}</em>.` : '';
+            const journal = ref.publication
+                ? ` <em>${ref.publication}</em>.`
+                : '';
             const url = ref.url ? ` ${ref.url}` : '';
             return `${auteursStr}. ${ref.titre}.${journal}${url}`;
         }
@@ -312,7 +448,9 @@ function apercuApaDepuisZotero(ref: MesReference): string {
 }
 
 const apercuApaZotero = computed(() =>
-    referenceSelectionnee.value ? apercuApaDepuisZotero(referenceSelectionnee.value) : '',
+    referenceSelectionnee.value
+        ? apercuApaDepuisZotero(referenceSelectionnee.value)
+        : '',
 );
 
 /**
@@ -410,7 +548,9 @@ const referenceFormatee = computed<string>(() => {
             return `${get('auteurs')}. (${get('annee')}). <em>${get('titre')}</em>${editionPart}. ${get('editeur')}.`;
         }
         case 'article_periodique': {
-            const volNum = get('numero') ? `${get('volume')}(${get('numero')})` : get('volume');
+            const volNum = get('numero')
+                ? `${get('volume')}(${get('numero')})`
+                : get('volume');
             const doiPart = get('doi') ? ` ${get('doi')}` : '';
             return `${get('auteurs')}. (${get('annee')}). ${get('titre_article')}. <em>${get('titre_revue')}</em>, ${volNum}, ${get('pages')}.${doiPart}`;
         }
@@ -447,7 +587,7 @@ const referenceFormatee = computed<string>(() => {
  */
 const formulaireValide = computed<boolean>(() =>
     champsActuels.value
-        .filter((c) => ! c.optional)
+        .filter((c) => !c.optional)
         .every((c) => (champs[c.key] ?? '').trim() !== ''),
 );
 
@@ -458,7 +598,7 @@ const formulaireValide = computed<boolean>(() =>
  * réinitialise le formulaire et ferme le modal.
  */
 function inserer(): void {
-    if (! formulaireValide.value) return;
+    if (!formulaireValide.value) return;
     emit('inserer', referenceFormatee.value, typeRef.value, { ...champs });
     typeRef.value = 'livre';
     reinitialiserChamps();
@@ -476,16 +616,27 @@ function fermer(): void {
             <DialogHeader>
                 <DialogTitle class="flex items-center gap-2">
                     <BookOpen class="h-4 w-4" />
-                    {{ renvoi ? 'Modifier la référence' : 'Ajouter une référence' }}
+                    {{
+                        renvoi
+                            ? 'Modifier la référence'
+                            : 'Ajouter une référence'
+                    }}
                 </DialogTitle>
             </DialogHeader>
 
             <!-- Onglets Nouveau / Ma bibliothèque -->
-            <div v-if="afficherOngletBibliotheque" class="flex overflow-hidden rounded-md border text-sm">
+            <div
+                v-if="afficherOngletBibliotheque"
+                class="flex overflow-hidden rounded-md border text-sm"
+            >
                 <button
                     type="button"
                     class="flex-1 py-1.5 text-center transition-colors"
-                    :class="onglet === 'nouveau' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'"
+                    :class="
+                        onglet === 'nouveau'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-muted'
+                    "
                     @click="onglet = 'nouveau'"
                 >
                     Nouveau
@@ -493,7 +644,11 @@ function fermer(): void {
                 <button
                     type="button"
                     class="flex-1 border-l py-1.5 text-center transition-colors"
-                    :class="onglet === 'bibliotheque' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'"
+                    :class="
+                        onglet === 'bibliotheque'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-muted'
+                    "
                     @click="onglet = 'bibliotheque'"
                 >
                     Ma bibliothèque
@@ -502,10 +657,15 @@ function fermer(): void {
 
             <!-- ─── Onglet Ma bibliothèque ────────────────────────────────────── -->
             <template v-if="onglet === 'bibliotheque'">
-                <Input v-model="filtreRecherche" placeholder="Filtrer par titre…" />
+                <Input
+                    v-model="filtreRecherche"
+                    placeholder="Filtrer par titre…"
+                />
 
                 <!-- Liste des références -->
-                <div class="max-h-52 divide-y overflow-y-auto rounded-md border">
+                <div
+                    class="max-h-52 divide-y overflow-y-auto rounded-md border"
+                >
                     <p
                         v-if="referencesFiltrees.length === 0"
                         class="py-6 text-center text-sm text-muted-foreground"
@@ -517,21 +677,36 @@ function fermer(): void {
                         :key="ref.id"
                         type="button"
                         class="w-full px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
-                        :class="{ 'bg-muted': referenceSelectionnee?.id === ref.id }"
+                        :class="{
+                            'bg-muted': referenceSelectionnee?.id === ref.id,
+                        }"
                         @click="referenceSelectionnee = ref"
                     >
-                        <p class="truncate text-sm font-medium">{{ ref.titre }}</p>
-                        <p class="text-xs text-muted-foreground">{{ auteursResume(ref) }}</p>
+                        <p class="truncate text-sm font-medium">
+                            {{ ref.titre }}
+                        </p>
+                        <p class="text-xs text-muted-foreground">
+                            {{ auteursResume(ref) }}
+                        </p>
                     </button>
                 </div>
 
                 <!-- Aperçu APA de la référence sélectionnée -->
-                <div v-if="referenceSelectionnee" class="rounded-md border bg-muted/40 px-4 py-3">
-                    <p class="mb-2 text-xs font-medium text-muted-foreground">Aperçu APA</p>
+                <div
+                    v-if="referenceSelectionnee"
+                    class="rounded-md border bg-muted/40 px-4 py-3"
+                >
+                    <p class="mb-2 text-xs font-medium text-muted-foreground">
+                        Aperçu APA
+                    </p>
                     <!-- eslint-disable-next-line vue/no-v-html -->
-                    <p class="text-sm leading-relaxed" v-html="apercuApaZotero" />
+                    <p
+                        class="text-sm leading-relaxed"
+                        v-html="apercuApaZotero"
+                    />
                     <p class="mt-2 text-xs text-muted-foreground/70">
-                        Certains champs (volume, pages…) peuvent manquer selon les données Zotero.
+                        Certains champs (volume, pages…) peuvent manquer selon
+                        les données Zotero.
                     </p>
                 </div>
             </template>
@@ -543,7 +718,9 @@ function fermer(): void {
                     <Label>Type de source</Label>
                     <Select v-model="typeRef">
                         <SelectTrigger>
-                            <SelectValue placeholder="Choisir un type de source…" />
+                            <SelectValue
+                                placeholder="Choisir un type de source…"
+                            />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem
@@ -566,7 +743,12 @@ function fermer(): void {
                     >
                         <Label :for="`ref-${champ.key}`">
                             {{ champ.label }}
-                            <span v-if="champ.optional" class="font-normal text-muted-foreground"> (optionnel)</span>
+                            <span
+                                v-if="champ.optional"
+                                class="font-normal text-muted-foreground"
+                            >
+                                (optionnel)</span
+                            >
                         </Label>
                         <Input
                             :id="`ref-${champ.key}`"
@@ -577,30 +759,53 @@ function fermer(): void {
                 </div>
 
                 <!-- Prévisualisation -->
-                <div v-if="formulaireValide" class="rounded-md border bg-muted/40 px-4 py-3">
-                    <p class="mb-1 text-xs font-medium text-muted-foreground">Aperçu APA</p>
+                <div
+                    v-if="formulaireValide"
+                    class="rounded-md border bg-muted/40 px-4 py-3"
+                >
+                    <p class="mb-1 text-xs font-medium text-muted-foreground">
+                        Aperçu APA
+                    </p>
                     <!-- eslint-disable-next-line vue/no-v-html -->
-                    <p class="text-sm leading-relaxed" v-html="referenceFormatee" />
+                    <p
+                        class="text-sm leading-relaxed"
+                        v-html="referenceFormatee"
+                    />
                 </div>
             </div>
 
             <DialogFooter>
-                <Button variant="outline" type="button" @click="fermer">Annuler</Button>
+                <Button variant="outline" type="button" @click="fermer"
+                    >Annuler</Button
+                >
 
                 <!-- Boutons de l'onglet Ma bibliothèque -->
-                <template v-if="onglet === 'bibliotheque' && referenceSelectionnee">
+                <template
+                    v-if="onglet === 'bibliotheque' && referenceSelectionnee"
+                >
                     <Button variant="outline" type="button" @click="copierApa">
                         <Copy class="mr-1.5 h-4 w-4" />
                         {{ copieApa ? 'Copié !' : 'Copier' }}
                     </Button>
-                    <Button type="button" @click="preRemplirDepuisZotero(referenceSelectionnee)">
+                    <Button
+                        type="button"
+                        @click="preRemplirDepuisZotero(referenceSelectionnee)"
+                    >
                         Compléter et insérer
                     </Button>
                 </template>
 
                 <!-- Bouton de l'onglet Nouveau -->
-                <Button v-else-if="onglet === 'nouveau'" :disabled="!formulaireValide" @click="inserer">
-                    {{ renvoi ? 'Mettre à jour la référence' : 'Insérer dans le texte' }}
+                <Button
+                    v-else-if="onglet === 'nouveau'"
+                    :disabled="!formulaireValide"
+                    @click="inserer"
+                >
+                    {{
+                        renvoi
+                            ? 'Mettre à jour la référence'
+                            : 'Insérer dans le texte'
+                    }}
                 </Button>
             </DialogFooter>
         </DialogScrollContent>

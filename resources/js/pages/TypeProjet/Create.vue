@@ -36,7 +36,9 @@ type SectionFormItem = {
     type: SectionType;
 };
 
-const sectionTypes = computed<{ value: SectionType; label: string; description: string }[]>(() => [
+const sectionTypes = computed<
+    { value: SectionType; label: string; description: string }[]
+>(() => [
     {
         value: 'texte',
         label: t('types_projet.edit.section_type_texte_label'),
@@ -114,14 +116,23 @@ function creer() {
             <Card>
                 <CardContent class="grid gap-4 pt-6">
                     <div class="grid gap-2">
-                        <Label for="nom">{{ $t('types_projet.edit.label_name') }} <span class="text-destructive">*</span></Label>
+                        <Label for="nom"
+                            >{{ $t('types_projet.edit.label_name') }}
+                            <span class="text-destructive">*</span></Label
+                        >
                         <Input id="nom" v-model="form.nom" required />
                         <InputError :message="form.errors.nom" />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="description">{{ $t('types_projet.edit.label_description') }}</Label>
-                        <Textarea id="description" v-model="form.description" rows="2" />
+                        <Label for="description">{{
+                            $t('types_projet.edit.label_description')
+                        }}</Label>
+                        <Textarea
+                            id="description"
+                            v-model="form.description"
+                            rows="2"
+                        />
                         <InputError :message="form.errors.description" />
                     </div>
                 </CardContent>
@@ -130,10 +141,14 @@ function creer() {
             <!-- Paramètres de remise -->
             <Card>
                 <CardContent class="grid gap-4 pt-6">
-                    <h2 class="text-sm font-semibold">{{ $t('types_projet.edit.submission_section') }}</h2>
+                    <h2 class="text-sm font-semibold">
+                        {{ $t('types_projet.edit.submission_section') }}
+                    </h2>
 
                     <div class="grid gap-2">
-                        <Label for="date_remise">{{ $t('types_projet.edit.label_deadline') }}</Label>
+                        <Label for="date_remise">{{
+                            $t('types_projet.edit.label_deadline')
+                        }}</Label>
                         <Input
                             id="date_remise"
                             v-model="form.date_remise"
@@ -148,8 +163,22 @@ function creer() {
                             v-model="form.remises_multiples"
                         />
                         <div class="grid gap-0.5">
-                            <Label for="remises_multiples" class="cursor-pointer">{{ $t('types_projet.edit.label_multiple_submissions') }}</Label>
-                            <p class="text-xs text-muted-foreground">{{ $t('types_projet.edit.multiple_submissions_hint') }}</p>
+                            <Label
+                                for="remises_multiples"
+                                class="cursor-pointer"
+                                >{{
+                                    $t(
+                                        'types_projet.edit.label_multiple_submissions',
+                                    )
+                                }}</Label
+                            >
+                            <p class="text-xs text-muted-foreground">
+                                {{
+                                    $t(
+                                        'types_projet.edit.multiple_submissions_hint',
+                                    )
+                                }}
+                            </p>
                         </div>
                     </div>
 
@@ -159,12 +188,20 @@ function creer() {
                             v-model="form.retard_permis"
                         />
                         <div class="grid gap-0.5">
-                            <Label for="retard_permis" class="cursor-pointer">{{ $t('types_projet.edit.label_late_submission') }}</Label>
-                            <p class="text-xs text-muted-foreground">{{ $t('types_projet.edit.late_submission_hint') }}</p>
+                            <Label for="retard_permis" class="cursor-pointer">{{
+                                $t('types_projet.edit.label_late_submission')
+                            }}</Label>
+                            <p class="text-xs text-muted-foreground">
+                                {{
+                                    $t('types_projet.edit.late_submission_hint')
+                                }}
+                            </p>
                         </div>
                     </div>
 
-                    <h2 class="mt-2 text-sm font-semibold">{{ $t('types_projet.edit.export_options_title') }}</h2>
+                    <h2 class="mt-2 text-sm font-semibold">
+                        {{ $t('types_projet.edit.export_options_title') }}
+                    </h2>
 
                     <div class="flex items-start gap-3">
                         <Checkbox
@@ -172,9 +209,21 @@ function creer() {
                             v-model="form.generer_page_titre"
                         />
                         <div class="grid gap-0.5">
-                            <Label for="generer_page_titre" class="cursor-pointer">{{ $t('types_projet.edit.label_generer_page_titre') }}</Label>
+                            <Label
+                                for="generer_page_titre"
+                                class="cursor-pointer"
+                                >{{
+                                    $t(
+                                        'types_projet.edit.label_generer_page_titre',
+                                    )
+                                }}</Label
+                            >
                             <p class="text-xs text-muted-foreground">
-                                {{ form.generer_page_titre ? $t('types_projet.edit.hint_auto') : '' }}
+                                {{
+                                    form.generer_page_titre
+                                        ? $t('types_projet.edit.hint_auto')
+                                        : ''
+                                }}
                             </p>
                         </div>
                     </div>
@@ -185,9 +234,21 @@ function creer() {
                             v-model="form.generer_table_matieres"
                         />
                         <div class="grid gap-0.5">
-                            <Label for="generer_table_matieres" class="cursor-pointer">{{ $t('types_projet.edit.label_generer_table_matieres') }}</Label>
+                            <Label
+                                for="generer_table_matieres"
+                                class="cursor-pointer"
+                                >{{
+                                    $t(
+                                        'types_projet.edit.label_generer_table_matieres',
+                                    )
+                                }}</Label
+                            >
                             <p class="text-xs text-muted-foreground">
-                                {{ form.generer_table_matieres ? $t('types_projet.edit.hint_auto') : '' }}
+                                {{
+                                    form.generer_table_matieres
+                                        ? $t('types_projet.edit.hint_auto')
+                                        : ''
+                                }}
                             </p>
                         </div>
                     </div>
@@ -198,9 +259,21 @@ function creer() {
                             v-model="form.aide_reference"
                         />
                         <div class="grid gap-0.5">
-                            <Label for="aide_reference" class="cursor-pointer">{{ $t('types_projet.edit.label_aide_reference') }}</Label>
+                            <Label
+                                for="aide_reference"
+                                class="cursor-pointer"
+                                >{{
+                                    $t('types_projet.edit.label_aide_reference')
+                                }}</Label
+                            >
                             <p class="text-xs text-muted-foreground">
-                                {{ form.aide_reference ? $t('types_projet.edit.hint_aide_reference') : '' }}
+                                {{
+                                    form.aide_reference
+                                        ? $t(
+                                              'types_projet.edit.hint_aide_reference',
+                                          )
+                                        : ''
+                                }}
                             </p>
                         </div>
                     </div>
@@ -211,12 +284,19 @@ function creer() {
             <div class="flex flex-col gap-3">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h2 class="text-sm font-semibold">{{ $t('types_projet.edit.sections_title') }}</h2>
+                        <h2 class="text-sm font-semibold">
+                            {{ $t('types_projet.edit.sections_title') }}
+                        </h2>
                         <p class="text-xs text-muted-foreground">
                             {{ $t('types_projet.edit.sections_hint') }}
                         </p>
                     </div>
-                    <Button type="button" size="sm" variant="outline" @click="ajouterSection">
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        @click="ajouterSection"
+                    >
                         <Plus class="mr-2 h-3.5 w-3.5" />
                         {{ $t('types_projet.edit.add_section') }}
                     </Button>
@@ -224,7 +304,9 @@ function creer() {
 
                 <!-- Message vide -->
                 <Card v-if="form.sections.length === 0">
-                    <CardContent class="py-8 text-center text-sm text-muted-foreground">
+                    <CardContent
+                        class="py-8 text-center text-sm text-muted-foreground"
+                    >
                         {{ $t('types_projet.edit.no_sections') }}
                     </CardContent>
                 </Card>
@@ -238,20 +320,36 @@ function creer() {
                     <CardContent class="grid gap-4 pt-5">
                         <!-- Numéro + label + supprimer -->
                         <div class="flex items-start gap-2">
-                            <GripVertical class="mt-2.5 h-4 w-4 shrink-0 text-muted-foreground/40" />
-                            <span class="mt-2 w-5 shrink-0 text-center text-xs font-medium text-muted-foreground">
+                            <GripVertical
+                                class="mt-2.5 h-4 w-4 shrink-0 text-muted-foreground/40"
+                            />
+                            <span
+                                class="mt-2 w-5 shrink-0 text-center text-xs font-medium text-muted-foreground"
+                            >
                                 {{ idx + 1 }}
                             </span>
                             <div class="flex-1 space-y-1.5">
                                 <Input
                                     v-model="form.sections[idx].label"
-                                    :placeholder="$t('types_projet.edit.section_title_placeholder')"
+                                    :placeholder="
+                                        $t(
+                                            'types_projet.edit.section_title_placeholder',
+                                        )
+                                    "
                                     required
                                 />
-                                <InputError :message="form.errors[`sections.${idx}.label`]" />
+                                <InputError
+                                    :message="
+                                        form.errors[`sections.${idx}.label`]
+                                    "
+                                />
                                 <Input
                                     v-model="form.sections[idx].description"
-                                    :placeholder="$t('types_projet.edit.section_instruction_placeholder')"
+                                    :placeholder="
+                                        $t(
+                                            'types_projet.edit.section_instruction_placeholder',
+                                        )
+                                    "
                                 />
                             </div>
                             <Button
@@ -267,7 +365,11 @@ function creer() {
 
                         <!-- Sélecteur de type -->
                         <div class="ml-11">
-                            <p class="mb-2 text-xs font-medium text-muted-foreground">{{ $t('types_projet.edit.input_mode_label') }}</p>
+                            <p
+                                class="mb-2 text-xs font-medium text-muted-foreground"
+                            >
+                                {{ $t('types_projet.edit.input_mode_label') }}
+                            </p>
                             <div class="grid grid-cols-3 gap-2">
                                 <button
                                     v-for="sType in sectionTypes"
@@ -279,10 +381,16 @@ function creer() {
                                             ? 'border-primary bg-primary/5 text-primary'
                                             : 'border-border bg-background text-muted-foreground hover:border-muted-foreground/40',
                                     ]"
-                                    @click="form.sections[idx].type = sType.value"
+                                    @click="
+                                        form.sections[idx].type = sType.value
+                                    "
                                 >
-                                    <span class="font-medium">{{ sType.label }}</span>
-                                    <span class="mt-0.5 leading-tight text-muted-foreground/70">
+                                    <span class="font-medium">{{
+                                        sType.label
+                                    }}</span>
+                                    <span
+                                        class="mt-0.5 leading-tight text-muted-foreground/70"
+                                    >
                                         {{ sType.description }}
                                     </span>
                                 </button>
@@ -295,7 +403,11 @@ function creer() {
             <!-- Bouton créer -->
             <div class="flex justify-end">
                 <Button :disabled="form.processing" @click="creer">
-                    {{ form.processing ? $t('types_projet.create.save_btn_saving') : $t('types_projet.create.save_btn') }}
+                    {{
+                        form.processing
+                            ? $t('types_projet.create.save_btn_saving')
+                            : $t('types_projet.create.save_btn')
+                    }}
                 </Button>
             </div>
         </div>

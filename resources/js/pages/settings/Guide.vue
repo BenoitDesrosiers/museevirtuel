@@ -68,8 +68,14 @@ const generalKeys = ['profil', 'langue', 'theme', 'securite'];
 const generalLinks: Record<string, { labelKey: string; href: string }> = {
     profil: { labelKey: 'settings.guide.links.profile', href: editProfile() },
     langue: { labelKey: 'settings.guide.links.profile', href: editProfile() },
-    theme: { labelKey: 'settings.guide.links.appearance', href: editAppearance() },
-    securite: { labelKey: 'settings.guide.links.security', href: editSecurity() },
+    theme: {
+        labelKey: 'settings.guide.links.appearance',
+        href: editAppearance(),
+    },
+    securite: {
+        labelKey: 'settings.guide.links.security',
+        href: editSecurity(),
+    },
 };
 
 /**
@@ -78,10 +84,22 @@ const generalLinks: Record<string, { labelKey: string; href: string }> = {
  * on redirige donc vers le point d'entrée du rôle.
  */
 const roleWorkspaceLinks: Record<string, { labelKey: string; href: string }> = {
-    enseignant: { labelKey: 'settings.guide.links.workspace_enseignant', href: indexEnseignant() },
-    etudiant: { labelKey: 'settings.guide.links.workspace_etudiant', href: indexCours() },
-    personne_agee: { labelKey: 'settings.guide.links.workspace_temoin', href: indexTemoin() },
-    admin: { labelKey: 'settings.guide.links.workspace_admin', href: indexAdmin() },
+    enseignant: {
+        labelKey: 'settings.guide.links.workspace_enseignant',
+        href: indexEnseignant(),
+    },
+    etudiant: {
+        labelKey: 'settings.guide.links.workspace_etudiant',
+        href: indexCours(),
+    },
+    personne_agee: {
+        labelKey: 'settings.guide.links.workspace_temoin',
+        href: indexTemoin(),
+    },
+    admin: {
+        labelKey: 'settings.guide.links.workspace_admin',
+        href: indexAdmin(),
+    },
 };
 
 /**
@@ -116,24 +134,40 @@ const roleLink = computed(() => roleWorkspaceLinks[role.value] ?? null);
                         {{ $t('settings.guide.section_general') }}
                     </h2>
 
-                    <div class="divide-y divide-input rounded-md border border-input">
+                    <div
+                        class="divide-y divide-input rounded-md border border-input"
+                    >
                         <details
                             v-for="key in generalKeys"
                             :key="key"
                             class="group"
                         >
-                            <summary class="flex cursor-pointer select-none list-none items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/40 [&::-webkit-details-marker]:hidden">
+                            <summary
+                                class="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium select-none hover:bg-muted/40 [&::-webkit-details-marker]:hidden"
+                            >
                                 {{ $t(`settings.guide.general.${key}.title`) }}
-                                <ChevronDown class="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+                                <ChevronDown
+                                    class="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                                />
                             </summary>
 
-                            <div class="space-y-4 border-t border-input px-4 py-4">
+                            <div
+                                class="space-y-4 border-t border-input px-4 py-4"
+                            >
                                 <p class="text-sm text-muted-foreground">
-                                    {{ $t(`settings.guide.general.${key}.description`) }}
+                                    {{
+                                        $t(
+                                            `settings.guide.general.${key}.description`,
+                                        )
+                                    }}
                                 </p>
-                                <ol class="ml-4 list-decimal space-y-1 text-sm text-muted-foreground">
+                                <ol
+                                    class="ml-4 list-decimal space-y-1 text-sm text-muted-foreground"
+                                >
                                     <li
-                                        v-for="(step, i) in getSteps(`settings.guide.general.${key}.steps`)"
+                                        v-for="(step, i) in getSteps(
+                                            `settings.guide.general.${key}.steps`,
+                                        )"
                                         :key="i"
                                     >
                                         {{ step }}
@@ -157,24 +191,40 @@ const roleLink = computed(() => roleWorkspaceLinks[role.value] ?? null);
                         {{ $t('settings.guide.section_role') }}
                     </h2>
 
-                    <div class="divide-y divide-input rounded-md border border-input">
+                    <div
+                        class="divide-y divide-input rounded-md border border-input"
+                    >
                         <details
                             v-for="key in roleSections"
                             :key="key"
                             class="group"
                         >
-                            <summary class="flex cursor-pointer select-none list-none items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/40 [&::-webkit-details-marker]:hidden">
+                            <summary
+                                class="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium select-none hover:bg-muted/40 [&::-webkit-details-marker]:hidden"
+                            >
                                 {{ $t(`settings.guide.${role}.${key}.title`) }}
-                                <ChevronDown class="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+                                <ChevronDown
+                                    class="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                                />
                             </summary>
 
-                            <div class="space-y-4 border-t border-input px-4 py-4">
+                            <div
+                                class="space-y-4 border-t border-input px-4 py-4"
+                            >
                                 <p class="text-sm text-muted-foreground">
-                                    {{ $t(`settings.guide.${role}.${key}.description`) }}
+                                    {{
+                                        $t(
+                                            `settings.guide.${role}.${key}.description`,
+                                        )
+                                    }}
                                 </p>
-                                <ol class="ml-4 list-decimal space-y-1 text-sm text-muted-foreground">
+                                <ol
+                                    class="ml-4 list-decimal space-y-1 text-sm text-muted-foreground"
+                                >
                                     <li
-                                        v-for="(step, i) in getSteps(`settings.guide.${role}.${key}.steps`)"
+                                        v-for="(step, i) in getSteps(
+                                            `settings.guide.${role}.${key}.steps`,
+                                        )"
                                         :key="i"
                                     >
                                         {{ step }}

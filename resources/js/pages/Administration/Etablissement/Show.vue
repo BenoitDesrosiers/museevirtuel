@@ -53,26 +53,65 @@ defineProps<{ etablissement: Etablissement }>();
 
             <Heading
                 :title="etablissement.nom"
-                :description="etablissement.ville + (etablissement.code ? ' · ' + etablissement.code : '')"
+                :description="
+                    etablissement.ville +
+                    (etablissement.code ? ' · ' + etablissement.code : '')
+                "
             />
 
             <!-- Enseignants -->
             <Card>
                 <CardHeader class="flex flex-row items-center gap-2">
-                    <GraduationCap class="text-muted-foreground h-5 w-5" />
-                    <CardTitle>{{ $t('administration.etablissement.teachers_title') }}</CardTitle>
-                    <Badge variant="secondary" class="ml-auto">{{ etablissement.enseignants.length }}</Badge>
+                    <GraduationCap class="h-5 w-5 text-muted-foreground" />
+                    <CardTitle>{{
+                        $t('administration.etablissement.teachers_title')
+                    }}</CardTitle>
+                    <Badge variant="secondary" class="ml-auto">{{
+                        etablissement.enseignants.length
+                    }}</Badge>
                 </CardHeader>
                 <CardContent>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="border-b text-left">
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.table_header_first_name') }}</th>
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.table_header_last_name') }}</th>
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.table_header_email') }}</th>
-                                    <th class="pb-3 pr-4 text-center font-medium">{{ $t('administration.index.table_header_classes') }}</th>
-                                    <th class="pb-3 text-center font-medium">{{ $t('administration.index.table_header_thematics') }}</th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'administration.index.table_header_first_name',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'administration.index.table_header_last_name',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'administration.index.table_header_email',
+                                            )
+                                        }}
+                                    </th>
+                                    <th
+                                        class="pr-4 pb-3 text-center font-medium"
+                                    >
+                                        {{
+                                            $t(
+                                                'administration.index.table_header_classes',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pb-3 text-center font-medium">
+                                        {{
+                                            $t(
+                                                'administration.index.table_header_thematics',
+                                            )
+                                        }}
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -81,15 +120,36 @@ defineProps<{ etablissement: Etablissement }>();
                                     :key="enseignant.id"
                                     class="border-b last:border-0"
                                 >
-                                    <td class="py-3 pr-4">{{ enseignant.prenom }}</td>
-                                    <td class="py-3 pr-4">{{ enseignant.nom }}</td>
-                                    <td class="text-muted-foreground py-3 pr-4">{{ enseignant.email }}</td>
-                                    <td class="py-3 pr-4 text-center">{{ enseignant.cours_count }}</td>
-                                    <td class="py-3 text-center">{{ enseignant.thematiques_count }}</td>
+                                    <td class="py-3 pr-4">
+                                        {{ enseignant.prenom }}
+                                    </td>
+                                    <td class="py-3 pr-4">
+                                        {{ enseignant.nom }}
+                                    </td>
+                                    <td class="py-3 pr-4 text-muted-foreground">
+                                        {{ enseignant.email }}
+                                    </td>
+                                    <td class="py-3 pr-4 text-center">
+                                        {{ enseignant.cours_count }}
+                                    </td>
+                                    <td class="py-3 text-center">
+                                        {{ enseignant.thematiques_count }}
+                                    </td>
                                 </tr>
-                                <tr v-if="etablissement.enseignants.length === 0">
-                                    <td colspan="5" class="text-muted-foreground py-6 text-center">
-                                        {{ $t('administration.etablissement.no_teachers') }}
+                                <tr
+                                    v-if="
+                                        etablissement.enseignants.length === 0
+                                    "
+                                >
+                                    <td
+                                        colspan="5"
+                                        class="py-6 text-center text-muted-foreground"
+                                    >
+                                        {{
+                                            $t(
+                                                'administration.etablissement.no_teachers',
+                                            )
+                                        }}
                                     </td>
                                 </tr>
                             </tbody>
@@ -101,18 +161,40 @@ defineProps<{ etablissement: Etablissement }>();
             <!-- Thématiques -->
             <Card>
                 <CardHeader class="flex flex-row items-center gap-2">
-                    <BookOpen class="text-muted-foreground h-5 w-5" />
-                    <CardTitle>{{ $t('administration.etablissement.thematics_title') }}</CardTitle>
-                    <Badge variant="secondary" class="ml-auto">{{ etablissement.thematiques.length }}</Badge>
+                    <BookOpen class="h-5 w-5 text-muted-foreground" />
+                    <CardTitle>{{
+                        $t('administration.etablissement.thematics_title')
+                    }}</CardTitle>
+                    <Badge variant="secondary" class="ml-auto">{{
+                        etablissement.thematiques.length
+                    }}</Badge>
                 </CardHeader>
                 <CardContent>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="border-b text-left">
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.etablissement.thematic_name') }}</th>
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.etablissement.thematic_period') }}</th>
-                                    <th class="pb-3 font-medium">{{ $t('administration.etablissement.thematic_teacher') }}</th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'administration.etablissement.thematic_name',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'administration.etablissement.thematic_period',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'administration.etablissement.thematic_teacher',
+                                            )
+                                        }}
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -121,15 +203,38 @@ defineProps<{ etablissement: Etablissement }>();
                                     :key="thematique.id"
                                     class="border-b last:border-0"
                                 >
-                                    <td class="py-3 pr-4 font-medium">{{ thematique.nom }}</td>
-                                    <td class="text-muted-foreground py-3 pr-4">{{ thematique.periode_historique ?? '—' }}</td>
-                                    <td class="text-muted-foreground py-3">
-                                        {{ thematique.enseignant ? thematique.enseignant.prenom + ' ' + thematique.enseignant.nom : '—' }}
+                                    <td class="py-3 pr-4 font-medium">
+                                        {{ thematique.nom }}
+                                    </td>
+                                    <td class="py-3 pr-4 text-muted-foreground">
+                                        {{
+                                            thematique.periode_historique ?? '—'
+                                        }}
+                                    </td>
+                                    <td class="py-3 text-muted-foreground">
+                                        {{
+                                            thematique.enseignant
+                                                ? thematique.enseignant.prenom +
+                                                  ' ' +
+                                                  thematique.enseignant.nom
+                                                : '—'
+                                        }}
                                     </td>
                                 </tr>
-                                <tr v-if="etablissement.thematiques.length === 0">
-                                    <td colspan="3" class="text-muted-foreground py-6 text-center">
-                                        {{ $t('administration.etablissement.no_thematics') }}
+                                <tr
+                                    v-if="
+                                        etablissement.thematiques.length === 0
+                                    "
+                                >
+                                    <td
+                                        colspan="3"
+                                        class="py-6 text-center text-muted-foreground"
+                                    >
+                                        {{
+                                            $t(
+                                                'administration.etablissement.no_thematics',
+                                            )
+                                        }}
                                     </td>
                                 </tr>
                             </tbody>

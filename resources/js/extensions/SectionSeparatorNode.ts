@@ -33,7 +33,8 @@ export const SectionSeparatorNode = Node.create({
         return {
             sectionId: {
                 default: null,
-                parseHTML: (el: HTMLElement) => el.getAttribute('data-section-id'),
+                parseHTML: (el: HTMLElement) =>
+                    el.getAttribute('data-section-id'),
                 renderHTML: (attrs: Record<string, unknown>) => ({
                     'data-section-id': attrs.sectionId,
                 }),

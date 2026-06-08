@@ -4,7 +4,7 @@
             ref="canvasRef"
             :width="width"
             :height="height"
-            class="w-full rounded-md border border-gray-300 bg-white touch-none cursor-crosshair"
+            class="w-full cursor-crosshair touch-none rounded-md border border-gray-300 bg-white"
             style="max-width: 100%"
             @mousedown="startDrawing"
             @mousemove="draw"
@@ -23,7 +23,10 @@
             >
                 {{ $t('signature.clear') }}
             </button>
-            <span v-if="isEmpty" class="self-center text-xs text-gray-400 italic">
+            <span
+                v-if="isEmpty"
+                class="self-center text-xs text-gray-400 italic"
+            >
                 {{ $t('signature.hint') }}
             </span>
         </div>
@@ -33,15 +36,18 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 
-const props = withDefaults(defineProps<{
-    modelValue?: string | null;
-    width?: number;
-    height?: number;
-}>(), {
-    modelValue: null,
-    width: 600,
-    height: 200,
-});
+const props = withDefaults(
+    defineProps<{
+        modelValue?: string | null;
+        width?: number;
+        height?: number;
+    }>(),
+    {
+        modelValue: null,
+        width: 600,
+        height: 200,
+    },
+);
 
 const emit = defineEmits<{
     'update:modelValue': [value: string | null];
@@ -148,13 +154,16 @@ onMounted(() => {
     }
 });
 
-watch(() => props.modelValue, (val) => {
-    if (!val) {
-        const ctx = getContext();
-        if (ctx && canvasRef.value) {
-            ctx.clearRect(0, 0, props.width, props.height);
-            isEmpty.value = true;
+watch(
+    () => props.modelValue,
+    (val) => {
+        if (!val) {
+            const ctx = getContext();
+            if (ctx && canvasRef.value) {
+                ctx.clearRect(0, 0, props.width, props.height);
+                isEmpty.value = true;
+            }
         }
-    }
-});
+    },
+);
 </script>

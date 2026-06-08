@@ -314,10 +314,14 @@ function getCommentIdOrder(html: string): Map<string, number> {
 const sortedCorrections = computed(() => {
     // Fusionne les corrections confirmées (serveur) et les optimistes (locales),
     // en évitant les doublons par commentaire_id.
-    const serverIds = new Set(props.note.corrections.map((c) => c.commentaire_id));
+    const serverIds = new Set(
+        props.note.corrections.map((c) => c.commentaire_id),
+    );
     const list = [
         ...props.note.corrections,
-        ...pendingCorrections.value.filter((p) => !serverIds.has(p.commentaire_id)),
+        ...pendingCorrections.value.filter(
+            (p) => !serverIds.has(p.commentaire_id),
+        ),
     ];
 
     if (list.length <= 1) {
@@ -365,7 +369,9 @@ function highlightMark(commentId: string | null, scroll = false) {
     });
 
     if (commentId) {
-        const marks = editorWrapRef.value.querySelectorAll(`mark[data-comment-id="${commentId}"]`);
+        const marks = editorWrapRef.value.querySelectorAll(
+            `mark[data-comment-id="${commentId}"]`,
+        );
 
         marks.forEach((el) => el.classList.add('comment-mark--active'));
 
@@ -384,7 +390,8 @@ function handleEditorClick(e: MouseEvent): void {
 
     if (mark) {
         const commentId = mark.getAttribute('data-comment-id');
-        activeAnnotationId.value = commentId === activeAnnotationId.value ? null : commentId;
+        activeAnnotationId.value =
+            commentId === activeAnnotationId.value ? null : commentId;
         highlightMark(activeAnnotationId.value);
     }
 }
@@ -394,7 +401,8 @@ function handleEditorClick(e: MouseEvent): void {
  * Active ou désactive la liaison carte ↔ marque dans le texte et fait défiler jusqu'à elle.
  */
 function handleCardClick(commentId: string): void {
-    activeAnnotationId.value = commentId === activeAnnotationId.value ? null : commentId;
+    activeAnnotationId.value =
+        commentId === activeAnnotationId.value ? null : commentId;
     highlightMark(activeAnnotationId.value, true);
 }
 </script>
@@ -462,9 +470,16 @@ function handleCardClick(commentId: string): void {
                 v-for="correction in sortedCorrections"
                 :key="correction.id"
                 class="correction-card group relative cursor-pointer rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
-                :class="{ 'ring-2 ring-blue-400 ring-offset-1': activeAnnotationId === correction.commentaire_id }"
+                :class="{
+                    'ring-2 ring-blue-400 ring-offset-1':
+                        activeAnnotationId === correction.commentaire_id,
+                }"
                 @mouseenter="highlightMark(correction.commentaire_id)"
-                @mouseleave="activeAnnotationId ? highlightMark(activeAnnotationId) : highlightMark(null)"
+                @mouseleave="
+                    activeAnnotationId
+                        ? highlightMark(activeAnnotationId)
+                        : highlightMark(null)
+                "
                 @click="handleCardClick(correction.commentaire_id)"
             >
                 <MessageSquare class="mb-1 h-3 w-3 text-amber-500" />

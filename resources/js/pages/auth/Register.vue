@@ -12,7 +12,9 @@ import { login } from '@/routes';
     >
         <Head :title="$t('auth.register.title')" />
 
-        <div class="flex flex-col gap-4 text-center text-sm text-muted-foreground">
+        <div
+            class="flex flex-col gap-4 text-center text-sm text-muted-foreground"
+        >
             <p>
                 {{ $t('auth.register.message') }}
             </p>

@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
-import { Pencil, Play, PlayCircle, Square, Trash2, Upload, Video } from 'lucide-vue-next';
+import {
+    Pencil,
+    Play,
+    PlayCircle,
+    Square,
+    Trash2,
+    Upload,
+    Video,
+} from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -198,21 +206,40 @@ function submitUpload() {
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="font-medium">{{ visio.titre }}</span>
                     <Badge :variant="statutVariant">{{ statut }}</Badge>
-                    <Badge v-if="visio.groupe_id" variant="outline" class="text-xs">
+                    <Badge
+                        v-if="visio.groupe_id"
+                        variant="outline"
+                        class="text-xs"
+                    >
                         Groupe ciblé
                     </Badge>
                 </div>
-                <p v-if="visio.scheduled_at" class="mt-1 text-sm text-muted-foreground">
+                <p
+                    v-if="visio.scheduled_at"
+                    class="mt-1 text-sm text-muted-foreground"
+                >
                     Prévu : {{ formatDate(visio.scheduled_at) }}
                 </p>
-                <p v-if="visio.started_at" class="mt-1 text-sm text-muted-foreground">
+                <p
+                    v-if="visio.started_at"
+                    class="mt-1 text-sm text-muted-foreground"
+                >
                     Démarrée : {{ formatDate(visio.started_at) }}
                 </p>
                 <p class="mt-1 text-xs text-muted-foreground">
-                    Animateur : {{ visio.animateur.prenom }} {{ visio.animateur.nom }}
+                    Animateur : {{ visio.animateur.prenom }}
+                    {{ visio.animateur.nom }}
                 </p>
                 <!-- Lien externe (non-local) visible aux non-témoins seulement -->
-                <p v-if="!estTemoin && visio.has_recording && !visio.recording_is_local && visio.recording_stream_url" class="mt-1">
+                <p
+                    v-if="
+                        !estTemoin &&
+                        visio.has_recording &&
+                        !visio.recording_is_local &&
+                        visio.recording_stream_url
+                    "
+                    class="mt-1"
+                >
                     <a
                         :href="visio.recording_stream_url"
                         target="_blank"
@@ -260,7 +287,12 @@ function submitUpload() {
 
                 <!-- Révisionner : membres et enseignant sur sessions terminées avec enregistrement local -->
                 <Button
-                    v-if="!estTemoin && visio.ended_at && visio.has_recording && visio.recording_is_local"
+                    v-if="
+                        !estTemoin &&
+                        visio.ended_at &&
+                        visio.has_recording &&
+                        visio.recording_is_local
+                    "
                     size="sm"
                     variant="outline"
                     @click="showPlayer = !showPlayer"
@@ -277,7 +309,11 @@ function submitUpload() {
                     @click="showUploadDialog = true"
                 >
                     <Upload class="mr-1.5 h-4 w-4" />
-                    {{ visio.has_recording ? "Remplacer l'enregistrement" : "Ajouter l'enregistrement" }}
+                    {{
+                        visio.has_recording
+                            ? "Remplacer l'enregistrement"
+                            : "Ajouter l'enregistrement"
+                    }}
                 </Button>
 
                 <template v-if="canManage">
@@ -303,7 +339,15 @@ function submitUpload() {
         </div>
 
         <!-- Lecteur vidéo intégré — affiché uniquement si le témoin n'est pas l'utilisateur et le player est ouvert -->
-        <div v-if="!estTemoin && showPlayer && visio.recording_is_local && visio.recording_stream_url" class="mt-4">
+        <div
+            v-if="
+                !estTemoin &&
+                showPlayer &&
+                visio.recording_is_local &&
+                visio.recording_stream_url
+            "
+            class="mt-4"
+        >
             <video
                 controls
                 preload="metadata"
@@ -325,12 +369,17 @@ function submitUpload() {
                 <div class="grid gap-2">
                     <Label for="edit-titre">Titre</Label>
                     <Input id="edit-titre" v-model="editForm.titre" required />
-                    <p v-if="editForm.errors.titre" class="text-sm text-destructive">
+                    <p
+                        v-if="editForm.errors.titre"
+                        class="text-sm text-destructive"
+                    >
                         {{ editForm.errors.titre }}
                     </p>
                 </div>
                 <div class="grid gap-2">
-                    <Label for="edit-scheduled">Date planifiée (optionnel)</Label>
+                    <Label for="edit-scheduled"
+                        >Date planifiée (optionnel)</Label
+                    >
                     <Input
                         id="edit-scheduled"
                         v-model="editForm.scheduled_at"
@@ -338,19 +387,28 @@ function submitUpload() {
                     />
                 </div>
                 <div class="grid gap-2">
-                    <Label for="edit-recording">URL externe de l'enregistrement (optionnel)</Label>
+                    <Label for="edit-recording"
+                        >URL externe de l'enregistrement (optionnel)</Label
+                    >
                     <Input
                         id="edit-recording"
                         v-model="editForm.recording_url"
                         type="url"
                         placeholder="https://..."
                     />
-                    <p v-if="editForm.errors.recording_url" class="text-sm text-destructive">
+                    <p
+                        v-if="editForm.errors.recording_url"
+                        class="text-sm text-destructive"
+                    >
                         {{ editForm.errors.recording_url }}
                     </p>
                 </div>
                 <DialogFooter>
-                    <Button type="button" variant="outline" @click="showEditDialog = false">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        @click="showEditDialog = false"
+                    >
                         Annuler
                     </Button>
                     <Button type="submit" :disabled="editForm.processing">
@@ -366,12 +424,18 @@ function submitUpload() {
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>
-                    {{ visio.has_recording ? "Remplacer l'enregistrement" : "Ajouter l'enregistrement" }}
+                    {{
+                        visio.has_recording
+                            ? "Remplacer l'enregistrement"
+                            : "Ajouter l'enregistrement"
+                    }}
                 </DialogTitle>
             </DialogHeader>
             <div class="space-y-4">
                 <div class="grid gap-2">
-                    <Label for="upload-recording">Fichier vidéo (mp4, mov, webm, avi — max 1 Go)</Label>
+                    <Label for="upload-recording"
+                        >Fichier vidéo (mp4, mov, webm, avi — max 1 Go)</Label
+                    >
                     <Input
                         id="upload-recording"
                         type="file"
@@ -379,10 +443,14 @@ function submitUpload() {
                         :disabled="uploadProcessing"
                         @change="handleFileChange"
                     />
-                    <p v-if="uploadError" class="text-sm text-destructive">{{ uploadError }}</p>
+                    <p v-if="uploadError" class="text-sm text-destructive">
+                        {{ uploadError }}
+                    </p>
                 </div>
                 <div v-if="uploadProcessing" class="space-y-1">
-                    <p class="text-sm text-muted-foreground">Envoi en cours… {{ uploadProgress }}%</p>
+                    <p class="text-sm text-muted-foreground">
+                        Envoi en cours… {{ uploadProgress }}%
+                    </p>
                     <div class="h-2 overflow-hidden rounded-full bg-secondary">
                         <div
                             class="h-full rounded-full bg-primary transition-all duration-300"

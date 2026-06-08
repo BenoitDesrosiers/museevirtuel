@@ -87,7 +87,9 @@ function nomMembre(userId: number): string {
 
 <template>
     <AppLayout>
-        <Head :title="`${$t('apercu.preview_label')} — ${projet?.titre_projet ?? $t('projets.index.heading_title')}`" />
+        <Head
+            :title="`${$t('apercu.preview_label')} — ${projet?.titre_projet ?? $t('projets.index.heading_title')}`"
+        />
 
         <div class="mx-auto flex max-w-4xl flex-col gap-6 p-6">
             <!-- Retour -->
@@ -130,13 +132,21 @@ function nomMembre(userId: number): string {
             <div>
                 <div class="mb-1 flex items-center gap-2">
                     <Eye class="h-4 w-4 text-muted-foreground" />
-                    <span class="text-sm text-muted-foreground">{{ $t('apercu.preview_label') }}</span>
+                    <span class="text-sm text-muted-foreground">{{
+                        $t('apercu.preview_label')
+                    }}</span>
                 </div>
                 <Heading
-                    :title="projet?.titre_projet ?? $t('projets.index.heading_title')"
+                    :title="
+                        projet?.titre_projet ??
+                        $t('projets.index.heading_title')
+                    "
                     :description="`${classe.code} — Groupe ${classe.groupe} · ${classe.nom_cours} · Groupe ${groupe.numero}`"
                 />
-                <div v-if="thematiques.length > 0" class="mt-3 flex flex-wrap gap-2">
+                <div
+                    v-if="thematiques.length > 0"
+                    class="mt-3 flex flex-wrap gap-2"
+                >
                     <span
                         v-for="thematique in thematiques"
                         :key="thematique.id"
@@ -148,12 +158,18 @@ function nomMembre(userId: number): string {
             </div>
 
             <!-- Contenu vide -->
-            <div v-if="!projet" class="py-12 text-center text-sm text-muted-foreground">
+            <div
+                v-if="!projet"
+                class="py-12 text-center text-sm text-muted-foreground"
+            >
                 {{ $t('apercu.no_project') }}
             </div>
 
             <template v-else>
-                <p v-if="sections.length === 0" class="text-sm italic text-muted-foreground">
+                <p
+                    v-if="sections.length === 0"
+                    class="text-sm text-muted-foreground italic"
+                >
                     {{ $t('apercu.no_sections') }}
                 </p>
 
@@ -162,8 +178,13 @@ function nomMembre(userId: number): string {
                     :key="section.id"
                     class="space-y-3"
                 >
-                    <h2 class="border-b pb-2 text-xl font-semibold">{{ section.label }}</h2>
-                    <p v-if="section.description" class="text-xs italic text-muted-foreground">
+                    <h2 class="border-b pb-2 text-xl font-semibold">
+                        {{ section.label }}
+                    </h2>
+                    <p
+                        v-if="section.description"
+                        class="text-xs text-muted-foreground italic"
+                    >
                         {{ section.description }}
                     </p>
 
@@ -171,53 +192,70 @@ function nomMembre(userId: number): string {
                     <template v-if="section.type === 'texte'">
                         <div
                             v-if="section.contenu && section.contenu.trim()"
-                            class="prose prose-sm max-w-none dark:prose-invert"
+                            class="prose prose-sm dark:prose-invert max-w-none"
                             v-html="section.contenu"
                         />
-                        <p v-else class="text-sm italic text-muted-foreground">
+                        <p v-else class="text-sm text-muted-foreground italic">
                             {{ $t('apercu.section_not_written') }}
                         </p>
                     </template>
 
                     <!-- Type paragraphes -->
                     <template v-else-if="section.type === 'paragraphes'">
-                        <template v-if="section.paragraphes && section.paragraphes.length > 0">
+                        <template
+                            v-if="
+                                section.paragraphes &&
+                                section.paragraphes.length > 0
+                            "
+                        >
                             <article
                                 v-for="p in section.paragraphes"
                                 :key="p.id"
                                 class="space-y-2"
                             >
-                                <h3 v-if="p.titre" class="text-base font-semibold">{{ p.titre }}</h3>
+                                <h3
+                                    v-if="p.titre"
+                                    class="text-base font-semibold"
+                                >
+                                    {{ p.titre }}
+                                </h3>
                                 <div
                                     v-if="p.contenu && p.contenu.trim()"
-                                    class="prose prose-sm max-w-none dark:prose-invert"
+                                    class="prose prose-sm dark:prose-invert max-w-none"
                                     v-html="p.contenu"
                                 />
                             </article>
                         </template>
-                        <p v-else class="text-sm italic text-muted-foreground">
+                        <p v-else class="text-sm text-muted-foreground italic">
                             {{ $t('apercu.no_paragraphs') }}
                         </p>
                     </template>
 
                     <!-- Type individuel -->
                     <template v-else-if="section.type === 'individuel'">
-                        <template v-if="section.conclusionsParMembre && section.conclusionsParMembre.length > 0">
+                        <template
+                            v-if="
+                                section.conclusionsParMembre &&
+                                section.conclusionsParMembre.length > 0
+                            "
+                        >
                             <article
                                 v-for="c in section.conclusionsParMembre"
                                 :key="c.userId"
                                 class="space-y-2"
                             >
-                                <h3 class="text-sm font-semibold text-muted-foreground">
+                                <h3
+                                    class="text-sm font-semibold text-muted-foreground"
+                                >
                                     {{ nomMembre(c.userId) }}
                                 </h3>
                                 <div
-                                    class="prose prose-sm max-w-none dark:prose-invert"
+                                    class="prose prose-sm dark:prose-invert max-w-none"
                                     v-html="c.contenu"
                                 />
                             </article>
                         </template>
-                        <p v-else class="text-sm italic text-muted-foreground">
+                        <p v-else class="text-sm text-muted-foreground italic">
                             {{ $t('apercu.no_conclusions') }}
                         </p>
                     </template>
@@ -234,10 +272,14 @@ function nomMembre(userId: number): string {
                         :key="renvoi.id"
                         class="flex items-start gap-2"
                     >
-                        <span class="min-w-[1.5rem] text-right font-bold text-blue-600 dark:text-blue-400">
+                        <span
+                            class="min-w-[1.5rem] text-right font-bold text-blue-600 dark:text-blue-400"
+                        >
                             {{ renvoi.numero }}.
                         </span>
-                        <span class="text-muted-foreground">{{ renvoi.contenu || '—' }}</span>
+                        <span class="text-muted-foreground">{{
+                            renvoi.contenu || '—'
+                        }}</span>
                     </li>
                 </ol>
             </section>

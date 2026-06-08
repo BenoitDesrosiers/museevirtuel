@@ -8,7 +8,13 @@ import PasswordInput from '@/components/PasswordInput.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import AuthBase from '@/layouts/AuthLayout.vue';
@@ -40,7 +46,9 @@ const props = defineProps<{
 }>();
 
 const page = usePage();
-const flash = computed(() => (page.props as { flash?: { success?: string } }).flash);
+const flash = computed(
+    () => (page.props as { flash?: { success?: string } }).flash,
+);
 
 // ─── Formulaire ───────────────────────────────────────────────────────────────
 const form = useForm({
@@ -72,7 +80,11 @@ function ajouterCegep() {
     const id = Number(cegepAjouter.value);
     if (!id) return;
 
-    form.choix.push({ etablissement_id: id, thematique_ids: [], theme_libre: '' });
+    form.choix.push({
+        etablissement_id: id,
+        thematique_ids: [],
+        theme_libre: '',
+    });
     cegepAjouter.value = '';
 }
 
@@ -83,9 +95,10 @@ function retirerCegep(index: number) {
 function toggleThematique(choixIndex: number, thematiqueId: number) {
     const current = form.choix[choixIndex].thematique_ids;
     const idx = current.indexOf(thematiqueId);
-    const newIds = idx >= 0
-        ? current.filter((id) => id !== thematiqueId)
-        : [...current, thematiqueId];
+    const newIds =
+        idx >= 0
+            ? current.filter((id) => id !== thematiqueId)
+            : [...current, thematiqueId];
 
     // Remplacer form.choix entièrement pour déclencher la réactivité Vue sur le v-for
     form.choix = form.choix.map((c, i) =>
@@ -120,26 +133,34 @@ function submit() {
             <!-- Prénom + Nom -->
             <div class="grid grid-cols-2 gap-3">
                 <div class="grid gap-2">
-                    <Label for="prenom">{{ $t('inscription_temoin.label_first_name') }}</Label>
+                    <Label for="prenom">{{
+                        $t('inscription_temoin.label_first_name')
+                    }}</Label>
                     <Input
                         id="prenom"
                         v-model="form.prenom"
                         type="text"
                         required
                         autocomplete="given-name"
-                        :placeholder="$t('inscription_temoin.placeholder_first_name')"
+                        :placeholder="
+                            $t('inscription_temoin.placeholder_first_name')
+                        "
                     />
                     <InputError :message="form.errors.prenom" />
                 </div>
                 <div class="grid gap-2">
-                    <Label for="nom">{{ $t('inscription_temoin.label_last_name') }}</Label>
+                    <Label for="nom">{{
+                        $t('inscription_temoin.label_last_name')
+                    }}</Label>
                     <Input
                         id="nom"
                         v-model="form.nom"
                         type="text"
                         required
                         autocomplete="family-name"
-                        :placeholder="$t('inscription_temoin.placeholder_last_name')"
+                        :placeholder="
+                            $t('inscription_temoin.placeholder_last_name')
+                        "
                     />
                     <InputError :message="form.errors.nom" />
                 </div>
@@ -147,7 +168,9 @@ function submit() {
 
             <!-- Courriel -->
             <div class="grid gap-2">
-                <Label for="email">{{ $t('inscription_temoin.label_email') }}</Label>
+                <Label for="email">{{
+                    $t('inscription_temoin.label_email')
+                }}</Label>
                 <Input
                     id="email"
                     v-model="form.email"
@@ -161,7 +184,9 @@ function submit() {
 
             <!-- Mot de passe -->
             <div class="grid gap-2">
-                <Label for="password">{{ $t('inscription_temoin.label_password') }}</Label>
+                <Label for="password">{{
+                    $t('inscription_temoin.label_password')
+                }}</Label>
                 <PasswordInput
                     id="password"
                     v-model="form.password"
@@ -173,7 +198,9 @@ function submit() {
 
             <!-- Confirmation mot de passe -->
             <div class="grid gap-2">
-                <Label for="password_confirmation">{{ $t('inscription_temoin.label_password_confirmation') }}</Label>
+                <Label for="password_confirmation">{{
+                    $t('inscription_temoin.label_password_confirmation')
+                }}</Label>
                 <PasswordInput
                     id="password_confirmation"
                     v-model="form.password_confirmation"
@@ -186,8 +213,12 @@ function submit() {
             <!-- Section cégeps -->
             <div class="grid gap-3">
                 <div>
-                    <p class="text-sm font-medium">{{ $t('inscription_temoin.label_cegeps') }}</p>
-                    <p class="text-muted-foreground text-xs">{{ $t('inscription_temoin.hint_cegeps') }}</p>
+                    <p class="text-sm font-medium">
+                        {{ $t('inscription_temoin.label_cegeps') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                        {{ $t('inscription_temoin.hint_cegeps') }}
+                    </p>
                 </div>
 
                 <!-- Cégeps déjà ajoutés -->
@@ -197,11 +228,17 @@ function submit() {
                     class="rounded-lg border"
                 >
                     <!-- En-tête du cégep -->
-                    <div class="flex items-center justify-between border-b px-4 py-3">
+                    <div
+                        class="flex items-center justify-between border-b px-4 py-3"
+                    >
                         <span class="text-sm font-semibold">
                             {{ getEtablissement(choix.etablissement_id)?.nom }}
-                            <span class="text-muted-foreground font-normal">
-                                — {{ getEtablissement(choix.etablissement_id)?.ville }}
+                            <span class="font-normal text-muted-foreground">
+                                —
+                                {{
+                                    getEtablissement(choix.etablissement_id)
+                                        ?.ville
+                                }}
                             </span>
                         </span>
                         <button
@@ -216,32 +253,61 @@ function submit() {
 
                     <!-- Thématiques de ce cégep -->
                     <div class="px-4 pt-3">
-                        <p class="text-muted-foreground mb-2 text-xs">{{ $t('inscription_temoin.label_thematiques') }}</p>
+                        <p class="mb-2 text-xs text-muted-foreground">
+                            {{ $t('inscription_temoin.label_thematiques') }}
+                        </p>
                         <div
-                            v-if="getEtablissement(choix.etablissement_id)?.thematiques.length"
+                            v-if="
+                                getEtablissement(choix.etablissement_id)
+                                    ?.thematiques.length
+                            "
                             class="mb-3 flex flex-col gap-2"
                         >
                             <div
-                                v-for="thematique in getEtablissement(choix.etablissement_id)?.thematiques"
+                                v-for="thematique in getEtablissement(
+                                    choix.etablissement_id,
+                                )?.thematiques"
                                 :key="thematique.id"
-                                class="flex cursor-pointer select-none items-center gap-2"
+                                class="flex cursor-pointer items-center gap-2 select-none"
                                 @click="toggleThematique(index, thematique.id)"
                             >
                                 <div
-                                    class="size-4 shrink-0 rounded-[4px] border shadow-xs flex items-center justify-center transition-colors"
-                                    :class="choix.thematique_ids.includes(thematique.id)
-                                        ? 'bg-primary border-primary text-primary-foreground'
-                                        : 'border-input bg-background'"
+                                    class="flex size-4 shrink-0 items-center justify-center rounded-[4px] border shadow-xs transition-colors"
+                                    :class="
+                                        choix.thematique_ids.includes(
+                                            thematique.id,
+                                        )
+                                            ? 'border-primary bg-primary text-primary-foreground'
+                                            : 'border-input bg-background'
+                                    "
                                 >
-                                    <Check v-if="choix.thematique_ids.includes(thematique.id)" class="size-3.5" />
+                                    <Check
+                                        v-if="
+                                            choix.thematique_ids.includes(
+                                                thematique.id,
+                                            )
+                                        "
+                                        class="size-3.5"
+                                    />
                                 </div>
-                                <span class="text-sm font-normal">{{ thematique.nom }}</span>
+                                <span class="text-sm font-normal">{{
+                                    thematique.nom
+                                }}</span>
                             </div>
                         </div>
-                        <p v-else class="text-muted-foreground mb-3 text-xs italic">
+                        <p
+                            v-else
+                            class="mb-3 text-xs text-muted-foreground italic"
+                        >
                             {{ $t('inscription_temoin.no_thematiques') }}
                         </p>
-                        <InputError :message="(form.errors as Record<string, string>)[`choix.${index}.thematique_ids`]" />
+                        <InputError
+                            :message="
+                                (form.errors as Record<string, string>)[
+                                    `choix.${index}.thematique_ids`
+                                ]
+                            "
+                        />
                     </div>
 
                     <!-- Thème libre pour ce cégep -->
@@ -254,9 +320,17 @@ function submit() {
                             v-model="choix.theme_libre"
                             type="text"
                             class="mt-1"
-                            :placeholder="$t('inscription_temoin.placeholder_theme_libre')"
+                            :placeholder="
+                                $t('inscription_temoin.placeholder_theme_libre')
+                            "
                         />
-                        <InputError :message="(form.errors as Record<string, string>)[`choix.${index}.theme_libre`]" />
+                        <InputError
+                            :message="
+                                (form.errors as Record<string, string>)[
+                                    `choix.${index}.theme_libre`
+                                ]
+                            "
+                        />
                     </div>
                 </div>
 
@@ -264,7 +338,13 @@ function submit() {
                 <div v-if="etablissementsDispo.length > 0" class="flex gap-2">
                     <Select v-model="cegepAjouter" class="flex-1">
                         <SelectTrigger>
-                            <SelectValue :placeholder="$t('inscription_temoin.placeholder_ajouter_cegep')" />
+                            <SelectValue
+                                :placeholder="
+                                    $t(
+                                        'inscription_temoin.placeholder_ajouter_cegep',
+                                    )
+                                "
+                            />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem
@@ -276,7 +356,12 @@ function submit() {
                             </SelectItem>
                         </SelectContent>
                     </Select>
-                    <Button type="button" variant="outline" :disabled="!cegepAjouter" @click="ajouterCegep">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        :disabled="!cegepAjouter"
+                        @click="ajouterCegep"
+                    >
                         <Plus class="mr-1 h-4 w-4" />
                         {{ $t('inscription_temoin.btn_ajouter_cegep') }}
                     </Button>
@@ -287,8 +372,10 @@ function submit() {
 
             <!-- Description bio -->
             <div class="grid gap-2">
-                <Label for="description">{{ $t('inscription_temoin.label_description') }}</Label>
-                <p class="text-muted-foreground text-xs">
+                <Label for="description">{{
+                    $t('inscription_temoin.label_description')
+                }}</Label>
+                <p class="text-xs text-muted-foreground">
                     {{ $t('inscription_temoin.description_bio_hint') }}
                 </p>
                 <Textarea
@@ -296,7 +383,9 @@ function submit() {
                     v-model="form.description"
                     required
                     :rows="4"
-                    :placeholder="$t('inscription_temoin.placeholder_description')"
+                    :placeholder="
+                        $t('inscription_temoin.placeholder_description')
+                    "
                 />
                 <InputError :message="form.errors.description" />
             </div>
@@ -304,23 +393,42 @@ function submit() {
             <!-- Disponibilité appel à distance -->
             <div class="flex items-start gap-3">
                 <div
-                    class="mt-0.5 size-4 shrink-0 rounded-[4px] border shadow-xs flex items-center justify-center transition-colors cursor-pointer"
-                    :class="form.disponible_appel_distance
-                        ? 'bg-primary border-primary text-primary-foreground'
-                        : 'border-input bg-background'"
-                    @click="form.disponible_appel_distance = !form.disponible_appel_distance"
+                    class="mt-0.5 flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-[4px] border shadow-xs transition-colors"
+                    :class="
+                        form.disponible_appel_distance
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-input bg-background'
+                    "
+                    @click="
+                        form.disponible_appel_distance =
+                            !form.disponible_appel_distance
+                    "
                 >
-                    <Check v-if="form.disponible_appel_distance" class="size-3.5" />
+                    <Check
+                        v-if="form.disponible_appel_distance"
+                        class="size-3.5"
+                    />
                 </div>
                 <div class="grid gap-1">
                     <label
-                        class="text-sm font-medium cursor-pointer"
-                        @click="form.disponible_appel_distance = !form.disponible_appel_distance"
+                        class="cursor-pointer text-sm font-medium"
+                        @click="
+                            form.disponible_appel_distance =
+                                !form.disponible_appel_distance
+                        "
                     >
-                        {{ $t('inscription_temoin.label_disponible_appel_distance') }}
+                        {{
+                            $t(
+                                'inscription_temoin.label_disponible_appel_distance',
+                            )
+                        }}
                     </label>
                     <p class="text-xs text-muted-foreground">
-                        {{ $t('inscription_temoin.hint_disponible_appel_distance') }}
+                        {{
+                            $t(
+                                'inscription_temoin.hint_disponible_appel_distance',
+                            )
+                        }}
                     </p>
                 </div>
             </div>

@@ -31,10 +31,14 @@ const handleLogout = () => {
 };
 
 const switchLocale = (locale: string) => {
-    router.patch(LocaleController.update.url(), { locale }, {
-        preserveScroll: true,
-        onSuccess: () => router.reload(),
-    });
+    router.patch(
+        LocaleController.update.url(),
+        { locale },
+        {
+            preserveScroll: true,
+            onSuccess: () => router.reload(),
+        },
+    );
 };
 </script>
 
@@ -57,14 +61,22 @@ const switchLocale = (locale: string) => {
     <div class="flex items-center gap-1 px-2 py-1">
         <button
             class="flex-1 rounded px-2 py-1 text-xs font-medium transition-colors"
-            :class="currentLocale === 'fr' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'"
+            :class="
+                currentLocale === 'fr'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-muted'
+            "
             @click.stop="switchLocale('fr')"
         >
             🇫🇷 FR
         </button>
         <button
             class="flex-1 rounded px-2 py-1 text-xs font-medium transition-colors"
-            :class="currentLocale === 'en' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'"
+            :class="
+                currentLocale === 'en'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-muted'
+            "
             @click.stop="switchLocale('en')"
         >
             🇬🇧 EN

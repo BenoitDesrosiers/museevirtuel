@@ -2,7 +2,11 @@
 import { Link } from '@inertiajs/vue3';
 import { ChevronRight } from 'lucide-vue-next';
 import { ref } from 'vue';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
     SidebarMenuButton,
     SidebarMenuItem,
@@ -45,14 +49,23 @@ const open = ref(itemIsActive(props.item));
     <template v-if="depth === 0">
         <SidebarMenuItem>
             <!-- Item avec enfants → collapsible -->
-            <Collapsible v-if="hasChildren" v-model:open="open" class="group/collapsible">
+            <Collapsible
+                v-if="hasChildren"
+                v-model:open="open"
+                class="group/collapsible"
+            >
                 <!--
                     Deux cas :
                     - item.href défini  → icône+texte cliquable (lien) + chevron séparé (toggle)
                     - item.href absent  → toute la ligne est le trigger collapsible
                 -->
                 <div v-if="item.href" class="flex w-full items-center">
-                    <SidebarMenuButton as-child :is-active="isActive" :tooltip="item.title" class="flex-1">
+                    <SidebarMenuButton
+                        as-child
+                        :is-active="isActive"
+                        :tooltip="item.title"
+                        class="flex-1"
+                    >
                         <Link :href="item.href">
                             <component :is="item.icon" v-if="item.icon" />
                             <span>{{ item.title }}</span>
@@ -60,7 +73,7 @@ const open = ref(itemIsActive(props.item));
                     </SidebarMenuButton>
                     <CollapsibleTrigger as-child>
                         <button
-                            class="text-sidebar-foreground hover:bg-sidebar-accent flex h-8 w-8 shrink-0 items-center justify-center rounded-md"
+                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground hover:bg-sidebar-accent"
                         >
                             <ChevronRight
                                 class="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
@@ -70,7 +83,10 @@ const open = ref(itemIsActive(props.item));
                 </div>
 
                 <CollapsibleTrigger v-else as-child>
-                    <SidebarMenuButton :is-active="isActive" :tooltip="item.title">
+                    <SidebarMenuButton
+                        :is-active="isActive"
+                        :tooltip="item.title"
+                    >
                         <component :is="item.icon" v-if="item.icon" />
                         <span>{{ item.title }}</span>
                         <ChevronRight
@@ -81,7 +97,10 @@ const open = ref(itemIsActive(props.item));
 
                 <CollapsibleContent>
                     <SidebarMenuSub>
-                        <SidebarMenuSubItem v-for="child in item.children" :key="child.title">
+                        <SidebarMenuSubItem
+                            v-for="child in item.children"
+                            :key="child.title"
+                        >
                             <NavCollapsible :item="child" :depth="1" />
                         </SidebarMenuSubItem>
                     </SidebarMenuSub>
@@ -89,7 +108,12 @@ const open = ref(itemIsActive(props.item));
             </Collapsible>
 
             <!-- Item sans enfants → lien simple -->
-            <SidebarMenuButton v-else as-child :is-active="isActive" :tooltip="item.title">
+            <SidebarMenuButton
+                v-else
+                as-child
+                :is-active="isActive"
+                :tooltip="item.title"
+            >
                 <Link :href="item.href!">
                     <component :is="item.icon" v-if="item.icon" />
                     <span>{{ item.title }}</span>
@@ -101,19 +125,27 @@ const open = ref(itemIsActive(props.item));
     <!-- ───── Sous-niveaux : SidebarMenuSubButton ───── -->
     <template v-else>
         <!-- Sous-item avec enfants → collapsible imbriqué -->
-        <Collapsible v-if="hasChildren" v-model:open="open" class="group/collapsible-sub">
+        <Collapsible
+            v-if="hasChildren"
+            v-model:open="open"
+            class="group/collapsible-sub"
+        >
             <!--
                 Deux cas :
                 - item.href défini  → lien cliquable + chevron séparé pour toggler
                 - item.href absent  → toute la ligne est le trigger
             -->
             <div v-if="item.href" class="flex w-full items-center">
-                <SidebarMenuSubButton as-child :is-active="isActive" class="flex-1">
+                <SidebarMenuSubButton
+                    as-child
+                    :is-active="isActive"
+                    class="flex-1"
+                >
                     <Link :href="item.href">{{ item.title }}</Link>
                 </SidebarMenuSubButton>
                 <CollapsibleTrigger as-child>
                     <button
-                        class="text-sidebar-foreground hover:bg-sidebar-accent flex h-7 w-6 shrink-0 items-center justify-center rounded-md"
+                        class="flex h-7 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-foreground hover:bg-sidebar-accent"
                     >
                         <ChevronRight
                             class="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible-sub:rotate-90"
@@ -133,7 +165,10 @@ const open = ref(itemIsActive(props.item));
 
             <CollapsibleContent>
                 <SidebarMenuSub :class="depth >= 2 ? 'mx-0 px-1.5' : undefined">
-                    <SidebarMenuSubItem v-for="child in item.children" :key="child.title">
+                    <SidebarMenuSubItem
+                        v-for="child in item.children"
+                        :key="child.title"
+                    >
                         <NavCollapsible :item="child" :depth="depth + 1" />
                     </SidebarMenuSubItem>
                 </SidebarMenuSub>
@@ -141,7 +176,12 @@ const open = ref(itemIsActive(props.item));
         </Collapsible>
 
         <!-- Sous-item sans enfants → lien simple, hauteur auto pour titres longs -->
-        <SidebarMenuSubButton v-else as-child :is-active="isActive" class="h-auto min-h-7 whitespace-normal break-words py-1.5 leading-snug">
+        <SidebarMenuSubButton
+            v-else
+            as-child
+            :is-active="isActive"
+            class="h-auto min-h-7 py-1.5 leading-snug break-words whitespace-normal"
+        >
             <Link :href="item.href!">{{ item.title }}</Link>
         </SidebarMenuSubButton>
     </template>

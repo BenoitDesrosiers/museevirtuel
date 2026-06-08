@@ -26,14 +26,20 @@ const emit = defineEmits<{
 
 <template>
     <Dialog :open="open" @update:open="emit('update:open', $event)">
-        <DialogContent :class="scrollable ? 'max-h-[90vh] overflow-y-auto' : undefined">
+        <DialogContent
+            :class="scrollable ? 'max-h-[90vh] overflow-y-auto' : undefined"
+        >
             <DialogHeader>
                 <DialogTitle>{{ title }}</DialogTitle>
             </DialogHeader>
             <form class="space-y-4" @submit.prevent="emit('submit')">
                 <slot />
                 <DialogFooter>
-                    <Button type="button" variant="outline" @click="emit('update:open', false)">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        @click="emit('update:open', false)"
+                    >
                         {{ $t('common.cancel') }}
                     </Button>
                     <Button type="submit" :disabled="isLoading">

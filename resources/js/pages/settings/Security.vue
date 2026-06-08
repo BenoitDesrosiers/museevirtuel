@@ -34,7 +34,9 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
                 <Heading
                     variant="small"
                     :title="$t('settings.security.section_password')"
-                    :description="$t('settings.security.section_password_description')"
+                    :description="
+                        $t('settings.security.section_password_description')
+                    "
                 />
 
                 <Form
@@ -52,40 +54,56 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
                     v-slot="{ errors, processing, recentlySuccessful }"
                 >
                     <div class="grid gap-2">
-                        <Label for="current_password">{{ $t('settings.security.label_current_password') }}</Label>
+                        <Label for="current_password">{{
+                            $t('settings.security.label_current_password')
+                        }}</Label>
                         <PasswordInput
                             id="current_password"
                             name="current_password"
                             class="mt-1 block w-full"
                             autocomplete="current-password"
-                            :placeholder="$t('settings.security.placeholder_current_password')"
+                            :placeholder="
+                                $t(
+                                    'settings.security.placeholder_current_password',
+                                )
+                            "
                         />
                         <InputError :message="errors.current_password" />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="password">{{ $t('settings.security.label_new_password') }}</Label>
+                        <Label for="password">{{
+                            $t('settings.security.label_new_password')
+                        }}</Label>
                         <PasswordInput
                             id="password"
                             name="password"
                             class="mt-1 block w-full"
                             autocomplete="new-password"
-                            :placeholder="$t('settings.security.placeholder_new_password')"
+                            :placeholder="
+                                $t('settings.security.placeholder_new_password')
+                            "
                         />
-                        <p class="text-sm text-neutral-500">{{ $t('settings.security.password_hint') }}</p>
+                        <p class="text-sm text-neutral-500">
+                            {{ $t('settings.security.password_hint') }}
+                        </p>
                         <InputError :message="errors.password" />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="password_confirmation"
-                            >{{ $t('settings.security.label_password_confirmation') }}</Label
-                        >
+                        <Label for="password_confirmation">{{
+                            $t('settings.security.label_password_confirmation')
+                        }}</Label>
                         <PasswordInput
                             id="password_confirmation"
                             name="password_confirmation"
                             class="mt-1 block w-full"
                             autocomplete="new-password"
-                            :placeholder="$t('settings.security.placeholder_password_confirmation')"
+                            :placeholder="
+                                $t(
+                                    'settings.security.placeholder_password_confirmation',
+                                )
+                            "
                         />
                         <InputError :message="errors.password_confirmation" />
                     </div>

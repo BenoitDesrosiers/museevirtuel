@@ -64,7 +64,10 @@ const couleurNoteActif: Record<number, string> = {
 
 /** Retourne true si tous les membres ont exactement cette valeur pour le critère. */
 function tousOntNote(critere: string, valeur: number): boolean {
-    return props.membres.length > 0 && props.membres.every((m) => props.notes[m.id]?.[critere] === valeur);
+    return (
+        props.membres.length > 0 &&
+        props.membres.every((m) => props.notes[m.id]?.[critere] === valeur)
+    );
 }
 </script>
 
@@ -76,7 +79,11 @@ function tousOntNote(critere: string, valeur: number): boolean {
                 v-if="estEnseignant && membreVerrouille === undefined"
                 type="button"
                 class="rounded px-2 py-0.5 text-xs font-medium transition-colors"
-                :class="ongletActif === 'tous' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'"
+                :class="
+                    ongletActif === 'tous'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                "
                 @click="emit('set-onglet', 'tous')"
             >
                 Tous
@@ -86,7 +93,11 @@ function tousOntNote(critere: string, valeur: number): boolean {
                     v-if="estEnseignant || membre.id === userId"
                     type="button"
                     class="rounded px-2 py-0.5 text-xs font-medium transition-colors"
-                    :class="ongletActif === membre.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'"
+                    :class="
+                        ongletActif === membre.id
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    "
                     @click="emit('set-onglet', membre.id)"
                 >
                     {{ membre.prenom }}
@@ -95,9 +106,21 @@ function tousOntNote(critere: string, valeur: number): boolean {
         </div>
 
         <!-- Onglet Tous (masqué si grille verrouillée) -->
-        <div v-if="estEnseignant && membreVerrouille === undefined" v-show="ongletActif === 'tous'" class="space-y-3">
-            <div v-for="critere in critereKeys" :key="critere" class="space-y-1.5">
-                <span class="text-xs text-muted-foreground">{{ critereConfig[critere].label }} ({{ critereConfig[critere].poids }}%)</span>
+        <div
+            v-if="estEnseignant && membreVerrouille === undefined"
+            v-show="ongletActif === 'tous'"
+            class="space-y-3"
+        >
+            <div
+                v-for="critere in critereKeys"
+                :key="critere"
+                class="space-y-1.5"
+            >
+                <span class="text-xs text-muted-foreground"
+                    >{{ critereConfig[critere].label }} ({{
+                        critereConfig[critere].poids
+                    }}%)</span
+                >
                 <div class="flex flex-wrap gap-1">
                     <button
                         v-for="valeur in [0, 2, 3, 4]"
@@ -105,7 +128,11 @@ function tousOntNote(critere: string, valeur: number): boolean {
                         type="button"
                         :disabled="notesSaving[`${section}_${critere}_tous`]"
                         class="rounded border px-2 py-0.5 text-xs font-medium transition-colors disabled:opacity-60"
-                        :class="tousOntNote(critere, valeur) ? couleurNoteActif[valeur] : 'border-border text-muted-foreground hover:border-primary hover:text-primary'"
+                        :class="
+                            tousOntNote(critere, valeur)
+                                ? couleurNoteActif[valeur]
+                                : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
+                        "
                         @click="emit('save-note-pour-tous', critere, valeur)"
                     >
                         {{ valeur }} — {{ labelNote[valeur] }}
@@ -117,11 +144,30 @@ function tousOntNote(critere: string, valeur: number): boolean {
         <!-- Onglets individuels -->
         <div v-for="membre in membresVisibles" :key="membre.id">
             <div v-show="ongletActif === membre.id" class="space-y-3">
-                <div v-for="critere in critereKeys" :key="critere" class="space-y-1.5">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                        <span class="text-xs text-muted-foreground">{{ critereConfig[critere].label }} ({{ critereConfig[critere].poids }}%)</span>
-                        <span v-if="notes[membre.id]?.[critere] !== undefined" class="text-xs font-medium text-muted-foreground">
-                            {{ ((notes[membre.id][critere]! / 4) * critereConfig[critere].poids).toFixed(2) }} / {{ critereConfig[critere].poids }}
+                <div
+                    v-for="critere in critereKeys"
+                    :key="critere"
+                    class="space-y-1.5"
+                >
+                    <div
+                        class="flex flex-wrap items-center justify-between gap-2"
+                    >
+                        <span class="text-xs text-muted-foreground"
+                            >{{ critereConfig[critere].label }} ({{
+                                critereConfig[critere].poids
+                            }}%)</span
+                        >
+                        <span
+                            v-if="notes[membre.id]?.[critere] !== undefined"
+                            class="text-xs font-medium text-muted-foreground"
+                        >
+                            {{
+                                (
+                                    (notes[membre.id][critere]! / 4) *
+                                    critereConfig[critere].poids
+                                ).toFixed(2)
+                            }}
+                            / {{ critereConfig[critere].poids }}
                         </span>
                     </div>
                     <div class="flex flex-wrap gap-1">
@@ -129,10 +175,21 @@ function tousOntNote(critere: string, valeur: number): boolean {
                             v-for="valeur in [0, 2, 3, 4]"
                             :key="valeur"
                             type="button"
-                            :disabled="!estEnseignant || notesSaving[`${section}_${critere}_${membre.id}`]"
+                            :disabled="
+                                !estEnseignant ||
+                                notesSaving[
+                                    `${section}_${critere}_${membre.id}`
+                                ]
+                            "
                             class="rounded border px-2 py-0.5 text-xs font-medium transition-colors disabled:opacity-60"
-                            :class="notes[membre.id]?.[critere] === valeur ? couleurNoteActif[valeur] : 'border-border text-muted-foreground hover:border-primary hover:text-primary'"
-                            @click="emit('save-note', critere, membre.id, valeur)"
+                            :class="
+                                notes[membre.id]?.[critere] === valeur
+                                    ? couleurNoteActif[valeur]
+                                    : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
+                            "
+                            @click="
+                                emit('save-note', critere, membre.id, valeur)
+                            "
                         >
                             {{ valeur }} — {{ labelNote[valeur] }}
                         </button>

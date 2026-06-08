@@ -16,11 +16,7 @@ import { store } from '@/routes/password/confirm';
     >
         <Head title="Confirm password" />
 
-        <Form
-            v-bind="store()"
-            reset-on-success
-            v-slot="{ errors, processing }"
-        >
+        <Form v-bind="store()" reset-on-success v-slot="{ errors, processing }">
             <div class="space-y-6">
                 <div class="grid gap-2">
                     <Label htmlFor="password">Password</Label>

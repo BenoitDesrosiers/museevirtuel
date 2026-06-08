@@ -34,8 +34,12 @@ const homeUrl = computed(() =>
     <AppLayout>
         <Head :title="$t('cours.verrouille.titre')" />
 
-        <div class="flex min-h-[60vh] flex-col items-center justify-center gap-6 p-6 text-center">
-            <div class="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+        <div
+            class="flex min-h-[60vh] flex-col items-center justify-center gap-6 p-6 text-center"
+        >
+            <div
+                class="flex h-16 w-16 items-center justify-center rounded-full bg-muted"
+            >
                 <LockKeyhole class="h-8 w-8 text-muted-foreground" />
             </div>
 
@@ -44,7 +48,11 @@ const homeUrl = computed(() =>
                     {{ $t('cours.verrouille.titre') }}
                 </h1>
                 <p class="max-w-sm text-sm text-muted-foreground">
-                    {{ $t('cours.verrouille.description', { cours: `${cours.code} — ${cours.nom_cours}` }) }}
+                    {{
+                        $t('cours.verrouille.description', {
+                            cours: `${cours.code} — ${cours.nom_cours}`,
+                        })
+                    }}
                 </p>
             </div>
 

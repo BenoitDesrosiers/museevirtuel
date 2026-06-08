@@ -1,6 +1,20 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { BookOpen, Calendar, ChevronDown, ExternalLink, Lock, Pencil, Plus, Search, Send, Trash2, Unlock, Users, Video } from 'lucide-vue-next';
+import {
+    BookOpen,
+    Calendar,
+    ChevronDown,
+    ExternalLink,
+    Lock,
+    Pencil,
+    Plus,
+    Search,
+    Send,
+    Trash2,
+    Unlock,
+    Users,
+    Video,
+} from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import FormDialog from '@/components/FormDialog.vue';
@@ -11,7 +25,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { show as showTemoin } from '@/routes/enseignant/temoins';
 
@@ -118,7 +138,11 @@ function onTypeCoursCree(val: string) {
 }
 
 function sessionLabel(session: string): string {
-    const labels: Record<string, string> = { hiver: 'Hiver', ete: 'Été', automne: 'Automne' };
+    const labels: Record<string, string> = {
+        hiver: 'Hiver',
+        ete: 'Été',
+        automne: 'Automne',
+    };
     return labels[session] ?? session;
 }
 
@@ -152,8 +176,8 @@ function openEditCours(unCours: Cours) {
 
 function submitEditCours() {
     if (!editingCoursId.value) {
-return;
-}
+        return;
+    }
 
     coursForm.put(`/cours/${editingCoursId.value}`, {
         onSuccess: () => {
@@ -165,9 +189,15 @@ return;
 const deleteCoursForm = useForm({});
 
 function deleteCours(unCours: Cours) {
-    if (!confirm(t('enseignant.index.confirm_delete_course', { nom: unCours.nom_cours }))) {
-return;
-}
+    if (
+        !confirm(
+            t('enseignant.index.confirm_delete_course', {
+                nom: unCours.nom_cours,
+            }),
+        )
+    ) {
+        return;
+    }
 
     deleteCoursForm.delete(`/cours/${unCours.id}`);
 }
@@ -213,8 +243,8 @@ function openEditThematique(thematique: Thematique) {
 
 function submitEditThematique() {
     if (!editingThematiqueId.value) {
-return;
-}
+        return;
+    }
 
     thematiqueForm.put(`/thematiques/${editingThematiqueId.value}`, {
         onSuccess: () => {
@@ -226,9 +256,15 @@ return;
 const deleteThematiqueForm = useForm({});
 
 function deleteThematique(thematique: Thematique) {
-    if (!confirm(t('enseignant.index.confirm_delete_thematic', { nom: thematique.nom }))) {
-return;
-}
+    if (
+        !confirm(
+            t('enseignant.index.confirm_delete_thematic', {
+                nom: thematique.nom,
+            }),
+        )
+    ) {
+        return;
+    }
 
     deleteThematiqueForm.delete(`/thematiques/${thematique.id}`);
 }
@@ -248,13 +284,19 @@ function filtrerTemoins(liste: TemoinEnAttente[]): TemoinEnAttente[] {
             `${t.prenom} ${t.nom} ${t.email}`.toLowerCase().includes(texte);
         const matchThematique =
             filtreThematiqueId.value === null ||
-            t.thematiques_choisies.some((th) => th.id === filtreThematiqueId.value);
+            t.thematiques_choisies.some(
+                (th) => th.id === filtreThematiqueId.value,
+            );
         return matchTexte && matchThematique;
     });
 }
 
-const temoinsEnAttenteFiltrés = computed(() => filtrerTemoins(props.temoinsEnAttente));
-const temoinsApprouvésFiltres = computed(() => filtrerTemoins(props.temoinsApprouves));
+const temoinsEnAttenteFiltrés = computed(() =>
+    filtrerTemoins(props.temoinsEnAttente),
+);
+const temoinsApprouvésFiltres = computed(() =>
+    filtrerTemoins(props.temoinsApprouves),
+);
 
 function voirTemoin(temoin: TemoinEnAttente) {
     router.visit(showTemoin.url(temoin.id));
@@ -268,7 +310,11 @@ function formatDateVisio(iso: string): string {
 }
 
 function rejoindreVisio(jitsiRoom: string) {
-    window.open(`https://meet.jit.si/${jitsiRoom}`, '_blank', 'noopener,noreferrer');
+    window.open(
+        `https://meet.jit.si/${jitsiRoom}`,
+        '_blank',
+        'noopener,noreferrer',
+    );
 }
 </script>
 
@@ -290,9 +336,11 @@ function rejoindreVisio(jitsiRoom: string) {
                         class="flex flex-1 cursor-pointer items-center gap-2 text-left select-none"
                         @click="ouvert.cours = !ouvert.cours"
                     >
-                        <CardTitle>{{ $t('enseignant.index.my_courses') }}</CardTitle>
+                        <CardTitle>{{
+                            $t('enseignant.index.my_courses')
+                        }}</CardTitle>
                         <ChevronDown
-                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.cours }"
                         />
                     </button>
@@ -306,12 +354,46 @@ function rejoindreVisio(jitsiRoom: string) {
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="border-b text-left">
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('enseignant.index.table_header_code') }}</th>
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('enseignant.index.table_header_group') }}</th>
-                                    <th class="pb-3 pr-4 font-medium">Session</th>
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('enseignant.index.table_header_course_name') }}</th>
-                                    <th class="pb-3 pr-4 font-medium text-center">{{ $t('enseignant.index.table_header_students') }}</th>
-                                    <th class="pb-3 font-medium">{{ $t('enseignant.index.table_header_actions') }}</th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'enseignant.index.table_header_code',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'enseignant.index.table_header_group',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        Session
+                                    </th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'enseignant.index.table_header_course_name',
+                                            )
+                                        }}
+                                    </th>
+                                    <th
+                                        class="pr-4 pb-3 text-center font-medium"
+                                    >
+                                        {{
+                                            $t(
+                                                'enseignant.index.table_header_students',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'enseignant.index.table_header_actions',
+                                            )
+                                        }}
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -320,11 +402,24 @@ function rejoindreVisio(jitsiRoom: string) {
                                     :key="unCours.id"
                                     class="border-b last:border-0"
                                 >
-                                    <td class="py-3 pr-4 font-mono text-xs">{{ unCours.code }}</td>
-                                    <td class="py-3 pr-4 font-mono text-xs">{{ unCours.groupe }}</td>
-                                    <td class="text-muted-foreground py-3 pr-4 text-xs">{{ sessionLabel(unCours.session) }} {{ unCours.annee }}</td>
-                                    <td class="py-3 pr-4">{{ unCours.nom_cours }}</td>
-                                    <td class="py-3 pr-4 text-center">{{ unCours.etudiants_count }}</td>
+                                    <td class="py-3 pr-4 font-mono text-xs">
+                                        {{ unCours.code }}
+                                    </td>
+                                    <td class="py-3 pr-4 font-mono text-xs">
+                                        {{ unCours.groupe }}
+                                    </td>
+                                    <td
+                                        class="py-3 pr-4 text-xs text-muted-foreground"
+                                    >
+                                        {{ sessionLabel(unCours.session) }}
+                                        {{ unCours.annee }}
+                                    </td>
+                                    <td class="py-3 pr-4">
+                                        {{ unCours.nom_cours }}
+                                    </td>
+                                    <td class="py-3 pr-4 text-center">
+                                        {{ unCours.etudiants_count }}
+                                    </td>
                                     <td class="py-3">
                                         <div class="flex gap-2">
                                             <BoutonTooltip
@@ -333,8 +428,12 @@ function rejoindreVisio(jitsiRoom: string) {
                                                 variant="outline"
                                                 as-child
                                             >
-                                                <Link :href="`/cours/${unCours.id}`">
-                                                    <ExternalLink class="h-4 w-4" />
+                                                <Link
+                                                    :href="`/cours/${unCours.id}`"
+                                                >
+                                                    <ExternalLink
+                                                        class="h-4 w-4"
+                                                    />
                                                 </Link>
                                             </BoutonTooltip>
                                             <BoutonTooltip
@@ -346,13 +445,29 @@ function rejoindreVisio(jitsiRoom: string) {
                                                 <Pencil class="h-4 w-4" />
                                             </BoutonTooltip>
                                             <BoutonTooltip
-                                                :texte="unCours.is_verrouille ? 'Déverrouiller — rendre accessible aux étudiants' : 'Verrouiller — masquer aux étudiants'"
+                                                :texte="
+                                                    unCours.is_verrouille
+                                                        ? 'Déverrouiller — rendre accessible aux étudiants'
+                                                        : 'Verrouiller — masquer aux étudiants'
+                                                "
                                                 size="sm"
-                                                :variant="unCours.is_verrouille ? 'default' : 'outline'"
-                                                @click="toggleVerrouillage(unCours)"
+                                                :variant="
+                                                    unCours.is_verrouille
+                                                        ? 'default'
+                                                        : 'outline'
+                                                "
+                                                @click="
+                                                    toggleVerrouillage(unCours)
+                                                "
                                             >
-                                                <Lock v-if="unCours.is_verrouille" class="h-4 w-4" />
-                                                <Unlock v-else class="h-4 w-4" />
+                                                <Lock
+                                                    v-if="unCours.is_verrouille"
+                                                    class="h-4 w-4"
+                                                />
+                                                <Unlock
+                                                    v-else
+                                                    class="h-4 w-4"
+                                                />
                                             </BoutonTooltip>
                                             <BoutonTooltip
                                                 texte="Supprimer ce cours définitivement"
@@ -366,7 +481,10 @@ function rejoindreVisio(jitsiRoom: string) {
                                     </td>
                                 </tr>
                                 <tr v-if="cours.length === 0">
-                                    <td colspan="6" class="text-muted-foreground py-6 text-center">
+                                    <td
+                                        colspan="6"
+                                        class="py-6 text-center text-muted-foreground"
+                                    >
                                         {{ $t('enseignant.index.no_courses') }}
                                     </td>
                                 </tr>
@@ -385,9 +503,11 @@ function rejoindreVisio(jitsiRoom: string) {
                         @click="ouvert.thematiques = !ouvert.thematiques"
                     >
                         <BookOpen class="h-5 w-5" />
-                        <CardTitle>{{ $t('enseignant.index.my_thematic') }}</CardTitle>
+                        <CardTitle>{{
+                            $t('enseignant.index.my_thematic')
+                        }}</CardTitle>
                         <ChevronDown
-                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.thematiques }"
                         />
                     </button>
@@ -401,10 +521,34 @@ function rejoindreVisio(jitsiRoom: string) {
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="border-b text-left">
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('enseignant.index.table_header_thematic_name') }}</th>
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('enseignant.index.table_header_historical_period') }}</th>
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('enseignant.index.table_header_description') }}</th>
-                                    <th class="pb-3 font-medium">{{ $t('enseignant.index.table_header_actions') }}</th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'enseignant.index.table_header_thematic_name',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'enseignant.index.table_header_historical_period',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'enseignant.index.table_header_description',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'enseignant.index.table_header_actions',
+                                            )
+                                        }}
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -413,11 +557,17 @@ function rejoindreVisio(jitsiRoom: string) {
                                     :key="thematique.id"
                                     class="border-b last:border-0"
                                 >
-                                    <td class="py-3 pr-4 font-medium">{{ thematique.nom }}</td>
-                                    <td class="py-3 pr-4 text-muted-foreground">
-                                        {{ thematique.periode_historique ?? '—' }}
+                                    <td class="py-3 pr-4 font-medium">
+                                        {{ thematique.nom }}
                                     </td>
-                                    <td class="text-muted-foreground max-w-xs truncate py-3 pr-4">
+                                    <td class="py-3 pr-4 text-muted-foreground">
+                                        {{
+                                            thematique.periode_historique ?? '—'
+                                        }}
+                                    </td>
+                                    <td
+                                        class="max-w-xs truncate py-3 pr-4 text-muted-foreground"
+                                    >
                                         {{ thematique.description ?? '—' }}
                                     </td>
                                     <td class="py-3">
@@ -426,7 +576,11 @@ function rejoindreVisio(jitsiRoom: string) {
                                                 texte="Modifier cette thématique"
                                                 size="sm"
                                                 variant="outline"
-                                                @click="openEditThematique(thematique)"
+                                                @click="
+                                                    openEditThematique(
+                                                        thematique,
+                                                    )
+                                                "
                                             >
                                                 <Pencil class="h-4 w-4" />
                                             </BoutonTooltip>
@@ -434,7 +588,9 @@ function rejoindreVisio(jitsiRoom: string) {
                                                 texte="Supprimer cette thématique"
                                                 size="sm"
                                                 variant="destructive"
-                                                @click="deleteThematique(thematique)"
+                                                @click="
+                                                    deleteThematique(thematique)
+                                                "
                                             >
                                                 <Trash2 class="h-4 w-4" />
                                             </BoutonTooltip>
@@ -442,7 +598,10 @@ function rejoindreVisio(jitsiRoom: string) {
                                     </td>
                                 </tr>
                                 <tr v-if="thematiques.length === 0">
-                                    <td colspan="4" class="text-muted-foreground py-6 text-center">
+                                    <td
+                                        colspan="4"
+                                        class="py-6 text-center text-muted-foreground"
+                                    >
                                         {{ $t('enseignant.index.no_thematic') }}
                                     </td>
                                 </tr>
@@ -460,26 +619,39 @@ function rejoindreVisio(jitsiRoom: string) {
                         @click="ouvert.temoins = !ouvert.temoins"
                     >
                         <Users class="h-5 w-5" />
-                        <CardTitle>{{ $t('administration.index.temoins_table') }}</CardTitle>
+                        <CardTitle>{{
+                            $t('administration.index.temoins_table')
+                        }}</CardTitle>
                         <ChevronDown
-                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.temoins }"
                         />
                     </button>
                     <!-- Toggle afficher approuvés -->
-                    <label class="flex cursor-pointer items-center gap-2 text-sm" @click.stop>
-                        <span class="text-muted-foreground">{{ $t('enseignant.index.temoins_show_approved') }}</span>
+                    <label
+                        class="flex cursor-pointer items-center gap-2 text-sm"
+                        @click.stop
+                    >
+                        <span class="text-muted-foreground">{{
+                            $t('enseignant.index.temoins_show_approved')
+                        }}</span>
                         <button
                             type="button"
                             role="switch"
                             :aria-checked="afficherApprouves"
-                            class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                            :class="afficherApprouves ? 'bg-primary' : 'bg-input'"
+                            class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                            :class="
+                                afficherApprouves ? 'bg-primary' : 'bg-input'
+                            "
                             @click.stop="afficherApprouves = !afficherApprouves"
                         >
                             <span
                                 class="inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform"
-                                :class="afficherApprouves ? 'translate-x-5' : 'translate-x-1'"
+                                :class="
+                                    afficherApprouves
+                                        ? 'translate-x-5'
+                                        : 'translate-x-1'
+                                "
                             />
                         </button>
                     </label>
@@ -487,20 +659,36 @@ function rejoindreVisio(jitsiRoom: string) {
                 <CardContent v-show="ouvert.temoins">
                     <!-- Barre de filtre -->
                     <div class="mb-4 flex flex-wrap gap-3">
-                        <div class="relative flex-1 min-w-48">
-                            <Search class="text-muted-foreground absolute left-2.5 top-2.5 h-4 w-4" />
+                        <div class="relative min-w-48 flex-1">
+                            <Search
+                                class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground"
+                            />
                             <Input
                                 v-model="rechercheTexte"
                                 class="pl-8"
-                                :placeholder="$t('enseignant.index.temoins_filter_search_placeholder')"
+                                :placeholder="
+                                    $t(
+                                        'enseignant.index.temoins_filter_search_placeholder',
+                                    )
+                                "
                             />
                         </div>
                         <select
                             v-model="filtreThematiqueId"
-                            class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus:ring-ring h-10 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
+                            class="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none"
                         >
-                            <option :value="null">{{ $t('enseignant.index.temoins_filter_all_thematiques') }}</option>
-                            <option v-for="th in props.thematiques" :key="th.id" :value="th.id">
+                            <option :value="null">
+                                {{
+                                    $t(
+                                        'enseignant.index.temoins_filter_all_thematiques',
+                                    )
+                                }}
+                            </option>
+                            <option
+                                v-for="th in props.thematiques"
+                                :key="th.id"
+                                :value="th.id"
+                            >
                                 {{ th.nom }}
                             </option>
                         </select>
@@ -511,32 +699,80 @@ function rejoindreVisio(jitsiRoom: string) {
                         <table v-if="!afficherApprouves" class="w-full text-sm">
                             <thead>
                                 <tr class="border-b text-left">
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.temoins_header_first_name') }}</th>
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.temoins_header_last_name') }}</th>
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.temoins_header_email') }}</th>
-                                    <th class="pb-3 font-medium">{{ $t('administration.index.temoins_header_theme') }}</th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'administration.index.temoins_header_first_name',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'administration.index.temoins_header_last_name',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'administration.index.temoins_header_email',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'administration.index.temoins_header_theme',
+                                            )
+                                        }}
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr
                                     v-for="temoin in temoinsEnAttenteFiltrés"
                                     :key="temoin.id"
-                                    class="hover:bg-muted/50 cursor-pointer border-b last:border-0"
+                                    class="cursor-pointer border-b last:border-0 hover:bg-muted/50"
                                     @click="voirTemoin(temoin)"
                                 >
-                                    <td class="py-3 pr-4">{{ temoin.prenom }}</td>
+                                    <td class="py-3 pr-4">
+                                        {{ temoin.prenom }}
+                                    </td>
                                     <td class="py-3 pr-4">{{ temoin.nom }}</td>
-                                    <td class="text-muted-foreground py-3 pr-4">{{ temoin.email }}</td>
+                                    <td class="py-3 pr-4 text-muted-foreground">
+                                        {{ temoin.email }}
+                                    </td>
                                     <td class="py-3">
-                                        <span v-if="temoin.thematiques_choisies.length">
-                                            {{ temoin.thematiques_choisies.map(th => th.nom).join(', ') }}
+                                        <span
+                                            v-if="
+                                                temoin.thematiques_choisies
+                                                    .length
+                                            "
+                                        >
+                                            {{
+                                                temoin.thematiques_choisies
+                                                    .map((th) => th.nom)
+                                                    .join(', ')
+                                            }}
                                         </span>
-                                        <span v-else class="text-muted-foreground">—</span>
+                                        <span
+                                            v-else
+                                            class="text-muted-foreground"
+                                            >—</span
+                                        >
                                     </td>
                                 </tr>
                                 <tr v-if="temoinsEnAttenteFiltrés.length === 0">
-                                    <td colspan="4" class="text-muted-foreground py-6 text-center">
-                                        {{ $t('administration.index.temoins_no_pending') }}
+                                    <td
+                                        colspan="4"
+                                        class="py-6 text-center text-muted-foreground"
+                                    >
+                                        {{
+                                            $t(
+                                                'administration.index.temoins_no_pending',
+                                            )
+                                        }}
                                     </td>
                                 </tr>
                             </tbody>
@@ -546,32 +782,80 @@ function rejoindreVisio(jitsiRoom: string) {
                         <table v-else class="w-full text-sm">
                             <thead>
                                 <tr class="border-b text-left">
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.temoins_header_first_name') }}</th>
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.temoins_header_last_name') }}</th>
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('administration.index.temoins_header_email') }}</th>
-                                    <th class="pb-3 font-medium">{{ $t('administration.index.temoins_header_theme') }}</th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'administration.index.temoins_header_first_name',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'administration.index.temoins_header_last_name',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'administration.index.temoins_header_email',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'administration.index.temoins_header_theme',
+                                            )
+                                        }}
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr
                                     v-for="temoin in temoinsApprouvésFiltres"
                                     :key="temoin.id"
-                                    class="hover:bg-muted/50 cursor-pointer border-b last:border-0"
+                                    class="cursor-pointer border-b last:border-0 hover:bg-muted/50"
                                     @click="voirTemoin(temoin)"
                                 >
-                                    <td class="py-3 pr-4">{{ temoin.prenom }}</td>
+                                    <td class="py-3 pr-4">
+                                        {{ temoin.prenom }}
+                                    </td>
                                     <td class="py-3 pr-4">{{ temoin.nom }}</td>
-                                    <td class="text-muted-foreground py-3 pr-4">{{ temoin.email }}</td>
+                                    <td class="py-3 pr-4 text-muted-foreground">
+                                        {{ temoin.email }}
+                                    </td>
                                     <td class="py-3">
-                                        <span v-if="temoin.thematiques_choisies.length">
-                                            {{ temoin.thematiques_choisies.map(th => th.nom).join(', ') }}
+                                        <span
+                                            v-if="
+                                                temoin.thematiques_choisies
+                                                    .length
+                                            "
+                                        >
+                                            {{
+                                                temoin.thematiques_choisies
+                                                    .map((th) => th.nom)
+                                                    .join(', ')
+                                            }}
                                         </span>
-                                        <span v-else class="text-muted-foreground">—</span>
+                                        <span
+                                            v-else
+                                            class="text-muted-foreground"
+                                            >—</span
+                                        >
                                     </td>
                                 </tr>
                                 <tr v-if="temoinsApprouvésFiltres.length === 0">
-                                    <td colspan="4" class="text-muted-foreground py-6 text-center">
-                                        {{ $t('enseignant.index.temoins_no_approved') }}
+                                    <td
+                                        colspan="4"
+                                        class="py-6 text-center text-muted-foreground"
+                                    >
+                                        {{
+                                            $t(
+                                                'enseignant.index.temoins_no_approved',
+                                            )
+                                        }}
                                     </td>
                                 </tr>
                             </tbody>
@@ -589,9 +873,11 @@ function rejoindreVisio(jitsiRoom: string) {
                         @click="ouvert.travaux = !ouvert.travaux"
                     >
                         <Send class="h-5 w-5" />
-                        <CardTitle>{{ $t('enseignant.index.recent_submissions') }}</CardTitle>
+                        <CardTitle>{{
+                            $t('enseignant.index.recent_submissions')
+                        }}</CardTitle>
                         <ChevronDown
-                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.travaux }"
                         />
                     </button>
@@ -601,11 +887,41 @@ function rejoindreVisio(jitsiRoom: string) {
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="border-b text-left">
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('enseignant.index.table_header_group_name') }}</th>
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('enseignant.index.table_header_project_title') }}</th>
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('enseignant.index.table_header_members') }}</th>
-                                    <th class="pb-3 pr-4 font-medium">{{ $t('enseignant.index.table_header_submitted_at') }}</th>
-                                    <th class="pb-3 font-medium">{{ $t('enseignant.index.table_header_actions') }}</th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'enseignant.index.table_header_group_name',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'enseignant.index.table_header_project_title',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'enseignant.index.table_header_members',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'enseignant.index.table_header_submitted_at',
+                                            )
+                                        }}
+                                    </th>
+                                    <th class="pb-3 font-medium">
+                                        {{
+                                            $t(
+                                                'enseignant.index.table_header_actions',
+                                            )
+                                        }}
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -614,15 +930,32 @@ function rejoindreVisio(jitsiRoom: string) {
                                     :key="travail.id"
                                     class="border-b last:border-0"
                                 >
-                                    <td class="py-3 pr-4 font-medium">{{ $t('classes.groupes.group_number', { n: travail.classe.numero }) }}</td>
-                                    <td class="text-muted-foreground py-3 pr-4">
+                                    <td class="py-3 pr-4 font-medium">
+                                        {{
+                                            $t('classes.groupes.group_number', {
+                                                n: travail.classe.numero,
+                                            })
+                                        }}
+                                    </td>
+                                    <td class="py-3 pr-4 text-muted-foreground">
                                         {{ travail.titre_projet ?? '—' }}
                                     </td>
-                                    <td class="text-muted-foreground py-3 pr-4">
-                                        {{ travail.membres.map(m => `${m.prenom} ${m.nom}`).join(', ') }}
+                                    <td class="py-3 pr-4 text-muted-foreground">
+                                        {{
+                                            travail.membres
+                                                .map(
+                                                    (m) =>
+                                                        `${m.prenom} ${m.nom}`,
+                                                )
+                                                .join(', ')
+                                        }}
                                     </td>
                                     <td class="py-3 pr-4 tabular-nums">
-                                        {{ new Date(travail.remis_le).toLocaleDateString() }}
+                                        {{
+                                            new Date(
+                                                travail.remis_le,
+                                            ).toLocaleDateString()
+                                        }}
                                     </td>
                                     <td class="py-3">
                                         <BoutonTooltip
@@ -631,16 +964,29 @@ function rejoindreVisio(jitsiRoom: string) {
                                             variant="outline"
                                             as-child
                                         >
-                                            <Link :href="`/cours/${travail.classe.cours_id}/classes/${travail.classe.id}/projets`">
+                                            <Link
+                                                :href="`/cours/${travail.classe.cours_id}/classes/${travail.classe.id}/projets`"
+                                            >
                                                 <ExternalLink class="h-4 w-4" />
-                                                {{ $t('enseignant.index.view_project') }}
+                                                {{
+                                                    $t(
+                                                        'enseignant.index.view_project',
+                                                    )
+                                                }}
                                             </Link>
                                         </BoutonTooltip>
                                     </td>
                                 </tr>
                                 <tr v-if="travauxRemis.length === 0">
-                                    <td colspan="5" class="text-muted-foreground py-6 text-center">
-                                        {{ $t('enseignant.index.no_submissions') }}
+                                    <td
+                                        colspan="5"
+                                        class="py-6 text-center text-muted-foreground"
+                                    >
+                                        {{
+                                            $t(
+                                                'enseignant.index.no_submissions',
+                                            )
+                                        }}
                                     </td>
                                 </tr>
                             </tbody>
@@ -660,7 +1006,7 @@ function rejoindreVisio(jitsiRoom: string) {
                         <Video class="h-5 w-5" />
                         <CardTitle>Prochaines visioconférences</CardTitle>
                         <ChevronDown
-                            class="text-muted-foreground h-4 w-4 transition-transform"
+                            class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.visios }"
                         />
                     </button>
@@ -670,10 +1016,12 @@ function rejoindreVisio(jitsiRoom: string) {
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="border-b text-left">
-                                    <th class="pb-3 pr-4 font-medium">Titre</th>
-                                    <th class="pb-3 pr-4 font-medium">Cours</th>
-                                    <th class="pb-3 pr-4 font-medium">Groupe</th>
-                                    <th class="pb-3 pr-4 font-medium">Date</th>
+                                    <th class="pr-4 pb-3 font-medium">Titre</th>
+                                    <th class="pr-4 pb-3 font-medium">Cours</th>
+                                    <th class="pr-4 pb-3 font-medium">
+                                        Groupe
+                                    </th>
+                                    <th class="pr-4 pb-3 font-medium">Date</th>
                                     <th class="pb-3 font-medium"></th>
                                 </tr>
                             </thead>
@@ -683,25 +1031,45 @@ function rejoindreVisio(jitsiRoom: string) {
                                     :key="visio.id"
                                     class="border-b last:border-0"
                                 >
-                                    <td class="py-3 pr-4 font-medium">{{ visio.titre }}</td>
-                                    <td class="py-3 pr-4 text-muted-foreground">
-                                        <span class="font-mono text-xs">{{ visio.cours.code }}-{{ visio.cours.groupe }}</span>
-                                        <span class="ml-1">{{ visio.cours.nom_cours }}</span>
+                                    <td class="py-3 pr-4 font-medium">
+                                        {{ visio.titre }}
                                     </td>
                                     <td class="py-3 pr-4 text-muted-foreground">
-                                        {{ visio.groupe_numero ? `Groupe ${visio.groupe_numero}` : 'Tous les groupes' }}
+                                        <span class="font-mono text-xs"
+                                            >{{ visio.cours.code }}-{{
+                                                visio.cours.groupe
+                                            }}</span
+                                        >
+                                        <span class="ml-1">{{
+                                            visio.cours.nom_cours
+                                        }}</span>
+                                    </td>
+                                    <td class="py-3 pr-4 text-muted-foreground">
+                                        {{
+                                            visio.groupe_numero
+                                                ? `Groupe ${visio.groupe_numero}`
+                                                : 'Tous les groupes'
+                                        }}
                                     </td>
                                     <td class="py-3 pr-4 tabular-nums">
                                         <span class="flex items-center gap-1">
-                                            <Calendar class="h-3.5 w-3.5 text-muted-foreground" />
-                                            {{ formatDateVisio(visio.scheduled_at) }}
+                                            <Calendar
+                                                class="h-3.5 w-3.5 text-muted-foreground"
+                                            />
+                                            {{
+                                                formatDateVisio(
+                                                    visio.scheduled_at,
+                                                )
+                                            }}
                                         </span>
                                     </td>
                                     <td class="py-3">
                                         <Button
                                             v-if="visio.started_at"
                                             size="sm"
-                                            @click="rejoindreVisio(visio.jitsi_room)"
+                                            @click="
+                                                rejoindreVisio(visio.jitsi_room)
+                                            "
                                         >
                                             <Video class="mr-1.5 h-4 w-4" />
                                             Rejoindre
@@ -725,13 +1093,29 @@ function rejoindreVisio(jitsiRoom: string) {
         >
             <div class="grid grid-cols-2 gap-4">
                 <div class="grid gap-2">
-                    <Label for="code">{{ $t('enseignant.index.modal_course_code') }}</Label>
-                    <Input id="code" v-model="coursForm.code" :placeholder="$t('enseignant.index.modal_course_code_placeholder')" />
+                    <Label for="code">{{
+                        $t('enseignant.index.modal_course_code')
+                    }}</Label>
+                    <Input
+                        id="code"
+                        v-model="coursForm.code"
+                        :placeholder="
+                            $t('enseignant.index.modal_course_code_placeholder')
+                        "
+                    />
                     <InputError :message="coursForm.errors.code" />
                 </div>
                 <div class="grid gap-2">
-                    <Label for="groupe">{{ $t('enseignant.index.modal_group') }}</Label>
-                    <Input id="groupe" v-model="coursForm.groupe" :placeholder="$t('enseignant.index.modal_group_placeholder')" />
+                    <Label for="groupe">{{
+                        $t('enseignant.index.modal_group')
+                    }}</Label>
+                    <Input
+                        id="groupe"
+                        v-model="coursForm.groupe"
+                        :placeholder="
+                            $t('enseignant.index.modal_group_placeholder')
+                        "
+                    />
                     <InputError :message="coursForm.errors.groupe" />
                 </div>
             </div>
@@ -752,30 +1136,59 @@ function rejoindreVisio(jitsiRoom: string) {
                 </div>
                 <div class="grid gap-2">
                     <Label>Année</Label>
-                    <Input v-model.number="coursForm.annee" type="number" min="2000" max="2100" placeholder="2026" />
+                    <Input
+                        v-model.number="coursForm.annee"
+                        type="number"
+                        min="2000"
+                        max="2100"
+                        placeholder="2026"
+                    />
                     <InputError :message="coursForm.errors.annee" />
                 </div>
             </div>
             <div class="grid gap-2">
-                <Label for="nom_cours">{{ $t('enseignant.index.modal_course_name') }}</Label>
-                <Input id="nom_cours" v-model="coursForm.nom_cours" :placeholder="$t('enseignant.index.modal_course_name_placeholder')" />
+                <Label for="nom_cours">{{
+                    $t('enseignant.index.modal_course_name')
+                }}</Label>
+                <Input
+                    id="nom_cours"
+                    v-model="coursForm.nom_cours"
+                    :placeholder="
+                        $t('enseignant.index.modal_course_name_placeholder')
+                    "
+                />
                 <InputError :message="coursForm.errors.nom_cours" />
             </div>
             <div class="grid gap-2">
-                <Label for="description">{{ $t('enseignant.index.modal_description') }}</Label>
-                <Input id="description" v-model="coursForm.description" :placeholder="$t('enseignant.index.modal_description_placeholder')" />
+                <Label for="description">{{
+                    $t('enseignant.index.modal_description')
+                }}</Label>
+                <Input
+                    id="description"
+                    v-model="coursForm.description"
+                    :placeholder="
+                        $t('enseignant.index.modal_description_placeholder')
+                    "
+                />
                 <InputError :message="coursForm.errors.description" />
             </div>
             <div class="grid gap-2">
                 <Label>Niveau du cours</Label>
-                <Select :model-value="coursForm.type_cours" @update:model-value="onTypeCoursCree">
+                <Select
+                    :model-value="coursForm.type_cours"
+                    @update:model-value="onTypeCoursCree"
+                >
                     <SelectTrigger>
                         <SelectValue placeholder="Choisir un niveau…" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="dep">DEP</SelectItem>
-                        <SelectItem value="cours_complementaire">Cours complémentaire</SelectItem>
-                        <SelectItem value="cours_complet">Cours complet</SelectItem>
+                        <SelectItem value="cours_complementaire"
+                            >Cours complémentaire</SelectItem
+                        >
+                        <SelectItem value="cours_complet"
+                            >Cours complet</SelectItem
+                        >
                     </SelectContent>
                 </Select>
                 <InputError :message="coursForm.errors.type_cours" />
@@ -785,27 +1198,49 @@ function rejoindreVisio(jitsiRoom: string) {
             <div
                 v-if="coursForm.type_cours === 'cours_complet'"
                 class="cursor-pointer rounded-md border p-3"
-                :class="coursForm.utiliser_gabarit ? 'border-primary bg-primary/5' : 'border-border'"
-                @click="coursForm.utiliser_gabarit = !coursForm.utiliser_gabarit"
+                :class="
+                    coursForm.utiliser_gabarit
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border'
+                "
+                @click="
+                    coursForm.utiliser_gabarit = !coursForm.utiliser_gabarit
+                "
             >
                 <div class="flex items-start gap-3">
                     <button
                         type="button"
                         role="switch"
                         :aria-checked="coursForm.utiliser_gabarit"
-                        class="relative mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                        :class="coursForm.utiliser_gabarit ? 'bg-primary' : 'bg-input'"
-                        @click.stop="coursForm.utiliser_gabarit = !coursForm.utiliser_gabarit"
+                        class="relative mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                        :class="
+                            coursForm.utiliser_gabarit
+                                ? 'bg-primary'
+                                : 'bg-input'
+                        "
+                        @click.stop="
+                            coursForm.utiliser_gabarit =
+                                !coursForm.utiliser_gabarit
+                        "
                     >
                         <span
                             class="inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform"
-                            :class="coursForm.utiliser_gabarit ? 'translate-x-5' : 'translate-x-1'"
+                            :class="
+                                coursForm.utiliser_gabarit
+                                    ? 'translate-x-5'
+                                    : 'translate-x-1'
+                            "
                         />
                     </button>
                     <div class="grid gap-0.5">
-                        <span class="text-sm font-medium leading-none">Créer avec le gabarit</span>
-                        <span class="text-muted-foreground text-xs">
-                            Pré-remplit le cours avec les types de projets (plan de travail, schéma d'entrevue, projet de recherche), l'échéancier sur 13 semaines et les objectifs pédagogiques.
+                        <span class="text-sm leading-none font-medium"
+                            >Créer avec le gabarit</span
+                        >
+                        <span class="text-xs text-muted-foreground">
+                            Pré-remplit le cours avec les types de projets (plan
+                            de travail, schéma d'entrevue, projet de recherche),
+                            l'échéancier sur 13 semaines et les objectifs
+                            pédagogiques.
                         </span>
                     </div>
                 </div>
@@ -814,12 +1249,24 @@ function rejoindreVisio(jitsiRoom: string) {
             <div class="grid grid-cols-2 gap-4">
                 <div class="grid gap-2">
                     <Label>Taille équipe min.</Label>
-                    <Input v-model.number="coursForm.taille_equipe_min" type="number" min="1" max="20" placeholder="—" />
+                    <Input
+                        v-model.number="coursForm.taille_equipe_min"
+                        type="number"
+                        min="1"
+                        max="20"
+                        placeholder="—"
+                    />
                     <InputError :message="coursForm.errors.taille_equipe_min" />
                 </div>
                 <div class="grid gap-2">
                     <Label>Taille équipe max.</Label>
-                    <Input v-model.number="coursForm.taille_equipe_max" type="number" min="1" max="20" placeholder="—" />
+                    <Input
+                        v-model.number="coursForm.taille_equipe_max"
+                        type="number"
+                        min="1"
+                        max="20"
+                        placeholder="—"
+                    />
                     <InputError :message="coursForm.errors.taille_equipe_max" />
                 </div>
             </div>
@@ -834,13 +1281,25 @@ function rejoindreVisio(jitsiRoom: string) {
         >
             <div class="grid grid-cols-2 gap-4">
                 <div class="grid gap-2">
-                    <Label>{{ $t('enseignant.index.modal_course_code') }}</Label>
-                    <Input v-model="coursForm.code" :placeholder="$t('enseignant.index.modal_course_code_placeholder')" />
+                    <Label>{{
+                        $t('enseignant.index.modal_course_code')
+                    }}</Label>
+                    <Input
+                        v-model="coursForm.code"
+                        :placeholder="
+                            $t('enseignant.index.modal_course_code_placeholder')
+                        "
+                    />
                     <InputError :message="coursForm.errors.code" />
                 </div>
                 <div class="grid gap-2">
                     <Label>{{ $t('enseignant.index.modal_group') }}</Label>
-                    <Input v-model="coursForm.groupe" :placeholder="$t('enseignant.index.modal_group_placeholder')" />
+                    <Input
+                        v-model="coursForm.groupe"
+                        :placeholder="
+                            $t('enseignant.index.modal_group_placeholder')
+                        "
+                    />
                     <InputError :message="coursForm.errors.groupe" />
                 </div>
             </div>
@@ -861,18 +1320,34 @@ function rejoindreVisio(jitsiRoom: string) {
                 </div>
                 <div class="grid gap-2">
                     <Label>Année</Label>
-                    <Input v-model.number="coursForm.annee" type="number" min="2000" max="2100" placeholder="2026" />
+                    <Input
+                        v-model.number="coursForm.annee"
+                        type="number"
+                        min="2000"
+                        max="2100"
+                        placeholder="2026"
+                    />
                     <InputError :message="coursForm.errors.annee" />
                 </div>
             </div>
             <div class="grid gap-2">
                 <Label>{{ $t('enseignant.index.modal_course_name') }}</Label>
-                <Input v-model="coursForm.nom_cours" :placeholder="$t('enseignant.index.modal_course_name_placeholder')" />
+                <Input
+                    v-model="coursForm.nom_cours"
+                    :placeholder="
+                        $t('enseignant.index.modal_course_name_placeholder')
+                    "
+                />
                 <InputError :message="coursForm.errors.nom_cours" />
             </div>
             <div class="grid gap-2">
                 <Label>{{ $t('enseignant.index.modal_description') }}</Label>
-                <Input v-model="coursForm.description" :placeholder="$t('enseignant.index.modal_description_placeholder')" />
+                <Input
+                    v-model="coursForm.description"
+                    :placeholder="
+                        $t('enseignant.index.modal_description_placeholder')
+                    "
+                />
                 <InputError :message="coursForm.errors.description" />
             </div>
             <div class="grid gap-2">
@@ -883,8 +1358,12 @@ function rejoindreVisio(jitsiRoom: string) {
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="dep">DEP</SelectItem>
-                        <SelectItem value="cours_complementaire">Cours complémentaire</SelectItem>
-                        <SelectItem value="cours_complet">Cours complet</SelectItem>
+                        <SelectItem value="cours_complementaire"
+                            >Cours complémentaire</SelectItem
+                        >
+                        <SelectItem value="cours_complet"
+                            >Cours complet</SelectItem
+                        >
                     </SelectContent>
                 </Select>
                 <InputError :message="coursForm.errors.type_cours" />
@@ -892,12 +1371,24 @@ function rejoindreVisio(jitsiRoom: string) {
             <div class="grid grid-cols-2 gap-4">
                 <div class="grid gap-2">
                     <Label>Taille équipe min.</Label>
-                    <Input v-model.number="coursForm.taille_equipe_min" type="number" min="1" max="20" placeholder="—" />
+                    <Input
+                        v-model.number="coursForm.taille_equipe_min"
+                        type="number"
+                        min="1"
+                        max="20"
+                        placeholder="—"
+                    />
                     <InputError :message="coursForm.errors.taille_equipe_min" />
                 </div>
                 <div class="grid gap-2">
                     <Label>Taille équipe max.</Label>
-                    <Input v-model.number="coursForm.taille_equipe_max" type="number" min="1" max="20" placeholder="—" />
+                    <Input
+                        v-model.number="coursForm.taille_equipe_max"
+                        type="number"
+                        min="1"
+                        max="20"
+                        placeholder="—"
+                    />
                     <InputError :message="coursForm.errors.taille_equipe_max" />
                 </div>
             </div>
@@ -912,18 +1403,48 @@ function rejoindreVisio(jitsiRoom: string) {
             @submit="submitCreateThematique"
         >
             <div class="grid gap-2">
-                <Label for="nom-theme">{{ $t('enseignant.index.modal_thematic_name') }}</Label>
-                <Input id="nom-theme" v-model="thematiqueForm.nom" :placeholder="$t('enseignant.index.modal_thematic_name_placeholder')" />
+                <Label for="nom-theme">{{
+                    $t('enseignant.index.modal_thematic_name')
+                }}</Label>
+                <Input
+                    id="nom-theme"
+                    v-model="thematiqueForm.nom"
+                    :placeholder="
+                        $t('enseignant.index.modal_thematic_name_placeholder')
+                    "
+                />
                 <InputError :message="thematiqueForm.errors.nom" />
             </div>
             <div class="grid gap-2">
-                <Label for="periode">{{ $t('enseignant.index.modal_historical_period') }}</Label>
-                <Input id="periode" v-model="thematiqueForm.periode_historique" :placeholder="$t('enseignant.index.modal_historical_period_placeholder')" />
-                <InputError :message="thematiqueForm.errors.periode_historique" />
+                <Label for="periode">{{
+                    $t('enseignant.index.modal_historical_period')
+                }}</Label>
+                <Input
+                    id="periode"
+                    v-model="thematiqueForm.periode_historique"
+                    :placeholder="
+                        $t(
+                            'enseignant.index.modal_historical_period_placeholder',
+                        )
+                    "
+                />
+                <InputError
+                    :message="thematiqueForm.errors.periode_historique"
+                />
             </div>
             <div class="grid gap-2">
-                <Label for="desc-theme">{{ $t('enseignant.index.modal_thematic_description') }}</Label>
-                <Input id="desc-theme" v-model="thematiqueForm.description" :placeholder="$t('enseignant.index.modal_thematic_description_placeholder')" />
+                <Label for="desc-theme">{{
+                    $t('enseignant.index.modal_thematic_description')
+                }}</Label>
+                <Input
+                    id="desc-theme"
+                    v-model="thematiqueForm.description"
+                    :placeholder="
+                        $t(
+                            'enseignant.index.modal_thematic_description_placeholder',
+                        )
+                    "
+                />
                 <InputError :message="thematiqueForm.errors.description" />
             </div>
         </FormDialog>
@@ -937,17 +1458,42 @@ function rejoindreVisio(jitsiRoom: string) {
         >
             <div class="grid gap-2">
                 <Label>{{ $t('enseignant.index.modal_thematic_name') }}</Label>
-                <Input v-model="thematiqueForm.nom" :placeholder="$t('enseignant.index.modal_thematic_name_placeholder')" />
+                <Input
+                    v-model="thematiqueForm.nom"
+                    :placeholder="
+                        $t('enseignant.index.modal_thematic_name_placeholder')
+                    "
+                />
                 <InputError :message="thematiqueForm.errors.nom" />
             </div>
             <div class="grid gap-2">
-                <Label>{{ $t('enseignant.index.modal_historical_period') }}</Label>
-                <Input v-model="thematiqueForm.periode_historique" :placeholder="$t('enseignant.index.modal_historical_period_placeholder')" />
-                <InputError :message="thematiqueForm.errors.periode_historique" />
+                <Label>{{
+                    $t('enseignant.index.modal_historical_period')
+                }}</Label>
+                <Input
+                    v-model="thematiqueForm.periode_historique"
+                    :placeholder="
+                        $t(
+                            'enseignant.index.modal_historical_period_placeholder',
+                        )
+                    "
+                />
+                <InputError
+                    :message="thematiqueForm.errors.periode_historique"
+                />
             </div>
             <div class="grid gap-2">
-                <Label>{{ $t('enseignant.index.modal_thematic_description') }}</Label>
-                <Input v-model="thematiqueForm.description" :placeholder="$t('enseignant.index.modal_thematic_description_placeholder')" />
+                <Label>{{
+                    $t('enseignant.index.modal_thematic_description')
+                }}</Label>
+                <Input
+                    v-model="thematiqueForm.description"
+                    :placeholder="
+                        $t(
+                            'enseignant.index.modal_thematic_description_placeholder',
+                        )
+                    "
+                />
                 <InputError :message="thematiqueForm.errors.description" />
             </div>
         </FormDialog>

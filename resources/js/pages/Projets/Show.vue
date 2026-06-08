@@ -28,7 +28,15 @@ import {
     Users,
     XCircle,
 } from 'lucide-vue-next';
-import { computed, nextTick, onMounted, provide, reactive, ref, watch } from 'vue';
+import {
+    computed,
+    nextTick,
+    onMounted,
+    provide,
+    reactive,
+    ref,
+    watch,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 import AntidoteGlobalModal from '@/components/AntidoteGlobalModal.vue';
 import type { GlobalSection } from '@/components/AntidoteGlobalModal.vue';
@@ -48,7 +56,12 @@ import RichEditor from '@/components/RichEditor.vue';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogHeader, DialogScrollContent, DialogTitle } from '@/components/ui/dialog';
+import {
+    Dialog,
+    DialogHeader,
+    DialogScrollContent,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -130,9 +143,25 @@ type VoteRemise = {
     vote: boolean;
 };
 
-type GrilleCriterePersonnalisee = { id: number; label: string; ponderation: number; ordre: number };
-type GrilleMalusPersonnalisee = { id: number; label: string; deduction: number; description: string | null; ordre: number };
-type GrillePersonnalisee = { id: number; nom: string; criteres: GrilleCriterePersonnalisee[]; malus: GrilleMalusPersonnalisee[] };
+type GrilleCriterePersonnalisee = {
+    id: number;
+    label: string;
+    ponderation: number;
+    ordre: number;
+};
+type GrilleMalusPersonnalisee = {
+    id: number;
+    label: string;
+    deduction: number;
+    description: string | null;
+    ordre: number;
+};
+type GrillePersonnalisee = {
+    id: number;
+    nom: string;
+    criteres: GrilleCriterePersonnalisee[];
+    malus: GrilleMalusPersonnalisee[];
+};
 
 type SectionParagraphe = {
     id: number;
@@ -218,7 +247,16 @@ type Section = {
     label: string;
     description: string | null;
     ordre: number;
-    type: 'texte' | 'paragraphes' | 'individuel' | 'entrevue' | 'video' | 'audio' | 'choix_questions' | 'tache' | 'schema_visuel';
+    type:
+        | 'texte'
+        | 'paragraphes'
+        | 'individuel'
+        | 'entrevue'
+        | 'video'
+        | 'audio'
+        | 'choix_questions'
+        | 'tache'
+        | 'schema_visuel';
     contenu: string | null;
     paragraphes: SectionParagraphe[] | null;
     conclusionsParMembre: SectionConclusionMembre[] | null;
@@ -249,7 +287,13 @@ type MesReference = {
 type Props = {
     groupe: Groupe;
     classe: Classe;
-    cours: { id: number; nom_cours: string; code: string; groupe: string; type_cours: string };
+    cours: {
+        id: number;
+        nom_cours: string;
+        code: string;
+        groupe: string;
+        type_cours: string;
+    };
     enseignant: Enseignant;
     membres: Etudiant[];
     projet: Projet;
@@ -344,21 +388,29 @@ const sectionConceptsLocaux = reactive<Record<number, EntrevueConcept[]>>(
                 s.id,
                 (s.concepts ?? []).map((c) => ({
                     ...c,
-                    lignes: c.lignes.map((l) => ({ ...l, questions: [...(l.questions ?? [])] })),
+                    lignes: c.lignes.map((l) => ({
+                        ...l,
+                        questions: [...(l.questions ?? [])],
+                    })),
                 })),
             ]),
     ),
 );
 
 // Conclusions par section pour les sections de type 'individuel' (clé : sectionId → userId)
-const sectionConclusionsLocales = reactive<Record<number, Record<number, string>>>(
+const sectionConclusionsLocales = reactive<
+    Record<number, Record<number, string>>
+>(
     Object.fromEntries(
         props.sections
             .filter((s) => s.type === 'individuel')
             .map((s) => [
                 s.id,
                 Object.fromEntries(
-                    (s.conclusionsParMembre ?? []).map((c) => [c.userId, c.contenu ?? '']),
+                    (s.conclusionsParMembre ?? []).map((c) => [
+                        c.userId,
+                        c.contenu ?? '',
+                    ]),
                 ),
             ]),
     ),
@@ -474,7 +526,10 @@ function scheduleSectionSave(sectionId: number) {
         clearTimeout(existing);
     }
 
-    debounceSections.set(sectionId, setTimeout(() => saveSection(sectionId), 1500));
+    debounceSections.set(
+        sectionId,
+        setTimeout(() => saveSection(sectionId), 1500),
+    );
 }
 
 async function saveSection(sectionId: number) {
@@ -497,29 +552,32 @@ async function saveSection(sectionId: number) {
 
 function scheduleDeveloppementSave(devId: number) {
     if (!props.peutEditer) {
-return;
-}
+        return;
+    }
 
     saveStatus.value = 'saving';
     const existing = debounceDev.get(devId);
 
     if (existing) {
-clearTimeout(existing);
-}
+        clearTimeout(existing);
+    }
 
-    debounceDev.set(devId, setTimeout(() => saveDeveloppement(devId), 1500));
+    debounceDev.set(
+        devId,
+        setTimeout(() => saveDeveloppement(devId), 1500),
+    );
 }
 
 async function saveDeveloppement(devId: number) {
     if (!props.peutEditer) {
-return;
-}
+        return;
+    }
 
     const dev = developpements.value.find((d) => d.id === devId);
 
     if (!dev) {
-return;
-}
+        return;
+    }
 
     try {
         await axios.put(`${baseUrl.value}/developpements/${devId}`, {
@@ -537,8 +595,8 @@ return;
 
 async function save() {
     if (!props.peutEditer) {
-return;
-}
+        return;
+    }
 
     saveStatus.value = 'saving';
     await Promise.all([
@@ -596,7 +654,9 @@ async function flushAllPendingSaves(): Promise<void> {
     }
 
     // Paragraphes de sections dynamiques
-    for (const [paragrapheId, { sectionId }] of [...debounceSectionParagraphesData.entries()]) {
+    for (const [paragrapheId, { sectionId }] of [
+        ...debounceSectionParagraphesData.entries(),
+    ]) {
         const timer = debounceSectionParagraphes.get(paragrapheId);
         if (timer) clearTimeout(timer);
         debounceSectionParagraphes.delete(paragrapheId);
@@ -609,7 +669,9 @@ async function flushAllPendingSaves(): Promise<void> {
         const [sectionIdStr, userIdStr] = key.split('_');
         clearTimeout(debounceSectionConclusions.get(key)!);
         debounceSectionConclusions.delete(key);
-        saves.push(saveSectionConclusion(Number(sectionIdStr), Number(userIdStr)));
+        saves.push(
+            saveSectionConclusion(Number(sectionIdStr), Number(userIdStr)),
+        );
     }
 
     await Promise.all(saves);
@@ -643,9 +705,21 @@ function buildSectionsForAntidote(): GlobalSection[] {
         }
     } else {
         result.push(
-            { id: 'intro_amener', label: 'Introduction — Amener', html: form.introduction_amener },
-            { id: 'intro_poser', label: 'Introduction — Poser', html: form.introduction_poser },
-            { id: 'intro_diviser', label: 'Introduction — Diviser', html: form.introduction_diviser },
+            {
+                id: 'intro_amener',
+                label: 'Introduction — Amener',
+                html: form.introduction_amener,
+            },
+            {
+                id: 'intro_poser',
+                label: 'Introduction — Poser',
+                html: form.introduction_poser,
+            },
+            {
+                id: 'intro_diviser',
+                label: 'Introduction — Diviser',
+                html: form.introduction_diviser,
+            },
         );
         for (const dev of developpements.value) {
             result.push({
@@ -680,7 +754,9 @@ function onSectionsCorrigees(corrigees: GlobalSection[]) {
             scheduleSectionSave(id);
         } else if (s.id.startsWith('para_')) {
             const paraId = Number(s.id.replace('para_', ''));
-            for (const [rawSectionId, paragraphes] of Object.entries(sectionParagraphesLocaux)) {
+            for (const [rawSectionId, paragraphes] of Object.entries(
+                sectionParagraphesLocaux,
+            )) {
                 const para = paragraphes.find((p) => p.id === paraId);
                 if (para) {
                     para.contenu = s.html;
@@ -715,8 +791,8 @@ const devEnCours = ref(false);
 
 async function ajouterDev() {
     if (devEnCours.value) {
-return;
-}
+        return;
+    }
 
     devEnCours.value = true;
 
@@ -730,12 +806,12 @@ return;
 
 async function supprimerDev(devId: number) {
     if (developpements.value.length <= 1) {
-return;
-}
+        return;
+    }
 
     if (devEnCours.value) {
-return;
-}
+        return;
+    }
 
     devEnCours.value = true;
 
@@ -751,17 +827,26 @@ return;
 
 // ─── Paragraphes de sections dynamiques (type 'paragraphes') ─────────────────
 
-const debounceSectionParagraphes = new Map<number, ReturnType<typeof setTimeout>>();
+const debounceSectionParagraphes = new Map<
+    number,
+    ReturnType<typeof setTimeout>
+>();
 /** Stocke le sectionId associé à chaque paragrapheId pour permettre le flush immédiat. */
 const debounceSectionParagraphesData = new Map<number, { sectionId: number }>();
 const sectionParagrapheEnCours = reactive<Record<number, boolean>>({});
 
-function scheduleSectionParagrapheSave(paragrapheId: number, sectionId: number) {
+function scheduleSectionParagrapheSave(
+    paragrapheId: number,
+    sectionId: number,
+) {
     if (!props.peutEditer) return;
     saveStatus.value = 'saving';
     const existing = debounceSectionParagraphes.get(paragrapheId);
     if (existing) clearTimeout(existing);
-    debounceSectionParagraphes.set(paragrapheId, setTimeout(() => saveSectionParagraphe(paragrapheId, sectionId), 1500));
+    debounceSectionParagraphes.set(
+        paragrapheId,
+        setTimeout(() => saveSectionParagraphe(paragrapheId, sectionId), 1500),
+    );
     debounceSectionParagraphesData.set(paragrapheId, { sectionId });
 }
 
@@ -772,12 +857,17 @@ async function saveSectionParagraphe(paragrapheId: number, sectionId: number) {
     const p = paragraphes.find((p) => p.id === paragrapheId);
     if (!p) return;
     try {
-        await axios.patch(`${baseUrl.value}/sections/${sectionId}/paragraphes/${paragrapheId}`, {
-            titre: p.titre,
-            contenu: p.contenu,
-        });
+        await axios.patch(
+            `${baseUrl.value}/sections/${sectionId}/paragraphes/${paragrapheId}`,
+            {
+                titre: p.titre,
+                contenu: p.contenu,
+            },
+        );
         saveStatus.value = 'saved';
-        setTimeout(() => { saveStatus.value = 'idle'; }, 2000);
+        setTimeout(() => {
+            saveStatus.value = 'idle';
+        }, 2000);
     } catch {
         saveStatus.value = 'error';
     }
@@ -787,22 +877,32 @@ async function ajouterSectionParagraphe(sectionId: number) {
     if (sectionParagrapheEnCours[sectionId]) return;
     sectionParagrapheEnCours[sectionId] = true;
     try {
-        const response = await axios.post(`${baseUrl.value}/sections/${sectionId}/paragraphes`);
-        if (!sectionParagraphesLocaux[sectionId]) sectionParagraphesLocaux[sectionId] = [];
+        const response = await axios.post(
+            `${baseUrl.value}/sections/${sectionId}/paragraphes`,
+        );
+        if (!sectionParagraphesLocaux[sectionId])
+            sectionParagraphesLocaux[sectionId] = [];
         sectionParagraphesLocaux[sectionId].push(response.data.paragraphe);
     } finally {
         sectionParagrapheEnCours[sectionId] = false;
     }
 }
 
-async function supprimerSectionParagraphe(paragrapheId: number, sectionId: number) {
+async function supprimerSectionParagraphe(
+    paragrapheId: number,
+    sectionId: number,
+) {
     const paragraphes = sectionParagraphesLocaux[sectionId];
     if (!paragraphes || paragraphes.length <= 1) return;
     if (sectionParagrapheEnCours[sectionId]) return;
     sectionParagrapheEnCours[sectionId] = true;
     try {
-        await axios.delete(`${baseUrl.value}/sections/${sectionId}/paragraphes/${paragrapheId}`);
-        sectionParagraphesLocaux[sectionId] = sectionParagraphesLocaux[sectionId]
+        await axios.delete(
+            `${baseUrl.value}/sections/${sectionId}/paragraphes/${paragrapheId}`,
+        );
+        sectionParagraphesLocaux[sectionId] = sectionParagraphesLocaux[
+            sectionId
+        ]
             .filter((p) => p.id !== paragrapheId)
             .map((p, i) => ({ ...p, ordre: i + 1 }));
     } finally {
@@ -812,7 +912,10 @@ async function supprimerSectionParagraphe(paragrapheId: number, sectionId: numbe
 
 // ─── Conclusions de sections dynamiques (type 'individuel') ──────────────────
 
-const debounceSectionConclusions = new Map<string, ReturnType<typeof setTimeout>>();
+const debounceSectionConclusions = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+>();
 
 function scheduleSectionConclusionSave(sectionId: number, userId: number) {
     if (!props.peutEditer) return;
@@ -820,7 +923,10 @@ function scheduleSectionConclusionSave(sectionId: number, userId: number) {
     const key = `${sectionId}_${userId}`;
     const existing = debounceSectionConclusions.get(key);
     if (existing) clearTimeout(existing);
-    debounceSectionConclusions.set(key, setTimeout(() => saveSectionConclusion(sectionId, userId), 1500));
+    debounceSectionConclusions.set(
+        key,
+        setTimeout(() => saveSectionConclusion(sectionId, userId), 1500),
+    );
 }
 
 async function saveSectionConclusion(sectionId: number, userId: number) {
@@ -832,7 +938,9 @@ async function saveSectionConclusion(sectionId: number, userId: number) {
             contenu: sectionConclusionsLocales[sectionId]?.[userId] ?? '',
         });
         saveStatus.value = 'saved';
-        setTimeout(() => { saveStatus.value = 'idle'; }, 2000);
+        setTimeout(() => {
+            saveStatus.value = 'idle';
+        }, 2000);
     } catch {
         saveStatus.value = 'error';
     }
@@ -849,7 +957,10 @@ function scheduleConceptLabelSave(conceptId: number, sectionId: number) {
     saveStatus.value = 'saving';
     const existing = debounceConceptsLabel.get(conceptId);
     if (existing) clearTimeout(existing);
-    debounceConceptsLabel.set(conceptId, setTimeout(() => saveConceptLabel(conceptId, sectionId), 1500));
+    debounceConceptsLabel.set(
+        conceptId,
+        setTimeout(() => saveConceptLabel(conceptId, sectionId), 1500),
+    );
 }
 
 async function saveConceptLabel(conceptId: number, sectionId: number) {
@@ -859,23 +970,39 @@ async function saveConceptLabel(conceptId: number, sectionId: number) {
     const c = concepts.find((c) => c.id === conceptId);
     if (!c) return;
     try {
-        await axios.patch(`${baseUrl.value}/sections/${sectionId}/concepts/${conceptId}`, { label: c.label });
+        await axios.patch(
+            `${baseUrl.value}/sections/${sectionId}/concepts/${conceptId}`,
+            { label: c.label },
+        );
         saveStatus.value = 'saved';
-        setTimeout(() => { saveStatus.value = 'idle'; }, 2000);
+        setTimeout(() => {
+            saveStatus.value = 'idle';
+        }, 2000);
     } catch {
         saveStatus.value = 'error';
     }
 }
 
-function scheduleLigneSave(ligneId: number, conceptId: number, sectionId: number) {
+function scheduleLigneSave(
+    ligneId: number,
+    conceptId: number,
+    sectionId: number,
+) {
     if (!props.peutEditer) return;
     saveStatus.value = 'saving';
     const existing = debounceLignes.get(ligneId);
     if (existing) clearTimeout(existing);
-    debounceLignes.set(ligneId, setTimeout(() => saveLigne(ligneId, conceptId, sectionId), 1500));
+    debounceLignes.set(
+        ligneId,
+        setTimeout(() => saveLigne(ligneId, conceptId, sectionId), 1500),
+    );
 }
 
-async function saveLigne(ligneId: number, conceptId: number, sectionId: number) {
+async function saveLigne(
+    ligneId: number,
+    conceptId: number,
+    sectionId: number,
+) {
     if (!props.peutEditer) return;
     const concepts = sectionConceptsLocaux[sectionId];
     if (!concepts) return;
@@ -886,10 +1013,16 @@ async function saveLigne(ligneId: number, conceptId: number, sectionId: number) 
     try {
         await axios.patch(
             `${baseUrl.value}/sections/${sectionId}/concepts/${conceptId}/lignes/${ligneId}`,
-            { dimension: l.dimension, indicateur: l.indicateur, questions: l.questions },
+            {
+                dimension: l.dimension,
+                indicateur: l.indicateur,
+                questions: l.questions,
+            },
         );
         saveStatus.value = 'saved';
-        setTimeout(() => { saveStatus.value = 'idle'; }, 2000);
+        setTimeout(() => {
+            saveStatus.value = 'idle';
+        }, 2000);
     } catch {
         saveStatus.value = 'error';
     }
@@ -899,9 +1032,16 @@ async function ajouterConcept(sectionId: number) {
     if (conceptEnCours[sectionId]) return;
     conceptEnCours[sectionId] = true;
     try {
-        const response = await axios.post(`${baseUrl.value}/sections/${sectionId}/concepts`, { label: 'Nouveau concept' });
-        if (!sectionConceptsLocaux[sectionId]) sectionConceptsLocaux[sectionId] = [];
-        sectionConceptsLocaux[sectionId].push({ ...response.data.concept, lignes: [] });
+        const response = await axios.post(
+            `${baseUrl.value}/sections/${sectionId}/concepts`,
+            { label: 'Nouveau concept' },
+        );
+        if (!sectionConceptsLocaux[sectionId])
+            sectionConceptsLocaux[sectionId] = [];
+        sectionConceptsLocaux[sectionId].push({
+            ...response.data.concept,
+            lignes: [],
+        });
     } finally {
         conceptEnCours[sectionId] = false;
     }
@@ -911,7 +1051,9 @@ async function supprimerConcept(conceptId: number, sectionId: number) {
     if (conceptEnCours[sectionId]) return;
     conceptEnCours[sectionId] = true;
     try {
-        await axios.delete(`${baseUrl.value}/sections/${sectionId}/concepts/${conceptId}`);
+        await axios.delete(
+            `${baseUrl.value}/sections/${sectionId}/concepts/${conceptId}`,
+        );
         sectionConceptsLocaux[sectionId] = sectionConceptsLocaux[sectionId]
             .filter((c) => c.id !== conceptId)
             .map((c, i) => ({ ...c, ordre: i + 1 }));
@@ -934,11 +1076,17 @@ async function ajouterLigne(conceptId: number, sectionId: number) {
     }
 }
 
-async function supprimerLigne(ligneId: number, conceptId: number, sectionId: number) {
+async function supprimerLigne(
+    ligneId: number,
+    conceptId: number,
+    sectionId: number,
+) {
     const concepts = sectionConceptsLocaux[sectionId];
     if (!concepts) return;
     try {
-        await axios.delete(`${baseUrl.value}/sections/${sectionId}/concepts/${conceptId}/lignes/${ligneId}`);
+        await axios.delete(
+            `${baseUrl.value}/sections/${sectionId}/concepts/${conceptId}/lignes/${ligneId}`,
+        );
         const c = concepts.find((c) => c.id === conceptId);
         if (c) {
             c.lignes = c.lignes
@@ -950,19 +1098,29 @@ async function supprimerLigne(ligneId: number, conceptId: number, sectionId: num
     }
 }
 
-function ajouterQuestion(ligne: EntrevueLigne, conceptId: number, sectionId: number) {
+function ajouterQuestion(
+    ligne: EntrevueLigne,
+    conceptId: number,
+    sectionId: number,
+) {
     ligne.questions = [...ligne.questions, ''];
     scheduleLigneSave(ligne.id, conceptId, sectionId);
 }
 
-function supprimerQuestion(ligne: EntrevueLigne, qIndex: number, conceptId: number, sectionId: number) {
+function supprimerQuestion(
+    ligne: EntrevueLigne,
+    qIndex: number,
+    conceptId: number,
+    sectionId: number,
+) {
     ligne.questions = ligne.questions.filter((_, i) => i !== qIndex);
     scheduleLigneSave(ligne.id, conceptId, sectionId);
 }
 
 function totalQuestions(sectionId: number): number {
     return (sectionConceptsLocaux[sectionId] ?? []).reduce(
-        (sum, c) => sum + c.lignes.reduce((s, l) => s + (l.questions?.length ?? 0), 0),
+        (sum, c) =>
+            sum + c.lignes.reduce((s, l) => s + (l.questions?.length ?? 0), 0),
         0,
     );
 }
@@ -1006,7 +1164,9 @@ const dateAujourd = computed(() =>
 );
 
 const codeComplet = computed(() => {
-    const cours = (props as any).cours as { code?: string; groupe?: string } | undefined;
+    const cours = (props as any).cours as
+        | { code?: string; groupe?: string }
+        | undefined;
     return `${cours?.code ?? props.classe.code} / Gr. ${cours?.groupe ?? ''}`;
 });
 
@@ -1079,8 +1239,14 @@ const champsVisibles = computed((): string[] => {
     if (props.sections.length > 0) {
         champs.push(...props.sections.map((s) => `section_${s.id}`));
     } else {
-        champs.push('introduction_amener', 'introduction_poser', 'introduction_diviser');
-        champs.push(...developpements.value.map((d) => `developpement_${d.id}`));
+        champs.push(
+            'introduction_amener',
+            'introduction_poser',
+            'introduction_diviser',
+        );
+        champs.push(
+            ...developpements.value.map((d) => `developpement_${d.id}`),
+        );
         props.membres.forEach((m) => champs.push(`conclusion_${m.id}`));
     }
 
@@ -1113,8 +1279,8 @@ async function sauvegarderCommentaire(champ: string) {
     const contenu = brouillonsCommentaires[champ] ?? '';
 
     if (!contenu.trim()) {
-return;
-}
+        return;
+    }
 
     commentairesSaving[champ] = true;
 
@@ -1136,8 +1302,8 @@ async function supprimerCommentaire(champ: string) {
     const c = commentaires[champ];
 
     if (!c) {
-return;
-}
+        return;
+    }
 
     await axios.delete(`${baseUrl.value}/commentaires/${c.id}`);
     commentaires[champ] = null;
@@ -1146,7 +1312,9 @@ return;
 
 // ─── Annotations inline de l'enseignant ──────────────────────────────────────
 
-const annotations = reactive<Record<string, Annotation[]>>({ ...props.annotationsParChamp });
+const annotations = reactive<Record<string, Annotation[]>>({
+    ...props.annotationsParChamp,
+});
 const annotationDeleteError = ref<string | null>(null);
 
 // ─── Toggles enseignant ────────────────────────────────────────────────────────
@@ -1167,7 +1335,9 @@ async function toggleVerrouille(): Promise<void> {
 const modeEditionEnseignant = ref(props.modeEditionEnseignant);
 
 async function toggleModeEditionEnseignant(): Promise<void> {
-    const response = await axios.patch(`${baseUrl.value}/mode-edition-enseignant`);
+    const response = await axios.patch(
+        `${baseUrl.value}/mode-edition-enseignant`,
+    );
     modeEditionEnseignant.value = response.data.mode_edition_enseignant;
 }
 
@@ -1182,7 +1352,15 @@ async function toggleModeEditionEnseignant(): Promise<void> {
 // d'écraser les modifications en cours de saisie de l'étudiant.
 
 usePoll(10_000, {
-    only: ['verrouille', 'correctionVisible', 'peutEditer', 'peutRemettre', 'annotationsParChamp', 'votes', 'remisLe'],
+    only: [
+        'verrouille',
+        'correctionVisible',
+        'peutEditer',
+        'peutRemettre',
+        'annotationsParChamp',
+        'votes',
+        'remisLe',
+    ],
 });
 
 // Synchronise les refs locales depuis les props Inertia mises à jour par le polling.
@@ -1332,7 +1510,10 @@ async function sauvegarderAnnotation(
         points_malus?: number | null;
     },
 ): Promise<void> {
-    const response = await axios.put(`${baseUrl.value}/annotations`, { champ, ...payload });
+    const response = await axios.put(`${baseUrl.value}/annotations`, {
+        champ,
+        ...payload,
+    });
 
     if (!annotations[champ]) {
         annotations[champ] = [];
@@ -1346,8 +1527,10 @@ async function sauvegarderAnnotation(
     if (existingIndex !== -1) {
         annotations[champ][existingIndex].contenu = response.data.contenu;
         annotations[champ][existingIndex].type = response.data.type;
-        annotations[champ][existingIndex].cible_user_id = response.data.cible_user_id;
-        annotations[champ][existingIndex].points_malus = response.data.points_malus;
+        annotations[champ][existingIndex].cible_user_id =
+            response.data.cible_user_id;
+        annotations[champ][existingIndex].points_malus =
+            response.data.points_malus;
     } else {
         annotations[champ].push({
             id: response.data.id,
@@ -1362,9 +1545,14 @@ async function sauvegarderAnnotation(
 
     // Si l'annotation comportait une déduction de points, mettre à jour la note finale affichée.
     if (response.data.noteFinaleGrilleParEtudiant) {
-        Object.entries(response.data.noteFinaleGrilleParEtudiant as Record<number, number | null>).forEach(
-            ([uid, val]) => { noteFinaleGrille[Number(uid)] = val; },
-        );
+        Object.entries(
+            response.data.noteFinaleGrilleParEtudiant as Record<
+                number,
+                number | null
+            >,
+        ).forEach(([uid, val]) => {
+            noteFinaleGrille[Number(uid)] = val;
+        });
     }
 }
 
@@ -1375,19 +1563,29 @@ async function supprimerAnnotation(
     annotationDeleteError.value = null;
 
     try {
-        const deleteResponse = await axios.delete(`${baseUrl.value}/annotations/${payload.correction.id}`, {
-            data: { champ, html: payload.html },
-        });
+        const deleteResponse = await axios.delete(
+            `${baseUrl.value}/annotations/${payload.correction.id}`,
+            {
+                data: { champ, html: payload.html },
+            },
+        );
 
         if (annotations[champ]) {
-            annotations[champ] = annotations[champ].filter((a) => a.id !== payload.correction.id);
+            annotations[champ] = annotations[champ].filter(
+                (a) => a.id !== payload.correction.id,
+            );
         }
 
         // Si la correction supprimée avait une déduction de points, mettre à jour la note finale.
         if (deleteResponse.data.noteFinaleGrilleParEtudiant) {
-            Object.entries(deleteResponse.data.noteFinaleGrilleParEtudiant as Record<number, number | null>).forEach(
-                ([uid, val]) => { noteFinaleGrille[Number(uid)] = val; },
-            );
+            Object.entries(
+                deleteResponse.data.noteFinaleGrilleParEtudiant as Record<
+                    number,
+                    number | null
+                >,
+            ).forEach(([uid, val]) => {
+                noteFinaleGrille[Number(uid)] = val;
+            });
         }
 
         // Synchronise le modèle local avec le HTML sans marque retourné par deleteAnnotation.
@@ -1402,10 +1600,18 @@ async function supprimerAnnotation(
                 dev.contenu = payload.html;
             }
         } else if (champ.startsWith('section_paragraphe_')) {
-            const paragId = parseInt(champ.replace('section_paragraphe_', ''), 10);
+            const paragId = parseInt(
+                champ.replace('section_paragraphe_', ''),
+                10,
+            );
             for (const paragraphes of Object.values(sectionParagraphesLocaux)) {
-                const p = (paragraphes as SectionParagraphe[]).find((p) => p.id === paragId);
-                if (p) { p.contenu = payload.html; break; }
+                const p = (paragraphes as SectionParagraphe[]).find(
+                    (p) => p.id === paragId,
+                );
+                if (p) {
+                    p.contenu = payload.html;
+                    break;
+                }
             }
         } else if (champ.startsWith('section_')) {
             const sectionId = parseInt(champ.replace('section_', ''), 10);
@@ -1423,10 +1629,18 @@ async function supprimerAnnotation(
                 dev.contenu = payload.htmlOriginal;
             }
         } else if (champ.startsWith('section_paragraphe_')) {
-            const paragId = parseInt(champ.replace('section_paragraphe_', ''), 10);
+            const paragId = parseInt(
+                champ.replace('section_paragraphe_', ''),
+                10,
+            );
             for (const paragraphes of Object.values(sectionParagraphesLocaux)) {
-                const p = (paragraphes as SectionParagraphe[]).find((p) => p.id === paragId);
-                if (p) { p.contenu = payload.htmlOriginal; break; }
+                const p = (paragraphes as SectionParagraphe[]).find(
+                    (p) => p.id === paragId,
+                );
+                if (p) {
+                    p.contenu = payload.htmlOriginal;
+                    break;
+                }
             }
         } else if (champ.startsWith('section_')) {
             const sectionId = parseInt(champ.replace('section_', ''), 10);
@@ -1439,7 +1653,8 @@ async function supprimerAnnotation(
             annotations[champ] = [payload.correction];
         }
 
-        annotationDeleteError.value = "Impossible de supprimer l'annotation. Réessayez.";
+        annotationDeleteError.value =
+            "Impossible de supprimer l'annotation. Réessayez.";
         setTimeout(() => (annotationDeleteError.value = null), 5000);
     }
 }
@@ -1489,7 +1704,9 @@ function handleRenvoisUtilises(editorId: string, ids: number[]): void {
         if (renvoisSupprimerFile.value.some((f) => f.id === id)) return false; // Déjà en file
         return true;
     });
-    aSupprimer.forEach((id) => demanderSupprimerRenvoi(id, 'editeur', editorId));
+    aSupprimer.forEach((id) =>
+        demanderSupprimerRenvoi(id, 'editeur', editorId),
+    );
 }
 
 /**
@@ -1532,7 +1749,9 @@ async function creerEtInsererRenvoi(
  * Stocke le callback d'insertion en attente quand le modal APA est ouvert.
  * Le callback est fourni par le RichEditor via @demander-renvoi.
  */
-const insertFnEnAttente = ref<((renvoiId: number, numero: number) => void) | null>(null);
+const insertFnEnAttente = ref<
+    ((renvoiId: number, numero: number) => void) | null
+>(null);
 const referenceModalOuvert = ref(false);
 /** Renvoi en cours d'édition — null en mode création */
 const renvoisEnEdition = ref<Renvoi | null>(null);
@@ -1551,7 +1770,9 @@ watch(referenceModalOuvert, (ouvert) => {
  * Si aide_reference est activé sur ce type de projet, ouvre le modal APA
  * au lieu de créer le renvoi immédiatement.
  */
-function demanderRenvoi(insertFn: (renvoiId: number, numero: number) => void): void {
+function demanderRenvoi(
+    insertFn: (renvoiId: number, numero: number) => void,
+): void {
     if (props.aideReference) {
         insertFnEnAttente.value = insertFn;
         referenceModalOuvert.value = true;
@@ -1569,10 +1790,20 @@ async function confirmerReferenceApa(
     champsReference: Record<string, string>,
 ): Promise<void> {
     if (renvoisEnEdition.value) {
-        await mettreAJourRenvoi(renvoisEnEdition.value.id, contenu, typeReference, champsReference);
+        await mettreAJourRenvoi(
+            renvoisEnEdition.value.id,
+            contenu,
+            typeReference,
+            champsReference,
+        );
     } else {
         if (!insertFnEnAttente.value) return;
-        await creerEtInsererRenvoi(insertFnEnAttente.value, contenu, typeReference, champsReference);
+        await creerEtInsererRenvoi(
+            insertFnEnAttente.value,
+            contenu,
+            typeReference,
+            champsReference,
+        );
     }
 }
 
@@ -1606,7 +1837,6 @@ async function mettreAJourRenvoi(
     }
 }
 
-
 const debounceRenvois = new Map<number, ReturnType<typeof setTimeout>>();
 
 /**
@@ -1629,14 +1859,19 @@ function scheduleRenvoiSave(renvoiId: number) {
     if (!props.peutEditer) return;
     const existing = debounceRenvois.get(renvoiId);
     if (existing) clearTimeout(existing);
-    debounceRenvois.set(renvoiId, setTimeout(() => saveRenvoi(renvoiId), 1500));
+    debounceRenvois.set(
+        renvoiId,
+        setTimeout(() => saveRenvoi(renvoiId), 1500),
+    );
 }
 
 async function saveRenvoi(renvoiId: number) {
     const renvoi = renvoisLocaux.value.find((r) => r.id === renvoiId);
     if (!renvoi) return;
     try {
-        await axios.patch(`${baseUrl.value}/renvois/${renvoiId}`, { contenu: renvoi.contenu });
+        await axios.patch(`${baseUrl.value}/renvois/${renvoiId}`, {
+            contenu: renvoi.contenu,
+        });
     } catch {
         saveStatus.value = 'error';
     }
@@ -1649,7 +1884,9 @@ async function supprimerRenvoi(renvoiId: number) {
     const url = `${baseUrl.value}/renvois/${renvoiId}`;
     try {
         await axios.delete(url);
-        renvoisLocaux.value = renvoisLocaux.value.filter((r) => r.id !== renvoiId);
+        renvoisLocaux.value = renvoisLocaux.value.filter(
+            (r) => r.id !== renvoiId,
+        );
         await renumeroterapresSupression(numeroCible);
         // Force le déclenchement du watcher syncRenvois dans tous les RichEditor,
         // même si Vue a raté une mutation profonde sur renvoisLocaux.
@@ -1677,7 +1914,9 @@ const renvoisSupprimerEnCours = ref(false);
  */
 const renvoisSupprimerSource = ref<'bouton' | 'editeur'>('bouton');
 /** File d'attente pour les suppressions simultanées (multi-exposants retirés d'un coup). */
-const renvoisSupprimerFile = ref<Array<{ id: number; source: 'bouton' | 'editeur'; editorId?: string }>>([]);
+const renvoisSupprimerFile = ref<
+    Array<{ id: number; source: 'bouton' | 'editeur'; editorId?: string }>
+>([]);
 
 /** editorId de l'éditeur TipTap ayant déclenché la suppression via source='editeur'. */
 const renvoisSupprimerEditorId = ref<string | null>(null);
@@ -1687,7 +1926,9 @@ const renvoisSupprimerEditorId = ref<string | null>(null);
  * un exposant directement dans l'éditeur. RichEditor surveille ce ref via inject pour
  * appeler undo() sur l'éditeur concerné et restaurer l'exposant.
  */
-const renvoisUndoTarget = ref<{ editorId: string; version: number } | null>(null);
+const renvoisUndoTarget = ref<{ editorId: string; version: number } | null>(
+    null,
+);
 provide('renvoisUndoTarget', renvoisUndoTarget);
 
 /** Description du modal selon la source de la demande. */
@@ -1707,7 +1948,11 @@ const renvoisSupprimerDescription = computed(() =>
  * @param source    Origine de la demande ('bouton' par défaut).
  * @param editorId  Identifiant de l'éditeur source (uniquement quand source='editeur').
  */
-function demanderSupprimerRenvoi(renvoiId: number, source: 'bouton' | 'editeur' = 'bouton', editorId?: string): void {
+function demanderSupprimerRenvoi(
+    renvoiId: number,
+    source: 'bouton' | 'editeur' = 'bouton',
+    editorId?: string,
+): void {
     if (renvoisSupprimerModalOuvert.value) {
         renvoisSupprimerFile.value.push({ id: renvoiId, source, editorId });
         return;
@@ -1726,7 +1971,9 @@ function processerFileSuppressionRenvois(): void {
         next = renvoisSupprimerFile.value.shift();
     }
     if (next) {
-        nextTick().then(() => demanderSupprimerRenvoi(next!.id, next!.source, next!.editorId));
+        nextTick().then(() =>
+            demanderSupprimerRenvoi(next!.id, next!.source, next!.editorId),
+        );
     }
 }
 
@@ -1756,7 +2003,10 @@ function onModalRenvoisUpdateOpen(ouvert: boolean): void {
     if (!ouvert) {
         // Si l'utilisateur annule et que c'est l'éditeur qui avait retiré l'exposant,
         // on demande au RichEditor concerné d'effectuer un undo pour le restaurer.
-        if (renvoisSupprimerSource.value === 'editeur' && renvoisSupprimerEditorId.value) {
+        if (
+            renvoisSupprimerSource.value === 'editeur' &&
+            renvoisSupprimerEditorId.value
+        ) {
             renvoisUndoTarget.value = {
                 editorId: renvoisSupprimerEditorId.value,
                 version: (renvoisUndoTarget.value?.version ?? 0) + 1,
@@ -1781,9 +2031,13 @@ async function renumeroterapresSupression(numeroSupprime: number) {
     const affectees = renvoisLocaux.value
         .filter((r) => r.numero > numeroSupprime)
         .sort((a, b) => a.numero - b.numero);
-    affectees.forEach((r) => { r.numero -= 1; });
+    affectees.forEach((r) => {
+        r.numero -= 1;
+    });
     for (const r of affectees) {
-        await axios.patch(`${baseUrl.value}/renvois/${r.id}`, { numero: r.numero });
+        await axios.patch(`${baseUrl.value}/renvois/${r.id}`, {
+            numero: r.numero,
+        });
     }
 }
 
@@ -1802,10 +2056,15 @@ async function ajouterCommentaireRenvoi(renvoiId: number): Promise<void> {
     if (!contenu || renvoiCommentaireEnCours[renvoiId]) return;
     renvoiCommentaireEnCours[renvoiId] = true;
     try {
-        const response = await axios.post(`${baseUrl.value}/renvois/${renvoiId}/commentaires`, { contenu });
+        const response = await axios.post(
+            `${baseUrl.value}/renvois/${renvoiId}/commentaires`,
+            { contenu },
+        );
         const renvoi = renvoisLocaux.value.find((r) => r.id === renvoiId);
         if (renvoi) {
-            renvoi.commentaires.push(response.data.commentaire as RenvoiCommentaire);
+            renvoi.commentaires.push(
+                response.data.commentaire as RenvoiCommentaire,
+            );
         }
         renvoiNouveauCommentaire[renvoiId] = '';
     } finally {
@@ -1816,21 +2075,32 @@ async function ajouterCommentaireRenvoi(renvoiId: number): Promise<void> {
 /**
  * Supprime un commentaire d'enseignant sur un renvoi.
  */
-async function supprimerCommentaireRenvoi(renvoiId: number, commentaireId: number): Promise<void> {
-    await axios.delete(`${baseUrl.value}/renvois/${renvoiId}/commentaires/${commentaireId}`);
+async function supprimerCommentaireRenvoi(
+    renvoiId: number,
+    commentaireId: number,
+): Promise<void> {
+    await axios.delete(
+        `${baseUrl.value}/renvois/${renvoiId}/commentaires/${commentaireId}`,
+    );
     const renvoi = renvoisLocaux.value.find((r) => r.id === renvoiId);
     if (renvoi) {
-        renvoi.commentaires = renvoi.commentaires.filter((c) => c.id !== commentaireId);
+        renvoi.commentaires = renvoi.commentaires.filter(
+            (c) => c.id !== commentaireId,
+        );
     }
 }
 
 // ─── Grille de correction personnalisée ───────────────────────────────────────
 
-const grillePersonnalisee = ref<GrillePersonnalisee | null>(props.grillePersonnalisee);
+const grillePersonnalisee = ref<GrillePersonnalisee | null>(
+    props.grillePersonnalisee,
+);
 const grilleModalOuverte = ref(false);
 
 // notesGrille[userId][critereId] = note | undefined
-const notesGrille = reactive<Record<number, Record<number, number | undefined>>>(
+const notesGrille = reactive<
+    Record<number, Record<number, number | undefined>>
+>(
     Object.fromEntries(
         props.membres.map((m) => [
             m.id,
@@ -1838,7 +2108,6 @@ const notesGrille = reactive<Record<number, Record<number, number | undefined>>>
         ]),
     ),
 );
-
 
 // malusGrille[userId][malusId] = applique
 const malusGrille = reactive<Record<number, Record<number, boolean>>>(
@@ -1858,18 +2127,27 @@ const noteFinaleGrille = reactive<Record<number, number | null>>({
  * Aggrège les déductions de points par étudiant depuis les annotations de correction inline.
  * Réactif : se recalcule dès qu'une annotation est ajoutée, modifiée ou supprimée.
  */
-const annotationsMalusParEtudiant = computed<Record<number, Array<{ contenu: string; points_malus: number }>>>(() => {
-    const result: Record<number, Array<{ contenu: string; points_malus: number }>> = {};
+const annotationsMalusParEtudiant = computed<
+    Record<number, Array<{ contenu: string; points_malus: number }>>
+>(() => {
+    const result: Record<
+        number,
+        Array<{ contenu: string; points_malus: number }>
+    > = {};
     for (const fieldAnnotations of Object.values(annotations)) {
         for (const a of fieldAnnotations) {
             if (a.type !== 'correction' || a.points_malus == null) continue;
-            const cibles = a.cible_user_id == null
-                // null = tous les membres
-                ? props.membres.map((m) => m.id)
-                : [a.cible_user_id];
+            const cibles =
+                a.cible_user_id == null
+                    ? // null = tous les membres
+                      props.membres.map((m) => m.id)
+                    : [a.cible_user_id];
             for (const uid of cibles) {
                 if (!result[uid]) result[uid] = [];
-                result[uid].push({ contenu: a.contenu, points_malus: a.points_malus });
+                result[uid].push({
+                    contenu: a.contenu,
+                    points_malus: a.points_malus,
+                });
             }
         }
     }
@@ -1879,7 +2157,11 @@ const annotationsMalusParEtudiant = computed<Record<number, Array<{ contenu: str
 const notesSavingGrille = reactive<Record<string, boolean>>({});
 const malusSaving = reactive<Record<string, boolean>>({});
 
-async function sauvegarderNoteGrille(critereId: number, membreId: number, note: number): Promise<void> {
+async function sauvegarderNoteGrille(
+    critereId: number,
+    membreId: number,
+    note: number,
+): Promise<void> {
     const key = `grille_${critereId}_${membreId}`;
     notesSavingGrille[key] = true;
 
@@ -1895,7 +2177,10 @@ async function sauvegarderNoteGrille(critereId: number, membreId: number, note: 
             note,
             user_id: membreId,
         });
-        const nouvelles = response.data.noteFinaleGrilleParEtudiant as Record<number, number | null>;
+        const nouvelles = response.data.noteFinaleGrilleParEtudiant as Record<
+            number,
+            number | null
+        >;
         Object.entries(nouvelles).forEach(([uid, val]) => {
             noteFinaleGrille[Number(uid)] = val;
         });
@@ -1904,18 +2189,29 @@ async function sauvegarderNoteGrille(critereId: number, membreId: number, note: 
     }
 }
 
-async function sauvegarderNoteGrillePourTous(critereId: number, note: number): Promise<void> {
+async function sauvegarderNoteGrillePourTous(
+    critereId: number,
+    note: number,
+): Promise<void> {
     const key = `grille_${critereId}_tous`;
     notesSavingGrille[key] = true;
 
     try {
-        await Promise.all(props.membres.map((m) => sauvegarderNoteGrille(critereId, m.id, note)));
+        await Promise.all(
+            props.membres.map((m) =>
+                sauvegarderNoteGrille(critereId, m.id, note),
+            ),
+        );
     } finally {
         notesSavingGrille[key] = false;
     }
 }
 
-async function toggleMalusGrille(malusId: number, membreId: number, applique: boolean): Promise<void> {
+async function toggleMalusGrille(
+    malusId: number,
+    membreId: number,
+    applique: boolean,
+): Promise<void> {
     const key = `malus_${malusId}_${membreId}`;
     malusSaving[key] = true;
 
@@ -1931,7 +2227,10 @@ async function toggleMalusGrille(malusId: number, membreId: number, applique: bo
             user_id: membreId,
             applique,
         });
-        const nouvelles = response.data.noteFinaleGrilleParEtudiant as Record<number, number | null>;
+        const nouvelles = response.data.noteFinaleGrilleParEtudiant as Record<
+            number,
+            number | null
+        >;
         Object.entries(nouvelles).forEach(([uid, val]) => {
             noteFinaleGrille[Number(uid)] = val;
         });
@@ -1961,7 +2260,15 @@ function setOngletActif(section: string, membreId: number | 'tous') {
 
 <template>
     <AppLayout>
-        <Head :title="t('projets.show.page_head', { nom: t('classes.groupes.group_number', { n: groupe.numero }) })" />
+        <Head
+            :title="
+                t('projets.show.page_head', {
+                    nom: t('classes.groupes.group_number', {
+                        n: groupe.numero,
+                    }),
+                })
+            "
+        />
 
         <div class="mx-auto flex max-w-6xl flex-col gap-3 p-3">
             <!-- En-tête navigation -->
@@ -1989,7 +2296,9 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         class="h-4 w-4 text-green-500"
                     />
                     <Cloud v-else class="h-4 w-4" />
-                    <span v-if="saveStatus === 'saving'">{{ t('projets.show.saving') }}</span>
+                    <span v-if="saveStatus === 'saving'">{{
+                        t('projets.show.saving')
+                    }}</span>
                     <span
                         v-else-if="saveStatus === 'saved'"
                         class="text-green-600"
@@ -2003,7 +2312,8 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     <span
                         v-if="annotationDeleteError"
                         class="text-destructive"
-                    >{{ annotationDeleteError }}</span>
+                        >{{ annotationDeleteError }}</span
+                    >
                 </div>
             </div>
 
@@ -2022,194 +2332,247 @@ function setOngletActif(section: string, membreId: number | 'tous') {
             </div>
 
             <!-- Boutons d'export + notes finales par étudiant — sticky pour garder le score visible au scroll -->
-            <div class="sticky top-0 z-30 -mx-3 border-b bg-white px-3 py-2 shadow-sm dark:bg-zinc-950">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-                <div class="flex items-center gap-1">
-                    <!-- ── Groupe 1 : Consultation & exports ─────────────── -->
-                    <BoutonTooltip
-                        texte="Voir le rendu final du projet"
-                        variant="ghost"
-                        size="sm"
-                        as-child
-                    >
-                        <Link :href="`${baseUrl}/apercu`">
-                            <Eye class="h-4 w-4" />
-                            Aperçu
-                        </Link>
-                    </BoutonTooltip>
-                    <BoutonTooltip
-                        texte="Télécharger une version PDF (s'ouvre dans un nouvel onglet)"
-                        variant="ghost"
-                        size="sm"
-                        as-child
-                    >
-                        <a :href="`${baseUrl}/pdf`" target="_blank">
-                            <FileText class="h-4 w-4" />
-                            PDF
-                        </a>
-                    </BoutonTooltip>
-                    <BoutonTooltip
-                        texte="Télécharger une version Word (.docx)"
-                        variant="ghost"
-                        size="sm"
-                        as-child
-                    >
-                        <a :href="`${baseUrl}/word`">
-                            <Download class="h-4 w-4" />
-                            Word
-                        </a>
-                    </BoutonTooltip>
-                    <BoutonTooltip
-                        v-if="estEnseignant"
-                        texte="Voir les notes de tous les étudiants du groupe"
-                        variant="ghost"
-                        size="sm"
-                        as-child
-                    >
-                        <Link :href="`${baseUrl}/apercu-notes`">
-                            <FileBarChart class="h-4 w-4" />
-                            Notes
-                        </Link>
-                    </BoutonTooltip>
+            <div
+                class="sticky top-0 z-30 -mx-3 border-b bg-white px-3 py-2 shadow-sm dark:bg-zinc-950"
+            >
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-1">
+                        <!-- ── Groupe 1 : Consultation & exports ─────────────── -->
+                        <BoutonTooltip
+                            texte="Voir le rendu final du projet"
+                            variant="ghost"
+                            size="sm"
+                            as-child
+                        >
+                            <Link :href="`${baseUrl}/apercu`">
+                                <Eye class="h-4 w-4" />
+                                Aperçu
+                            </Link>
+                        </BoutonTooltip>
+                        <BoutonTooltip
+                            texte="Télécharger une version PDF (s'ouvre dans un nouvel onglet)"
+                            variant="ghost"
+                            size="sm"
+                            as-child
+                        >
+                            <a :href="`${baseUrl}/pdf`" target="_blank">
+                                <FileText class="h-4 w-4" />
+                                PDF
+                            </a>
+                        </BoutonTooltip>
+                        <BoutonTooltip
+                            texte="Télécharger une version Word (.docx)"
+                            variant="ghost"
+                            size="sm"
+                            as-child
+                        >
+                            <a :href="`${baseUrl}/word`">
+                                <Download class="h-4 w-4" />
+                                Word
+                            </a>
+                        </BoutonTooltip>
+                        <BoutonTooltip
+                            v-if="estEnseignant"
+                            texte="Voir les notes de tous les étudiants du groupe"
+                            variant="ghost"
+                            size="sm"
+                            as-child
+                        >
+                            <Link :href="`${baseUrl}/apercu-notes`">
+                                <FileBarChart class="h-4 w-4" />
+                                Notes
+                            </Link>
+                        </BoutonTooltip>
 
-                    <!-- ── Séparateur ─────────────────────────────────────── -->
-                    <Separator orientation="vertical" class="mx-1 h-5" />
-
-                    <!-- ── Groupe 2 : Outils ──────────────────────────────── -->
-                    <BoutonTooltip
-                        v-if="peutEditer && !verrouille"
-                        texte="Lancer la correction orthographique globale avec Antidote"
-                        variant="ghost"
-                        size="sm"
-                        class="text-green-700 hover:bg-green-50 hover:text-green-700"
-                        @click="showAntidoteGlobal = true"
-                    >
-                        <SpellCheck class="h-4 w-4" />
-                        Antidote
-                    </BoutonTooltip>
-                    <!-- Consentement vidéo — affiché si au moins une section vidéo/audio existe -->
-                    <ConsentementVideo
-                        v-if="hasVideoOrAudioSection && !estEnseignant"
-                        :params="{
-                            cours: classe.cours_id,
-                            groupe: groupe.id,
-                            typeProjet: typeProjet.id,
-                        }"
-                        :consentement="consentement"
-                    />
-                    <BoutonTooltip
-                        v-if="estEnseignant"
-                        texte="Gérer les sections disponibles pour ce type de projet"
-                        variant="ghost"
-                        size="sm"
-                        as-child
-                    >
-                        <Link :href="editTypeProjet.url({ cours: classe.cours_id, typeProjet: typeProjet.id })">
-                            <Settings2 class="h-4 w-4" />
-                            Sections
-                        </Link>
-                    </BoutonTooltip>
-                    <BoutonTooltip
-                        v-if="estEnseignant || (grillePersonnalisee && correctionVisible)"
-                        texte="Ouvrir la grille de correction personnalisée"
-                        variant="ghost"
-                        size="sm"
-                        @click="grilleModalOuverte = true"
-                    >
-                        <ClipboardList class="h-4 w-4" />
-                        Grille
-                    </BoutonTooltip>
-                    <BoutonTooltip
-                        v-if="champsVisibles.length > 0"
-                        :texte="tousCommentairesReduits ? 'Développer tous les commentaires enseignant' : 'Réduire tous les commentaires enseignant'"
-                        variant="ghost"
-                        size="sm"
-                        @click="toggleTousCommentaires"
-                    >
-                        <MessageSquare class="h-4 w-4" />
-                        Commentaires
-                    </BoutonTooltip>
-
-                    <!-- ── Groupe 3 : Actions enseignant ──────────────────── -->
-                    <template v-if="estEnseignant">
+                        <!-- ── Séparateur ─────────────────────────────────────── -->
                         <Separator orientation="vertical" class="mx-1 h-5" />
-                        <Button
-                            :variant="modeEditionEnseignant ? 'default' : 'outline'"
-                            size="sm"
-                            @click="toggleModeEditionEnseignant"
-                        >
-                            <Settings2 class="mr-2 h-4 w-4" />
-                            {{ modeEditionEnseignant ? 'Mode édition actif' : 'Activer mode édition' }}
-                        </Button>
-                        <BoutonTooltip
-                            :texte="correctionVisible ? 'Masquer les corrections aux étudiants' : 'Publier les corrections pour que les étudiants puissent les consulter'"
-                            :variant="correctionVisible ? 'default' : 'ghost'"
-                            size="sm"
-                            @click="toggleCorrectionVisible"
-                        >
-                            <CheckCircle2 v-if="correctionVisible" class="h-4 w-4" />
-                            <Send v-else class="h-4 w-4" />
-                            Correction
-                        </BoutonTooltip>
-                        <BoutonTooltip
-                            :texte="verrouille ? 'Déverrouiller le document pour permettre les modifications' : 'Verrouiller le document pour empêcher toute modification'"
-                            :variant="verrouille ? 'destructive' : 'ghost'"
-                            size="sm"
-                            @click="toggleVerrouille"
-                        >
-                            <Lock class="h-4 w-4" />
-                            Verrouiller
-                        </BoutonTooltip>
-                    </template>
-                </div>
 
-                <!-- Note finale grille personnalisée : enseignant voit tous ; étudiant voit uniquement la sienne -->
-                <div class="flex flex-wrap gap-2">
-                    <template v-if="estEnseignant && grillePersonnalisee">
-                        <template v-for="membre in membres" :key="membre.id">
-                            <button
-                                v-if="
-                                    noteFinaleGrille[membre.id] !== null &&
-                                    noteFinaleGrille[membre.id] !== undefined
+                        <!-- ── Groupe 2 : Outils ──────────────────────────────── -->
+                        <BoutonTooltip
+                            v-if="peutEditer && !verrouille"
+                            texte="Lancer la correction orthographique globale avec Antidote"
+                            variant="ghost"
+                            size="sm"
+                            class="text-green-700 hover:bg-green-50 hover:text-green-700"
+                            @click="showAntidoteGlobal = true"
+                        >
+                            <SpellCheck class="h-4 w-4" />
+                            Antidote
+                        </BoutonTooltip>
+                        <!-- Consentement vidéo — affiché si au moins une section vidéo/audio existe -->
+                        <ConsentementVideo
+                            v-if="hasVideoOrAudioSection && !estEnseignant"
+                            :params="{
+                                cours: classe.cours_id,
+                                groupe: groupe.id,
+                                typeProjet: typeProjet.id,
+                            }"
+                            :consentement="consentement"
+                        />
+                        <BoutonTooltip
+                            v-if="estEnseignant"
+                            texte="Gérer les sections disponibles pour ce type de projet"
+                            variant="ghost"
+                            size="sm"
+                            as-child
+                        >
+                            <Link
+                                :href="
+                                    editTypeProjet.url({
+                                        cours: classe.cours_id,
+                                        typeProjet: typeProjet.id,
+                                    })
                                 "
-                                type="button"
-                                class="flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-medium transition-opacity hover:opacity-80"
-                                :class="
-                                    (noteFinaleGrille[membre.id] ?? 0) >= 60
-                                        ? 'border-green-300 bg-green-50 text-green-700'
-                                        : 'border-red-300 bg-red-50 text-red-700'
-                                "
-                                :title="t('projets.show.view_grade_summary')"
-                                @click="grilleModalOuverte = true"
                             >
-                                <Star class="h-3.5 w-3.5" />
-                                {{ membre.prenom }} :
-                                {{ noteFinaleGrille[membre.id]?.toFixed(2) }} / 100
-                            </button>
+                                <Settings2 class="h-4 w-4" />
+                                Sections
+                            </Link>
+                        </BoutonTooltip>
+                        <BoutonTooltip
+                            v-if="
+                                estEnseignant ||
+                                (grillePersonnalisee && correctionVisible)
+                            "
+                            texte="Ouvrir la grille de correction personnalisée"
+                            variant="ghost"
+                            size="sm"
+                            @click="grilleModalOuverte = true"
+                        >
+                            <ClipboardList class="h-4 w-4" />
+                            Grille
+                        </BoutonTooltip>
+                        <BoutonTooltip
+                            v-if="champsVisibles.length > 0"
+                            :texte="
+                                tousCommentairesReduits
+                                    ? 'Développer tous les commentaires enseignant'
+                                    : 'Réduire tous les commentaires enseignant'
+                            "
+                            variant="ghost"
+                            size="sm"
+                            @click="toggleTousCommentaires"
+                        >
+                            <MessageSquare class="h-4 w-4" />
+                            Commentaires
+                        </BoutonTooltip>
+
+                        <!-- ── Groupe 3 : Actions enseignant ──────────────────── -->
+                        <template v-if="estEnseignant">
+                            <Separator
+                                orientation="vertical"
+                                class="mx-1 h-5"
+                            />
+                            <Button
+                                :variant="
+                                    modeEditionEnseignant
+                                        ? 'default'
+                                        : 'outline'
+                                "
+                                size="sm"
+                                @click="toggleModeEditionEnseignant"
+                            >
+                                <Settings2 class="mr-2 h-4 w-4" />
+                                {{
+                                    modeEditionEnseignant
+                                        ? 'Mode édition actif'
+                                        : 'Activer mode édition'
+                                }}
+                            </Button>
+                            <BoutonTooltip
+                                :texte="
+                                    correctionVisible
+                                        ? 'Masquer les corrections aux étudiants'
+                                        : 'Publier les corrections pour que les étudiants puissent les consulter'
+                                "
+                                :variant="
+                                    correctionVisible ? 'default' : 'ghost'
+                                "
+                                size="sm"
+                                @click="toggleCorrectionVisible"
+                            >
+                                <CheckCircle2
+                                    v-if="correctionVisible"
+                                    class="h-4 w-4"
+                                />
+                                <Send v-else class="h-4 w-4" />
+                                Correction
+                            </BoutonTooltip>
+                            <BoutonTooltip
+                                :texte="
+                                    verrouille
+                                        ? 'Déverrouiller le document pour permettre les modifications'
+                                        : 'Verrouiller le document pour empêcher toute modification'
+                                "
+                                :variant="verrouille ? 'destructive' : 'ghost'"
+                                size="sm"
+                                @click="toggleVerrouille"
+                            >
+                                <Lock class="h-4 w-4" />
+                                Verrouiller
+                            </BoutonTooltip>
                         </template>
-                    </template>
-                    <button
-                        v-else-if="
-                            !estEnseignant &&
-                            grillePersonnalisee &&
-                            noteFinaleGrille[userId] !== null &&
-                            noteFinaleGrille[userId] !== undefined
-                        "
-                        type="button"
-                        class="flex items-center gap-2 rounded-lg border px-4 py-2 text-base font-semibold transition-opacity hover:opacity-80"
-                        :class="
-                            (noteFinaleGrille[userId] ?? 0) >= 60
-                                ? 'border-green-300 bg-green-50 text-green-700'
-                                : 'border-red-300 bg-red-50 text-red-700'
-                        "
-                        :title="t('projets.show.view_grade_summary')"
-                        @click="grilleModalOuverte = true"
-                    >
-                        <Star class="h-4 w-4" />
-                        {{ t('projets.show.my_grade', { grade: noteFinaleGrille[userId]?.toFixed(2) }) }}
-                    </button>
+                    </div>
+
+                    <!-- Note finale grille personnalisée : enseignant voit tous ; étudiant voit uniquement la sienne -->
+                    <div class="flex flex-wrap gap-2">
+                        <template v-if="estEnseignant && grillePersonnalisee">
+                            <template
+                                v-for="membre in membres"
+                                :key="membre.id"
+                            >
+                                <button
+                                    v-if="
+                                        noteFinaleGrille[membre.id] !== null &&
+                                        noteFinaleGrille[membre.id] !==
+                                            undefined
+                                    "
+                                    type="button"
+                                    class="flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-medium transition-opacity hover:opacity-80"
+                                    :class="
+                                        (noteFinaleGrille[membre.id] ?? 0) >= 60
+                                            ? 'border-green-300 bg-green-50 text-green-700'
+                                            : 'border-red-300 bg-red-50 text-red-700'
+                                    "
+                                    :title="
+                                        t('projets.show.view_grade_summary')
+                                    "
+                                    @click="grilleModalOuverte = true"
+                                >
+                                    <Star class="h-3.5 w-3.5" />
+                                    {{ membre.prenom }} :
+                                    {{
+                                        noteFinaleGrille[membre.id]?.toFixed(2)
+                                    }}
+                                    / 100
+                                </button>
+                            </template>
+                        </template>
+                        <button
+                            v-else-if="
+                                !estEnseignant &&
+                                grillePersonnalisee &&
+                                noteFinaleGrille[userId] !== null &&
+                                noteFinaleGrille[userId] !== undefined
+                            "
+                            type="button"
+                            class="flex items-center gap-2 rounded-lg border px-4 py-2 text-base font-semibold transition-opacity hover:opacity-80"
+                            :class="
+                                (noteFinaleGrille[userId] ?? 0) >= 60
+                                    ? 'border-green-300 bg-green-50 text-green-700'
+                                    : 'border-red-300 bg-red-50 text-red-700'
+                            "
+                            :title="t('projets.show.view_grade_summary')"
+                            @click="grilleModalOuverte = true"
+                        >
+                            <Star class="h-4 w-4" />
+                            {{
+                                t('projets.show.my_grade', {
+                                    grade: noteFinaleGrille[userId]?.toFixed(2),
+                                })
+                            }}
+                        </button>
+                    </div>
                 </div>
-            </div>
             </div>
 
             <!-- ─── Page titre ────────────────────────────────────────────── -->
@@ -2234,7 +2597,9 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                 <CardContent v-show="!collapsed.pageTitre">
                     <RichEditor
                         v-model="form.page_titre_contenu"
-                        :placeholder="t('projets.show.page_titre_manuel_placeholder')"
+                        :placeholder="
+                            t('projets.show.page_titre_manuel_placeholder')
+                        "
                         :read-only="!peutEditer"
                         :est-enseignant="estEnseignant"
                         :corrections="annotations['page_titre_contenu'] ?? []"
@@ -2243,8 +2608,13 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         editor-id="page-titre-contenu"
                         :membres="membres"
                         @update:model-value="scheduleSharedSave"
-                        @save-annotation="(p) => sauvegarderAnnotation('page_titre_contenu', p)"
-                        @delete-annotation="(p) => supprimerAnnotation('page_titre_contenu', p)"
+                        @save-annotation="
+                            (p) =>
+                                sauvegarderAnnotation('page_titre_contenu', p)
+                        "
+                        @delete-annotation="
+                            (p) => supprimerAnnotation('page_titre_contenu', p)
+                        "
                         @demander-renvoi="demanderRenvoi"
                         @renvois-utilises="handleRenvoisUtilises"
                     />
@@ -2253,7 +2623,9 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     <CommentaireEnseignant
                         :commentaire="commentaires['normes_presentation']"
                         :brouillon="getBrouillon('normes_presentation')"
-                        :est-reduit="!!commentairesReduits['normes_presentation']"
+                        :est-reduit="
+                            !!commentairesReduits['normes_presentation']
+                        "
                         :is-saving="!!commentairesSaving['normes_presentation']"
                         :est-enseignant="estEnseignant"
                         :placeholder="t('projets.show.comment_presentation')"
@@ -2261,7 +2633,9 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         @toggle="toggleCommentaire('normes_presentation')"
                         @save="sauvegarderCommentaire('normes_presentation')"
                         @delete="supprimerCommentaire('normes_presentation')"
-                        @update:brouillon="(v) => setBrouillon('normes_presentation', v)"
+                        @update:brouillon="
+                            (v) => setBrouillon('normes_presentation', v)
+                        "
                     />
                 </CardContent>
             </Card>
@@ -2290,7 +2664,9 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     </p>
                     <RichEditor
                         v-model="form.page_titre_contenu"
-                        :placeholder="t('projets.show.page_titre_manuel_placeholder')"
+                        :placeholder="
+                            t('projets.show.page_titre_manuel_placeholder')
+                        "
                         :read-only="!peutEditer"
                         :est-enseignant="estEnseignant"
                         :corrections="annotations['page_titre_contenu'] ?? []"
@@ -2299,8 +2675,13 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         editor-id="page-titre-contenu"
                         :membres="membres"
                         @update:model-value="scheduleSharedSave"
-                        @save-annotation="(p) => sauvegarderAnnotation('page_titre_contenu', p)"
-                        @delete-annotation="(p) => supprimerAnnotation('page_titre_contenu', p)"
+                        @save-annotation="
+                            (p) =>
+                                sauvegarderAnnotation('page_titre_contenu', p)
+                        "
+                        @delete-annotation="
+                            (p) => supprimerAnnotation('page_titre_contenu', p)
+                        "
                         @demander-renvoi="demanderRenvoi"
                         @renvois-utilises="handleRenvoisUtilises"
                     />
@@ -2309,7 +2690,9 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     <CommentaireEnseignant
                         :commentaire="commentaires['normes_presentation']"
                         :brouillon="getBrouillon('normes_presentation')"
-                        :est-reduit="!!commentairesReduits['normes_presentation']"
+                        :est-reduit="
+                            !!commentairesReduits['normes_presentation']
+                        "
                         :is-saving="!!commentairesSaving['normes_presentation']"
                         :est-enseignant="estEnseignant"
                         :placeholder="t('projets.show.comment_presentation')"
@@ -2317,7 +2700,9 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         @toggle="toggleCommentaire('normes_presentation')"
                         @save="sauvegarderCommentaire('normes_presentation')"
                         @delete="supprimerCommentaire('normes_presentation')"
-                        @update:brouillon="(v) => setBrouillon('normes_presentation', v)"
+                        @update:brouillon="
+                            (v) => setBrouillon('normes_presentation', v)
+                        "
                     />
                 </CardContent>
             </Card>
@@ -2328,7 +2713,11 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     <CardTitle
                         class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
                     >
-                        {{ genererTableMatieres ? t('projets.show.toc_card') : t('projets.show.toc_manuel_card') }}
+                        {{
+                            genererTableMatieres
+                                ? t('projets.show.toc_card')
+                                : t('projets.show.toc_manuel_card')
+                        }}
                     </CardTitle>
                     <BoutonTooltip
                         :texte="collapsed.tdm ? 'Développer' : 'Réduire'"
@@ -2340,7 +2729,10 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                 </CardHeader>
                 <CardContent v-show="!collapsed.tdm">
                     <!-- Mode automatique : notice informative, pas d'éditeur -->
-                    <p v-if="genererTableMatieres" class="text-sm italic text-muted-foreground">
+                    <p
+                        v-if="genererTableMatieres"
+                        class="text-sm text-muted-foreground italic"
+                    >
                         {{ t('projets.show.toc_auto_notice') }}
                     </p>
                     <!-- Mode manuel : hint + éditeur -->
@@ -2350,17 +2742,33 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         </p>
                         <RichEditor
                             v-model="form.table_matieres_contenu"
-                            :placeholder="t('projets.show.tdm_manuel_placeholder')"
+                            :placeholder="
+                                t('projets.show.tdm_manuel_placeholder')
+                            "
                             :read-only="!peutEditer"
                             :est-enseignant="estEnseignant"
-                            :corrections="annotations['table_matieres_contenu'] ?? []"
+                            :corrections="
+                                annotations['table_matieres_contenu'] ?? []
+                            "
                             :renvois="renvoisLocaux"
                             :renvois-sync-version="renvoisSyncVersion"
                             editor-id="table-matieres-contenu"
                             :membres="membres"
                             @update:model-value="scheduleSharedSave"
-                            @save-annotation="(p) => sauvegarderAnnotation('table_matieres_contenu', p)"
-                            @delete-annotation="(p) => supprimerAnnotation('table_matieres_contenu', p)"
+                            @save-annotation="
+                                (p) =>
+                                    sauvegarderAnnotation(
+                                        'table_matieres_contenu',
+                                        p,
+                                    )
+                            "
+                            @delete-annotation="
+                                (p) =>
+                                    supprimerAnnotation(
+                                        'table_matieres_contenu',
+                                        p,
+                                    )
+                            "
                             @demander-renvoi="demanderRenvoi"
                             @renvois-utilises="handleRenvoisUtilises"
                         />
@@ -2371,54 +2779,115 @@ function setOngletActif(section: string, membreId: number | 'tous') {
             <!-- ─── Sections dynamiques (définies par le professeur) ─────── -->
             <template v-if="props.sections.length > 0">
                 <template v-for="section in props.sections" :key="section.id">
-
                     <!-- ── Type texte : zone de rédaction unique ─────────────── -->
                     <Card v-if="section.type === 'texte'">
-                        <CardHeader class="flex flex-row items-center justify-between">
+                        <CardHeader
+                            class="flex flex-row items-center justify-between"
+                        >
                             <CardTitle class="flex flex-col gap-0.5">
-                                <span class="text-base font-semibold">{{ section.label }}</span>
-                                <span v-if="section.description" class="text-xs font-normal text-muted-foreground">
+                                <span class="text-base font-semibold">{{
+                                    section.label
+                                }}</span>
+                                <span
+                                    v-if="section.description"
+                                    class="text-xs font-normal text-muted-foreground"
+                                >
                                     {{ section.description }}
                                 </span>
                             </CardTitle>
                             <div class="flex items-center gap-1">
                                 <BoutonTooltip
-                                    :texte="collapsed[`section_${section.id}`] ? 'Développer' : 'Réduire'"
-                                    @click="toggleSection(`section_${section.id}`)"
+                                    :texte="
+                                        collapsed[`section_${section.id}`]
+                                            ? 'Développer'
+                                            : 'Réduire'
+                                    "
+                                    @click="
+                                        toggleSection(`section_${section.id}`)
+                                    "
                                 >
-                                    <ChevronUp v-if="!collapsed[`section_${section.id}`]" class="h-4 w-4" />
+                                    <ChevronUp
+                                        v-if="
+                                            !collapsed[`section_${section.id}`]
+                                        "
+                                        class="h-4 w-4"
+                                    />
                                     <ChevronDown v-else class="h-4 w-4" />
                                 </BoutonTooltip>
                             </div>
                         </CardHeader>
-                        <CardContent v-show="!collapsed[`section_${section.id}`]" class="space-y-4">
+                        <CardContent
+                            v-show="!collapsed[`section_${section.id}`]"
+                            class="space-y-4"
+                        >
                             <RichEditor
                                 v-model="sectionContenus[section.id]"
                                 :placeholder="`Rédigez la section « ${section.label} »…`"
                                 :read-only="!peutEditer"
                                 :est-enseignant="estEnseignant"
-                                :corrections="annotations[`section_${section.id}`] ?? []"
+                                :corrections="
+                                    annotations[`section_${section.id}`] ?? []
+                                "
                                 :renvois="renvoisLocaux"
                                 :renvois-sync-version="renvoisSyncVersion"
                                 :editor-id="`section-${section.id}`"
                                 :membres="membres"
-                                @update:model-value="scheduleSectionSave(section.id)"
-                                @save-annotation="(p) => sauvegarderAnnotation(`section_${section.id}`, p)"
-                                @delete-annotation="(p) => supprimerAnnotation(`section_${section.id}`, p)"
+                                @update:model-value="
+                                    scheduleSectionSave(section.id)
+                                "
+                                @save-annotation="
+                                    (p) =>
+                                        sauvegarderAnnotation(
+                                            `section_${section.id}`,
+                                            p,
+                                        )
+                                "
+                                @delete-annotation="
+                                    (p) =>
+                                        supprimerAnnotation(
+                                            `section_${section.id}`,
+                                            p,
+                                        )
+                                "
                                 @demander-renvoi="demanderRenvoi"
                                 @renvois-utilises="handleRenvoisUtilises"
                             />
                             <CommentaireEnseignant
-                                :commentaire="commentaires[`section_${section.id}`]"
-                                :brouillon="getBrouillon(`section_${section.id}`)"
-                                :est-reduit="!!commentairesReduits[`section_${section.id}`]"
-                                :is-saving="!!commentairesSaving[`section_${section.id}`]"
+                                :commentaire="
+                                    commentaires[`section_${section.id}`]
+                                "
+                                :brouillon="
+                                    getBrouillon(`section_${section.id}`)
+                                "
+                                :est-reduit="
+                                    !!commentairesReduits[
+                                        `section_${section.id}`
+                                    ]
+                                "
+                                :is-saving="
+                                    !!commentairesSaving[
+                                        `section_${section.id}`
+                                    ]
+                                "
                                 :est-enseignant="estEnseignant"
                                 class="mt-3"
-                                @toggle="toggleCommentaire(`section_${section.id}`)"
-                                @save="sauvegarderCommentaire(`section_${section.id}`)"
-                                @delete="supprimerCommentaire(`section_${section.id}`)"
-                                @update:brouillon="(v) => setBrouillon(`section_${section.id}`, v)"
+                                @toggle="
+                                    toggleCommentaire(`section_${section.id}`)
+                                "
+                                @save="
+                                    sauvegarderCommentaire(
+                                        `section_${section.id}`,
+                                    )
+                                "
+                                @delete="
+                                    supprimerCommentaire(
+                                        `section_${section.id}`,
+                                    )
+                                "
+                                @update:brouillon="
+                                    (v) =>
+                                        setBrouillon(`section_${section.id}`, v)
+                                "
                             />
                         </CardContent>
                     </Card>
@@ -2426,46 +2895,91 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     <!-- ── Type paragraphes : N sous-paragraphes ajoutables ───── -->
                     <template v-else-if="section.type === 'paragraphes'">
                         <Card
-                            v-for="para in sectionParagraphesLocaux[section.id] ?? []"
+                            v-for="para in sectionParagraphesLocaux[
+                                section.id
+                            ] ?? []"
                             :key="para.id"
                         >
-                            <CardHeader class="flex flex-row items-center justify-between">
+                            <CardHeader
+                                class="flex flex-row items-center justify-between"
+                            >
                                 <CardTitle class="flex items-center gap-2">
-                                    <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                                    <span
+                                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary"
+                                    >
                                         {{ para.ordre }}
                                     </span>
-                                    <span class="text-sm font-normal italic text-muted-foreground">
-                                        {{ para.titre || `${section.label} — paragraphe ${para.ordre}` }}
+                                    <span
+                                        class="text-sm font-normal text-muted-foreground italic"
+                                    >
+                                        {{
+                                            para.titre ||
+                                            `${section.label} — paragraphe ${para.ordre}`
+                                        }}
                                     </span>
                                 </CardTitle>
                                 <div class="flex items-center gap-1">
                                     <BoutonTooltip
-                                        v-if="peutEditer && (sectionParagraphesLocaux[section.id]?.length ?? 0) > 1"
+                                        v-if="
+                                            peutEditer &&
+                                            (sectionParagraphesLocaux[
+                                                section.id
+                                            ]?.length ?? 0) > 1
+                                        "
                                         texte="Supprimer ce paragraphe"
                                         size="icon-sm"
                                         class="text-destructive"
-                                        :disabled="!!sectionParagrapheEnCours[section.id]"
-                                        @click="supprimerSectionParagraphe(para.id, section.id)"
+                                        :disabled="
+                                            !!sectionParagrapheEnCours[
+                                                section.id
+                                            ]
+                                        "
+                                        @click="
+                                            supprimerSectionParagraphe(
+                                                para.id,
+                                                section.id,
+                                            )
+                                        "
                                     >
                                         <Trash2 class="h-4 w-4" />
                                     </BoutonTooltip>
                                     <BoutonTooltip
-                                        :texte="collapsedDev[para.id] ? 'Développer' : 'Réduire'"
+                                        :texte="
+                                            collapsedDev[para.id]
+                                                ? 'Développer'
+                                                : 'Réduire'
+                                        "
                                         @click="toggleDev(para.id)"
                                     >
-                                        <ChevronUp v-if="!collapsedDev[para.id]" class="h-4 w-4" />
+                                        <ChevronUp
+                                            v-if="!collapsedDev[para.id]"
+                                            class="h-4 w-4"
+                                        />
                                         <ChevronDown v-else class="h-4 w-4" />
                                     </BoutonTooltip>
                                 </div>
                             </CardHeader>
-                            <CardContent v-show="!collapsedDev[para.id]" class="space-y-2">
+                            <CardContent
+                                v-show="!collapsedDev[para.id]"
+                                class="space-y-2"
+                            >
                                 <div v-if="peutEditer" class="mb-1">
-                                    <Label class="text-xs text-muted-foreground">Titre du paragraphe</Label>
+                                    <Label class="text-xs text-muted-foreground"
+                                        >Titre du paragraphe</Label
+                                    >
                                     <Input
                                         :model-value="para.titre ?? ''"
                                         :placeholder="`Titre du paragraphe ${para.ordre}`"
                                         class="mt-1"
-                                        @update:model-value="(val: string) => { para.titre = val; scheduleSectionParagrapheSave(para.id, section.id); }"
+                                        @update:model-value="
+                                            (val: string) => {
+                                                para.titre = val;
+                                                scheduleSectionParagrapheSave(
+                                                    para.id,
+                                                    section.id,
+                                                );
+                                            }
+                                        "
                                     />
                                 </div>
                                 <RichEditor
@@ -2473,28 +2987,86 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                     :placeholder="`Rédigez le contenu du paragraphe ${para.ordre}…`"
                                     :read-only="!peutEditer"
                                     :est-enseignant="estEnseignant"
-                                    :corrections="annotations[`section_paragraphe_${para.id}`] ?? []"
+                                    :corrections="
+                                        annotations[
+                                            `section_paragraphe_${para.id}`
+                                        ] ?? []
+                                    "
                                     :renvois="renvoisLocaux"
                                     :renvois-sync-version="renvoisSyncVersion"
                                     :editor-id="`section-paragraphe-${para.id}`"
                                     :membres="membres"
-                                    @update:model-value="(val: string) => { para.contenu = val; scheduleSectionParagrapheSave(para.id, section.id); }"
-                                    @save-annotation="(p) => sauvegarderAnnotation(`section_paragraphe_${para.id}`, p)"
-                                    @delete-annotation="(p) => supprimerAnnotation(`section_paragraphe_${para.id}`, p)"
+                                    @update:model-value="
+                                        (val: string) => {
+                                            para.contenu = val;
+                                            scheduleSectionParagrapheSave(
+                                                para.id,
+                                                section.id,
+                                            );
+                                        }
+                                    "
+                                    @save-annotation="
+                                        (p) =>
+                                            sauvegarderAnnotation(
+                                                `section_paragraphe_${para.id}`,
+                                                p,
+                                            )
+                                    "
+                                    @delete-annotation="
+                                        (p) =>
+                                            supprimerAnnotation(
+                                                `section_paragraphe_${para.id}`,
+                                                p,
+                                            )
+                                    "
                                     @demander-renvoi="demanderRenvoi"
                                     @renvois-utilises="handleRenvoisUtilises"
                                 />
                                 <CommentaireEnseignant
-                                    :commentaire="commentaires[`section_paragraphe_${para.id}`]"
-                                    :brouillon="getBrouillon(`section_paragraphe_${para.id}`)"
-                                    :est-reduit="!!commentairesReduits[`section_paragraphe_${para.id}`]"
-                                    :is-saving="!!commentairesSaving[`section_paragraphe_${para.id}`]"
+                                    :commentaire="
+                                        commentaires[
+                                            `section_paragraphe_${para.id}`
+                                        ]
+                                    "
+                                    :brouillon="
+                                        getBrouillon(
+                                            `section_paragraphe_${para.id}`,
+                                        )
+                                    "
+                                    :est-reduit="
+                                        !!commentairesReduits[
+                                            `section_paragraphe_${para.id}`
+                                        ]
+                                    "
+                                    :is-saving="
+                                        !!commentairesSaving[
+                                            `section_paragraphe_${para.id}`
+                                        ]
+                                    "
                                     :est-enseignant="estEnseignant"
                                     class="mt-3"
-                                    @toggle="toggleCommentaire(`section_paragraphe_${para.id}`)"
-                                    @save="sauvegarderCommentaire(`section_paragraphe_${para.id}`)"
-                                    @delete="supprimerCommentaire(`section_paragraphe_${para.id}`)"
-                                    @update:brouillon="(v) => setBrouillon(`section_paragraphe_${para.id}`, v)"
+                                    @toggle="
+                                        toggleCommentaire(
+                                            `section_paragraphe_${para.id}`,
+                                        )
+                                    "
+                                    @save="
+                                        sauvegarderCommentaire(
+                                            `section_paragraphe_${para.id}`,
+                                        )
+                                    "
+                                    @delete="
+                                        supprimerCommentaire(
+                                            `section_paragraphe_${para.id}`,
+                                        )
+                                    "
+                                    @update:brouillon="
+                                        (v) =>
+                                            setBrouillon(
+                                                `section_paragraphe_${para.id}`,
+                                                v,
+                                            )
+                                    "
                                 />
                             </CardContent>
                         </Card>
@@ -2503,10 +3075,15 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                :disabled="!!sectionParagrapheEnCours[section.id]"
+                                :disabled="
+                                    !!sectionParagrapheEnCours[section.id]
+                                "
                                 @click="ajouterSectionParagraphe(section.id)"
                             >
-                                <Loader2 v-if="sectionParagrapheEnCours[section.id]" class="mr-2 h-4 w-4 animate-spin" />
+                                <Loader2
+                                    v-if="sectionParagrapheEnCours[section.id]"
+                                    class="mr-2 h-4 w-4 animate-spin"
+                                />
                                 <Plus v-else class="mr-2 h-4 w-4" />
                                 Ajouter un paragraphe — {{ section.label }}
                             </Button>
@@ -2516,87 +3093,198 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     <!-- ── Type individuel : 1 zone par membre du groupe ─────── -->
                     <template v-else-if="section.type === 'individuel'">
                         <Card v-for="membre in props.membres" :key="membre.id">
-                            <CardHeader class="flex flex-row items-center justify-between">
+                            <CardHeader
+                                class="flex flex-row items-center justify-between"
+                            >
                                 <CardTitle class="flex items-center gap-2">
-                                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
-                                        {{ membre.prenom[0] }}{{ membre.nom[0] }}
+                                    <span
+                                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary"
+                                    >
+                                        {{ membre.prenom[0]
+                                        }}{{ membre.nom[0] }}
                                     </span>
-                                    {{ section.label }} — {{ membre.prenom }} {{ membre.nom }}
+                                    {{ section.label }} — {{ membre.prenom }}
+                                    {{ membre.nom }}
                                 </CardTitle>
                                 <BoutonTooltip
-                                    :texte="collapsedConclusion[section.id * 10000 + membre.id] ? 'Développer' : 'Réduire'"
-                                    @click="toggleConclusion(section.id * 10000 + membre.id)"
+                                    :texte="
+                                        collapsedConclusion[
+                                            section.id * 10000 + membre.id
+                                        ]
+                                            ? 'Développer'
+                                            : 'Réduire'
+                                    "
+                                    @click="
+                                        toggleConclusion(
+                                            section.id * 10000 + membre.id,
+                                        )
+                                    "
                                 >
-                                    <ChevronUp v-if="!collapsedConclusion[section.id * 10000 + membre.id]" class="h-4 w-4" />
+                                    <ChevronUp
+                                        v-if="
+                                            !collapsedConclusion[
+                                                section.id * 10000 + membre.id
+                                            ]
+                                        "
+                                        class="h-4 w-4"
+                                    />
                                     <ChevronDown v-else class="h-4 w-4" />
                                 </BoutonTooltip>
                             </CardHeader>
-                            <CardContent v-show="!collapsedConclusion[section.id * 10000 + membre.id]">
+                            <CardContent
+                                v-show="
+                                    !collapsedConclusion[
+                                        section.id * 10000 + membre.id
+                                    ]
+                                "
+                            >
                                 <template v-if="peutEditer">
-                                    <p class="mb-2 text-xs text-muted-foreground">
-                                        N'importe quel membre peut rédiger la partie d'un autre.
+                                    <p
+                                        class="mb-2 text-xs text-muted-foreground"
+                                    >
+                                        N'importe quel membre peut rédiger la
+                                        partie d'un autre.
                                     </p>
                                     <RichEditor
-                                        :model-value="sectionConclusionsLocales[section.id]?.[membre.id] ?? ''"
+                                        :model-value="
+                                            sectionConclusionsLocales[
+                                                section.id
+                                            ]?.[membre.id] ?? ''
+                                        "
                                         placeholder="Rédigez votre partie…"
                                         :est-enseignant="estEnseignant"
                                         :renvois="renvoisLocaux"
-                                        :renvois-sync-version="renvoisSyncVersion"
+                                        :renvois-sync-version="
+                                            renvoisSyncVersion
+                                        "
                                         :editor-id="`section-conclusion-${section.id}-${membre.id}`"
-                                        @update:model-value="(val: string) => {
-                                            if (!sectionConclusionsLocales[section.id]) sectionConclusionsLocales[section.id] = {};
-                                            sectionConclusionsLocales[section.id][membre.id] = val;
-                                            scheduleSectionConclusionSave(section.id, membre.id);
-                                        }"
+                                        @update:model-value="
+                                            (val: string) => {
+                                                if (
+                                                    !sectionConclusionsLocales[
+                                                        section.id
+                                                    ]
+                                                )
+                                                    sectionConclusionsLocales[
+                                                        section.id
+                                                    ] = {};
+                                                sectionConclusionsLocales[
+                                                    section.id
+                                                ][membre.id] = val;
+                                                scheduleSectionConclusionSave(
+                                                    section.id,
+                                                    membre.id,
+                                                );
+                                            }
+                                        "
                                         @demander-renvoi="demanderRenvoi"
-                                        @renvois-utilises="handleRenvoisUtilises"
+                                        @renvois-utilises="
+                                            handleRenvoisUtilises
+                                        "
                                     />
                                 </template>
                                 <template v-else>
                                     <RichEditor
-                                        :model-value="sectionConclusionsLocales[section.id]?.[membre.id] ?? ''"
+                                        :model-value="
+                                            sectionConclusionsLocales[
+                                                section.id
+                                            ]?.[membre.id] ?? ''
+                                        "
                                         :read-only="true"
                                         :est-enseignant="estEnseignant"
                                         placeholder="Non rédigé"
                                     />
                                 </template>
                                 <CommentaireEnseignant
-                                    :commentaire="commentaires[`section_individuel_${section.id}_${membre.id}`]"
-                                    :brouillon="getBrouillon(`section_individuel_${section.id}_${membre.id}`)"
-                                    :est-reduit="!!commentairesReduits[`section_individuel_${section.id}_${membre.id}`]"
-                                    :is-saving="!!commentairesSaving[`section_individuel_${section.id}_${membre.id}`]"
+                                    :commentaire="
+                                        commentaires[
+                                            `section_individuel_${section.id}_${membre.id}`
+                                        ]
+                                    "
+                                    :brouillon="
+                                        getBrouillon(
+                                            `section_individuel_${section.id}_${membre.id}`,
+                                        )
+                                    "
+                                    :est-reduit="
+                                        !!commentairesReduits[
+                                            `section_individuel_${section.id}_${membre.id}`
+                                        ]
+                                    "
+                                    :is-saving="
+                                        !!commentairesSaving[
+                                            `section_individuel_${section.id}_${membre.id}`
+                                        ]
+                                    "
                                     :est-enseignant="estEnseignant"
                                     class="mt-3"
-                                    @toggle="toggleCommentaire(`section_individuel_${section.id}_${membre.id}`)"
-                                    @save="sauvegarderCommentaire(`section_individuel_${section.id}_${membre.id}`)"
-                                    @delete="supprimerCommentaire(`section_individuel_${section.id}_${membre.id}`)"
-                                    @update:brouillon="(v) => setBrouillon(`section_individuel_${section.id}_${membre.id}`, v)"
+                                    @toggle="
+                                        toggleCommentaire(
+                                            `section_individuel_${section.id}_${membre.id}`,
+                                        )
+                                    "
+                                    @save="
+                                        sauvegarderCommentaire(
+                                            `section_individuel_${section.id}_${membre.id}`,
+                                        )
+                                    "
+                                    @delete="
+                                        supprimerCommentaire(
+                                            `section_individuel_${section.id}_${membre.id}`,
+                                        )
+                                    "
+                                    @update:brouillon="
+                                        (v) =>
+                                            setBrouillon(
+                                                `section_individuel_${section.id}_${membre.id}`,
+                                                v,
+                                            )
+                                    "
                                 />
                             </CardContent>
                         </Card>
                     </template>
 
                     <!-- ── Type entrevue DEP/Complet : concepts + tableau dim/indic/questions ── -->
-                    <template v-else-if="section.type === 'entrevue' && cours.type_cours !== 'cours_complementaire'">
+                    <template
+                        v-else-if="
+                            section.type === 'entrevue' &&
+                            cours.type_cours !== 'cours_complementaire'
+                        "
+                    >
                         <!-- Compteur de questions -->
                         <div class="mb-2 flex items-center justify-between">
                             <span class="text-sm text-muted-foreground">
                                 Questions renseignées :
-                                <span :class="totalQuestions(section.id) >= 10 ? 'font-semibold text-green-600' : 'font-semibold text-amber-500'">
+                                <span
+                                    :class="
+                                        totalQuestions(section.id) >= 10
+                                            ? 'font-semibold text-green-600'
+                                            : 'font-semibold text-amber-500'
+                                    "
+                                >
                                     {{ totalQuestions(section.id) }}
                                 </span>
-                                <span class="text-muted-foreground"> / 10 min.</span>
+                                <span class="text-muted-foreground">
+                                    / 10 min.</span
+                                >
                             </span>
                         </div>
 
                         <!-- Liste des concepts -->
                         <Card
-                            v-for="concept in sectionConceptsLocaux[section.id] ?? []"
+                            v-for="concept in sectionConceptsLocaux[
+                                section.id
+                            ] ?? []"
                             :key="concept.id"
                         >
-                            <CardHeader class="flex flex-row items-start justify-between gap-2 pb-2">
+                            <CardHeader
+                                class="flex flex-row items-start justify-between gap-2 pb-2"
+                            >
                                 <div class="flex flex-1 items-center gap-2">
-                                    <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                                    <span
+                                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary"
+                                    >
                                         {{ concept.ordre }}
                                     </span>
                                     <input
@@ -2604,16 +3292,30 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                         :value="concept.label"
                                         class="flex-1 rounded border-0 bg-transparent text-sm font-medium outline-none focus:ring-1 focus:ring-ring"
                                         placeholder="Nom du concept…"
-                                        @input="(e) => { concept.label = (e.target as HTMLInputElement).value; scheduleConceptLabelSave(concept.id, section.id); }"
+                                        @input="
+                                            (e) => {
+                                                concept.label = (
+                                                    e.target as HTMLInputElement
+                                                ).value;
+                                                scheduleConceptLabelSave(
+                                                    concept.id,
+                                                    section.id,
+                                                );
+                                            }
+                                        "
                                     />
-                                    <span v-else class="text-sm font-medium">{{ concept.label }}</span>
+                                    <span v-else class="text-sm font-medium">{{
+                                        concept.label
+                                    }}</span>
                                 </div>
                                 <BoutonTooltip
                                     v-if="peutEditer"
                                     texte="Supprimer ce concept"
                                     class="size-7 shrink-0 text-destructive"
                                     :disabled="!!conceptEnCours[section.id]"
-                                    @click="supprimerConcept(concept.id, section.id)"
+                                    @click="
+                                        supprimerConcept(concept.id, section.id)
+                                    "
                                 >
                                     <Trash2 class="h-3.5 w-3.5" />
                                 </BoutonTooltip>
@@ -2623,10 +3325,24 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 <!-- Tableau lignes -->
                                 <table class="w-full text-sm">
                                     <thead>
-                                        <tr class="border-b text-xs text-muted-foreground">
-                                            <th class="pb-1 pr-2 text-left font-medium">Dimension</th>
-                                            <th class="pb-1 pr-2 text-left font-medium">Indicateur</th>
-                                            <th class="pb-1 text-left font-medium">Questions spécifiques</th>
+                                        <tr
+                                            class="border-b text-xs text-muted-foreground"
+                                        >
+                                            <th
+                                                class="pr-2 pb-1 text-left font-medium"
+                                            >
+                                                Dimension
+                                            </th>
+                                            <th
+                                                class="pr-2 pb-1 text-left font-medium"
+                                            >
+                                                Indicateur
+                                            </th>
+                                            <th
+                                                class="pb-1 text-left font-medium"
+                                            >
+                                                Questions spécifiques
+                                            </th>
                                             <th v-if="peutEditer" class="w-8" />
                                         </tr>
                                     </thead>
@@ -2640,50 +3356,117 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                             <td class="py-1 pr-2 align-top">
                                                 <textarea
                                                     v-if="peutEditer"
-                                                    :value="ligne.dimension ?? ''"
+                                                    :value="
+                                                        ligne.dimension ?? ''
+                                                    "
                                                     rows="2"
                                                     class="w-full resize-none rounded border border-input bg-transparent p-1 text-sm outline-none focus:ring-1 focus:ring-ring"
                                                     placeholder="Dimension…"
-                                                    @input="(e) => { ligne.dimension = (e.target as HTMLTextAreaElement).value; scheduleLigneSave(ligne.id, concept.id, section.id); }"
+                                                    @input="
+                                                        (e) => {
+                                                            ligne.dimension = (
+                                                                e.target as HTMLTextAreaElement
+                                                            ).value;
+                                                            scheduleLigneSave(
+                                                                ligne.id,
+                                                                concept.id,
+                                                                section.id,
+                                                            );
+                                                        }
+                                                    "
                                                 />
-                                                <span v-else class="block whitespace-pre-wrap">{{ ligne.dimension }}</span>
+                                                <span
+                                                    v-else
+                                                    class="block whitespace-pre-wrap"
+                                                    >{{ ligne.dimension }}</span
+                                                >
                                             </td>
                                             <!-- Indicateur -->
                                             <td class="py-1 pr-2 align-top">
                                                 <textarea
                                                     v-if="peutEditer"
-                                                    :value="ligne.indicateur ?? ''"
+                                                    :value="
+                                                        ligne.indicateur ?? ''
+                                                    "
                                                     rows="2"
                                                     class="w-full resize-none rounded border border-input bg-transparent p-1 text-sm outline-none focus:ring-1 focus:ring-ring"
                                                     placeholder="Indicateur…"
-                                                    @input="(e) => { ligne.indicateur = (e.target as HTMLTextAreaElement).value; scheduleLigneSave(ligne.id, concept.id, section.id); }"
+                                                    @input="
+                                                        (e) => {
+                                                            ligne.indicateur = (
+                                                                e.target as HTMLTextAreaElement
+                                                            ).value;
+                                                            scheduleLigneSave(
+                                                                ligne.id,
+                                                                concept.id,
+                                                                section.id,
+                                                            );
+                                                        }
+                                                    "
                                                 />
-                                                <span v-else class="block whitespace-pre-wrap">{{ ligne.indicateur }}</span>
+                                                <span
+                                                    v-else
+                                                    class="block whitespace-pre-wrap"
+                                                    >{{
+                                                        ligne.indicateur
+                                                    }}</span
+                                                >
                                             </td>
                                             <!-- Questions -->
                                             <td class="py-1 align-top">
                                                 <div class="space-y-1">
                                                     <div
-                                                        v-for="(q, qi) in ligne.questions"
+                                                        v-for="(
+                                                            q, qi
+                                                        ) in ligne.questions"
                                                         :key="qi"
                                                         class="flex items-start gap-1"
                                                     >
-                                                        <span class="mt-1.5 shrink-0 text-xs text-muted-foreground">{{ qi + 1 }}.</span>
+                                                        <span
+                                                            class="mt-1.5 shrink-0 text-xs text-muted-foreground"
+                                                            >{{ qi + 1 }}.</span
+                                                        >
                                                         <input
                                                             v-if="peutEditer"
                                                             :value="q"
                                                             class="flex-1 rounded border border-input bg-transparent p-1 text-sm outline-none focus:ring-1 focus:ring-ring"
                                                             placeholder="Question…"
-                                                            @input="(e) => { ligne.questions[qi] = (e.target as HTMLInputElement).value; scheduleLigneSave(ligne.id, concept.id, section.id); }"
+                                                            @input="
+                                                                (e) => {
+                                                                    ligne.questions[
+                                                                        qi
+                                                                    ] = (
+                                                                        e.target as HTMLInputElement
+                                                                    ).value;
+                                                                    scheduleLigneSave(
+                                                                        ligne.id,
+                                                                        concept.id,
+                                                                        section.id,
+                                                                    );
+                                                                }
+                                                            "
                                                         />
-                                                        <span v-else class="flex-1">{{ q }}</span>
+                                                        <span
+                                                            v-else
+                                                            class="flex-1"
+                                                            >{{ q }}</span
+                                                        >
                                                         <BoutonTooltip
                                                             v-if="peutEditer"
                                                             texte="Supprimer cette question"
                                                             class="size-6 shrink-0 text-destructive"
-                                                            @click="supprimerQuestion(ligne, qi, concept.id, section.id)"
+                                                            @click="
+                                                                supprimerQuestion(
+                                                                    ligne,
+                                                                    qi,
+                                                                    concept.id,
+                                                                    section.id,
+                                                                )
+                                                            "
                                                         >
-                                                            <Trash2 class="h-3 w-3" />
+                                                            <Trash2
+                                                                class="h-3 w-3"
+                                                            />
                                                         </BoutonTooltip>
                                                     </div>
                                                     <Button
@@ -2691,22 +3474,47 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                                         variant="ghost"
                                                         size="sm"
                                                         class="h-6 gap-1 text-xs"
-                                                        @click="ajouterQuestion(ligne, concept.id, section.id)"
+                                                        @click="
+                                                            ajouterQuestion(
+                                                                ligne,
+                                                                concept.id,
+                                                                section.id,
+                                                            )
+                                                        "
                                                     >
                                                         <Plus class="h-3 w-3" />
                                                         Ajouter une question
                                                     </Button>
-                                                    <p v-else-if="!ligne.questions?.length" class="text-xs text-muted-foreground italic">Aucune question</p>
+                                                    <p
+                                                        v-else-if="
+                                                            !ligne.questions
+                                                                ?.length
+                                                        "
+                                                        class="text-xs text-muted-foreground italic"
+                                                    >
+                                                        Aucune question
+                                                    </p>
                                                 </div>
                                             </td>
                                             <!-- Supprimer ligne -->
-                                            <td v-if="peutEditer" class="py-1 pl-1 align-top">
+                                            <td
+                                                v-if="peutEditer"
+                                                class="py-1 pl-1 align-top"
+                                            >
                                                 <BoutonTooltip
                                                     texte="Supprimer cette ligne"
                                                     class="size-7 text-muted-foreground hover:text-destructive"
-                                                    @click="supprimerLigne(ligne.id, concept.id, section.id)"
+                                                    @click="
+                                                        supprimerLigne(
+                                                            ligne.id,
+                                                            concept.id,
+                                                            section.id,
+                                                        )
+                                                    "
                                                 >
-                                                    <Trash2 class="h-3.5 w-3.5" />
+                                                    <Trash2
+                                                        class="h-3.5 w-3.5"
+                                                    />
                                                 </BoutonTooltip>
                                             </td>
                                         </tr>
@@ -2719,7 +3527,9 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                     variant="outline"
                                     size="sm"
                                     class="mt-2 gap-1 text-xs"
-                                    @click="ajouterLigne(concept.id, section.id)"
+                                    @click="
+                                        ajouterLigne(concept.id, section.id)
+                                    "
                                 >
                                     <Plus class="h-3 w-3" />
                                     Ajouter une ligne
@@ -2735,7 +3545,10 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 :disabled="!!conceptEnCours[section.id]"
                                 @click="ajouterConcept(section.id)"
                             >
-                                <Loader2 v-if="conceptEnCours[section.id]" class="mr-2 h-4 w-4 animate-spin" />
+                                <Loader2
+                                    v-if="conceptEnCours[section.id]"
+                                    class="mr-2 h-4 w-4 animate-spin"
+                                />
                                 <Plus v-else class="mr-2 h-4 w-4" />
                                 Ajouter un concept — {{ section.label }}
                             </Button>
@@ -2746,8 +3559,13 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     <Card v-else-if="section.type === 'video'">
                         <CardHeader>
                             <CardTitle class="flex flex-col gap-0.5">
-                                <span class="text-base font-semibold">{{ section.label }}</span>
-                                <span v-if="section.description" class="text-sm font-normal text-muted-foreground">
+                                <span class="text-base font-semibold">{{
+                                    section.label
+                                }}</span>
+                                <span
+                                    v-if="section.description"
+                                    class="text-sm font-normal text-muted-foreground"
+                                >
                                     {{ section.description }}
                                 </span>
                             </CardTitle>
@@ -2768,9 +3586,16 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     </Card>
 
                     <!-- ── Type entrevue CC : question principale + sous-questions ─ -->
-                    <Card v-else-if="section.type === 'entrevue' && cours.type_cours === 'cours_complementaire'">
+                    <Card
+                        v-else-if="
+                            section.type === 'entrevue' &&
+                            cours.type_cours === 'cours_complementaire'
+                        "
+                    >
                         <CardHeader>
-                            <CardTitle class="text-base font-semibold">{{ section.label }}</CardTitle>
+                            <CardTitle class="text-base font-semibold">{{
+                                section.label
+                            }}</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <SectionEntrevueCC
@@ -2791,8 +3616,13 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     <Card v-else-if="section.type === 'audio'">
                         <CardHeader>
                             <CardTitle class="flex flex-col gap-0.5">
-                                <span class="text-base font-semibold">{{ section.label }}</span>
-                                <span v-if="section.description" class="text-sm font-normal text-muted-foreground">
+                                <span class="text-base font-semibold">{{
+                                    section.label
+                                }}</span>
+                                <span
+                                    v-if="section.description"
+                                    class="text-sm font-normal text-muted-foreground"
+                                >
                                     {{ section.description }}
                                 </span>
                             </CardTitle>
@@ -2816,8 +3646,13 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     <Card v-else-if="section.type === 'choix_questions'">
                         <CardHeader>
                             <CardTitle class="flex flex-col gap-0.5">
-                                <span class="text-base font-semibold">{{ section.label }}</span>
-                                <span v-if="section.description" class="text-sm font-normal text-muted-foreground">
+                                <span class="text-base font-semibold">{{
+                                    section.label
+                                }}</span>
+                                <span
+                                    v-if="section.description"
+                                    class="text-sm font-normal text-muted-foreground"
+                                >
                                     {{ section.description }}
                                 </span>
                             </CardTitle>
@@ -2832,7 +3667,9 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                     section: section.id,
                                 }"
                                 :questions="section.questions ?? []"
-                                :questions-choisies="section.questionsChoisies ?? []"
+                                :questions-choisies="
+                                    section.questionsChoisies ?? []
+                                "
                                 :readonly="!peutEditer"
                             />
                         </CardContent>
@@ -2842,8 +3679,13 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     <Card v-else-if="section.type === 'tache'">
                         <CardHeader>
                             <CardTitle class="flex flex-col gap-0.5">
-                                <span class="text-base font-semibold">{{ section.label }}</span>
-                                <span v-if="section.description" class="text-sm font-normal text-muted-foreground">
+                                <span class="text-base font-semibold">{{
+                                    section.label
+                                }}</span>
+                                <span
+                                    v-if="section.description"
+                                    class="text-sm font-normal text-muted-foreground"
+                                >
                                     {{ section.description }}
                                 </span>
                             </CardTitle>
@@ -2867,8 +3709,13 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     <Card v-else-if="section.type === 'schema_visuel'">
                         <CardHeader>
                             <CardTitle class="flex flex-col gap-0.5">
-                                <span class="text-base font-semibold">{{ section.label }}</span>
-                                <span v-if="section.description" class="text-sm font-normal text-muted-foreground">
+                                <span class="text-base font-semibold">{{
+                                    section.label
+                                }}</span>
+                                <span
+                                    v-if="section.description"
+                                    class="text-sm font-normal text-muted-foreground"
+                                >
                                     {{ section.description }}
                                 </span>
                             </CardTitle>
@@ -2887,377 +3734,534 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             />
                         </CardContent>
                     </Card>
-
                 </template>
             </template>
 
             <!-- ─── Introduction (fallback si aucune section définie) ──────── -->
             <template v-else>
-            <!-- ─── Introduction ───────────────────────────────────────────── -->
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle class="text-base font-semibold">{{ t('projets.show.introduction') }}</CardTitle>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        @click="toggleSection('introduction')"
+                <!-- ─── Introduction ───────────────────────────────────────────── -->
+                <Card>
+                    <CardHeader
+                        class="flex flex-row items-center justify-between"
                     >
-                        <ChevronUp
-                            v-if="!collapsed.introduction"
-                            class="h-4 w-4"
-                        />
-                        <ChevronDown v-else class="h-4 w-4" />
-                    </Button>
-                </CardHeader>
-                <CardContent v-show="!collapsed.introduction" class="space-y-4">
-                    <div class="flex border-b">
-                        <button
-                            v-for="tab in [
-                                'amener',
-                                'poser',
-                                'diviser',
-                            ] as const"
-                            :key="tab"
-                            type="button"
-                            class="border-b-2 px-4 py-2 text-sm font-medium capitalize transition-colors"
-                            :class="
-                                introTab === tab
-                                    ? 'border-primary text-primary'
-                                    : 'border-transparent text-muted-foreground hover:text-foreground'
-                            "
-                            @click="introTab = tab"
+                        <CardTitle class="text-base font-semibold">{{
+                            t('projets.show.introduction')
+                        }}</CardTitle>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            @click="toggleSection('introduction')"
                         >
-                            {{ tab.charAt(0).toUpperCase() + tab.slice(1) }}
-                        </button>
-                    </div>
+                            <ChevronUp
+                                v-if="!collapsed.introduction"
+                                class="h-4 w-4"
+                            />
+                            <ChevronDown v-else class="h-4 w-4" />
+                        </Button>
+                    </CardHeader>
+                    <CardContent
+                        v-show="!collapsed.introduction"
+                        class="space-y-4"
+                    >
+                        <div class="flex border-b">
+                            <button
+                                v-for="tab in [
+                                    'amener',
+                                    'poser',
+                                    'diviser',
+                                ] as const"
+                                :key="tab"
+                                type="button"
+                                class="border-b-2 px-4 py-2 text-sm font-medium capitalize transition-colors"
+                                :class="
+                                    introTab === tab
+                                        ? 'border-primary text-primary'
+                                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                                "
+                                @click="introTab = tab"
+                            >
+                                {{ tab.charAt(0).toUpperCase() + tab.slice(1) }}
+                            </button>
+                        </div>
 
-                    <!-- Amener -->
-                    <div v-show="introTab === 'amener'">
-                        <p class="mb-2 text-xs text-muted-foreground">
-                            {{ t('projets.show.amener_hint') }}
-                        </p>
-                        <RichEditor
-                            v-model="form.introduction_amener"
-                            placeholder="Amener le sujet…"
-                            :read-only="!peutEditer"
-                            :est-enseignant="estEnseignant"
-                            :corrections="annotations['introduction_amener'] ?? []"
-                            :renvois="renvoisLocaux"
-                            :renvois-sync-version="renvoisSyncVersion"
-                            editor-id="introduction-amener"
-                            :membres="membres"
-                            @save-annotation="(p) => sauvegarderAnnotation('introduction_amener', p)"
-                            @delete-annotation="(p) => supprimerAnnotation('introduction_amener', p)"
-                            @demander-renvoi="demanderRenvoi"
-                            @renvois-utilises="handleRenvoisUtilises"
-                        />
-                        <CommentaireEnseignant
-                            :commentaire="commentaires['introduction_amener']"
-                            :brouillon="getBrouillon('introduction_amener')"
-                            :est-reduit="
-                                !!commentairesReduits['introduction_amener']
-                            "
-                            :is-saving="
-                                !!commentairesSaving['introduction_amener']
-                            "
-                            :est-enseignant="estEnseignant"
-                            class="mt-3"
-                            @toggle="toggleCommentaire('introduction_amener')"
-                            @save="
-                                sauvegarderCommentaire('introduction_amener')
-                            "
-                            @delete="
-                                supprimerCommentaire('introduction_amener')
-                            "
-                            @update:brouillon="
-                                (v) => setBrouillon('introduction_amener', v)
-                            "
-                        />
-                    </div>
+                        <!-- Amener -->
+                        <div v-show="introTab === 'amener'">
+                            <p class="mb-2 text-xs text-muted-foreground">
+                                {{ t('projets.show.amener_hint') }}
+                            </p>
+                            <RichEditor
+                                v-model="form.introduction_amener"
+                                placeholder="Amener le sujet…"
+                                :read-only="!peutEditer"
+                                :est-enseignant="estEnseignant"
+                                :corrections="
+                                    annotations['introduction_amener'] ?? []
+                                "
+                                :renvois="renvoisLocaux"
+                                :renvois-sync-version="renvoisSyncVersion"
+                                editor-id="introduction-amener"
+                                :membres="membres"
+                                @save-annotation="
+                                    (p) =>
+                                        sauvegarderAnnotation(
+                                            'introduction_amener',
+                                            p,
+                                        )
+                                "
+                                @delete-annotation="
+                                    (p) =>
+                                        supprimerAnnotation(
+                                            'introduction_amener',
+                                            p,
+                                        )
+                                "
+                                @demander-renvoi="demanderRenvoi"
+                                @renvois-utilises="handleRenvoisUtilises"
+                            />
+                            <CommentaireEnseignant
+                                :commentaire="
+                                    commentaires['introduction_amener']
+                                "
+                                :brouillon="getBrouillon('introduction_amener')"
+                                :est-reduit="
+                                    !!commentairesReduits['introduction_amener']
+                                "
+                                :is-saving="
+                                    !!commentairesSaving['introduction_amener']
+                                "
+                                :est-enseignant="estEnseignant"
+                                class="mt-3"
+                                @toggle="
+                                    toggleCommentaire('introduction_amener')
+                                "
+                                @save="
+                                    sauvegarderCommentaire(
+                                        'introduction_amener',
+                                    )
+                                "
+                                @delete="
+                                    supprimerCommentaire('introduction_amener')
+                                "
+                                @update:brouillon="
+                                    (v) =>
+                                        setBrouillon('introduction_amener', v)
+                                "
+                            />
+                        </div>
 
-                    <!-- Poser -->
-                    <div v-show="introTab === 'poser'">
-                        <p class="mb-2 text-xs text-muted-foreground">
-                            {{ t('projets.show.poser_hint') }}
-                        </p>
-                        <RichEditor
-                            v-model="form.introduction_poser"
-                            placeholder="Poser le sujet…"
-                            :read-only="!peutEditer"
-                            :est-enseignant="estEnseignant"
-                            :corrections="annotations['introduction_poser'] ?? []"
-                            :renvois="renvoisLocaux"
-                            :renvois-sync-version="renvoisSyncVersion"
-                            editor-id="introduction-poser"
-                            :membres="membres"
-                            @save-annotation="(p) => sauvegarderAnnotation('introduction_poser', p)"
-                            @delete-annotation="(p) => supprimerAnnotation('introduction_poser', p)"
-                            @demander-renvoi="demanderRenvoi"
-                            @renvois-utilises="handleRenvoisUtilises"
-                        />
-                        <CommentaireEnseignant
-                            :commentaire="commentaires['introduction_poser']"
-                            :brouillon="getBrouillon('introduction_poser')"
-                            :est-reduit="
-                                !!commentairesReduits['introduction_poser']
-                            "
-                            :is-saving="
-                                !!commentairesSaving['introduction_poser']
-                            "
-                            :est-enseignant="estEnseignant"
-                            class="mt-3"
-                            @toggle="toggleCommentaire('introduction_poser')"
-                            @save="sauvegarderCommentaire('introduction_poser')"
-                            @delete="supprimerCommentaire('introduction_poser')"
-                            @update:brouillon="
-                                (v) => setBrouillon('introduction_poser', v)
-                            "
-                        />
-                    </div>
+                        <!-- Poser -->
+                        <div v-show="introTab === 'poser'">
+                            <p class="mb-2 text-xs text-muted-foreground">
+                                {{ t('projets.show.poser_hint') }}
+                            </p>
+                            <RichEditor
+                                v-model="form.introduction_poser"
+                                placeholder="Poser le sujet…"
+                                :read-only="!peutEditer"
+                                :est-enseignant="estEnseignant"
+                                :corrections="
+                                    annotations['introduction_poser'] ?? []
+                                "
+                                :renvois="renvoisLocaux"
+                                :renvois-sync-version="renvoisSyncVersion"
+                                editor-id="introduction-poser"
+                                :membres="membres"
+                                @save-annotation="
+                                    (p) =>
+                                        sauvegarderAnnotation(
+                                            'introduction_poser',
+                                            p,
+                                        )
+                                "
+                                @delete-annotation="
+                                    (p) =>
+                                        supprimerAnnotation(
+                                            'introduction_poser',
+                                            p,
+                                        )
+                                "
+                                @demander-renvoi="demanderRenvoi"
+                                @renvois-utilises="handleRenvoisUtilises"
+                            />
+                            <CommentaireEnseignant
+                                :commentaire="
+                                    commentaires['introduction_poser']
+                                "
+                                :brouillon="getBrouillon('introduction_poser')"
+                                :est-reduit="
+                                    !!commentairesReduits['introduction_poser']
+                                "
+                                :is-saving="
+                                    !!commentairesSaving['introduction_poser']
+                                "
+                                :est-enseignant="estEnseignant"
+                                class="mt-3"
+                                @toggle="
+                                    toggleCommentaire('introduction_poser')
+                                "
+                                @save="
+                                    sauvegarderCommentaire('introduction_poser')
+                                "
+                                @delete="
+                                    supprimerCommentaire('introduction_poser')
+                                "
+                                @update:brouillon="
+                                    (v) => setBrouillon('introduction_poser', v)
+                                "
+                            />
+                        </div>
 
-                    <!-- Diviser -->
-                    <div v-show="introTab === 'diviser'">
-                        <p class="mb-2 text-xs text-muted-foreground">
-                            {{ t('projets.show.diviser_hint') }}
-                        </p>
-                        <RichEditor
-                            v-model="form.introduction_diviser"
-                            placeholder="Diviser le sujet…"
-                            :read-only="!peutEditer"
-                            :est-enseignant="estEnseignant"
-                            :corrections="annotations['introduction_diviser'] ?? []"
-                            :renvois="renvoisLocaux"
-                            :renvois-sync-version="renvoisSyncVersion"
-                            editor-id="introduction-diviser"
-                            :membres="membres"
-                            @save-annotation="(p) => sauvegarderAnnotation('introduction_diviser', p)"
-                            @delete-annotation="(p) => supprimerAnnotation('introduction_diviser', p)"
-                            @demander-renvoi="demanderRenvoi"
-                            @renvois-utilises="handleRenvoisUtilises"
-                        />
-                        <CommentaireEnseignant
-                            :commentaire="commentaires['introduction_diviser']"
-                            :brouillon="getBrouillon('introduction_diviser')"
-                            :est-reduit="
-                                !!commentairesReduits['introduction_diviser']
-                            "
-                            :is-saving="
-                                !!commentairesSaving['introduction_diviser']
-                            "
-                            :est-enseignant="estEnseignant"
-                            class="mt-3"
-                            @toggle="toggleCommentaire('introduction_diviser')"
-                            @save="
-                                sauvegarderCommentaire('introduction_diviser')
-                            "
-                            @delete="
-                                supprimerCommentaire('introduction_diviser')
-                            "
-                            @update:brouillon="
-                                (v) => setBrouillon('introduction_diviser', v)
-                            "
-                        />
-                    </div>
-
-                </CardContent>
-            </Card>
-            </template><!-- /v-else intro fallback -->
+                        <!-- Diviser -->
+                        <div v-show="introTab === 'diviser'">
+                            <p class="mb-2 text-xs text-muted-foreground">
+                                {{ t('projets.show.diviser_hint') }}
+                            </p>
+                            <RichEditor
+                                v-model="form.introduction_diviser"
+                                placeholder="Diviser le sujet…"
+                                :read-only="!peutEditer"
+                                :est-enseignant="estEnseignant"
+                                :corrections="
+                                    annotations['introduction_diviser'] ?? []
+                                "
+                                :renvois="renvoisLocaux"
+                                :renvois-sync-version="renvoisSyncVersion"
+                                editor-id="introduction-diviser"
+                                :membres="membres"
+                                @save-annotation="
+                                    (p) =>
+                                        sauvegarderAnnotation(
+                                            'introduction_diviser',
+                                            p,
+                                        )
+                                "
+                                @delete-annotation="
+                                    (p) =>
+                                        supprimerAnnotation(
+                                            'introduction_diviser',
+                                            p,
+                                        )
+                                "
+                                @demander-renvoi="demanderRenvoi"
+                                @renvois-utilises="handleRenvoisUtilises"
+                            />
+                            <CommentaireEnseignant
+                                :commentaire="
+                                    commentaires['introduction_diviser']
+                                "
+                                :brouillon="
+                                    getBrouillon('introduction_diviser')
+                                "
+                                :est-reduit="
+                                    !!commentairesReduits[
+                                        'introduction_diviser'
+                                    ]
+                                "
+                                :is-saving="
+                                    !!commentairesSaving['introduction_diviser']
+                                "
+                                :est-enseignant="estEnseignant"
+                                class="mt-3"
+                                @toggle="
+                                    toggleCommentaire('introduction_diviser')
+                                "
+                                @save="
+                                    sauvegarderCommentaire(
+                                        'introduction_diviser',
+                                    )
+                                "
+                                @delete="
+                                    supprimerCommentaire('introduction_diviser')
+                                "
+                                @update:brouillon="
+                                    (v) =>
+                                        setBrouillon('introduction_diviser', v)
+                                "
+                            />
+                        </div>
+                    </CardContent>
+                </Card> </template
+            ><!-- /v-else intro fallback -->
 
             <!-- ─── Paragraphes de développement (legacy — masqué si sections dynamiques) ── -->
             <template v-if="sections.length === 0">
-            <Card v-for="dev in developpements" :key="dev.id">
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle class="flex items-center gap-2">
-                        <span
-                            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary"
-                            >{{ dev.ordre }}</span
-                        >
-                        <span
-                            class="text-sm font-normal text-muted-foreground italic"
-                        >
-                            {{ dev.titre || t('projets.show.dev_paragraph', { n: dev.ordre }) }}
-                        </span>
-                    </CardTitle>
-                    <div class="flex items-center gap-1">
+                <Card v-for="dev in developpements" :key="dev.id">
+                    <CardHeader
+                        class="flex flex-row items-center justify-between"
+                    >
+                        <CardTitle class="flex items-center gap-2">
+                            <span
+                                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary"
+                                >{{ dev.ordre }}</span
+                            >
+                            <span
+                                class="text-sm font-normal text-muted-foreground italic"
+                            >
+                                {{
+                                    dev.titre ||
+                                    t('projets.show.dev_paragraph', {
+                                        n: dev.ordre,
+                                    })
+                                }}
+                            </span>
+                        </CardTitle>
+                        <div class="flex items-center gap-1">
+                            <BoutonTooltip
+                                v-if="peutEditer && developpements.length > 1"
+                                :texte="t('projets.show.delete_paragraph')"
+                                size="icon-sm"
+                                class="text-destructive"
+                                :disabled="devEnCours"
+                                @click="supprimerDev(dev.id)"
+                            >
+                                <Trash2 class="h-4 w-4" />
+                            </BoutonTooltip>
+                            <BoutonTooltip
+                                :texte="
+                                    collapsedDev[dev.id]
+                                        ? 'Développer'
+                                        : 'Réduire'
+                                "
+                                @click="toggleDev(dev.id)"
+                            >
+                                <ChevronUp
+                                    v-if="!collapsedDev[dev.id]"
+                                    class="h-4 w-4"
+                                />
+                                <ChevronDown v-else class="h-4 w-4" />
+                            </BoutonTooltip>
+                        </div>
+                    </CardHeader>
+                    <CardContent
+                        v-show="!collapsedDev[dev.id]"
+                        class="space-y-2"
+                    >
+                        <div v-if="peutEditer" class="mb-1">
+                            <Label class="text-xs text-muted-foreground">{{
+                                t('projets.show.paragraph_title_label')
+                            }}</Label>
+                            <Input
+                                :model-value="dev.titre ?? ''"
+                                :placeholder="`Titre du paragraphe ${dev.ordre}`"
+                                class="mt-1"
+                                @update:model-value="
+                                    (val: string) => {
+                                        dev.titre = val;
+                                        scheduleDeveloppementSave(dev.id);
+                                    }
+                                "
+                            />
+                        </div>
+                        <RichEditor
+                            :model-value="dev.contenu ?? ''"
+                            :placeholder="`Rédigez le contenu du paragraphe ${dev.ordre}…`"
+                            :read-only="!peutEditer"
+                            :est-enseignant="estEnseignant"
+                            :corrections="
+                                annotations[`developpement_${dev.id}`] ?? []
+                            "
+                            :renvois="renvoisLocaux"
+                            :renvois-sync-version="renvoisSyncVersion"
+                            :editor-id="`developpement-${dev.id}`"
+                            :membres="membres"
+                            @update:model-value="
+                                (val: string) => {
+                                    dev.contenu = val;
+                                    scheduleDeveloppementSave(dev.id);
+                                }
+                            "
+                            @save-annotation="
+                                (p) =>
+                                    sauvegarderAnnotation(
+                                        `developpement_${dev.id}`,
+                                        p,
+                                    )
+                            "
+                            @delete-annotation="
+                                (p) =>
+                                    supprimerAnnotation(
+                                        `developpement_${dev.id}`,
+                                        p,
+                                    )
+                            "
+                            @demander-renvoi="demanderRenvoi"
+                            @renvois-utilises="handleRenvoisUtilises"
+                        />
+
+                        <!-- Commentaire -->
+                        <CommentaireEnseignant
+                            :commentaire="
+                                commentaires[`developpement_${dev.id}`]
+                            "
+                            :brouillon="getBrouillon(`developpement_${dev.id}`)"
+                            :est-reduit="
+                                !!commentairesReduits[`developpement_${dev.id}`]
+                            "
+                            :is-saving="
+                                !!commentairesSaving[`developpement_${dev.id}`]
+                            "
+                            :est-enseignant="estEnseignant"
+                            class="mt-3"
+                            @toggle="
+                                toggleCommentaire(`developpement_${dev.id}`)
+                            "
+                            @save="
+                                sauvegarderCommentaire(
+                                    `developpement_${dev.id}`,
+                                )
+                            "
+                            @delete="
+                                supprimerCommentaire(`developpement_${dev.id}`)
+                            "
+                            @update:brouillon="
+                                (v) =>
+                                    setBrouillon(`developpement_${dev.id}`, v)
+                            "
+                        />
+                    </CardContent>
+                </Card>
+
+                <!-- Bouton ajouter un paragraphe (pas de limite) -->
+                <div v-if="peutEditer" class="flex justify-center">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        :disabled="devEnCours"
+                        @click="ajouterDev"
+                    >
+                        <Loader2
+                            v-if="devEnCours"
+                            class="mr-2 h-4 w-4 animate-spin"
+                        />
+                        <Plus v-else class="mr-2 h-4 w-4" />
+                        {{ t('projets.show.add_paragraph') }}
+                    </Button>
+                </div> </template
+            ><!-- /legacy développements -->
+
+            <!-- ─── Conclusions individuelles (legacy — masqué si sections dynamiques) ── -->
+            <template v-if="sections.length === 0">
+                <Card v-for="item in conclusions" :key="item.etudiant.id">
+                    <CardHeader
+                        class="flex flex-row items-center justify-between"
+                    >
+                        <CardTitle class="flex items-center gap-2">
+                            <span
+                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary"
+                            >
+                                {{ item.etudiant.prenom[0]
+                                }}{{ item.etudiant.nom[0] }}
+                            </span>
+                            {{
+                                t('projets.show.conclusion_member', {
+                                    prenom: item.etudiant.prenom,
+                                    nom: item.etudiant.nom,
+                                })
+                            }}
+                        </CardTitle>
                         <BoutonTooltip
-                            v-if="peutEditer && developpements.length > 1"
-                            :texte="t('projets.show.delete_paragraph')"
-                            size="icon-sm"
-                            class="text-destructive"
-                            :disabled="devEnCours"
-                            @click="supprimerDev(dev.id)"
-                        >
-                            <Trash2 class="h-4 w-4" />
-                        </BoutonTooltip>
-                        <BoutonTooltip
-                            :texte="collapsedDev[dev.id] ? 'Développer' : 'Réduire'"
-                            @click="toggleDev(dev.id)"
+                            :texte="
+                                collapsedConclusion[item.etudiant.id]
+                                    ? 'Développer'
+                                    : 'Réduire'
+                            "
+                            @click="toggleConclusion(item.etudiant.id)"
                         >
                             <ChevronUp
-                                v-if="!collapsedDev[dev.id]"
+                                v-if="!collapsedConclusion[item.etudiant.id]"
                                 class="h-4 w-4"
                             />
                             <ChevronDown v-else class="h-4 w-4" />
                         </BoutonTooltip>
-                    </div>
-                </CardHeader>
-                <CardContent v-show="!collapsedDev[dev.id]" class="space-y-2">
-                    <div v-if="peutEditer" class="mb-1">
-                        <Label class="text-xs text-muted-foreground"
-                            >{{ t('projets.show.paragraph_title_label') }}</Label
-                        >
-                        <Input
-                            :model-value="dev.titre ?? ''"
-                            :placeholder="`Titre du paragraphe ${dev.ordre}`"
-                            class="mt-1"
-                            @update:model-value="
-                                (val: string) => {
-                                    dev.titre = val;
-                                    scheduleDeveloppementSave(dev.id);
-                                }
+                    </CardHeader>
+                    <CardContent
+                        v-show="!collapsedConclusion[item.etudiant.id]"
+                    >
+                        <template v-if="peutEditer">
+                            <p class="mb-2 text-xs text-muted-foreground">
+                                {{ t('projets.show.conclusion_hint') }}
+                            </p>
+                            <RichEditor
+                                :model-value="
+                                    conclusionsLocales[item.etudiant.id]
+                                "
+                                placeholder="Rédigez votre conclusion…"
+                                :est-enseignant="estEnseignant"
+                                :renvois="renvoisLocaux"
+                                :renvois-sync-version="renvoisSyncVersion"
+                                :editor-id="`conclusion-${item.etudiant.id}`"
+                                @update:model-value="
+                                    (val: string) => {
+                                        conclusionsLocales[item.etudiant.id] =
+                                            val;
+                                        scheduleConclusionSave(
+                                            item.etudiant.id,
+                                        );
+                                    }
+                                "
+                                @demander-renvoi="demanderRenvoi"
+                                @renvois-utilises="handleRenvoisUtilises"
+                            />
+                        </template>
+                        <template v-else>
+                            <RichEditor
+                                :model-value="
+                                    conclusionsLocales[item.etudiant.id] ?? ''
+                                "
+                                :read-only="true"
+                                :est-enseignant="estEnseignant"
+                                :placeholder="
+                                    t('projets.show.section_not_written')
+                                "
+                            />
+                        </template>
+
+                        <!-- Commentaire -->
+                        <CommentaireEnseignant
+                            :commentaire="
+                                commentaires[`conclusion_${item.etudiant.id}`]
+                            "
+                            :brouillon="
+                                getBrouillon(`conclusion_${item.etudiant.id}`)
+                            "
+                            :est-reduit="
+                                !!commentairesReduits[
+                                    `conclusion_${item.etudiant.id}`
+                                ]
+                            "
+                            :is-saving="
+                                !!commentairesSaving[
+                                    `conclusion_${item.etudiant.id}`
+                                ]
+                            "
+                            :est-enseignant="estEnseignant"
+                            class="mt-3"
+                            @toggle="
+                                toggleCommentaire(
+                                    `conclusion_${item.etudiant.id}`,
+                                )
+                            "
+                            @save="
+                                sauvegarderCommentaire(
+                                    `conclusion_${item.etudiant.id}`,
+                                )
+                            "
+                            @delete="
+                                supprimerCommentaire(
+                                    `conclusion_${item.etudiant.id}`,
+                                )
+                            "
+                            @update:brouillon="
+                                (v) =>
+                                    setBrouillon(
+                                        `conclusion_${item.etudiant.id}`,
+                                        v,
+                                    )
                             "
                         />
-                    </div>
-                    <RichEditor
-                        :model-value="dev.contenu ?? ''"
-                        :placeholder="`Rédigez le contenu du paragraphe ${dev.ordre}…`"
-                        :read-only="!peutEditer"
-                        :est-enseignant="estEnseignant"
-                        :corrections="annotations[`developpement_${dev.id}`] ?? []"
-                        :renvois="renvoisLocaux"
-                        :renvois-sync-version="renvoisSyncVersion"
-                        :editor-id="`developpement-${dev.id}`"
-                        :membres="membres"
-                        @update:model-value="(val: string) => { dev.contenu = val; scheduleDeveloppementSave(dev.id); }"
-                        @save-annotation="(p) => sauvegarderAnnotation(`developpement_${dev.id}`, p)"
-                        @delete-annotation="(p) => supprimerAnnotation(`developpement_${dev.id}`, p)"
-                        @demander-renvoi="demanderRenvoi"
-                        @renvois-utilises="handleRenvoisUtilises"
-                    />
-
-                    <!-- Commentaire -->
-                    <CommentaireEnseignant
-                        :commentaire="commentaires[`developpement_${dev.id}`]"
-                        :brouillon="getBrouillon(`developpement_${dev.id}`)"
-                        :est-reduit="!!commentairesReduits[`developpement_${dev.id}`]"
-                        :is-saving="!!commentairesSaving[`developpement_${dev.id}`]"
-                        :est-enseignant="estEnseignant"
-                        class="mt-3"
-                        @toggle="toggleCommentaire(`developpement_${dev.id}`)"
-                        @save="sauvegarderCommentaire(`developpement_${dev.id}`)"
-                        @delete="supprimerCommentaire(`developpement_${dev.id}`)"
-                        @update:brouillon="
-                            (v) => setBrouillon(`developpement_${dev.id}`, v)
-                        "
-                    />
-                </CardContent>
-            </Card>
-
-            <!-- Bouton ajouter un paragraphe (pas de limite) -->
-            <div v-if="peutEditer" class="flex justify-center">
-                <Button variant="outline" size="sm" :disabled="devEnCours" @click="ajouterDev">
-                    <Loader2 v-if="devEnCours" class="mr-2 h-4 w-4 animate-spin" />
-                    <Plus v-else class="mr-2 h-4 w-4" />
-                    {{ t('projets.show.add_paragraph') }}
-                </Button>
-            </div>
-            </template><!-- /legacy développements -->
-
-            <!-- ─── Conclusions individuelles (legacy — masqué si sections dynamiques) ── -->
-            <template v-if="sections.length === 0">
-            <Card v-for="item in conclusions" :key="item.etudiant.id">
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle class="flex items-center gap-2">
-                        <span
-                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary"
-                        >
-                            {{ item.etudiant.prenom[0]
-                            }}{{ item.etudiant.nom[0] }}
-                        </span>
-                        {{ t('projets.show.conclusion_member', { prenom: item.etudiant.prenom, nom: item.etudiant.nom }) }}
-                    </CardTitle>
-                    <BoutonTooltip
-                        :texte="collapsedConclusion[item.etudiant.id] ? 'Développer' : 'Réduire'"
-                        @click="toggleConclusion(item.etudiant.id)"
-                    >
-                        <ChevronUp
-                            v-if="!collapsedConclusion[item.etudiant.id]"
-                            class="h-4 w-4"
-                        />
-                        <ChevronDown v-else class="h-4 w-4" />
-                    </BoutonTooltip>
-                </CardHeader>
-                <CardContent v-show="!collapsedConclusion[item.etudiant.id]">
-                    <template v-if="peutEditer">
-                        <p class="mb-2 text-xs text-muted-foreground">
-                            {{ t('projets.show.conclusion_hint') }}
-                        </p>
-                        <RichEditor
-                            :model-value="conclusionsLocales[item.etudiant.id]"
-                            placeholder="Rédigez votre conclusion…"
-                            :est-enseignant="estEnseignant"
-                            :renvois="renvoisLocaux"
-                            :renvois-sync-version="renvoisSyncVersion"
-                            :editor-id="`conclusion-${item.etudiant.id}`"
-                            @update:model-value="(val: string) => { conclusionsLocales[item.etudiant.id] = val; scheduleConclusionSave(item.etudiant.id); }"
-                            @demander-renvoi="demanderRenvoi"
-                            @renvois-utilises="handleRenvoisUtilises"
-                        />
-                    </template>
-                    <template v-else>
-                        <RichEditor
-                            :model-value="conclusionsLocales[item.etudiant.id] ?? ''"
-                            :read-only="true"
-                            :est-enseignant="estEnseignant"
-                            :placeholder="t('projets.show.section_not_written')"
-                        />
-                    </template>
-
-                    <!-- Commentaire -->
-                    <CommentaireEnseignant
-                        :commentaire="
-                            commentaires[`conclusion_${item.etudiant.id}`]
-                        "
-                        :brouillon="
-                            getBrouillon(`conclusion_${item.etudiant.id}`)
-                        "
-                        :est-reduit="
-                            !!commentairesReduits[
-                                `conclusion_${item.etudiant.id}`
-                            ]
-                        "
-                        :is-saving="
-                            !!commentairesSaving[
-                                `conclusion_${item.etudiant.id}`
-                            ]
-                        "
-                        :est-enseignant="estEnseignant"
-                        class="mt-3"
-                        @toggle="
-                            toggleCommentaire(`conclusion_${item.etudiant.id}`)
-                        "
-                        @save="
-                            sauvegarderCommentaire(
-                                `conclusion_${item.etudiant.id}`,
-                            )
-                        "
-                        @delete="
-                            supprimerCommentaire(
-                                `conclusion_${item.etudiant.id}`,
-                            )
-                        "
-                        @update:brouillon="
-                            (v) =>
-                                setBrouillon(
-                                    `conclusion_${item.etudiant.id}`,
-                                    v,
-                                )
-                        "
-                    />
-
-                </CardContent>
-            </Card>
-            </template><!-- /legacy conclusions -->
+                    </CardContent>
+                </Card> </template
+            ><!-- /legacy conclusions -->
 
             <!-- ─── Références (renvois / endnotes) ──────────────────────────── -->
             <Card>
@@ -3268,8 +4272,12 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p v-if="renvoisLocaux.length === 0" class="text-sm text-muted-foreground italic">
-                        Aucune référence. Cliquez sur ¹ dans la barre d'un éditeur pour en insérer une.
+                    <p
+                        v-if="renvoisLocaux.length === 0"
+                        class="text-sm text-muted-foreground italic"
+                    >
+                        Aucune référence. Cliquez sur ¹ dans la barre d'un
+                        éditeur pour en insérer une.
                     </p>
                     <ol v-else class="space-y-3">
                         <li
@@ -3277,64 +4285,120 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :key="renvoi.id"
                             class="flex items-start gap-2"
                         >
-                            <span class="mt-2 min-w-[1.5rem] text-right text-xs font-bold text-blue-600 dark:text-blue-400">
+                            <span
+                                class="mt-2 min-w-[1.5rem] text-right text-xs font-bold text-blue-600 dark:text-blue-400"
+                            >
                                 {{ renvoi.numero }}.
                             </span>
                             <div class="flex-1 space-y-1.5">
                                 <RichEditor
-                                    :model-value="renvoiContenuHtml(renvoi.contenu)"
+                                    :model-value="
+                                        renvoiContenuHtml(renvoi.contenu)
+                                    "
                                     :read-only="!peutEditer"
                                     :est-enseignant="estEnseignant"
-                                    :corrections="annotations['renvoi_' + renvoi.id] ?? []"
+                                    :corrections="
+                                        annotations['renvoi_' + renvoi.id] ?? []
+                                    "
                                     :renvois="[]"
                                     :membres="membres"
                                     :editor-id="`renvoi-${renvoi.id}`"
                                     :compact="true"
-                                    @update:model-value="(html: string) => {
-                                        renvoi.contenu = html;
-                                        scheduleRenvoiSave(renvoi.id);
-                                    }"
-                                    @save-annotation="(p) => sauvegarderAnnotation('renvoi_' + renvoi.id, p)"
-                                    @delete-annotation="(p) => supprimerAnnotation('renvoi_' + renvoi.id, p)"
+                                    @update:model-value="
+                                        (html: string) => {
+                                            renvoi.contenu = html;
+                                            scheduleRenvoiSave(renvoi.id);
+                                        }
+                                    "
+                                    @save-annotation="
+                                        (p) =>
+                                            sauvegarderAnnotation(
+                                                'renvoi_' + renvoi.id,
+                                                p,
+                                            )
+                                    "
+                                    @delete-annotation="
+                                        (p) =>
+                                            supprimerAnnotation(
+                                                'renvoi_' + renvoi.id,
+                                                p,
+                                            )
+                                    "
                                 />
                                 <!-- Commentaires enseignant sur ce renvoi -->
                                 <div
-                                    v-if="estEnseignant || (renvoi.commentaires?.length ?? 0) > 0"
+                                    v-if="
+                                        estEnseignant ||
+                                        (renvoi.commentaires?.length ?? 0) > 0
+                                    "
                                     class="space-y-1"
                                 >
                                     <div
-                                        v-for="commentaire in (renvoi.commentaires ?? [])"
+                                        v-for="commentaire in renvoi.commentaires ??
+                                        []"
                                         :key="commentaire.id"
                                         class="flex items-start gap-1.5 rounded border border-amber-200 bg-amber-50 px-2 py-1 dark:border-amber-800 dark:bg-amber-950/30"
                                     >
-                                        <MessageSquare class="mt-0.5 h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
-                                        <span class="flex-1 text-xs text-foreground">{{ commentaire.contenu }}</span>
+                                        <MessageSquare
+                                            class="mt-0.5 h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400"
+                                        />
+                                        <span
+                                            class="flex-1 text-xs text-foreground"
+                                            >{{ commentaire.contenu }}</span
+                                        >
                                         <button
                                             v-if="estEnseignant"
                                             type="button"
                                             class="text-destructive hover:text-destructive/70"
                                             title="Supprimer ce commentaire"
-                                            @click="supprimerCommentaireRenvoi(renvoi.id, commentaire.id)"
+                                            @click="
+                                                supprimerCommentaireRenvoi(
+                                                    renvoi.id,
+                                                    commentaire.id,
+                                                )
+                                            "
                                         >
                                             <Trash2 class="h-3 w-3" />
                                         </button>
                                     </div>
                                     <!-- Saisie nouveau commentaire (enseignant seulement) -->
-                                    <div v-if="estEnseignant" class="flex gap-1">
+                                    <div
+                                        v-if="estEnseignant"
+                                        class="flex gap-1"
+                                    >
                                         <input
-                                            v-model="renvoiNouveauCommentaire[renvoi.id]"
+                                            v-model="
+                                                renvoiNouveauCommentaire[
+                                                    renvoi.id
+                                                ]
+                                            "
                                             type="text"
                                             placeholder="Commenter cette référence…"
-                                            class="flex-1 rounded border border-input bg-background px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-                                            @keydown.enter.prevent="ajouterCommentaireRenvoi(renvoi.id)"
+                                            class="flex-1 rounded border border-input bg-background px-2 py-0.5 text-xs focus:ring-1 focus:ring-ring focus:outline-none"
+                                            @keydown.enter.prevent="
+                                                ajouterCommentaireRenvoi(
+                                                    renvoi.id,
+                                                )
+                                            "
                                         />
                                         <Button
                                             variant="ghost"
                                             size="icon"
                                             class="h-6 w-6 shrink-0"
                                             title="Envoyer"
-                                            :disabled="!renvoiNouveauCommentaire[renvoi.id]?.trim() || renvoiCommentaireEnCours[renvoi.id]"
-                                            @click="ajouterCommentaireRenvoi(renvoi.id)"
+                                            :disabled="
+                                                !renvoiNouveauCommentaire[
+                                                    renvoi.id
+                                                ]?.trim() ||
+                                                renvoiCommentaireEnCours[
+                                                    renvoi.id
+                                                ]
+                                            "
+                                            @click="
+                                                ajouterCommentaireRenvoi(
+                                                    renvoi.id,
+                                                )
+                                            "
                                         >
                                             <Send class="h-3 w-3" />
                                         </Button>
@@ -3374,18 +4438,37 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                 </CardHeader>
                 <CardContent class="space-y-4">
                     <!-- Paramètres (lecture seule — configurés au niveau du type de projet) -->
-                    <div class="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                    <div
+                        class="rounded-md border border-dashed p-3 text-sm text-muted-foreground"
+                    >
                         <div class="mb-2 flex flex-wrap gap-x-6 gap-y-1">
                             <span v-if="dateRemise">
-                                <CalendarDays class="mr-1 inline-block h-3.5 w-3.5" />
+                                <CalendarDays
+                                    class="mr-1 inline-block h-3.5 w-3.5"
+                                />
                                 {{ dateRemiseFormatee }}
                             </span>
-                            <span v-else class="italic">Aucune date limite définie.</span>
-                            <span v-if="remisesMultiples" class="text-green-600 dark:text-green-400">Remises multiples ✓</span>
-                            <span v-if="retardPermis" class="text-amber-600 dark:text-amber-400">Retard permis ✓</span>
+                            <span v-else class="italic"
+                                >Aucune date limite définie.</span
+                            >
+                            <span
+                                v-if="remisesMultiples"
+                                class="text-green-600 dark:text-green-400"
+                                >Remises multiples ✓</span
+                            >
+                            <span
+                                v-if="retardPermis"
+                                class="text-amber-600 dark:text-amber-400"
+                                >Retard permis ✓</span
+                            >
                         </div>
                         <Link
-                            :href="editTypeProjet.url({ cours: classe.cours_id, typeProjet: typeProjet.id })"
+                            :href="
+                                editTypeProjet.url({
+                                    cours: classe.cours_id,
+                                    typeProjet: typeProjet.id,
+                                })
+                            "
                             class="inline-flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
                         >
                             <Settings2 class="h-3 w-3" />
@@ -3393,11 +4476,24 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         </Link>
                     </div>
                     <!-- Annulation de remise si déjà soumis -->
-                    <div v-if="remisLe" class="flex items-center justify-between gap-3">
+                    <div
+                        v-if="remisLe"
+                        class="flex items-center justify-between gap-3"
+                    >
                         <div class="text-sm text-muted-foreground">
-                            <CheckCircle2 class="mr-1 inline-block h-4 w-4 text-green-500" />
+                            <CheckCircle2
+                                class="mr-1 inline-block h-4 w-4 text-green-500"
+                            />
                             {{ t('projets.show.submitted_on') }}
-                            {{ new Date(remisLe).toLocaleDateString('fr-CA', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) }}
+                            {{
+                                new Date(remisLe).toLocaleDateString('fr-CA', {
+                                    day: 'numeric',
+                                    month: 'long',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                })
+                            }}
                         </div>
                         <Button
                             variant="destructive"
@@ -3405,7 +4501,10 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :disabled="annulationEnCours"
                             @click="annulerRemise"
                         >
-                            <Loader2 v-if="annulationEnCours" class="mr-2 h-4 w-4 animate-spin" />
+                            <Loader2
+                                v-if="annulationEnCours"
+                                class="mr-2 h-4 w-4 animate-spin"
+                            />
                             <XCircle v-else class="mr-2 h-4 w-4" />
                             {{ t('projets.show.cancel_submission') }}
                         </Button>
@@ -3423,19 +4522,41 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                 </CardHeader>
                 <CardContent class="space-y-4">
                     <!-- Confirmation de remise -->
-                    <div v-if="remisLe" class="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
+                    <div
+                        v-if="remisLe"
+                        class="flex items-center gap-2 text-sm text-green-700 dark:text-green-400"
+                    >
                         <CheckCircle2 class="h-5 w-5 shrink-0" />
                         <span>
                             {{ t('projets.show.submitted_on') }}
-                            {{ new Date(remisLe).toLocaleDateString('fr-CA', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) }}
+                            {{
+                                new Date(remisLe).toLocaleDateString('fr-CA', {
+                                    day: 'numeric',
+                                    month: 'long',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                })
+                            }}
                         </span>
                     </div>
 
                     <!-- Date limite -->
-                    <div v-if="dateRemise" class="text-sm" :class="dateRemiseDepassee ? 'font-semibold text-destructive' : 'text-muted-foreground'">
+                    <div
+                        v-if="dateRemise"
+                        class="text-sm"
+                        :class="
+                            dateRemiseDepassee
+                                ? 'font-semibold text-destructive'
+                                : 'text-muted-foreground'
+                        "
+                    >
                         <CalendarDays class="mr-1 inline-block h-4 w-4" />
-                        {{ t('projets.show.deadline') }} {{ dateRemiseFormatee }}
-                        <span v-if="dateRemiseDepassee"> — {{ t('projets.show.deadline_passed') }}</span>
+                        {{ t('projets.show.deadline') }}
+                        {{ dateRemiseFormatee }}
+                        <span v-if="dateRemiseDepassee">
+                            — {{ t('projets.show.deadline_passed') }}</span
+                        >
                     </div>
 
                     <!-- Liste des votes par membre -->
@@ -3446,7 +4567,10 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             class="flex items-center gap-2 text-sm"
                         >
                             <CheckCircle2
-                                v-if="votes.find(v => v.user_id === membre.id)?.vote"
+                                v-if="
+                                    votes.find((v) => v.user_id === membre.id)
+                                        ?.vote
+                                "
                                 class="h-4 w-4 shrink-0 text-green-500"
                             />
                             <Square
@@ -3455,18 +4579,30 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             />
                             <span>{{ membre.prenom }} {{ membre.nom }}</span>
                             <span class="text-xs text-muted-foreground">
-                                — {{ votes.find(v => v.user_id === membre.id)?.vote ? t('projets.show.voted') : t('projets.show.waiting_vote') }}
+                                —
+                                {{
+                                    votes.find((v) => v.user_id === membre.id)
+                                        ?.vote
+                                        ? t('projets.show.voted')
+                                        : t('projets.show.waiting_vote')
+                                }}
                             </span>
                         </li>
                     </ul>
 
                     <!-- Bouton voter (si pas encore voté et peut encore remettre) -->
-                    <div v-if="peutRemettre && !votes.find(v => v.user_id === userId)?.vote" class="flex justify-end">
-                        <Button
-                            :disabled="voteEnCours"
-                            @click="voterRemise"
-                        >
-                            <Loader2 v-if="voteEnCours" class="mr-2 h-4 w-4 animate-spin" />
+                    <div
+                        v-if="
+                            peutRemettre &&
+                            !votes.find((v) => v.user_id === userId)?.vote
+                        "
+                        class="flex justify-end"
+                    >
+                        <Button :disabled="voteEnCours" @click="voterRemise">
+                            <Loader2
+                                v-if="voteEnCours"
+                                class="mr-2 h-4 w-4 animate-spin"
+                            />
                             <Send v-else class="mr-2 h-4 w-4" />
                             {{ t('projets.show.vote_to_submit') }}
                         </Button>
@@ -3474,10 +4610,16 @@ function setOngletActif(section: string, membreId: number | 'tous') {
 
                     <!-- Confirmation que le vote a été enregistré (voté mais pas encore tous) -->
                     <div
-                        v-else-if="peutRemettre && votes.find(v => v.user_id === userId)?.vote && !remisLe"
+                        v-else-if="
+                            peutRemettre &&
+                            votes.find((v) => v.user_id === userId)?.vote &&
+                            !remisLe
+                        "
                         class="text-sm text-muted-foreground"
                     >
-                        <CheckCircle2 class="mr-1 inline-block h-4 w-4 text-green-500" />
+                        <CheckCircle2
+                            class="mr-1 inline-block h-4 w-4 text-green-500"
+                        />
                         {{ t('projets.show.my_vote_registered') }}
                     </div>
                 </CardContent>
@@ -3511,14 +4653,27 @@ function setOngletActif(section: string, membreId: number | 'tous') {
 
                 <div v-if="grillePersonnalisee">
                     <!-- Notes finales par étudiant -->
-                    <div v-if="estEnseignant" class="mb-3 flex flex-wrap gap-1.5">
+                    <div
+                        v-if="estEnseignant"
+                        class="mb-3 flex flex-wrap gap-1.5"
+                    >
                         <template v-for="membre in membres" :key="membre.id">
                             <span
-                                v-if="noteFinaleGrille[membre.id] !== null && noteFinaleGrille[membre.id] !== undefined"
+                                v-if="
+                                    noteFinaleGrille[membre.id] !== null &&
+                                    noteFinaleGrille[membre.id] !== undefined
+                                "
                                 class="rounded px-2 py-0.5 text-xs font-medium"
-                                :class="(noteFinaleGrille[membre.id] ?? 0) >= 60 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+                                :class="
+                                    (noteFinaleGrille[membre.id] ?? 0) >= 60
+                                        ? 'bg-green-100 text-green-700'
+                                        : 'bg-red-100 text-red-700'
+                                "
                             >
-                                {{ membre.prenom }} : {{ noteFinaleGrille[membre.id]?.toFixed(2) }}/100
+                                {{ membre.prenom }} :
+                                {{
+                                    noteFinaleGrille[membre.id]?.toFixed(2)
+                                }}/100
                             </span>
                         </template>
                     </div>
@@ -3532,12 +4687,32 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         :malus-saving="malusSaving"
                         :est-enseignant="estEnseignant"
                         :user-id="userId"
-                        :onglet-actif="getOngletActif('grille_personnalisee', membres[0]?.id ?? 0)"
-                        @set-onglet="setOngletActif('grille_personnalisee', $event)"
+                        :onglet-actif="
+                            getOngletActif(
+                                'grille_personnalisee',
+                                membres[0]?.id ?? 0,
+                            )
+                        "
+                        @set-onglet="
+                            setOngletActif('grille_personnalisee', $event)
+                        "
                         :annotations-malus="annotationsMalusParEtudiant"
-                        @save-note="(critereId, membreId, valeur) => sauvegarderNoteGrille(critereId, membreId, valeur)"
-                        @save-note-pour-tous="(critereId, valeur) => sauvegarderNoteGrillePourTous(critereId, valeur)"
-                        @toggle-malus="(malusId, membreId, applique) => toggleMalusGrille(malusId, membreId, applique)"
+                        @save-note="
+                            (critereId, membreId, valeur) =>
+                                sauvegarderNoteGrille(
+                                    critereId,
+                                    membreId,
+                                    valeur,
+                                )
+                        "
+                        @save-note-pour-tous="
+                            (critereId, valeur) =>
+                                sauvegarderNoteGrillePourTous(critereId, valeur)
+                        "
+                        @toggle-malus="
+                            (malusId, membreId, applique) =>
+                                toggleMalusGrille(malusId, membreId, applique)
+                        "
                     />
                 </div>
                 <p v-else class="text-sm text-muted-foreground">
@@ -3575,7 +4750,5 @@ function setOngletActif(section: string, membreId: number | 'tous') {
             :mes-references="mesReferences"
             @inserer="confirmerReferenceApa"
         />
-
-
     </AppLayout>
 </template>

@@ -4,7 +4,10 @@ declare module '@tiptap/core' {
     interface Commands<ReturnType> {
         renvoiMark: {
             /** Insère un exposant de renvoi (endnote) à la position courante du curseur. */
-            insertRenvoi: (attrs: { renvoiId: number; numero: number }) => ReturnType;
+            insertRenvoi: (attrs: {
+                renvoiId: number;
+                numero: number;
+            }) => ReturnType;
             /**
              * Synchronise tous les nœuds renvoiMark du document avec la liste courante des renvois.
              * - Si un renvoiId est absent de la map → le nœud est supprimé du texte.
@@ -93,7 +96,10 @@ export const RenvoiMark = Node.create({
                 (renvoisMap: Map<number, number>) =>
                 ({ tr, dispatch }) => {
                     const toDelete: number[] = [];
-                    const toUpdate: Array<{ pos: number; attrs: { renvoiId: number; numero: number } }> = [];
+                    const toUpdate: Array<{
+                        pos: number;
+                        attrs: { renvoiId: number; numero: number };
+                    }> = [];
 
                     tr.doc.descendants((node, pos) => {
                         if (node.type.name !== 'renvoiMark') return;
@@ -102,11 +108,17 @@ export const RenvoiMark = Node.create({
                         if (newNumero === undefined) {
                             toDelete.push(pos);
                         } else if (node.attrs.numero !== newNumero) {
-                            toUpdate.push({ pos, attrs: { renvoiId, numero: newNumero } });
+                            toUpdate.push({
+                                pos,
+                                attrs: { renvoiId, numero: newNumero },
+                            });
                         }
                     });
 
-                    if (!dispatch || (toDelete.length === 0 && toUpdate.length === 0)) {
+                    if (
+                        !dispatch ||
+                        (toDelete.length === 0 && toUpdate.length === 0)
+                    ) {
                         return toDelete.length > 0 || toUpdate.length > 0;
                     }
 

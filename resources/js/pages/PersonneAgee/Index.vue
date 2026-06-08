@@ -36,7 +36,9 @@ type Props = {
 defineProps<Props>();
 
 const page = usePage();
-const user = computed(() => page.props.auth?.user as { prenom: string; nom: string } | undefined);
+const user = computed(
+    () => page.props.auth?.user as { prenom: string; nom: string } | undefined,
+);
 </script>
 
 <template>
@@ -48,7 +50,7 @@ const user = computed(() => page.props.auth?.user as { prenom: string; nom: stri
                 <h1 class="text-2xl font-semibold">
                     {{ $t('personne_agee.welcome', { prenom: user?.prenom }) }}
                 </h1>
-                <p class="text-muted-foreground mt-1 text-sm">
+                <p class="mt-1 text-sm text-muted-foreground">
                     {{ $t('personne_agee.welcome_description') }}
                 </p>
             </div>
@@ -56,9 +58,9 @@ const user = computed(() => page.props.auth?.user as { prenom: string; nom: stri
             <!-- Aucun groupe -->
             <div
                 v-if="groupes.length === 0"
-                class="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm"
+                class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
             >
-                {{ $t('personne_agee.no_groups') }}<br>
+                {{ $t('personne_agee.no_groups') }}<br />
                 {{ $t('personne_agee.no_groups_contact') }}
             </div>
 
@@ -71,16 +73,23 @@ const user = computed(() => page.props.auth?.user as { prenom: string; nom: stri
                 >
                     <CardHeader>
                         <CardTitle class="text-base">
-                            {{ $t('personne_agee.group_number', { n: groupe.numero }) }}
+                            {{
+                                $t('personne_agee.group_number', {
+                                    n: groupe.numero,
+                                })
+                            }}
                         </CardTitle>
-                        <p class="text-muted-foreground text-sm">
-                            {{ groupe.cours?.code }} — {{ groupe.cours?.nom_cours }}
+                        <p class="text-sm text-muted-foreground">
+                            {{ groupe.cours?.code }} —
+                            {{ groupe.cours?.nom_cours }}
                         </p>
                     </CardHeader>
                     <CardContent class="flex flex-1 flex-col gap-4">
                         <!-- Membres -->
                         <div>
-                            <p class="text-muted-foreground mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide">
+                            <p
+                                class="mb-1.5 flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                            >
                                 <Users class="h-3.5 w-3.5" />
                                 {{ $t('personne_agee.members') }}
                             </p>
@@ -90,8 +99,11 @@ const user = computed(() => page.props.auth?.user as { prenom: string; nom: stri
                                     :key="membre.id"
                                     class="flex items-center gap-2 text-sm"
                                 >
-                                    <span class="bg-primary/10 text-primary flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium">
-                                        {{ membre.prenom[0] }}{{ membre.nom[0] }}
+                                    <span
+                                        class="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary"
+                                    >
+                                        {{ membre.prenom[0]
+                                        }}{{ membre.nom[0] }}
                                     </span>
                                     {{ membre.prenom }} {{ membre.nom }}
                                 </li>
@@ -101,12 +113,14 @@ const user = computed(() => page.props.auth?.user as { prenom: string; nom: stri
                         <!-- Bouton échanges -->
                         <div class="mt-auto">
                             <Button class="w-full" as-child>
-                                <Link :href="`/cours/${groupe.cours_id}/classes/${groupe.classe_id}/groupes/${groupe.id}/echanges`">
+                                <Link
+                                    :href="`/cours/${groupe.cours_id}/classes/${groupe.classe_id}/groupes/${groupe.id}/echanges`"
+                                >
                                     <MessageSquare class="mr-2 h-4 w-4" />
                                     {{ $t('personne_agee.see_exchanges') }}
                                     <span
                                         v-if="groupe.nb_echanges > 0"
-                                        class="bg-primary-foreground/20 ml-2 rounded-full px-1.5 py-0.5 text-xs"
+                                        class="ml-2 rounded-full bg-primary-foreground/20 px-1.5 py-0.5 text-xs"
                                     >
                                         {{ groupe.nb_echanges }}
                                     </span>

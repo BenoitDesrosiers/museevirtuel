@@ -85,7 +85,11 @@ function assigner(tache: Tache, membreId: number | null): void {
                 type="button"
                 class="mt-0.5 shrink-0 text-muted-foreground transition-colors hover:text-green-600 disabled:cursor-default disabled:opacity-50"
                 :disabled="readonly"
-                :title="tache.completed_at ? 'Marquer non-complétée' : 'Marquer complétée'"
+                :title="
+                    tache.completed_at
+                        ? 'Marquer non-complétée'
+                        : 'Marquer complétée'
+                "
                 @click="toggleCompleted(tache)"
             >
                 <CheckCircle2
@@ -99,8 +103,10 @@ function assigner(tache: Tache, membreId: number | null): void {
             <div class="min-w-0 flex-1">
                 <p
                     :class="[
-                        'text-sm font-medium leading-snug',
-                        tache.completed_at ? 'text-muted-foreground line-through' : '',
+                        'text-sm leading-snug font-medium',
+                        tache.completed_at
+                            ? 'text-muted-foreground line-through'
+                            : '',
                     ]"
                 >
                     {{ tache.titre }}
@@ -126,9 +132,20 @@ function assigner(tache: Tache, membreId: number | null): void {
                     </template>
                     <template v-else>
                         <select
-                            class="h-6 rounded border border-input bg-background px-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                            class="h-6 rounded border border-input bg-background px-1.5 text-xs text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
                             :value="tache.assigne_a?.id ?? ''"
-                            @change="assigner(tache, ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null)"
+                            @change="
+                                assigner(
+                                    tache,
+                                    ($event.target as HTMLSelectElement).value
+                                        ? Number(
+                                              (
+                                                  $event.target as HTMLSelectElement
+                                              ).value,
+                                          )
+                                        : null,
+                                )
+                            "
                         >
                             <option value="">— Non assignée —</option>
                             <option

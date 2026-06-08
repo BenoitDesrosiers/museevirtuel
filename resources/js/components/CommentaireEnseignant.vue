@@ -36,14 +36,30 @@ const emit = defineEmits<{
                     :model-value="brouillon"
                     :placeholder="placeholder ?? 'Commentaire…'"
                     class="min-h-[60px] text-sm"
-                    @update:model-value="(v: string) => emit('update:brouillon', v)"
+                    @update:model-value="
+                        (v: string) => emit('update:brouillon', v)
+                    "
                 />
                 <div class="flex gap-2">
-                    <Button size="sm" variant="outline" :disabled="isSaving" @click="emit('save')">
-                        <Loader2 v-if="isSaving" class="mr-1 h-3 w-3 animate-spin" />
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        :disabled="isSaving"
+                        @click="emit('save')"
+                    >
+                        <Loader2
+                            v-if="isSaving"
+                            class="mr-1 h-3 w-3 animate-spin"
+                        />
                         Commenter
                     </Button>
-                    <Button v-if="commentaire" size="sm" variant="ghost" class="text-destructive" @click="emit('delete')">
+                    <Button
+                        v-if="commentaire"
+                        size="sm"
+                        variant="ghost"
+                        class="text-destructive"
+                        @click="emit('delete')"
+                    >
                         <Trash2 class="h-3 w-3" />
                     </Button>
                 </div>
@@ -54,7 +70,11 @@ const emit = defineEmits<{
             v-show="!estReduit"
             class="flex gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200"
         >
-            <button type="button" class="mt-0.5 shrink-0" @click="emit('toggle')">
+            <button
+                type="button"
+                class="mt-0.5 shrink-0"
+                @click="emit('toggle')"
+            >
                 <MessageSquare class="h-4 w-4" />
             </button>
             <p>{{ commentaire.contenu }}</p>

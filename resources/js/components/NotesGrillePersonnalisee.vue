@@ -1,7 +1,12 @@
 <script setup lang="ts">
 type Etudiant = { id: number; prenom: string; nom: string };
 type Critere = { id: number; label: string; ponderation: number };
-type Malus = { id: number; label: string; deduction: number; description: string | null };
+type Malus = {
+    id: number;
+    label: string;
+    deduction: number;
+    description: string | null;
+};
 
 const props = defineProps<{
     /** Critères de la grille personnalisée (déjà triés par ordre). */
@@ -24,7 +29,10 @@ const props = defineProps<{
      * Déductions de points issues des annotations de correction inline, par étudiant.
      * Clé = userId, valeur = liste de { contenu, points_malus }.
      */
-    annotationsMalus?: Record<number, Array<{ contenu: string; points_malus: number }>>;
+    annotationsMalus?: Record<
+        number,
+        Array<{ contenu: string; points_malus: number }>
+    >;
 }>();
 
 const emit = defineEmits<{
@@ -55,15 +63,18 @@ function contribution(note: number, ponderation: number): string {
 
 /** Retourne true si tous les membres ont exactement cette valeur pour le critère. */
 function tousOntNote(critereId: number, valeur: number): boolean {
-    return props.membres.length > 0 && props.membres.every(
-        (m) => props.notes[m.id]?.[critereId] === valeur
+    return (
+        props.membres.length > 0 &&
+        props.membres.every((m) => props.notes[m.id]?.[critereId] === valeur)
     );
 }
 
 /** Total des déductions appliquées pour un étudiant (malus grille + corrections inline), arrondi au centième. */
 function totalMalus(membreId: number): number {
     const malusGrille = props.malus.reduce((total, m) => {
-        return props.malusAppliques[membreId]?.[m.id] ? total + m.deduction : total;
+        return props.malusAppliques[membreId]?.[m.id]
+            ? total + m.deduction
+            : total;
     }, 0);
     const malusAnnotations = (props.annotationsMalus?.[membreId] ?? []).reduce(
         (total, a) => total + a.points_malus,
@@ -82,7 +93,11 @@ function totalMalus(membreId: number): number {
                 v-if="estEnseignant"
                 type="button"
                 class="rounded px-2 py-0.5 text-xs font-medium transition-colors"
-                :class="ongletActif === 'tous' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'"
+                :class="
+                    ongletActif === 'tous'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                "
                 @click="emit('set-onglet', 'tous')"
             >
                 Tous
@@ -92,7 +107,11 @@ function totalMalus(membreId: number): number {
                     v-if="estEnseignant || membre.id === userId"
                     type="button"
                     class="rounded px-2 py-0.5 text-xs font-medium transition-colors"
-                    :class="ongletActif === membre.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'"
+                    :class="
+                        ongletActif === membre.id
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    "
                     @click="emit('set-onglet', membre.id)"
                 >
                     {{ membre.prenom }}
@@ -101,9 +120,17 @@ function totalMalus(membreId: number): number {
         </div>
 
         <!-- Onglet Tous -->
-        <div v-if="estEnseignant" v-show="ongletActif === 'tous'" class="space-y-3">
-            <div v-for="critere in criteres" :key="critere.id" class="space-y-1.5">
-                <span class="text-muted-foreground text-xs">
+        <div
+            v-if="estEnseignant"
+            v-show="ongletActif === 'tous'"
+            class="space-y-3"
+        >
+            <div
+                v-for="critere in criteres"
+                :key="critere.id"
+                class="space-y-1.5"
+            >
+                <span class="text-xs text-muted-foreground">
                     {{ critere.label }} ({{ critere.ponderation }} pts)
                 </span>
                 <div class="flex flex-wrap gap-1">
@@ -113,7 +140,11 @@ function totalMalus(membreId: number): number {
                         type="button"
                         :disabled="notesSaving[`grille_${critere.id}_tous`]"
                         class="rounded border px-2 py-0.5 text-xs font-medium transition-colors disabled:opacity-60"
-                        :class="tousOntNote(critere.id, valeur) ? couleurNoteActif[valeur] : 'border-border text-muted-foreground hover:border-primary hover:text-primary'"
+                        :class="
+                            tousOntNote(critere.id, valeur)
+                                ? couleurNoteActif[valeur]
+                                : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
+                        "
                         @click="emit('save-note-pour-tous', critere.id, valeur)"
                     >
                         {{ valeur }} — {{ labelNote[valeur] }}
@@ -126,16 +157,28 @@ function totalMalus(membreId: number): number {
         <div v-for="membre in membres" :key="membre.id">
             <div v-show="ongletActif === membre.id" class="space-y-4">
                 <!-- Critères -->
-                <div v-for="critere in criteres" :key="critere.id" class="space-y-1.5">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                        <span class="text-muted-foreground text-xs">
+                <div
+                    v-for="critere in criteres"
+                    :key="critere.id"
+                    class="space-y-1.5"
+                >
+                    <div
+                        class="flex flex-wrap items-center justify-between gap-2"
+                    >
+                        <span class="text-xs text-muted-foreground">
                             {{ critere.label }} ({{ critere.ponderation }} pts)
                         </span>
                         <span
                             v-if="notes[membre.id]?.[critere.id] !== undefined"
-                            class="text-muted-foreground text-xs font-medium"
+                            class="text-xs font-medium text-muted-foreground"
                         >
-                            {{ contribution(notes[membre.id][critere.id]!, critere.ponderation) }} / {{ critere.ponderation }}
+                            {{
+                                contribution(
+                                    notes[membre.id][critere.id]!,
+                                    critere.ponderation,
+                                )
+                            }}
+                            / {{ critere.ponderation }}
                         </span>
                     </div>
                     <div class="flex flex-wrap gap-1">
@@ -143,10 +186,19 @@ function totalMalus(membreId: number): number {
                             v-for="valeur in [0, 2, 3, 4]"
                             :key="valeur"
                             type="button"
-                            :disabled="!estEnseignant || notesSaving[`grille_${critere.id}_${membre.id}`]"
+                            :disabled="
+                                !estEnseignant ||
+                                notesSaving[`grille_${critere.id}_${membre.id}`]
+                            "
                             class="rounded border px-2 py-0.5 text-xs font-medium transition-colors disabled:opacity-60"
-                            :class="notes[membre.id]?.[critere.id] === valeur ? couleurNoteActif[valeur] : 'border-border text-muted-foreground hover:border-primary hover:text-primary'"
-                            @click="emit('save-note', critere.id, membre.id, valeur)"
+                            :class="
+                                notes[membre.id]?.[critere.id] === valeur
+                                    ? couleurNoteActif[valeur]
+                                    : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
+                            "
+                            @click="
+                                emit('save-note', critere.id, membre.id, valeur)
+                            "
                         >
                             {{ valeur }} — {{ labelNote[valeur] }}
                         </button>
@@ -155,39 +207,102 @@ function totalMalus(membreId: number): number {
 
                 <!-- Section malus grille -->
                 <div v-if="malus.length > 0" class="space-y-2 border-t pt-3">
-                    <p class="text-muted-foreground text-xs font-medium uppercase tracking-wide">Malus</p>
-                    <div v-for="m in malus" :key="m.id" class="flex items-center gap-2">
+                    <p
+                        class="text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                    >
+                        Malus
+                    </p>
+                    <div
+                        v-for="m in malus"
+                        :key="m.id"
+                        class="flex items-center gap-2"
+                    >
                         <button
                             type="button"
-                            :disabled="!estEnseignant || malusSaving[`malus_${m.id}_${membre.id}`]"
+                            :disabled="
+                                !estEnseignant ||
+                                malusSaving[`malus_${m.id}_${membre.id}`]
+                            "
                             class="flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors disabled:opacity-60"
-                            :class="malusAppliques[membre.id]?.[m.id]
-                                ? 'border-destructive bg-destructive text-destructive-foreground'
-                                : 'border-border hover:border-destructive'"
-                            :title="malusAppliques[membre.id]?.[m.id] ? 'Retirer ce malus' : 'Appliquer ce malus'"
-                            @click="emit('toggle-malus', m.id, membre.id, !malusAppliques[membre.id]?.[m.id])"
+                            :class="
+                                malusAppliques[membre.id]?.[m.id]
+                                    ? 'border-destructive bg-destructive text-destructive-foreground'
+                                    : 'border-border hover:border-destructive'
+                            "
+                            :title="
+                                malusAppliques[membre.id]?.[m.id]
+                                    ? 'Retirer ce malus'
+                                    : 'Appliquer ce malus'
+                            "
+                            @click="
+                                emit(
+                                    'toggle-malus',
+                                    m.id,
+                                    membre.id,
+                                    !malusAppliques[membre.id]?.[m.id],
+                                )
+                            "
                         >
-                            <span v-if="malusAppliques[membre.id]?.[m.id]" class="text-[10px] font-bold">✓</span>
+                            <span
+                                v-if="malusAppliques[membre.id]?.[m.id]"
+                                class="text-[10px] font-bold"
+                                >✓</span
+                            >
                         </button>
-                        <span class="text-xs" :class="malusAppliques[membre.id]?.[m.id] ? 'text-destructive font-medium' : 'text-muted-foreground'">
+                        <span
+                            class="text-xs"
+                            :class="
+                                malusAppliques[membre.id]?.[m.id]
+                                    ? 'font-medium text-destructive'
+                                    : 'text-muted-foreground'
+                            "
+                        >
                             {{ m.label }}
-                            <span class="tabular-nums">− {{ m.deduction }} pt{{ m.deduction !== 1 ? 's' : '' }}</span>
+                            <span class="tabular-nums"
+                                >− {{ m.deduction }} pt{{
+                                    m.deduction !== 1 ? 's' : ''
+                                }}</span
+                            >
                         </span>
-                        <span v-if="m.description" class="text-muted-foreground text-xs">({{ m.description }})</span>
+                        <span
+                            v-if="m.description"
+                            class="text-xs text-muted-foreground"
+                            >({{ m.description }})</span
+                        >
                     </div>
-                    <p v-if="totalMalus(membre.id) > 0" class="text-destructive text-xs font-medium">
+                    <p
+                        v-if="totalMalus(membre.id) > 0"
+                        class="text-xs font-medium text-destructive"
+                    >
                         Total malus : − {{ totalMalus(membre.id) }} pts
                     </p>
                 </div>
 
                 <!-- Section corrections inline (annotations enseignant avec déduction de points) -->
-                <div v-if="(annotationsMalus?.[membre.id]?.length ?? 0) > 0" class="space-y-2 border-t pt-3">
-                    <p class="text-muted-foreground text-xs font-medium uppercase tracking-wide">Corrections inline</p>
-                    <div v-for="(a, idx) in annotationsMalus![membre.id]" :key="idx" class="flex items-start gap-2">
-                        <span class="text-destructive shrink-0 text-xs font-medium tabular-nums">
-                            − {{ a.points_malus }} pt{{ a.points_malus !== 1 ? 's' : '' }}
+                <div
+                    v-if="(annotationsMalus?.[membre.id]?.length ?? 0) > 0"
+                    class="space-y-2 border-t pt-3"
+                >
+                    <p
+                        class="text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                    >
+                        Corrections inline
+                    </p>
+                    <div
+                        v-for="(a, idx) in annotationsMalus![membre.id]"
+                        :key="idx"
+                        class="flex items-start gap-2"
+                    >
+                        <span
+                            class="shrink-0 text-xs font-medium text-destructive tabular-nums"
+                        >
+                            − {{ a.points_malus }} pt{{
+                                a.points_malus !== 1 ? 's' : ''
+                            }}
                         </span>
-                        <span class="text-muted-foreground text-xs">{{ a.contenu }}</span>
+                        <span class="text-xs text-muted-foreground">{{
+                            a.contenu
+                        }}</span>
                     </div>
                 </div>
             </div>

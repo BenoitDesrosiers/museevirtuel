@@ -35,10 +35,14 @@ const props = defineProps<{
 }>();
 
 /** La question principale (premier concept de la section). */
-const questionPrincipale = computed<Concept | null>(() => props.concepts[0] ?? null);
+const questionPrincipale = computed<Concept | null>(
+    () => props.concepts[0] ?? null,
+);
 
 /** Nombre de sous-questions actuelles. */
-const nombreSousQuestions = computed(() => questionPrincipale.value?.lignes.length ?? 0);
+const nombreSousQuestions = computed(
+    () => questionPrincipale.value?.lignes.length ?? 0,
+);
 
 /** Peut-on encore ajouter une sous-question ? */
 const peutAjouter = computed(
@@ -74,7 +78,10 @@ function mettreAJourQuestion(): void {
     if (!questionPrincipale.value || props.readonly) return;
 
     useForm({ label: formQuestion.label }).patch(
-        conceptsRoutes.update.url({ ...props.params, concept: questionPrincipale.value.id }),
+        conceptsRoutes.update.url({
+            ...props.params,
+            concept: questionPrincipale.value.id,
+        }),
         { preserveScroll: true },
     );
 }
@@ -87,7 +94,8 @@ const nouvelleSousQuestion = ref('');
  * Ajoute une sous-question (stockée dans `indicateur`).
  */
 function ajouterSousQuestion(): void {
-    if (!questionPrincipale.value || props.readonly || !peutAjouter.value) return;
+    if (!questionPrincipale.value || props.readonly || !peutAjouter.value)
+        return;
     if (!nouvelleSousQuestion.value.trim()) return;
 
     useForm({
@@ -95,7 +103,10 @@ function ajouterSousQuestion(): void {
         indicateur: nouvelleSousQuestion.value.trim(),
         questions: '[]',
     }).post(
-        conceptsRoutes.lignes.store.url({ ...props.params, concept: questionPrincipale.value.id }),
+        conceptsRoutes.lignes.store.url({
+            ...props.params,
+            concept: questionPrincipale.value.id,
+        }),
         {
             preserveScroll: true,
             onSuccess: () => {
@@ -136,13 +147,15 @@ function supprimerSousQuestion(ligne: Ligne): void {
                     v-model="formQuestion.label"
                     type="text"
                     placeholder="Saisissez la question principale de l'entrevue…"
-                    class="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    class="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
                     @keydown.enter.prevent="creerQuestionPrincipale"
                 />
                 <button
                     type="button"
                     class="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                    :disabled="formQuestion.processing || !formQuestion.label.trim()"
+                    :disabled="
+                        formQuestion.processing || !formQuestion.label.trim()
+                    "
                     @click="creerQuestionPrincipale"
                 >
                     Créer
@@ -157,14 +170,19 @@ function supprimerSousQuestion(ligne: Ligne): void {
                     :readonly="readonly"
                     :class="[
                         'w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none',
-                        !readonly ? 'focus:ring-2 focus:ring-ring' : 'cursor-default text-muted-foreground',
+                        !readonly
+                            ? 'focus:ring-2 focus:ring-ring'
+                            : 'cursor-default text-muted-foreground',
                     ]"
                     @blur="mettreAJourQuestion"
                     @keydown.enter.prevent="mettreAJourQuestion"
                 />
             </div>
 
-            <p v-if="!questionPrincipale && readonly" class="text-sm text-muted-foreground italic">
+            <p
+                v-if="!questionPrincipale && readonly"
+                class="text-sm text-muted-foreground italic"
+            >
                 Aucune question principale définie.
             </p>
         </div>
@@ -182,7 +200,9 @@ function supprimerSousQuestion(ligne: Ligne): void {
                                 : 'text-muted-foreground',
                         ]"
                     >
-                        ({{ nombreSousQuestions }}/{{ SOUS_QUESTIONS_MIN }}–{{ SOUS_QUESTIONS_MAX }})
+                        ({{ nombreSousQuestions }}/{{ SOUS_QUESTIONS_MIN }}–{{
+                            SOUS_QUESTIONS_MAX
+                        }})
                     </span>
                 </label>
 
@@ -204,7 +224,8 @@ function supprimerSousQuestion(ligne: Ligne): void {
                 v-if="nombreSousQuestions < SOUS_QUESTIONS_MIN && !readonly"
                 class="text-xs text-amber-600"
             >
-                {{ SOUS_QUESTIONS_MIN - nombreSousQuestions }} sous-question(s) manquante(s) pour atteindre le minimum requis.
+                {{ SOUS_QUESTIONS_MIN - nombreSousQuestions }} sous-question(s)
+                manquante(s) pour atteindre le minimum requis.
             </p>
 
             <!-- Liste des sous-questions -->
@@ -214,7 +235,9 @@ function supprimerSousQuestion(ligne: Ligne): void {
                     :key="ligne.id"
                     class="flex items-start gap-2 rounded-md border bg-card px-3 py-2"
                 >
-                    <span class="mt-0.5 shrink-0 text-xs text-muted-foreground">{{ index + 1 }}.</span>
+                    <span class="mt-0.5 shrink-0 text-xs text-muted-foreground"
+                        >{{ index + 1 }}.</span
+                    >
                     <p class="flex-1 text-sm">{{ ligne.indicateur }}</p>
                     <button
                         v-if="!readonly"
@@ -234,7 +257,7 @@ function supprimerSousQuestion(ligne: Ligne): void {
                     v-model="nouvelleSousQuestion"
                     type="text"
                     placeholder="Ajouter une sous-question…"
-                    class="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    class="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:outline-none"
                     @keydown.enter.prevent="ajouterSousQuestion"
                 />
                 <button
@@ -248,7 +271,10 @@ function supprimerSousQuestion(ligne: Ligne): void {
                 </button>
             </div>
 
-            <p v-if="!readonly && !peutAjouter" class="text-xs text-muted-foreground">
+            <p
+                v-if="!readonly && !peutAjouter"
+                class="text-xs text-muted-foreground"
+            >
                 Maximum de {{ SOUS_QUESTIONS_MAX }} sous-questions atteint.
             </p>
         </div>

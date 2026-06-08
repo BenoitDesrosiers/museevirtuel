@@ -84,13 +84,16 @@ function scrollToBottom() {
 onMounted(() => scrollToBottom());
 
 function submit() {
-    form.post(`/cours/${props.cours.id}/classes/${props.classe.id}/groupes/${props.groupe.id}/echanges`, {
-        preserveScroll: true,
-        onSuccess: () => {
-            form.reset();
-            scrollToBottom();
+    form.post(
+        `/cours/${props.cours.id}/classes/${props.classe.id}/groupes/${props.groupe.id}/echanges`,
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                form.reset();
+                scrollToBottom();
+            },
         },
-    });
+    );
 }
 </script>
 
@@ -102,7 +105,9 @@ function submit() {
             <!-- Retour -->
             <div>
                 <Button variant="ghost" size="sm" as-child>
-                    <Link :href="`/cours/${cours.id}/classes/${classe.id}/groupes/${groupe.id}`">
+                    <Link
+                        :href="`/cours/${cours.id}/classes/${classe.id}/groupes/${groupe.id}`"
+                    >
                         <ArrowLeft class="mr-2 h-4 w-4" />
                         {{ $t('echanges.back') }}
                     </Link>
@@ -118,24 +123,37 @@ function submit() {
             <Card v-if="groupe.temoin">
                 <CardContent class="py-3">
                     <div class="flex items-center gap-3">
-                        <span class="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium">
-                            {{ groupe.temoin.prenom[0] }}{{ groupe.temoin.nom[0] }}
+                        <span
+                            class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary"
+                        >
+                            {{ groupe.temoin.prenom[0]
+                            }}{{ groupe.temoin.nom[0] }}
                         </span>
                         <div>
-                            <p class="text-sm font-medium">{{ groupe.temoin.prenom }} {{ groupe.temoin.nom }}</p>
-                            <p class="text-muted-foreground text-xs">{{ $t('echanges.witness_of_group') }}</p>
+                            <p class="text-sm font-medium">
+                                {{ groupe.temoin.prenom }}
+                                {{ groupe.temoin.nom }}
+                            </p>
+                            <p class="text-xs text-muted-foreground">
+                                {{ $t('echanges.witness_of_group') }}
+                            </p>
                         </div>
                     </div>
                 </CardContent>
             </Card>
-            <div v-else class="text-muted-foreground rounded-lg border border-dashed p-4 text-center text-sm">
+            <div
+                v-else
+                class="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground"
+            >
                 {{ $t('echanges.no_witness') }}
             </div>
 
             <!-- Thread d'échanges -->
             <Card>
                 <CardHeader>
-                    <CardTitle>{{ $t('echanges.messages_title', { n: echanges.length }) }}</CardTitle>
+                    <CardTitle>{{
+                        $t('echanges.messages_title', { n: echanges.length })
+                    }}</CardTitle>
                 </CardHeader>
                 <CardContent class="flex flex-col gap-2">
                     <!-- Fil de discussion -->
@@ -145,7 +163,7 @@ function submit() {
                     >
                         <div
                             v-if="echanges.length === 0"
-                            class="text-muted-foreground py-6 text-center text-sm"
+                            class="py-6 text-center text-sm text-muted-foreground"
                         >
                             {{ $t('echanges.no_messages') }}
                         </div>
@@ -154,46 +172,62 @@ function submit() {
                             v-for="echange in echanges"
                             :key="echange.id"
                             class="flex flex-col gap-1"
-                            :class="estMessageTemoin(echange) ? 'items-start' : 'items-end'"
+                            :class="
+                                estMessageTemoin(echange)
+                                    ? 'items-start'
+                                    : 'items-end'
+                            "
                         >
                             <!-- Bulle -->
                             <div
                                 class="max-w-[75%] rounded-2xl px-4 py-2.5 text-sm"
-                                :class="estMessageTemoin(echange)
-                                    ? 'bg-muted text-foreground rounded-tl-sm'
-                                    : 'bg-primary text-primary-foreground rounded-tr-sm'"
+                                :class="
+                                    estMessageTemoin(echange)
+                                        ? 'rounded-tl-sm bg-muted text-foreground'
+                                        : 'rounded-tr-sm bg-primary text-primary-foreground'
+                                "
                             >
                                 {{ echange.contenu }}
                             </div>
                             <!-- Méta -->
-                            <p class="text-muted-foreground text-xs">
-                                {{ echange.auteur.prenom }} {{ echange.auteur.nom }}
-                                · {{ formatDate(echange.created_at) }}
+                            <p class="text-xs text-muted-foreground">
+                                {{ echange.auteur.prenom }}
+                                {{ echange.auteur.nom }} ·
+                                {{ formatDate(echange.created_at) }}
                             </p>
                         </div>
                     </div>
 
                     <!-- Formulaire envoi -->
-                    <div
-                        v-if="groupe.temoin"
-                        class="mt-4 border-t pt-4"
-                    >
-                        <form class="flex flex-col gap-2" @submit.prevent="submit">
+                    <div v-if="groupe.temoin" class="mt-4 border-t pt-4">
+                        <form
+                            class="flex flex-col gap-2"
+                            @submit.prevent="submit"
+                        >
                             <Textarea
                                 v-model="form.contenu"
                                 rows="3"
                                 maxlength="3000"
-                                :placeholder="estTemoin ? $t('echanges.placeholder_temoin') : $t('echanges.placeholder_etudiant')"
+                                :placeholder="
+                                    estTemoin
+                                        ? $t('echanges.placeholder_temoin')
+                                        : $t('echanges.placeholder_etudiant')
+                                "
                                 class="resize-none"
                             />
-                            <p v-if="form.errors.contenu" class="text-destructive text-sm">
+                            <p
+                                v-if="form.errors.contenu"
+                                class="text-sm text-destructive"
+                            >
                                 {{ form.errors.contenu }}
                             </p>
                             <div class="flex justify-end">
                                 <Button
                                     type="submit"
                                     size="sm"
-                                    :disabled="form.processing || !form.contenu.trim()"
+                                    :disabled="
+                                        form.processing || !form.contenu.trim()
+                                    "
                                 >
                                     <Send class="mr-2 h-4 w-4" />
                                     {{ $t('echanges.send') }}

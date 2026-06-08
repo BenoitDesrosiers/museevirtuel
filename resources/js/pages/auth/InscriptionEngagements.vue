@@ -13,7 +13,10 @@ import { store } from '@/routes/inscription/temoin/engagements';
 const { t } = useI18n();
 
 const page = usePage();
-const flash = computed(() => (page.props as { flash?: { success?: string; error?: string } }).flash);
+const flash = computed(
+    () =>
+        (page.props as { flash?: { success?: string; error?: string } }).flash,
+);
 
 // ─── Engagements à accepter ───────────────────────────────────────────────────
 const engagementKeys = [
@@ -67,26 +70,41 @@ function retourEtape1() {
         <form class="flex flex-col gap-6" @submit.prevent="submit">
             <!-- ─── Liste des engagements ──────────────────────────────────── -->
             <div class="grid gap-4">
-                <p class="text-muted-foreground text-xs">
+                <p class="text-xs text-muted-foreground">
                     {{ $t('inscription_engagements.all_required') }}
                 </p>
 
                 <div
                     v-for="(key, index) in engagementKeys"
                     :key="key"
-                    class="flex cursor-pointer select-none items-start gap-3 rounded-lg border p-4"
-                    :class="form.engagements[index] ? 'border-primary/30 bg-primary/5' : ''"
-                    @click="form.engagements = form.engagements.map((v, i) => i === index ? !v : v)"
+                    class="flex cursor-pointer items-start gap-3 rounded-lg border p-4 select-none"
+                    :class="
+                        form.engagements[index]
+                            ? 'border-primary/30 bg-primary/5'
+                            : ''
+                    "
+                    @click="
+                        form.engagements = form.engagements.map((v, i) =>
+                            i === index ? !v : v,
+                        )
+                    "
                 >
                     <div
-                        class="mt-0.5 size-4 shrink-0 rounded-[4px] border shadow-xs flex items-center justify-center transition-colors"
-                        :class="form.engagements[index]
-                            ? 'bg-primary border-primary text-primary-foreground'
-                            : 'border-input bg-background'"
+                        class="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-[4px] border shadow-xs transition-colors"
+                        :class="
+                            form.engagements[index]
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-input bg-background'
+                        "
                     >
-                        <Check v-if="form.engagements[index]" class="size-3.5" />
+                        <Check
+                            v-if="form.engagements[index]"
+                            class="size-3.5"
+                        />
                     </div>
-                    <span class="text-sm font-normal leading-relaxed">{{ $t(key) }}</span>
+                    <span class="text-sm leading-relaxed font-normal">{{
+                        $t(key)
+                    }}</span>
                 </div>
 
                 <InputError :message="form.errors.engagements" />
@@ -95,8 +113,10 @@ function retourEtape1() {
             <!-- ─── Signature électronique ─────────────────────────────────── -->
             <div class="grid gap-3">
                 <div>
-                    <Label for="signature">{{ $t('inscription_engagements.label_signature') }}</Label>
-                    <p class="text-muted-foreground mt-1 text-xs">
+                    <Label for="signature">{{
+                        $t('inscription_engagements.label_signature')
+                    }}</Label>
+                    <p class="mt-1 text-xs text-muted-foreground">
                         {{ $t('inscription_engagements.hint_signature') }}
                     </p>
                 </div>
@@ -107,7 +127,9 @@ function retourEtape1() {
                     type="text"
                     required
                     autocomplete="name"
-                    :placeholder="$t('inscription_engagements.placeholder_signature')"
+                    :placeholder="
+                        $t('inscription_engagements.placeholder_signature')
+                    "
                 />
                 <InputError :message="form.errors.signature" />
 
@@ -116,8 +138,13 @@ function retourEtape1() {
                     v-if="signaturePreview"
                     class="rounded-lg border border-dashed p-4 text-center"
                 >
-                    <p class="text-muted-foreground mb-1 text-xs">{{ $t('inscription_engagements.signature_preview') }}</p>
-                    <p class="text-xl text-gray-700 dark:text-gray-300" style="font-family: 'Brush Script MT', cursive, serif;">
+                    <p class="mb-1 text-xs text-muted-foreground">
+                        {{ $t('inscription_engagements.signature_preview') }}
+                    </p>
+                    <p
+                        class="text-xl text-gray-700 dark:text-gray-300"
+                        style="font-family: 'Brush Script MT', cursive, serif"
+                    >
                         {{ signaturePreview }}
                     </p>
                 </div>
@@ -128,7 +155,9 @@ function retourEtape1() {
                 <Button
                     type="submit"
                     class="w-full"
-                    :disabled="form.processing || !tousCoches || !form.signature.trim()"
+                    :disabled="
+                        form.processing || !tousCoches || !form.signature.trim()
+                    "
                 >
                     <Spinner v-if="form.processing" />
                     {{ $t('inscription_engagements.submit') }}

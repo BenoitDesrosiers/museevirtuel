@@ -33,7 +33,9 @@ const inputEmail = ref(props.email);
         >
             <div class="grid gap-6">
                 <div class="grid gap-2">
-                    <Label for="email">{{ $t('auth.reset_password.label_email') }}</Label>
+                    <Label for="email">{{
+                        $t('auth.reset_password.label_email')
+                    }}</Label>
                     <Input
                         id="email"
                         type="email"
@@ -47,29 +49,43 @@ const inputEmail = ref(props.email);
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="password">{{ $t('auth.reset_password.label_password') }}</Label>
+                    <Label for="password">{{
+                        $t('auth.reset_password.label_password')
+                    }}</Label>
                     <PasswordInput
                         id="password"
                         name="password"
                         autocomplete="new-password"
                         class="mt-1 block w-full"
                         autofocus
-                        :placeholder="$t('auth.reset_password.placeholder_password')"
+                        :placeholder="
+                            $t('auth.reset_password.placeholder_password')
+                        "
                     />
-                    <p class="text-sm text-neutral-500">{{ $t('auth.reset_password.password_hint') }}</p>
+                    <p class="text-sm text-neutral-500">
+                        {{ $t('auth.reset_password.password_hint') }}
+                    </p>
                     <InputError :message="errors.password" />
                 </div>
 
                 <div class="grid gap-2">
                     <Label for="password_confirmation">
-                        {{ $t('auth.reset_password.label_password_confirmation') }}
+                        {{
+                            $t(
+                                'auth.reset_password.label_password_confirmation',
+                            )
+                        }}
                     </Label>
                     <PasswordInput
                         id="password_confirmation"
                         name="password_confirmation"
                         autocomplete="new-password"
                         class="mt-1 block w-full"
-                        :placeholder="$t('auth.reset_password.placeholder_password_confirmation')"
+                        :placeholder="
+                            $t(
+                                'auth.reset_password.placeholder_password_confirmation',
+                            )
+                        "
                     />
                     <InputError :message="errors.password_confirmation" />
                 </div>

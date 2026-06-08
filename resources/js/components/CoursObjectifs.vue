@@ -60,13 +60,19 @@ function cancelEdit() {
  * Soumet la mise à jour d'un objectif.
  */
 function submitEdit(objectif: Objectif) {
-    editForm.put(objectifsRoutes.update.url({ cours: props.coursId, objectif: objectif.id }), {
-        preserveScroll: true,
-        onSuccess: () => {
-            editingId.value = null;
-            editForm.reset();
+    editForm.put(
+        objectifsRoutes.update.url({
+            cours: props.coursId,
+            objectif: objectif.id,
+        }),
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                editingId.value = null;
+                editForm.reset();
+            },
         },
-    });
+    );
 }
 
 // ─── Supprimer un objectif ────────────────────────────────────────────────────
@@ -76,32 +82,46 @@ const deleteForm = useForm({});
  * Supprime un objectif après confirmation.
  */
 function supprimerObjectif(objectif: Objectif) {
-    if (!confirm(`Supprimer l'objectif « ${objectif.contenu.slice(0, 50)}… » ?`)) {
+    if (
+        !confirm(`Supprimer l'objectif « ${objectif.contenu.slice(0, 50)}… » ?`)
+    ) {
         return;
     }
 
-    deleteForm.delete(objectifsRoutes.destroy.url({ cours: props.coursId, objectif: objectif.id }), {
-        preserveScroll: true,
-    });
+    deleteForm.delete(
+        objectifsRoutes.destroy.url({
+            cours: props.coursId,
+            objectif: objectif.id,
+        }),
+        {
+            preserveScroll: true,
+        },
+    );
 }
-
 </script>
 
 <template>
     <div class="space-y-2">
         <!-- Liste des objectifs -->
-        <div v-if="objectifs.length === 0 && !showAddForm" class="py-3 text-center text-sm text-muted-foreground">
+        <div
+            v-if="objectifs.length === 0 && !showAddForm"
+            class="py-3 text-center text-sm text-muted-foreground"
+        >
             Aucun objectif pédagogique. Ajoutez-en un ci-dessous.
         </div>
 
         <ol class="space-y-1.5">
             <li
-                v-for="(objectif, index) in [...objectifs].sort((a, b) => a.ordre - b.ordre)"
+                v-for="(objectif, index) in [...objectifs].sort(
+                    (a, b) => a.ordre - b.ordre,
+                )"
                 :key="objectif.id"
                 class="flex items-center gap-2 rounded-md border bg-card px-3 py-2"
             >
                 <!-- Numéro d'ordre -->
-                <span class="w-5 shrink-0 text-right text-xs font-medium text-muted-foreground">
+                <span
+                    class="w-5 shrink-0 text-right text-xs font-medium text-muted-foreground"
+                >
                     {{ index + 1 }}.
                 </span>
 
@@ -113,10 +133,21 @@ function supprimerObjectif(objectif: Objectif) {
                         @keydown.enter.prevent="submitEdit(objectif)"
                         @keydown.escape="cancelEdit"
                     />
-                    <Button size="sm" variant="ghost" class="h-7 w-7 p-0" :disabled="editForm.processing" @click="submitEdit(objectif)">
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        class="h-7 w-7 p-0"
+                        :disabled="editForm.processing"
+                        @click="submitEdit(objectif)"
+                    >
                         <Check class="h-3.5 w-3.5 text-green-600" />
                     </Button>
-                    <Button size="sm" variant="ghost" class="h-7 w-7 p-0" @click="cancelEdit">
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        class="h-7 w-7 p-0"
+                        @click="cancelEdit"
+                    >
                         <X class="h-3.5 w-3.5" />
                     </Button>
                 </template>
@@ -125,7 +156,12 @@ function supprimerObjectif(objectif: Objectif) {
                 <template v-else>
                     <span class="flex-1 text-sm">{{ objectif.contenu }}</span>
 
-                    <Button size="sm" variant="ghost" class="h-7 w-7 p-0" @click="openEdit(objectif)">
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        class="h-7 w-7 p-0"
+                        @click="openEdit(objectif)"
+                    >
                         <Pencil class="h-3.5 w-3.5" />
                     </Button>
                     <Button
@@ -142,7 +178,10 @@ function supprimerObjectif(objectif: Objectif) {
         </ol>
 
         <!-- Formulaire d'ajout inline -->
-        <div v-if="showAddForm" class="flex items-center gap-2 rounded-md border bg-card px-3 py-2">
+        <div
+            v-if="showAddForm"
+            class="flex items-center gap-2 rounded-md border bg-card px-3 py-2"
+        >
             <Label class="sr-only" for="new-objectif">Nouvel objectif</Label>
             <Input
                 id="new-objectif"
@@ -153,10 +192,24 @@ function supprimerObjectif(objectif: Objectif) {
                 @keydown.enter.prevent="submitAdd"
                 @keydown.escape="showAddForm = false"
             />
-            <Button size="sm" variant="ghost" class="h-7 w-7 p-0" :disabled="addForm.processing || !addForm.contenu.trim()" @click="submitAdd">
+            <Button
+                size="sm"
+                variant="ghost"
+                class="h-7 w-7 p-0"
+                :disabled="addForm.processing || !addForm.contenu.trim()"
+                @click="submitAdd"
+            >
                 <Check class="h-3.5 w-3.5 text-green-600" />
             </Button>
-            <Button size="sm" variant="ghost" class="h-7 w-7 p-0" @click="showAddForm = false; addForm.reset()">
+            <Button
+                size="sm"
+                variant="ghost"
+                class="h-7 w-7 p-0"
+                @click="
+                    showAddForm = false;
+                    addForm.reset();
+                "
+            >
                 <X class="h-3.5 w-3.5" />
             </Button>
         </div>

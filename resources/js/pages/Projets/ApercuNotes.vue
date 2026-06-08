@@ -26,9 +26,7 @@ const copie = ref(false);
 
 /** Texte brut formaté : "DA NOTE\n" pour chaque étudiant. */
 const texte = computed(() =>
-    props.lignes
-        .map((l) => `${l.da} ${l.note ?? ''}`.trimEnd())
-        .join('\n'),
+    props.lignes.map((l) => `${l.da} ${l.note ?? ''}`.trimEnd()).join('\n'),
 );
 
 const retourUrl = computed(
@@ -51,7 +49,11 @@ async function copierTexte(): Promise<void> {
 
         <div class="mx-auto max-w-xl space-y-6 px-4 py-8">
             <div class="flex items-center gap-3">
-                <BoutonTooltip texte="Retour au projet" variant="ghost" as-child>
+                <BoutonTooltip
+                    texte="Retour au projet"
+                    variant="ghost"
+                    as-child
+                >
                     <Link :href="retourUrl">
                         <ArrowLeft class="h-4 w-4" />
                     </Link>
@@ -64,7 +66,10 @@ async function copierTexte(): Promise<void> {
 
             <!-- Zone texte copiable -->
             <div class="rounded-md border bg-muted p-4">
-                <pre class="font-mono text-sm leading-relaxed whitespace-pre-wrap">{{ texte || '(Aucune note saisie)' }}</pre>
+                <pre
+                    class="font-mono text-sm leading-relaxed whitespace-pre-wrap"
+                    >{{ texte || '(Aucune note saisie)' }}</pre
+                >
             </div>
 
             <!-- Bouton copier -->

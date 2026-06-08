@@ -40,7 +40,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     'update:open': [value: boolean];
     /** Basculer le malus pour un étudiant précis */
-    'toggle': [malusId: number, membreId: number, applique: boolean];
+    toggle: [malusId: number, membreId: number, applique: boolean];
     /** Basculer le malus pour tous les étudiants du groupe */
     'toggle-pour-tous': [malusId: number, applique: boolean];
 }>();
@@ -64,7 +64,7 @@ watch(
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function isMalusApplique(malusId: number, membreId: number): boolean {
-    return !!(props.malusGrille[membreId]?.[malusId]);
+    return !!props.malusGrille[membreId]?.[malusId];
 }
 
 /**
@@ -73,7 +73,9 @@ function isMalusApplique(malusId: number, membreId: number): boolean {
  */
 const etatTous = computed((): boolean | null => {
     if (!selectedMalusId.value || props.membres.length === 0) return null;
-    const etats = props.membres.map((m) => isMalusApplique(selectedMalusId.value!, m.id));
+    const etats = props.membres.map((m) =>
+        isMalusApplique(selectedMalusId.value!, m.id),
+    );
     if (etats.every(Boolean)) return true;
     if (etats.every((e) => !e)) return false;
     return null;
@@ -83,7 +85,10 @@ const etatTous = computed((): boolean | null => {
 const etatCible = computed((): boolean | null => {
     if (!selectedMalusId.value) return null;
     if (selectedTarget.value === 'tous') return etatTous.value;
-    return isMalusApplique(selectedMalusId.value, selectedTarget.value as number);
+    return isMalusApplique(
+        selectedMalusId.value,
+        selectedTarget.value as number,
+    );
 });
 
 /** L'action Appliquer est disponible quand la cible n'a pas encore le malus (ou partiellement). */
@@ -105,7 +110,12 @@ function appliquer(): void {
     if (selectedTarget.value === 'tous') {
         emit('toggle-pour-tous', selectedMalusId.value, true);
     } else {
-        emit('toggle', selectedMalusId.value, selectedTarget.value as number, true);
+        emit(
+            'toggle',
+            selectedMalusId.value,
+            selectedTarget.value as number,
+            true,
+        );
     }
 }
 
@@ -114,7 +124,12 @@ function retirer(): void {
     if (selectedTarget.value === 'tous') {
         emit('toggle-pour-tous', selectedMalusId.value, false);
     } else {
-        emit('toggle', selectedMalusId.value, selectedTarget.value as number, false);
+        emit(
+            'toggle',
+            selectedMalusId.value,
+            selectedTarget.value as number,
+            false,
+        );
     }
 }
 </script>
@@ -128,7 +143,9 @@ function retirer(): void {
 
             <!-- ── Choix du malus ──────────────────────────────────────────── -->
             <div class="space-y-2">
-                <Label class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Label
+                    class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                >
                     Malus
                 </Label>
                 <div class="space-y-0.5">
@@ -147,7 +164,9 @@ function retirer(): void {
                         <span class="flex-1 text-sm leading-snug">
                             {{ m.label }}
                             <span class="ml-1 font-semibold text-destructive">
-                                −{{ m.deduction }} pt{{ m.deduction === 1 ? '' : 's' }}
+                                −{{ m.deduction }} pt{{
+                                    m.deduction === 1 ? '' : 's'
+                                }}
                             </span>
                         </span>
                     </label>
@@ -156,7 +175,9 @@ function retirer(): void {
 
             <!-- ── Choix de la cible ───────────────────────────────────────── -->
             <div class="space-y-2">
-                <Label class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Label
+                    class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                >
                     Étudiant
                 </Label>
                 <div class="space-y-0.5">
@@ -165,12 +186,25 @@ function retirer(): void {
                         class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted"
                         :class="{ 'bg-muted': selectedTarget === 'tous' }"
                     >
-                        <input type="radio" value="tous" v-model="selectedTarget" class="shrink-0" />
-                        <span class="flex-1 text-sm font-medium">Tous les étudiants</span>
-                        <span v-if="etatTous === true" class="text-xs font-medium text-green-600">
+                        <input
+                            type="radio"
+                            value="tous"
+                            v-model="selectedTarget"
+                            class="shrink-0"
+                        />
+                        <span class="flex-1 text-sm font-medium"
+                            >Tous les étudiants</span
+                        >
+                        <span
+                            v-if="etatTous === true"
+                            class="text-xs font-medium text-green-600"
+                        >
                             ● Tous appliqués
                         </span>
-                        <span v-else-if="etatTous === null && membres.length > 0" class="text-xs font-medium text-amber-600">
+                        <span
+                            v-else-if="etatTous === null && membres.length > 0"
+                            class="text-xs font-medium text-amber-600"
+                        >
                             ⚡ Partiel
                         </span>
                     </label>
@@ -188,9 +222,14 @@ function retirer(): void {
                             v-model="selectedTarget"
                             class="shrink-0"
                         />
-                        <span class="flex-1 text-sm">{{ membre.prenom }} {{ membre.nom }}</span>
+                        <span class="flex-1 text-sm"
+                            >{{ membre.prenom }} {{ membre.nom }}</span
+                        >
                         <Check
-                            v-if="selectedMalusId && isMalusApplique(selectedMalusId, membre.id)"
+                            v-if="
+                                selectedMalusId &&
+                                isMalusApplique(selectedMalusId, membre.id)
+                            "
                             class="h-3.5 w-3.5 shrink-0 text-green-600"
                         />
                     </label>

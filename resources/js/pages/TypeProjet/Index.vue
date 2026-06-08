@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ChevronDown, ChevronRight, Grid2x2, Pencil, Plus, Trash2 } from 'lucide-vue-next';
+import {
+    ChevronDown,
+    ChevronRight,
+    Grid2x2,
+    Pencil,
+    Plus,
+    Trash2,
+} from 'lucide-vue-next';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Heading from '@/components/Heading.vue';
@@ -57,7 +64,12 @@ const props = defineProps<Props>();
 const toggleForm = useForm({});
 
 function toggleAccessible(tp: TypeProjet) {
-    toggleForm.patch(typesProjetsRoutes.toggleAccessible.url({ cours: props.cours.id, typeProjet: tp.id }));
+    toggleForm.patch(
+        typesProjetsRoutes.toggleAccessible.url({
+            cours: props.cours.id,
+            typeProjet: tp.id,
+        }),
+    );
 }
 
 // ─── Suppression TypeProjet ───────────────────────────────────────────────────
@@ -67,7 +79,12 @@ function supprimer(tp: TypeProjet) {
     if (!confirm(t('types_projet.index.confirm_delete', { nom: tp.nom }))) {
         return;
     }
-    deleteForm.delete(typesProjetsRoutes.destroy.url({ cours: props.cours.id, typeProjet: tp.id }));
+    deleteForm.delete(
+        typesProjetsRoutes.destroy.url({
+            cours: props.cours.id,
+            typeProjet: tp.id,
+        }),
+    );
 }
 </script>
 
@@ -101,7 +118,9 @@ function supprimer(tp: TypeProjet) {
                 <CardHeader class="pb-3">
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex-1">
-                            <CardTitle class="flex items-center gap-2 text-base">
+                            <CardTitle
+                                class="flex items-center gap-2 text-base"
+                            >
                                 {{ tp.nom }}
                                 <Badge
                                     :class="
@@ -111,10 +130,21 @@ function supprimer(tp: TypeProjet) {
                                     "
                                     class="text-xs"
                                 >
-                                    {{ tp.accessible ? $t('types_projet.index.badge_accessible') : $t('types_projet.index.badge_not_accessible') }}
+                                    {{
+                                        tp.accessible
+                                            ? $t(
+                                                  'types_projet.index.badge_accessible',
+                                              )
+                                            : $t(
+                                                  'types_projet.index.badge_not_accessible',
+                                              )
+                                    }}
                                 </Badge>
                             </CardTitle>
-                            <p v-if="tp.description" class="mt-1 text-sm text-muted-foreground">
+                            <p
+                                v-if="tp.description"
+                                class="mt-1 text-sm text-muted-foreground"
+                            >
                                 {{ tp.description }}
                             </p>
                         </div>
@@ -122,15 +152,30 @@ function supprimer(tp: TypeProjet) {
                         <div class="flex shrink-0 items-center gap-1">
                             <BoutonTooltip
                                 size="sm"
-                                :variant="tp.accessible ? 'outline' : 'secondary'"
-                                :texte="tp.accessible ? 'Masquer ce type de projet aux étudiants' : 'Rendre ce type de projet accessible aux étudiants'"
+                                :variant="
+                                    tp.accessible ? 'outline' : 'secondary'
+                                "
+                                :texte="
+                                    tp.accessible
+                                        ? 'Masquer ce type de projet aux étudiants'
+                                        : 'Rendre ce type de projet accessible aux étudiants'
+                                "
                                 class="text-xs"
                                 :disabled="toggleForm.processing"
                                 @click="toggleAccessible(tp)"
                             >
-                                <ChevronRight v-if="!tp.accessible" class="mr-1 h-3 w-3" />
+                                <ChevronRight
+                                    v-if="!tp.accessible"
+                                    class="mr-1 h-3 w-3"
+                                />
                                 <ChevronDown v-else class="mr-1 h-3 w-3" />
-                                {{ tp.accessible ? $t('types_projet.index.btn_hide') : $t('types_projet.index.btn_make_accessible') }}
+                                {{
+                                    tp.accessible
+                                        ? $t('types_projet.index.btn_hide')
+                                        : $t(
+                                              'types_projet.index.btn_make_accessible',
+                                          )
+                                }}
                             </BoutonTooltip>
 
                             <BoutonTooltip
@@ -140,7 +185,14 @@ function supprimer(tp: TypeProjet) {
                                 class="h-8 w-8"
                                 as-child
                             >
-                                <Link :href="typesProjetsRoutes.edit.url({ cours: cours.id, typeProjet: tp.id })">
+                                <Link
+                                    :href="
+                                        typesProjetsRoutes.edit.url({
+                                            cours: cours.id,
+                                            typeProjet: tp.id,
+                                        })
+                                    "
+                                >
                                     <Pencil class="h-4 w-4" />
                                 </Link>
                             </BoutonTooltip>
@@ -163,26 +215,49 @@ function supprimer(tp: TypeProjet) {
                     <!-- Grille associée -->
                     <div class="flex items-center gap-3">
                         <Grid2x2 class="h-4 w-4 text-muted-foreground" />
-                        <span class="text-sm text-muted-foreground">{{ $t('types_projet.index.grille_label') }}</span>
+                        <span class="text-sm text-muted-foreground">{{
+                            $t('types_projet.index.grille_label')
+                        }}</span>
                         <a
-                            :href="typesProjetsRoutes.grille.edit.url({ cours: cours.id, typeProjet: tp.id })"
+                            :href="
+                                typesProjetsRoutes.grille.edit.url({
+                                    cours: cours.id,
+                                    typeProjet: tp.id,
+                                })
+                            "
                             class="text-sm font-medium text-primary hover:underline"
                         >
-                            {{ tp.grille ? tp.grille.nom : $t('types_projet.index.configure_grille') }}
+                            {{
+                                tp.grille
+                                    ? tp.grille.nom
+                                    : $t('types_projet.index.configure_grille')
+                            }}
                         </a>
                     </div>
 
                     <!-- Sections (résumé) -->
                     <div class="border-t pt-3">
-                        <p class="mb-2 text-xs font-medium text-muted-foreground">
-                            {{ tp.sections.length }} section{{ tp.sections.length !== 1 ? 's' : '' }}
-                            <span v-if="tp.sections.length === 0" class="font-normal italic">
+                        <p
+                            class="mb-2 text-xs font-medium text-muted-foreground"
+                        >
+                            {{ tp.sections.length }} section{{
+                                tp.sections.length !== 1 ? 's' : ''
+                            }}
+                            <span
+                                v-if="tp.sections.length === 0"
+                                class="font-normal italic"
+                            >
                                 {{ $t('types_projet.index.default_intro') }}
                             </span>
                         </p>
-                        <div v-if="tp.sections.length > 0" class="flex flex-wrap gap-1.5">
+                        <div
+                            v-if="tp.sections.length > 0"
+                            class="flex flex-wrap gap-1.5"
+                        >
                             <span
-                                v-for="s in [...tp.sections].sort((a, b) => a.ordre - b.ordre)"
+                                v-for="s in [...tp.sections].sort(
+                                    (a, b) => a.ordre - b.ordre,
+                                )"
                                 :key="s.id"
                                 class="rounded-md bg-muted px-2 py-0.5 text-xs"
                             >

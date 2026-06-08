@@ -381,8 +381,9 @@ function submit() {
                 <!-- Actions -->
                 <div class="flex justify-end gap-3">
                     <Button type="button" variant="outline" as-child>
-                        <Link :href="typesProjets.index.url(props.cours.id)"
-                            >{{ $t('grille.cancel') }}</Link>
+                        <Link :href="typesProjets.index.url(props.cours.id)">{{
+                            $t('grille.cancel')
+                        }}</Link>
                     </Button>
                     <Button
                         type="submit"

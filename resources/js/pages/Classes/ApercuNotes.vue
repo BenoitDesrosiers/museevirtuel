@@ -24,14 +24,16 @@ const copie = ref(false);
 
 /** Texte brut formaté : "DA NOTE\n" pour chaque étudiant. */
 const texte = computed(() =>
-    props.lignes
-        .map((l) => `${l.da} ${l.note ?? ''}`.trimEnd())
-        .join('\n'),
+    props.lignes.map((l) => `${l.da} ${l.note ?? ''}`.trimEnd()).join('\n'),
 );
 
-const retourUrl = computed(() => `/cours/${props.cours.id}/classes/${props.classe.id}`);
+const retourUrl = computed(
+    () => `/cours/${props.cours.id}/classes/${props.classe.id}`,
+);
 
-const titreClasse = computed(() => props.classe.nom ?? `Classe ${props.classe.numero}`);
+const titreClasse = computed(
+    () => props.classe.nom ?? `Classe ${props.classe.numero}`,
+);
 
 async function copierTexte(): Promise<void> {
     await navigator.clipboard.writeText(texte.value);
@@ -61,7 +63,10 @@ async function copierTexte(): Promise<void> {
 
             <!-- Zone texte copiable -->
             <div class="rounded-md border bg-muted p-4">
-                <pre class="font-mono text-sm leading-relaxed whitespace-pre-wrap">{{ texte || '(Aucune note saisie)' }}</pre>
+                <pre
+                    class="font-mono text-sm leading-relaxed whitespace-pre-wrap"
+                    >{{ texte || '(Aucune note saisie)' }}</pre
+                >
             </div>
 
             <!-- Bouton copier -->

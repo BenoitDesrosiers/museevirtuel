@@ -38,7 +38,13 @@ type TypeProjet = {
     aide_reference: boolean;
     ponderation: number | null;
     is_sommatif: boolean;
-    sections: { id: number; label: string; description: string | null; ordre: number; type: SectionType }[];
+    sections: {
+        id: number;
+        label: string;
+        description: string | null;
+        ordre: number;
+        type: SectionType;
+    }[];
 };
 
 type Cours = {
@@ -52,7 +58,9 @@ type Props = {
     typeProjet: TypeProjet;
 };
 
-const sectionTypes = computed<{ value: SectionType; label: string; description: string }[]>(() => [
+const sectionTypes = computed<
+    { value: SectionType; label: string; description: string }[]
+>(() => [
     {
         value: 'texte',
         label: t('types_projet.edit.section_type_texte_label'),
@@ -122,17 +130,25 @@ function supprimerSection(idx: number) {
  * Soumet le formulaire complet via PUT.
  */
 function sauvegarder() {
-    form.put(typesProjets.update.url({ cours: props.cours.id, typeProjet: props.typeProjet.id }), {
-        onSuccess: () => {
-            // Reste sur la page — le flash success s'affiche via Inertia
+    form.put(
+        typesProjets.update.url({
+            cours: props.cours.id,
+            typeProjet: props.typeProjet.id,
+        }),
+        {
+            onSuccess: () => {
+                // Reste sur la page — le flash success s'affiche via Inertia
+            },
         },
-    });
+    );
 }
 </script>
 
 <template>
     <AppLayout>
-        <Head :title="`${$t('types_projet.edit.heading_title')} — ${props.typeProjet.nom}`" />
+        <Head
+            :title="`${$t('types_projet.edit.heading_title')} — ${props.typeProjet.nom}`"
+        />
 
         <div class="mx-auto flex max-w-2xl flex-col gap-6 p-6">
             <!-- En-tête -->
@@ -151,14 +167,23 @@ function sauvegarder() {
             <Card>
                 <CardContent class="grid gap-4 pt-6">
                     <div class="grid gap-2">
-                        <Label for="nom">{{ $t('types_projet.edit.label_name') }} <span class="text-destructive">*</span></Label>
+                        <Label for="nom"
+                            >{{ $t('types_projet.edit.label_name') }}
+                            <span class="text-destructive">*</span></Label
+                        >
                         <Input id="nom" v-model="form.nom" required />
                         <InputError :message="form.errors.nom" />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="description">{{ $t('types_projet.edit.label_description') }}</Label>
-                        <Textarea id="description" v-model="form.description" rows="2" />
+                        <Label for="description">{{
+                            $t('types_projet.edit.label_description')
+                        }}</Label>
+                        <Textarea
+                            id="description"
+                            v-model="form.description"
+                            rows="2"
+                        />
                         <InputError :message="form.errors.description" />
                     </div>
                 </CardContent>
@@ -167,10 +192,14 @@ function sauvegarder() {
             <!-- Paramètres de remise -->
             <Card>
                 <CardContent class="grid gap-4 pt-6">
-                    <h2 class="text-sm font-semibold">{{ $t('types_projet.edit.submission_section') }}</h2>
+                    <h2 class="text-sm font-semibold">
+                        {{ $t('types_projet.edit.submission_section') }}
+                    </h2>
 
                     <div class="grid gap-2">
-                        <Label for="date_remise">{{ $t('types_projet.edit.label_deadline') }}</Label>
+                        <Label for="date_remise">{{
+                            $t('types_projet.edit.label_deadline')
+                        }}</Label>
                         <Input
                             id="date_remise"
                             v-model="form.date_remise"
@@ -185,8 +214,22 @@ function sauvegarder() {
                             v-model="form.remises_multiples"
                         />
                         <div class="grid gap-0.5">
-                            <Label for="remises_multiples" class="cursor-pointer">{{ $t('types_projet.edit.label_multiple_submissions') }}</Label>
-                            <p class="text-xs text-muted-foreground">{{ $t('types_projet.edit.multiple_submissions_hint') }}</p>
+                            <Label
+                                for="remises_multiples"
+                                class="cursor-pointer"
+                                >{{
+                                    $t(
+                                        'types_projet.edit.label_multiple_submissions',
+                                    )
+                                }}</Label
+                            >
+                            <p class="text-xs text-muted-foreground">
+                                {{
+                                    $t(
+                                        'types_projet.edit.multiple_submissions_hint',
+                                    )
+                                }}
+                            </p>
                         </div>
                     </div>
 
@@ -196,12 +239,20 @@ function sauvegarder() {
                             v-model="form.retard_permis"
                         />
                         <div class="grid gap-0.5">
-                            <Label for="retard_permis" class="cursor-pointer">{{ $t('types_projet.edit.label_late_submission') }}</Label>
-                            <p class="text-xs text-muted-foreground">{{ $t('types_projet.edit.late_submission_hint') }}</p>
+                            <Label for="retard_permis" class="cursor-pointer">{{
+                                $t('types_projet.edit.label_late_submission')
+                            }}</Label>
+                            <p class="text-xs text-muted-foreground">
+                                {{
+                                    $t('types_projet.edit.late_submission_hint')
+                                }}
+                            </p>
                         </div>
                     </div>
 
-                    <h2 class="mt-2 text-sm font-semibold">{{ $t('types_projet.edit.export_options_title') }}</h2>
+                    <h2 class="mt-2 text-sm font-semibold">
+                        {{ $t('types_projet.edit.export_options_title') }}
+                    </h2>
 
                     <div class="flex items-start gap-3">
                         <Checkbox
@@ -209,9 +260,21 @@ function sauvegarder() {
                             v-model="form.generer_page_titre"
                         />
                         <div class="grid gap-0.5">
-                            <Label for="generer_page_titre" class="cursor-pointer">{{ $t('types_projet.edit.label_generer_page_titre') }}</Label>
+                            <Label
+                                for="generer_page_titre"
+                                class="cursor-pointer"
+                                >{{
+                                    $t(
+                                        'types_projet.edit.label_generer_page_titre',
+                                    )
+                                }}</Label
+                            >
                             <p class="text-xs text-muted-foreground">
-                                {{ form.generer_page_titre ? $t('types_projet.edit.hint_auto') : '' }}
+                                {{
+                                    form.generer_page_titre
+                                        ? $t('types_projet.edit.hint_auto')
+                                        : ''
+                                }}
                             </p>
                         </div>
                     </div>
@@ -222,9 +285,21 @@ function sauvegarder() {
                             v-model="form.generer_table_matieres"
                         />
                         <div class="grid gap-0.5">
-                            <Label for="generer_table_matieres" class="cursor-pointer">{{ $t('types_projet.edit.label_generer_table_matieres') }}</Label>
+                            <Label
+                                for="generer_table_matieres"
+                                class="cursor-pointer"
+                                >{{
+                                    $t(
+                                        'types_projet.edit.label_generer_table_matieres',
+                                    )
+                                }}</Label
+                            >
                             <p class="text-xs text-muted-foreground">
-                                {{ form.generer_table_matieres ? $t('types_projet.edit.hint_auto') : '' }}
+                                {{
+                                    form.generer_table_matieres
+                                        ? $t('types_projet.edit.hint_auto')
+                                        : ''
+                                }}
                             </p>
                         </div>
                     </div>
@@ -235,9 +310,21 @@ function sauvegarder() {
                             v-model="form.aide_reference"
                         />
                         <div class="grid gap-0.5">
-                            <Label for="aide_reference" class="cursor-pointer">{{ $t('types_projet.edit.label_aide_reference') }}</Label>
+                            <Label
+                                for="aide_reference"
+                                class="cursor-pointer"
+                                >{{
+                                    $t('types_projet.edit.label_aide_reference')
+                                }}</Label
+                            >
                             <p class="text-xs text-muted-foreground">
-                                {{ form.aide_reference ? $t('types_projet.edit.hint_aide_reference') : '' }}
+                                {{
+                                    form.aide_reference
+                                        ? $t(
+                                              'types_projet.edit.hint_aide_reference',
+                                          )
+                                        : ''
+                                }}
                             </p>
                         </div>
                     </div>
@@ -261,20 +348,21 @@ function sauvegarder() {
                             placeholder="ex: 60"
                         />
                         <p class="text-xs text-muted-foreground">
-                            Poids de ce type de projet dans la note finale du cours (0–100 %). Laissez vide si non applicable.
+                            Poids de ce type de projet dans la note finale du
+                            cours (0–100 %). Laissez vide si non applicable.
                         </p>
                         <InputError :message="form.errors.ponderation" />
                     </div>
 
                     <div class="flex items-center gap-3">
-                        <Checkbox
-                            id="is_sommatif"
-                            v-model="form.is_sommatif"
-                        />
+                        <Checkbox id="is_sommatif" v-model="form.is_sommatif" />
                         <div class="grid gap-0.5">
-                            <Label for="is_sommatif" class="cursor-pointer">Évaluation sommative</Label>
+                            <Label for="is_sommatif" class="cursor-pointer"
+                                >Évaluation sommative</Label
+                            >
                             <p class="text-xs text-muted-foreground">
-                                Coché : ce projet contribue à la note finale. Décoché : formatif seulement.
+                                Coché : ce projet contribue à la note finale.
+                                Décoché : formatif seulement.
                             </p>
                         </div>
                     </div>
@@ -284,7 +372,9 @@ function sauvegarder() {
             <!-- Sections -->
             <div class="flex flex-col gap-3">
                 <div>
-                    <h2 class="text-sm font-semibold">{{ $t('types_projet.edit.sections_title') }}</h2>
+                    <h2 class="text-sm font-semibold">
+                        {{ $t('types_projet.edit.sections_title') }}
+                    </h2>
                     <p class="text-xs text-muted-foreground">
                         {{ $t('types_projet.edit.sections_hint') }}
                     </p>
@@ -292,77 +382,120 @@ function sauvegarder() {
 
                 <!-- Message vide -->
                 <Card v-if="form.sections.length === 0">
-                    <CardContent class="py-8 text-center text-sm text-muted-foreground">
+                    <CardContent
+                        class="py-8 text-center text-sm text-muted-foreground"
+                    >
                         {{ $t('types_projet.edit.no_sections') }}
                     </CardContent>
                 </Card>
 
                 <!-- Liste des sections (drag-and-drop) -->
-                <VueDraggable v-model="form.sections" handle=".drag-handle" :animation="150" class="flex flex-col gap-3">
+                <VueDraggable
+                    v-model="form.sections"
+                    handle=".drag-handle"
+                    :animation="150"
+                    class="flex flex-col gap-3"
+                >
                     <Card
                         v-for="(section, idx) in form.sections"
                         :key="section.id ?? `new-${idx}`"
                         class="border"
                     >
-                    <CardContent class="grid gap-4 pt-5">
-                        <!-- Numéro + label + supprimer -->
-                        <div class="flex items-start gap-2">
-                            <GripVertical class="drag-handle mt-2.5 h-4 w-4 shrink-0 cursor-grab text-muted-foreground active:cursor-grabbing" />
-                            <span class="mt-2 w-5 shrink-0 text-center text-xs font-medium text-muted-foreground">
-                                {{ idx + 1 }}
-                            </span>
-                            <div class="flex-1 space-y-1.5">
-                                <Input
-                                    v-model="form.sections[idx].label"
-                                    :placeholder="$t('types_projet.edit.section_title_placeholder')"
-                                    required
+                        <CardContent class="grid gap-4 pt-5">
+                            <!-- Numéro + label + supprimer -->
+                            <div class="flex items-start gap-2">
+                                <GripVertical
+                                    class="drag-handle mt-2.5 h-4 w-4 shrink-0 cursor-grab text-muted-foreground active:cursor-grabbing"
                                 />
-                                <InputError :message="form.errors[`sections.${idx}.label`]" />
-                                <Input
-                                    v-model="form.sections[idx].description"
-                                    :placeholder="$t('types_projet.edit.section_instruction_placeholder')"
-                                />
-                            </div>
-                            <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                class="mt-0.5 h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                                @click="supprimerSection(idx)"
-                            >
-                                <Trash2 class="h-4 w-4" />
-                            </Button>
-                        </div>
-
-                        <!-- Sélecteur de type -->
-                        <div class="ml-11">
-                            <p class="mb-2 text-xs font-medium text-muted-foreground">{{ $t('types_projet.edit.input_mode_label') }}</p>
-                            <div class="grid grid-cols-3 gap-2">
-                                <button
-                                    v-for="sType in sectionTypes"
-                                    :key="sType.value"
-                                    type="button"
-                                    :class="[
-                                        'flex flex-col rounded-md border px-3 py-2.5 text-left text-xs transition-colors',
-                                        form.sections[idx].type === sType.value
-                                            ? 'border-primary bg-primary/5 text-primary'
-                                            : 'border-border bg-background text-muted-foreground hover:border-muted-foreground/40',
-                                    ]"
-                                    @click="form.sections[idx].type = sType.value"
+                                <span
+                                    class="mt-2 w-5 shrink-0 text-center text-xs font-medium text-muted-foreground"
                                 >
-                                    <span class="font-medium">{{ sType.label }}</span>
-                                    <span class="mt-0.5 leading-tight text-muted-foreground/70">
-                                        {{ sType.description }}
-                                    </span>
-                                </button>
+                                    {{ idx + 1 }}
+                                </span>
+                                <div class="flex-1 space-y-1.5">
+                                    <Input
+                                        v-model="form.sections[idx].label"
+                                        :placeholder="
+                                            $t(
+                                                'types_projet.edit.section_title_placeholder',
+                                            )
+                                        "
+                                        required
+                                    />
+                                    <InputError
+                                        :message="
+                                            form.errors[`sections.${idx}.label`]
+                                        "
+                                    />
+                                    <Input
+                                        v-model="form.sections[idx].description"
+                                        :placeholder="
+                                            $t(
+                                                'types_projet.edit.section_instruction_placeholder',
+                                            )
+                                        "
+                                    />
+                                </div>
+                                <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    class="mt-0.5 h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                                    @click="supprimerSection(idx)"
+                                >
+                                    <Trash2 class="h-4 w-4" />
+                                </Button>
                             </div>
-                        </div>
-                    </CardContent>
+
+                            <!-- Sélecteur de type -->
+                            <div class="ml-11">
+                                <p
+                                    class="mb-2 text-xs font-medium text-muted-foreground"
+                                >
+                                    {{
+                                        $t('types_projet.edit.input_mode_label')
+                                    }}
+                                </p>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <button
+                                        v-for="sType in sectionTypes"
+                                        :key="sType.value"
+                                        type="button"
+                                        :class="[
+                                            'flex flex-col rounded-md border px-3 py-2.5 text-left text-xs transition-colors',
+                                            form.sections[idx].type ===
+                                            sType.value
+                                                ? 'border-primary bg-primary/5 text-primary'
+                                                : 'border-border bg-background text-muted-foreground hover:border-muted-foreground/40',
+                                        ]"
+                                        @click="
+                                            form.sections[idx].type =
+                                                sType.value
+                                        "
+                                    >
+                                        <span class="font-medium">{{
+                                            sType.label
+                                        }}</span>
+                                        <span
+                                            class="mt-0.5 leading-tight text-muted-foreground/70"
+                                        >
+                                            {{ sType.description }}
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
+                        </CardContent>
                     </Card>
                 </VueDraggable>
 
                 <!-- Bouton ajouter une section -->
-                <Button type="button" size="sm" variant="outline" class="self-start" @click="ajouterSection">
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    class="self-start"
+                    @click="ajouterSection"
+                >
                     <Plus class="mr-2 h-3.5 w-3.5" />
                     {{ $t('types_projet.edit.add_section') }}
                 </Button>
@@ -371,7 +504,11 @@ function sauvegarder() {
             <!-- Bouton enregistrer -->
             <div class="flex justify-end">
                 <Button :disabled="form.processing" @click="sauvegarder">
-                    {{ form.processing ? $t('types_projet.edit.save_btn_saving') : $t('types_projet.edit.save_btn') }}
+                    {{
+                        form.processing
+                            ? $t('types_projet.edit.save_btn_saving')
+                            : $t('types_projet.edit.save_btn')
+                    }}
                 </Button>
             </div>
         </div>

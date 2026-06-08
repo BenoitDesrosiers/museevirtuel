@@ -77,7 +77,9 @@ function toggleMembre(id: number) {
     }
 }
 
-const thematiquesMax = computed(() => thematiquesSelectionnees.value.length >= 3);
+const thematiquesMax = computed(
+    () => thematiquesSelectionnees.value.length >= 3,
+);
 
 function toggleThematique(id: number) {
     const idx = thematiquesSelectionnees.value.indexOf(id);
@@ -107,7 +109,9 @@ function submitCreate() {
 
 <template>
     <AppLayout>
-        <Head :title="`${$t('classes.groupes.heading')} — ${cours.nom_cours}`" />
+        <Head
+            :title="`${$t('classes.groupes.heading')} — ${cours.nom_cours}`"
+        />
 
         <div class="flex flex-col gap-6 p-6">
             <!-- Retour -->
@@ -128,7 +132,7 @@ function submitCreate() {
 
             <!-- Pas encore de groupe -->
             <div class="flex flex-col items-center gap-4 py-12">
-                <p class="text-muted-foreground text-center">
+                <p class="text-center text-muted-foreground">
                     {{ $t('classes.groupes.no_group') }}
                 </p>
                 <Button @click="openCreate">
@@ -142,12 +146,16 @@ function submitCreate() {
         <Dialog v-model:open="showCreateDialog">
             <DialogContent class="max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>{{ $t('classes.groupes.modal_create_group') }}</DialogTitle>
+                    <DialogTitle>{{
+                        $t('classes.groupes.modal_create_group')
+                    }}</DialogTitle>
                 </DialogHeader>
                 <form class="space-y-5" @submit.prevent="submitCreate">
                     <!-- Membres -->
                     <div v-if="autresEtudiants.length > 0" class="grid gap-2">
-                        <Label>{{ $t('classes.groupes.modal_invite_members') }}</Label>
+                        <Label>{{
+                            $t('classes.groupes.modal_invite_members')
+                        }}</Label>
                         <div class="space-y-2">
                             <div
                                 v-for="etudiant in autresEtudiants"
@@ -156,16 +164,25 @@ function submitCreate() {
                             >
                                 <Checkbox
                                     :id="`membre-${etudiant.id}`"
-                                    :checked="membresSelectionnes.includes(etudiant.id)"
-                                    @click.prevent="() => toggleMembre(etudiant.id)"
+                                    :checked="
+                                        membresSelectionnes.includes(
+                                            etudiant.id,
+                                        )
+                                    "
+                                    @click.prevent="
+                                        () => toggleMembre(etudiant.id)
+                                    "
                                 />
-                                <Label :for="`membre-${etudiant.id}`" class="cursor-pointer font-normal">
+                                <Label
+                                    :for="`membre-${etudiant.id}`"
+                                    class="cursor-pointer font-normal"
+                                >
                                     {{ etudiant.prenom }} {{ etudiant.nom }}
                                 </Label>
                             </div>
                         </div>
                     </div>
-                    <p v-else class="text-muted-foreground text-sm">
+                    <p v-else class="text-sm text-muted-foreground">
                         {{ $t('classes.groupes.modal_no_other_students') }}
                     </p>
 
@@ -173,8 +190,16 @@ function submitCreate() {
                     <div v-if="thematiques.length > 0" class="grid gap-2">
                         <Label>
                             {{ $t('classes.groupes.modal_thematic') }}
-                            <span class="text-muted-foreground text-xs font-normal">
-                                {{ $t('classes.groupes.modal_thematic_max') }} {{ thematiquesSelectionnees.length }}/3 sélectionnée{{ thematiquesSelectionnees.length > 1 ? 's' : '' }})
+                            <span
+                                class="text-xs font-normal text-muted-foreground"
+                            >
+                                {{ $t('classes.groupes.modal_thematic_max') }}
+                                {{ thematiquesSelectionnees.length }}/3
+                                sélectionnée{{
+                                    thematiquesSelectionnees.length > 1
+                                        ? 's'
+                                        : ''
+                                }})
                             </span>
                         </Label>
                         <div class="space-y-2">
@@ -185,32 +210,56 @@ function submitCreate() {
                             >
                                 <Checkbox
                                     :id="`thematique-${thematique.id}`"
-                                    :checked="thematiquesSelectionnees.includes(thematique.id)"
-                                    :disabled="thematiquesMax && !thematiquesSelectionnees.includes(thematique.id)"
-                                    @click.prevent="() => toggleThematique(thematique.id)"
+                                    :checked="
+                                        thematiquesSelectionnees.includes(
+                                            thematique.id,
+                                        )
+                                    "
+                                    :disabled="
+                                        thematiquesMax &&
+                                        !thematiquesSelectionnees.includes(
+                                            thematique.id,
+                                        )
+                                    "
+                                    @click.prevent="
+                                        () => toggleThematique(thematique.id)
+                                    "
                                 />
                                 <Label
                                     :for="`thematique-${thematique.id}`"
                                     class="cursor-pointer font-normal"
-                                    :class="{ 'text-muted-foreground': thematiquesMax && !thematiquesSelectionnees.includes(thematique.id) }"
+                                    :class="{
+                                        'text-muted-foreground':
+                                            thematiquesMax &&
+                                            !thematiquesSelectionnees.includes(
+                                                thematique.id,
+                                            ),
+                                    }"
                                 >
                                     {{ thematique.nom }}
                                     <span
                                         v-if="thematique.periode_historique"
-                                        class="text-muted-foreground text-xs"
+                                        class="text-xs text-muted-foreground"
                                     >
                                         — {{ thematique.periode_historique }}
                                     </span>
                                 </Label>
                             </div>
                         </div>
-                        <p v-if="form.errors.thematiques" class="text-destructive text-sm">
+                        <p
+                            v-if="form.errors.thematiques"
+                            class="text-sm text-destructive"
+                        >
                             {{ form.errors.thematiques }}
                         </p>
                     </div>
 
                     <DialogFooter>
-                        <Button type="button" variant="outline" @click="showCreateDialog = false">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            @click="showCreateDialog = false"
+                        >
                             {{ $t('common.cancel') }}
                         </Button>
                         <Button type="submit" :disabled="form.processing">

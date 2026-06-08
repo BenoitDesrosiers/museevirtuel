@@ -24,7 +24,9 @@ onMounted(() => {
     setTimeout(() => {
         antidoteActif.value =
             document.getElementById('antidoteapi_jsconnect_actif') !== null ||
-            typeof (window as Window & { activeAntidoteAPI_JSConnect?: unknown }).activeAntidoteAPI_JSConnect === 'function';
+            typeof (
+                window as Window & { activeAntidoteAPI_JSConnect?: unknown }
+            ).activeAntidoteAPI_JSConnect === 'function';
     }, 800);
 });
 </script>
@@ -54,26 +56,47 @@ onMounted(() => {
                               : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200'
                     "
                 >
-                    <CheckCircle v-if="antidoteActif" class="h-5 w-5 shrink-0 text-green-600" />
-                    <XCircle v-else-if="antidoteActif === false" class="h-5 w-5 shrink-0 text-amber-500" />
+                    <CheckCircle
+                        v-if="antidoteActif"
+                        class="h-5 w-5 shrink-0 text-green-600"
+                    />
+                    <XCircle
+                        v-else-if="antidoteActif === false"
+                        class="h-5 w-5 shrink-0 text-amber-500"
+                    />
                     <span v-else class="h-5 w-5 shrink-0" />
 
-                    <span v-if="antidoteActif === null">{{ $t('settings.antidote.status_checking') }}</span>
-                    <span v-else-if="antidoteActif">{{ $t('settings.antidote.status_active') }}</span>
-                    <span v-else>{{ $t('settings.antidote.status_inactive') }}</span>
+                    <span v-if="antidoteActif === null">{{
+                        $t('settings.antidote.status_checking')
+                    }}</span>
+                    <span v-else-if="antidoteActif">{{
+                        $t('settings.antidote.status_active')
+                    }}</span>
+                    <span v-else>{{
+                        $t('settings.antidote.status_inactive')
+                    }}</span>
                 </div>
 
                 <!-- Edge -->
                 <section class="space-y-3">
                     <h2 class="flex items-center gap-2 text-base font-semibold">
-                        <img src="/vendor/antidote/images/icone-antidote.svg" class="h-5 w-5" alt="" />
+                        <img
+                            src="/vendor/antidote/images/icone-antidote.svg"
+                            class="h-5 w-5"
+                            alt=""
+                        />
                         Microsoft Edge
                     </h2>
-                    <ol class="ml-4 list-decimal space-y-2 text-sm text-muted-foreground">
+                    <ol
+                        class="ml-4 list-decimal space-y-2 text-sm text-muted-foreground"
+                    >
                         <li>{{ $t('settings.antidote.edge.step1') }}</li>
                         <li>
                             {{ $t('settings.antidote.edge.step2') }}
-                            <code class="mx-1 rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-foreground">edge://extensions</code>
+                            <code
+                                class="mx-1 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground"
+                                >edge://extensions</code
+                            >
                         </li>
                         <li>{{ $t('settings.antidote.edge.step3') }}</li>
                         <li>{{ $t('settings.antidote.edge.step4') }}</li>
@@ -89,14 +112,23 @@ onMounted(() => {
                 <!-- Chrome -->
                 <section class="space-y-3">
                     <h2 class="flex items-center gap-2 text-base font-semibold">
-                        <img src="/vendor/antidote/images/icone-antidote.svg" class="h-5 w-5" alt="" />
+                        <img
+                            src="/vendor/antidote/images/icone-antidote.svg"
+                            class="h-5 w-5"
+                            alt=""
+                        />
                         Google Chrome
                     </h2>
-                    <ol class="ml-4 list-decimal space-y-2 text-sm text-muted-foreground">
+                    <ol
+                        class="ml-4 list-decimal space-y-2 text-sm text-muted-foreground"
+                    >
                         <li>{{ $t('settings.antidote.chrome.step1') }}</li>
                         <li>
                             {{ $t('settings.antidote.chrome.step2') }}
-                            <code class="mx-1 rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-foreground">chrome://extensions</code>
+                            <code
+                                class="mx-1 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground"
+                                >chrome://extensions</code
+                            >
                         </li>
                         <li>{{ $t('settings.antidote.chrome.step3') }}</li>
                         <li>{{ $t('settings.antidote.chrome.step4') }}</li>
@@ -112,14 +144,23 @@ onMounted(() => {
                 <!-- Firefox -->
                 <section class="space-y-3">
                     <h2 class="flex items-center gap-2 text-base font-semibold">
-                        <img src="/vendor/antidote/images/icone-antidote.svg" class="h-5 w-5" alt="" />
+                        <img
+                            src="/vendor/antidote/images/icone-antidote.svg"
+                            class="h-5 w-5"
+                            alt=""
+                        />
                         Mozilla Firefox
                     </h2>
-                    <ol class="ml-4 list-decimal space-y-2 text-sm text-muted-foreground">
+                    <ol
+                        class="ml-4 list-decimal space-y-2 text-sm text-muted-foreground"
+                    >
                         <li>{{ $t('settings.antidote.firefox.step1') }}</li>
                         <li>
                             {{ $t('settings.antidote.firefox.step2') }}
-                            <code class="mx-1 rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-foreground">about:addons</code>
+                            <code
+                                class="mx-1 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground"
+                                >about:addons</code
+                            >
                         </li>
                         <li>{{ $t('settings.antidote.firefox.step3') }}</li>
                         <li>{{ $t('settings.antidote.firefox.step4') }}</li>
@@ -134,12 +175,23 @@ onMounted(() => {
 
                 <!-- Vérification console -->
                 <section class="space-y-2">
-                    <h2 class="text-sm font-semibold">{{ $t('settings.antidote.verify_title') }}</h2>
-                    <p class="text-sm text-muted-foreground">{{ $t('settings.antidote.verify_description') }}</p>
-                    <pre class="rounded-md bg-muted px-4 py-3 text-xs font-mono text-foreground">typeof window.activeAntidoteAPI_JSConnect</pre>
+                    <h2 class="text-sm font-semibold">
+                        {{ $t('settings.antidote.verify_title') }}
+                    </h2>
+                    <p class="text-sm text-muted-foreground">
+                        {{ $t('settings.antidote.verify_description') }}
+                    </p>
+                    <pre
+                        class="rounded-md bg-muted px-4 py-3 font-mono text-xs text-foreground"
+                    >
+typeof window.activeAntidoteAPI_JSConnect</pre
+                    >
                     <p class="text-sm text-muted-foreground">
                         {{ $t('settings.antidote.verify_result_ok') }}
-                        <code class="rounded bg-green-100 px-1.5 py-0.5 text-xs font-mono text-green-800 dark:bg-green-900 dark:text-green-200">"function"</code>
+                        <code
+                            class="rounded bg-green-100 px-1.5 py-0.5 font-mono text-xs text-green-800 dark:bg-green-900 dark:text-green-200"
+                            >"function"</code
+                        >
                         {{ $t('settings.antidote.verify_result_ok_suffix') }}
                     </p>
                 </section>

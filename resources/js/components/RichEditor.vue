@@ -19,7 +19,8 @@ const Superscript = SuperscriptBase.extend({
             {
                 tag: 'sup',
                 getAttrs: (node) => {
-                    if ((node as HTMLElement).hasAttribute('data-renvoi-id')) return false;
+                    if ((node as HTMLElement).hasAttribute('data-renvoi-id'))
+                        return false;
                     return null;
                 },
             },
@@ -63,7 +64,10 @@ import {
 import { computed, inject, onBeforeUnmount, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { AntidoteExtension, generateAntidoteGroupeId } from '@/extensions/AntidoteExtension';
+import {
+    AntidoteExtension,
+    generateAntidoteGroupeId,
+} from '@/extensions/AntidoteExtension';
 import { CommentMark } from '@/extensions/CommentMark';
 import { RenvoiMark } from '@/extensions/RenvoiMark';
 
@@ -118,7 +122,9 @@ const emit = defineEmits<{
             points_malus?: number | null;
         },
     ];
-    'delete-annotation': [payload: { correction: Annotation; html: string; htmlOriginal: string }];
+    'delete-annotation': [
+        payload: { correction: Annotation; html: string; htmlOriginal: string },
+    ];
     /** Émis quand le bouton ¹ est cliqué — transmet la fonction d'insertion pour ce contexte d'éditeur. */
     'demander-renvoi': [insertFn: (renvoiId: number, numero: number) => void];
     /** Émis à chaque changement de contenu si editorId est fourni — liste des renvoiId présents dans cet éditeur. */
@@ -174,7 +180,8 @@ const editor = useEditor({
         if (props.editorId) {
             const ids: number[] = [];
             e.state.doc.descendants((node) => {
-                if (node.type.name === 'renvoiMark') ids.push(node.attrs.renvoiId as number);
+                if (node.type.name === 'renvoiMark')
+                    ids.push(node.attrs.renvoiId as number);
             });
             emit('renvois-utilises', props.editorId, ids);
         }
@@ -189,7 +196,8 @@ const editor = useEditor({
         if (props.editorId) {
             const ids: number[] = [];
             e.state.doc.descendants((node) => {
-                if (node.type.name === 'renvoiMark') ids.push(node.attrs.renvoiId as number);
+                if (node.type.name === 'renvoiMark')
+                    ids.push(node.attrs.renvoiId as number);
             });
             emit('renvois-utilises', props.editorId, ids);
         }
@@ -234,14 +242,20 @@ watch(
  * provide('renvoisUndoTarget'). Vaut null par défaut quand RichEditor est utilisé ailleurs.
  * Quand la version change et que l'editorId correspond, on restaure l'exposant via undo().
  */
-const defaultUndoTarget = ref<{ editorId: string; version: number } | null>(null);
+const defaultUndoTarget = ref<{ editorId: string; version: number } | null>(
+    null,
+);
 const renvoisUndoTarget = inject('renvoisUndoTarget', defaultUndoTarget);
 
 watch(
     () => (renvoisUndoTarget as typeof defaultUndoTarget).value?.version,
     () => {
         const target = (renvoisUndoTarget as typeof defaultUndoTarget).value;
-        if (target?.editorId === props.editorId && props.editorId && editor.value) {
+        if (
+            target?.editorId === props.editorId &&
+            props.editorId &&
+            editor.value
+        ) {
             editor.value.commands.undo();
         }
     },
@@ -255,7 +269,11 @@ watch(
 // unsetComment, pouvant déclencher un rollback intempestif si la requête HTTP prend > 1500 ms.
 let detectTimer: ReturnType<typeof setTimeout> | null = null;
 watch(currentHtml, (html) => {
-    if (props.estEnseignant || !editorMonte.value || !props.corrections?.length) {
+    if (
+        props.estEnseignant ||
+        !editorMonte.value ||
+        !props.corrections?.length
+    ) {
         return;
     }
 
@@ -558,8 +576,10 @@ function saveAnnotation(): void {
         contenu: brouillon.value.trim(),
         html: editor.value.getHTML(),
         type: annotationType.value,
-        cible_user_id: annotationType.value === 'correction' ? cibleUserId.value : null,
-        points_malus: annotationType.value === 'correction' ? pointsMalus.value : null,
+        cible_user_id:
+            annotationType.value === 'correction' ? cibleUserId.value : null,
+        points_malus:
+            annotationType.value === 'correction' ? pointsMalus.value : null,
     });
 
     brouillon.value = '';
@@ -1123,10 +1143,16 @@ function togglePanel(): void {
                         </label>
                     </div>
                     <!-- Champs malus — uniquement pour les corrections -->
-                    <template v-if="annotationType === 'correction' && membres?.length">
+                    <template
+                        v-if="
+                            annotationType === 'correction' && membres?.length
+                        "
+                    >
                         <div class="flex gap-2">
                             <div class="flex-1">
-                                <label class="mb-0.5 block text-xs font-medium text-rose-700 dark:text-rose-300">
+                                <label
+                                    class="mb-0.5 block text-xs font-medium text-rose-700 dark:text-rose-300"
+                                >
                                     Étudiant
                                 </label>
                                 <select
@@ -1144,7 +1170,9 @@ function togglePanel(): void {
                                 </select>
                             </div>
                             <div class="w-20">
-                                <label class="mb-0.5 block text-xs font-medium text-rose-700 dark:text-rose-300">
+                                <label
+                                    class="mb-0.5 block text-xs font-medium text-rose-700 dark:text-rose-300"
+                                >
                                     Pts à enlever
                                 </label>
                                 <input
@@ -1161,7 +1189,11 @@ function togglePanel(): void {
                     </template>
                     <Textarea
                         v-model="brouillon"
-                        :placeholder="annotationType === 'correction' ? 'Raison de la déduction…' : 'Écrire une annotation…'"
+                        :placeholder="
+                            annotationType === 'correction'
+                                ? 'Raison de la déduction…'
+                                : 'Écrire une annotation…'
+                        "
                         class="min-h-[60px] text-sm"
                         :rows="2"
                         autofocus
@@ -1206,10 +1238,18 @@ function togglePanel(): void {
                         <div class="mt-1 flex gap-1">
                             <Button
                                 size="sm"
-                                :variant="editingContent.trim() ? 'default' : 'destructive'"
+                                :variant="
+                                    editingContent.trim()
+                                        ? 'default'
+                                        : 'destructive'
+                                "
                                 @click="saveEdit(correction)"
                             >
-                                {{ editingContent.trim() ? 'Enregistrer' : 'Supprimer' }}
+                                {{
+                                    editingContent.trim()
+                                        ? 'Enregistrer'
+                                        : 'Supprimer'
+                                }}
                             </Button>
                             <Button
                                 size="sm"
@@ -1267,7 +1307,11 @@ function togglePanel(): void {
             <button
                 type="button"
                 class="flex cursor-pointer items-center justify-between rounded px-1 py-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                :title="panelAnnotationsVisible ? 'Masquer les annotations' : 'Afficher les annotations'"
+                :title="
+                    panelAnnotationsVisible
+                        ? 'Masquer les annotations'
+                        : 'Afficher les annotations'
+                "
                 @click="togglePanel"
             >
                 <span class="flex items-center gap-1.5 text-xs font-medium">
@@ -1293,7 +1337,11 @@ function togglePanel(): void {
                             : '',
                     ]"
                     @mouseenter="highlightMark(correction.commentaire_id)"
-                    @mouseleave="activeAnnotationId ? highlightMark(activeAnnotationId) : highlightMark(null)"
+                    @mouseleave="
+                        activeAnnotationId
+                            ? highlightMark(activeAnnotationId)
+                            : highlightMark(null)
+                    "
                     @click="handleCardClick(correction.commentaire_id)"
                 >
                     <div class="mb-1 flex items-center justify-between gap-2">

@@ -33,18 +33,22 @@ const props = defineProps<Props>();
 
 const copie = ref(false);
 
-const retourUrl = computed(() => `/cours/${props.cours.id}/classes/${props.classe.id}`);
+const retourUrl = computed(
+    () => `/cours/${props.cours.id}/classes/${props.classe.id}`,
+);
 
-const titreClasse = computed(() => props.classe.nom ?? `Classe ${props.classe.numero}`);
+const titreClasse = computed(
+    () => props.classe.nom ?? `Classe ${props.classe.numero}`,
+);
 
 /** Vrai si la somme des pondérations ne fait pas 100 %. */
-const avertissementSomme = computed(() => Math.abs(props.sommePonderations - 100) > 0.01);
+const avertissementSomme = computed(
+    () => Math.abs(props.sommePonderations - 100) > 0.01,
+);
 
 /** Texte brut formaté : "DA TOTAL\n" pour chaque étudiant — compatible avec le format d'import. */
 const texte = computed(() =>
-    props.lignes
-        .map((l) => `${l.da} ${l.total.toFixed(2)}`)
-        .join('\n'),
+    props.lignes.map((l) => `${l.da} ${l.total.toFixed(2)}`).join('\n'),
 );
 
 async function copierTexte(): Promise<void> {
@@ -93,7 +97,8 @@ function formaterNote(note: number | null): string {
             >
                 <AlertTriangle class="mt-0.5 h-4 w-4 shrink-0" />
                 <span>
-                    La somme des pondérations est de <strong>{{ sommePonderations }} %</strong> au lieu de 100 %.
+                    La somme des pondérations est de
+                    <strong>{{ sommePonderations }} %</strong> au lieu de 100 %.
                     Le total affiché reflète cette somme partielle.
                 </span>
             </div>
@@ -112,11 +117,15 @@ function formaterNote(note: number | null): string {
                                     class="px-4 py-3 text-right font-medium"
                                 >
                                     {{ tp.nom }}
-                                    <span class="block text-xs font-normal text-muted-foreground">
+                                    <span
+                                        class="block text-xs font-normal text-muted-foreground"
+                                    >
                                         {{ tp.ponderation }} %
                                     </span>
                                 </th>
-                                <th class="px-4 py-3 text-right font-semibold">Total pondéré</th>
+                                <th class="px-4 py-3 text-right font-semibold">
+                                    Total pondéré
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -125,16 +134,26 @@ function formaterNote(note: number | null): string {
                                 :key="`${ligne.da}-${i}`"
                                 class="border-b last:border-0 hover:bg-muted/30"
                             >
-                                <td class="px-4 py-3 font-mono text-xs">{{ ligne.da || '—' }}</td>
-                                <td class="px-4 py-3">{{ ligne.prenom }} {{ ligne.nom }}</td>
+                                <td class="px-4 py-3 font-mono text-xs">
+                                    {{ ligne.da || '—' }}
+                                </td>
+                                <td class="px-4 py-3">
+                                    {{ ligne.prenom }} {{ ligne.nom }}
+                                </td>
                                 <td
                                     v-for="tp in typesProjets"
                                     :key="tp.id"
                                     class="px-4 py-3 text-right tabular-nums"
                                 >
-                                    {{ formaterNote(ligne.notes_par_type[tp.id] ?? null) }}
+                                    {{
+                                        formaterNote(
+                                            ligne.notes_par_type[tp.id] ?? null,
+                                        )
+                                    }}
                                 </td>
-                                <td class="px-4 py-3 text-right font-semibold tabular-nums">
+                                <td
+                                    class="px-4 py-3 text-right font-semibold tabular-nums"
+                                >
                                     {{ ligne.total.toFixed(2) }}
                                 </td>
                             </tr>

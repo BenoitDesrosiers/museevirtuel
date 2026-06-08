@@ -68,9 +68,12 @@ const deleteForm = useForm({});
  */
 function supprimerMedia(media: Media): void {
     if (!confirm('Supprimer cet audio ?')) return;
-    deleteForm.delete(mediasRoutes.destroy.url({ ...props.params, media: media.id }), {
-        preserveScroll: true,
-    });
+    deleteForm.delete(
+        mediasRoutes.destroy.url({ ...props.params, media: media.id }),
+        {
+            preserveScroll: true,
+        },
+    );
 }
 </script>
 
@@ -107,26 +110,37 @@ function supprimerMedia(media: Media): void {
             />
         </div>
 
-        <div v-if="medias.length === 0 && readonly" class="text-sm text-muted-foreground italic">
+        <div
+            v-if="medias.length === 0 && readonly"
+            class="text-sm text-muted-foreground italic"
+        >
             Aucun audio ajouté.
         </div>
 
         <!-- Formulaire d'ajout -->
-        <div v-if="showForm" class="rounded-md border bg-card p-4 space-y-3">
+        <div v-if="showForm" class="space-y-3 rounded-md border bg-card p-4">
             <!-- Sélecteur source -->
             <div class="flex gap-2">
                 <button
                     type="button"
-                    :class="['flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm border',
-                        sourceType === 'url' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted']"
+                    :class="[
+                        'flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm',
+                        sourceType === 'url'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-muted',
+                    ]"
                     @click="sourceType = 'url'"
                 >
                     <Link class="h-3.5 w-3.5" /> URL
                 </button>
                 <button
                     type="button"
-                    :class="['flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm border',
-                        sourceType === 'upload' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted']"
+                    :class="[
+                        'flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm',
+                        sourceType === 'upload'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-muted',
+                    ]"
                     @click="sourceType = 'upload'"
                 >
                     <Upload class="h-3.5 w-3.5" /> Fichier
@@ -167,7 +181,10 @@ function supprimerMedia(media: Media): void {
                 <button
                     type="button"
                     class="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-                    @click="showForm = false; addForm.reset()"
+                    @click="
+                        showForm = false;
+                        addForm.reset();
+                    "
                 >
                     Annuler
                 </button>

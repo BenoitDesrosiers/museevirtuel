@@ -19,7 +19,8 @@ createInertiaApp({
             import.meta.glob<DefineComponent>('./pages/**/*.vue'),
         ),
     setup({ el, App, props, plugin }) {
-        const initialLocale = (props.initialPage.props as { locale?: string }).locale ?? 'fr';
+        const initialLocale =
+            (props.initialPage.props as { locale?: string }).locale ?? 'fr';
 
         const i18n = createI18n({
             legacy: false,
@@ -30,7 +31,8 @@ createInertiaApp({
 
         // Synchronise la locale i18n lors des navigations Inertia (ex: après changement dans profil)
         router.on('navigate', (event) => {
-            const newLocale = (event.detail.page.props as { locale?: string }).locale;
+            const newLocale = (event.detail.page.props as { locale?: string })
+                .locale;
 
             if (newLocale && newLocale !== i18n.global.locale.value) {
                 (i18n.global.locale as { value: string }).value = newLocale;

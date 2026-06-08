@@ -82,7 +82,10 @@ function sauvegarder(): void {
             />
             <label
                 :for="`q-${question.id}`"
-                :class="['cursor-pointer text-sm leading-relaxed', readonly ? 'cursor-default' : '']"
+                :class="[
+                    'cursor-pointer text-sm leading-relaxed',
+                    readonly ? 'cursor-default' : '',
+                ]"
             >
                 {{ question.contenu }}
             </label>
@@ -108,7 +111,10 @@ function sauvegarder(): void {
         </div>
 
         <!-- Mode lecture : liste des questions choisies -->
-        <div v-if="readonly && questionsChoisies.length === 0" class="text-sm text-muted-foreground italic">
+        <div
+            v-if="readonly && questionsChoisies.length === 0"
+            class="text-sm text-muted-foreground italic"
+        >
             Aucune question sélectionnée.
         </div>
     </div>

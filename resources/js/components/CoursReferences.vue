@@ -62,13 +62,19 @@ function cancelEdit() {
  * Soumet la mise à jour d'une référence.
  */
 function submitEdit(reference: Reference) {
-    editForm.put(referencesRoutes.update.url({ cours: props.coursId, reference: reference.id }), {
-        preserveScroll: true,
-        onSuccess: () => {
-            editingId.value = null;
-            editForm.reset();
+    editForm.put(
+        referencesRoutes.update.url({
+            cours: props.coursId,
+            reference: reference.id,
+        }),
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                editingId.value = null;
+                editForm.reset();
+            },
         },
-    });
+    );
 }
 
 // ─── Supprimer une référence ──────────────────────────────────────────────────
@@ -78,32 +84,46 @@ const deleteForm = useForm({});
  * Supprime une référence après confirmation.
  */
 function supprimerReference(reference: Reference) {
-    if (!confirm(`Supprimer la référence « ${reference.nom.slice(0, 60)} » ?`)) {
+    if (
+        !confirm(`Supprimer la référence « ${reference.nom.slice(0, 60)} » ?`)
+    ) {
         return;
     }
 
-    deleteForm.delete(referencesRoutes.destroy.url({ cours: props.coursId, reference: reference.id }), {
-        preserveScroll: true,
-    });
+    deleteForm.delete(
+        referencesRoutes.destroy.url({
+            cours: props.coursId,
+            reference: reference.id,
+        }),
+        {
+            preserveScroll: true,
+        },
+    );
 }
-
 </script>
 
 <template>
     <div class="space-y-2">
         <!-- Liste des références -->
-        <div v-if="references.length === 0 && !showAddForm" class="py-3 text-center text-sm text-muted-foreground">
+        <div
+            v-if="references.length === 0 && !showAddForm"
+            class="py-3 text-center text-sm text-muted-foreground"
+        >
             Aucune référence bibliographique. Ajoutez-en une ci-dessous.
         </div>
 
         <ol class="space-y-1.5">
             <li
-                v-for="(reference, index) in [...references].sort((a, b) => a.ordre - b.ordre)"
+                v-for="(reference, index) in [...references].sort(
+                    (a, b) => a.ordre - b.ordre,
+                )"
                 :key="reference.id"
                 class="flex items-center gap-2 rounded-md border bg-card px-3 py-2"
             >
                 <!-- Numéro d'ordre -->
-                <span class="w-5 shrink-0 text-right text-xs font-medium text-muted-foreground">
+                <span
+                    class="w-5 shrink-0 text-right text-xs font-medium text-muted-foreground"
+                >
                     {{ index + 1 }}.
                 </span>
 
@@ -123,12 +143,27 @@ function supprimerReference(reference: Reference) {
                             type="url"
                             @keydown.escape="cancelEdit"
                         />
-                        <InputError :message="editForm.errors.nom || editForm.errors.url" />
+                        <InputError
+                            :message="
+                                editForm.errors.nom || editForm.errors.url
+                            "
+                        />
                     </div>
-                    <Button size="sm" variant="ghost" class="h-7 w-7 p-0" :disabled="editForm.processing" @click="submitEdit(reference)">
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        class="h-7 w-7 p-0"
+                        :disabled="editForm.processing"
+                        @click="submitEdit(reference)"
+                    >
                         <Check class="h-3.5 w-3.5 text-green-600" />
                     </Button>
-                    <Button size="sm" variant="ghost" class="h-7 w-7 p-0" @click="cancelEdit">
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        class="h-7 w-7 p-0"
+                        @click="cancelEdit"
+                    >
                         <X class="h-3.5 w-3.5" />
                     </Button>
                 </template>
@@ -137,15 +172,37 @@ function supprimerReference(reference: Reference) {
                 <template v-else>
                     <component
                         :is="reference.url ? 'a' : 'span'"
-                        v-bind="reference.url ? { href: reference.url, target: '_blank', rel: 'noopener noreferrer' } : {}"
+                        v-bind="
+                            reference.url
+                                ? {
+                                      href: reference.url,
+                                      target: '_blank',
+                                      rel: 'noopener noreferrer',
+                                  }
+                                : {}
+                        "
                         class="flex flex-1 items-center gap-1.5 overflow-hidden"
                         :class="reference.url ? 'group cursor-pointer' : ''"
                     >
-                        <span class="truncate text-sm" :class="reference.url ? 'group-hover:underline' : ''">{{ reference.nom }}</span>
-                        <ExternalLink v-if="reference.url" class="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary" />
+                        <span
+                            class="truncate text-sm"
+                            :class="
+                                reference.url ? 'group-hover:underline' : ''
+                            "
+                            >{{ reference.nom }}</span
+                        >
+                        <ExternalLink
+                            v-if="reference.url"
+                            class="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary"
+                        />
                     </component>
 
-                    <Button size="sm" variant="ghost" class="h-7 w-7 p-0" @click="openEdit(reference)">
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        class="h-7 w-7 p-0"
+                        @click="openEdit(reference)"
+                    >
                         <Pencil class="h-3.5 w-3.5" />
                     </Button>
                     <Button
@@ -162,10 +219,15 @@ function supprimerReference(reference: Reference) {
         </ol>
 
         <!-- Formulaire d'ajout inline -->
-        <div v-if="showAddForm" class="space-y-1.5 rounded-md border bg-card px-3 py-2">
+        <div
+            v-if="showAddForm"
+            class="space-y-1.5 rounded-md border bg-card px-3 py-2"
+        >
             <div class="flex items-start gap-2">
                 <div class="flex flex-1 flex-col gap-1.5">
-                    <Label class="sr-only" for="new-reference-nom">Nom de la revue</Label>
+                    <Label class="sr-only" for="new-reference-nom"
+                        >Nom de la revue</Label
+                    >
                     <Input
                         id="new-reference-nom"
                         v-model="addForm.nom"
@@ -188,10 +250,24 @@ function supprimerReference(reference: Reference) {
                     />
                     <InputError :message="addForm.errors.url" />
                 </div>
-                <Button size="sm" variant="ghost" class="h-7 w-7 p-0 shrink-0" :disabled="addForm.processing || !addForm.nom.trim()" @click="submitAdd">
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    class="h-7 w-7 shrink-0 p-0"
+                    :disabled="addForm.processing || !addForm.nom.trim()"
+                    @click="submitAdd"
+                >
                     <Check class="h-3.5 w-3.5 text-green-600" />
                 </Button>
-                <Button size="sm" variant="ghost" class="h-7 w-7 p-0 shrink-0" @click="showAddForm = false; addForm.reset()">
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    class="h-7 w-7 shrink-0 p-0"
+                    @click="
+                        showAddForm = false;
+                        addForm.reset();
+                    "
+                >
                     <X class="h-3.5 w-3.5" />
                 </Button>
             </div>
