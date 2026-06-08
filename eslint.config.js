@@ -51,6 +51,18 @@ export default defineConfigWithVueTs(
                 'error',
                 {
                     groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
+                    // Les fichiers Wayfinder sont générés localement mais absents en CI.
+                    // Sans pathGroups, le resolver TypeScript les classe « external » (@ scoped)
+                    // ce qui casse l'ordre dès que les fichiers n'existent pas sur le disque.
+                    pathGroups: [
+                        { pattern: '@/actions/**', group: 'internal' },
+                        { pattern: '@/routes', group: 'internal' },
+                        { pattern: '@/routes/**', group: 'internal' },
+                        { pattern: '@/wayfinder/**', group: 'internal' },
+                    ],
+                    // Retirer « external » de la liste des exclusions pour que les pathGroups
+                    // s'appliquent aux imports non résolus classés comme external par le resolver.
+                    pathGroupsExcludedImportTypes: ['builtin', 'object', 'type'],
                     alphabetize: {
                         order: 'asc',
                         caseInsensitive: true,
