@@ -58,6 +58,9 @@ jobs:
       - name: Copy Environment File
         run: cp .env.example .env
 
+      - name: Configure Test Database
+        run: sed -i 's/DB_DATABASE=muse/DB_DATABASE=testing/' .env
+
       - name: Generate Application Key
         run: php artisan key:generate
 
