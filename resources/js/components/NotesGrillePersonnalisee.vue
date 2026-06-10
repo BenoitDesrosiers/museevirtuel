@@ -124,7 +124,7 @@ function totalMalus(membreId: number): number {
                     "
                     @click="emit('set-onglet', membre.id)"
                 >
-                    {{ membre.prenom }}
+                    {{ membre.prenom }} {{ membre.nom }}
                 </button>
             </template>
         </div>
@@ -212,7 +212,7 @@ function totalMalus(membreId: number): number {
                     >
                         {{ m.label }}
                         <span class="tabular-nums"
-                            >− {{ m.deduction }} pt{{
+                            >-{{ m.deduction }} pt{{
                                 m.deduction !== 1 ? 's' : ''
                             }}</span
                         >
@@ -332,7 +332,7 @@ function totalMalus(membreId: number): number {
                         >
                             {{ m.label }}
                             <span class="tabular-nums"
-                                >− {{ m.deduction }} pt{{
+                                >-{{ m.deduction }} pt{{
                                     m.deduction !== 1 ? 's' : ''
                                 }}</span
                             >
@@ -347,37 +347,10 @@ function totalMalus(membreId: number): number {
                         v-if="totalMalus(membre.id) > 0"
                         class="text-xs font-medium text-destructive"
                     >
-                        Total malus : − {{ totalMalus(membre.id) }} pts
+                        Total malus : -{{ totalMalus(membre.id) }} pts
                     </p>
                 </div>
 
-                <!-- Section corrections inline (annotations enseignant avec déduction de points) -->
-                <div
-                    v-if="(annotationsMalus?.[membre.id]?.length ?? 0) > 0"
-                    class="space-y-2 border-t pt-3"
-                >
-                    <p
-                        class="text-xs font-medium tracking-wide text-muted-foreground uppercase"
-                    >
-                        Corrections inline
-                    </p>
-                    <div
-                        v-for="(a, idx) in annotationsMalus![membre.id]"
-                        :key="idx"
-                        class="flex items-start gap-2"
-                    >
-                        <span
-                            class="shrink-0 text-xs font-medium text-destructive tabular-nums"
-                        >
-                            − {{ a.points_malus }} pt{{
-                                a.points_malus !== 1 ? 's' : ''
-                            }}
-                        </span>
-                        <span class="text-xs text-muted-foreground">{{
-                            a.contenu
-                        }}</span>
-                    </div>
-                </div>
             </div>
         </div>
     </div>

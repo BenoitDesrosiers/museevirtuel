@@ -88,9 +88,10 @@ class HandleInertiaRequests extends Middleware
                 ->with(['groupes' => fn ($q) => $q
                     ->orderBy('id')
                     ->select('id', 'classe_id', 'personne_agee_id')
-                    ->with(['projets' => fn ($q) => $q
-                        ->with('typeProjet:id,nom')
-                        ->select('id', 'groupe_id', 'type_projet_id', 'titre_projet'),
+                    ->with([
+                        'projets' => fn ($q) => $q
+                            ->with('typeProjet:id,nom')
+                            ->select('id', 'groupe_id', 'type_projet_id', 'titre_projet'),
                     ]),
                 ])
                 ->select('id', 'cours_id', 'nom', 'numero'),
@@ -148,9 +149,10 @@ class HandleInertiaRequests extends Middleware
             // puis filtre sur ceux de l'étudiant
             $groupes = Groupe::where('classe_id', $classe->id)
                 ->orderBy('id')
-                ->with(['projets' => fn ($q) => $q
-                    ->with('typeProjet:id,nom')
-                    ->select('id', 'groupe_id', 'type_projet_id', 'titre_projet'),
+                ->with([
+                    'projets' => fn ($q) => $q
+                        ->with('typeProjet:id,nom')
+                        ->select('id', 'groupe_id', 'type_projet_id', 'titre_projet'),
                 ])
                 ->get(['id', 'personne_agee_id'])
                 ->values()

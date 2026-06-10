@@ -534,8 +534,7 @@ function formatSize(bytes: number): string {
                     <Link
                         :href="`/cours/${cours.id}/classes/${groupe.classe_id}/groupes/${groupe.id}/projets`"
                     >
-                        <BookOpen class="mr-2 h-4 w-4" />
-                        Projets
+                        <BookOpen class="h-4 w-4" />
                     </Link>
                 </BoutonTooltip>
                 <BoutonTooltip

@@ -100,7 +100,7 @@ function tousOntNote(critere: string, valeur: number): boolean {
                     "
                     @click="emit('set-onglet', membre.id)"
                 >
-                    {{ membre.prenom }}
+                    {{ membre.prenom }} {{ membre.nom }}
                 </button>
             </template>
         </div>

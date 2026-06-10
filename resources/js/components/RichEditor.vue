@@ -602,8 +602,11 @@ function saveAnnotation(): void {
         type: annotationType.value,
         cible_user_id:
             annotationType.value === 'correction' ? cibleUserId.value : null,
+        // L'input affiche des négatifs (ex: -5) — on envoie la valeur absolue au backend
         points_malus:
-            annotationType.value === 'correction' ? pointsMalus.value : null,
+            annotationType.value === 'correction' && pointsMalus.value !== null
+                ? Math.abs(pointsMalus.value)
+                : null,
     });
 
     brouillon.value = '';
@@ -629,7 +632,9 @@ function cancelBubble(): void {
 function startEdit(correction: Annotation): void {
     editingId.value = correction.id;
     editingContent.value = correction.contenu;
-    editingPoints.value = correction.points_malus ?? null;
+    // Le backend stocke les déductions en positif — on affiche en négatif dans l'input
+    editingPoints.value =
+        correction.points_malus != null ? -correction.points_malus : null;
     editingCible.value = correction.cible_user_id ?? null;
     showBubble.value = false;
     brouillon.value = '';
@@ -668,7 +673,11 @@ function saveEdit(correction: Annotation): void {
         html: editor.value.getHTML(),
         type: correction.type,
         cible_user_id: correction.type === 'correction' ? editingCible.value : null,
-        points_malus: correction.type === 'correction' ? editingPoints.value : null,
+        // L'input affiche des négatifs (ex: -5) — on envoie la valeur absolue au backend
+        points_malus:
+            correction.type === 'correction' && editingPoints.value !== null
+                ? Math.abs(editingPoints.value)
+                : null,
     });
     editingId.value = null;
     editingContent.value = '';
@@ -1211,8 +1220,8 @@ function togglePanel(): void {
                                 <input
                                     v-model.number="pointsMalus"
                                     type="number"
-                                    min="0"
-                                    max="100"
+                                    min="-100"
+                                    max="0"
                                     step="0.25"
                                     placeholder="0"
                                     class="w-full rounded border border-rose-300 bg-white px-1.5 py-1 text-xs dark:border-rose-700 dark:bg-rose-950 dark:text-rose-100"
@@ -1299,8 +1308,8 @@ function togglePanel(): void {
                                     <input
                                         v-model.number="editingPoints"
                                         type="number"
-                                        min="0"
-                                        max="100"
+                                        min="-100"
+                                        max="0"
                                         step="0.25"
                                         placeholder="0"
                                         class="w-full rounded border border-rose-300 bg-white px-1.5 py-1 text-xs dark:border-rose-700 dark:bg-rose-950 dark:text-rose-100"

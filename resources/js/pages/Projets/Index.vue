@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import {
+    ArrowLeft,
     BookOpen,
     CheckCircle2,
     ChevronRight,
@@ -106,7 +107,8 @@ function projetUrl(typeProjetId: number): string {
                     <Link
                         :href="`/cours/${classe.cours_id}/classes/${classe.id}`"
                     >
-                        ← Retour à la classe
+                        <ArrowLeft class="mr-2 h-4 w-4" />
+                        Retour à la classe
                     </Link>
                 </Button>
             </div>

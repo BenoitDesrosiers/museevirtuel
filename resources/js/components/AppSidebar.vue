@@ -16,7 +16,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import type { CoursSidebar, NavData, NavItem } from '@/types';
+import type { CoursSidebar, GroupeSidebar, NavData, NavItem } from '@/types';
 
 const { t } = useI18n();
 const page = usePage();
@@ -49,7 +49,7 @@ function buildEnseignantItems(): NavItem[] {
             ...c.classes.map((cl) => ({
                 title: cl.nom || `${t('sidebar.section')} ${cl.numero}`,
                 href: `/cours/${c.id}/classes/${cl.id}`,
-                children: cl.groupes.map((g) => ({
+                children: cl.groupes.map((g: GroupeSidebar) => ({
                     title: `${t('sidebar.group')} ${g.numero}`,
                     href: `/cours/${c.id}/classes/${cl.id}/groupes/${g.id}`,
                     children: [
@@ -93,7 +93,7 @@ function buildEtudiantItems(): NavItem[] {
             : undefined,
         icon: BookOpen,
         children: c.classes.flatMap((cl) =>
-            cl.groupes.map((g) => ({
+            cl.groupes.map((g: GroupeSidebar) => ({
                 title: `${t('sidebar.group')} ${g.numero}`,
                 href: `/cours/${c.id}/classes/${cl.id}/groupes/${g.id}`,
                 children: [

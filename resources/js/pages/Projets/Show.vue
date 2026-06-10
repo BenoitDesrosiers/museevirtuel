@@ -23,7 +23,6 @@ import {
     Settings2,
     SpellCheck,
     Square,
-    Star,
     Trash2,
     Users,
     XCircle,
@@ -2484,7 +2483,8 @@ function setOngletActif(section: string, membreId: number | 'tous') {
             "
         />
 
-        <div class="mx-auto flex w-full max-w-6xl flex-col gap-3 p-3">
+        <div class="mx-auto flex w-full max-w-6xl">
+            <div class="flex min-w-0 flex-1 flex-col gap-3 p-3">
             <!-- En-tête navigation -->
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <Button variant="ghost" size="sm" as-child>
@@ -2545,12 +2545,12 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                 {{ t('projets.show.locked_message') }}
             </div>
 
-            <!-- Boutons d'export + notes finales par étudiant — sticky pour garder le score visible au scroll -->
+            <!-- Boutons d'export + notes finales par étudiant -->
             <div
-                class="sticky top-0 z-30 -mx-3 border-b bg-white px-3 py-2 shadow-sm dark:bg-zinc-950"
+                class="-mx-3 border-b bg-white px-3 py-2 shadow-sm dark:bg-zinc-950"
             >
                 <div class="flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex items-center gap-1">
+                    <div class="flex flex-wrap items-center gap-1">
                         <!-- ── Groupe 1 : Consultation & exports ─────────────── -->
                         <BoutonTooltip
                             texte="Voir le rendu final du projet"
@@ -2643,19 +2643,6 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             </Link>
                         </BoutonTooltip>
                         <BoutonTooltip
-                            v-if="
-                                estEnseignant ||
-                                (grillePersonnalisee && correctionVisible)
-                            "
-                            texte="Ouvrir la grille de correction personnalisée"
-                            variant="ghost"
-                            size="sm"
-                            @click="grilleModalOuverte = true"
-                        >
-                            <ClipboardList class="h-4 w-4" />
-                            Grille
-                        </BoutonTooltip>
-                        <BoutonTooltip
                             v-if="champsVisibles.length > 0"
                             :texte="
                                 tousCommentairesReduits
@@ -2727,65 +2714,6 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         </template>
                     </div>
 
-                    <!-- Note finale grille personnalisée : enseignant voit tous ; étudiant voit uniquement la sienne -->
-                    <div class="flex flex-wrap gap-2">
-                        <template v-if="estEnseignant && grillePersonnalisee">
-                            <template
-                                v-for="membre in membres"
-                                :key="membre.id"
-                            >
-                                <button
-                                    v-if="
-                                        noteFinaleGrille[membre.id] !== null &&
-                                        noteFinaleGrille[membre.id] !==
-                                            undefined
-                                    "
-                                    type="button"
-                                    class="flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-medium transition-opacity hover:opacity-80"
-                                    :class="
-                                        (noteFinaleGrille[membre.id] ?? 0) >= 60
-                                            ? 'border-green-300 bg-green-50 text-green-700'
-                                            : 'border-red-300 bg-red-50 text-red-700'
-                                    "
-                                    :title="
-                                        t('projets.show.view_grade_summary')
-                                    "
-                                    @click="grilleModalOuverte = true"
-                                >
-                                    <Star class="h-3.5 w-3.5" />
-                                    {{ membre.prenom }} :
-                                    {{
-                                        noteFinaleGrille[membre.id]?.toFixed(2)
-                                    }}
-                                    / 100
-                                </button>
-                            </template>
-                        </template>
-                        <button
-                            v-else-if="
-                                !estEnseignant &&
-                                grillePersonnalisee &&
-                                noteFinaleGrille[userId] !== null &&
-                                noteFinaleGrille[userId] !== undefined
-                            "
-                            type="button"
-                            class="flex items-center gap-2 rounded-lg border px-4 py-2 text-base font-semibold transition-opacity hover:opacity-80"
-                            :class="
-                                (noteFinaleGrille[userId] ?? 0) >= 60
-                                    ? 'border-green-300 bg-green-50 text-green-700'
-                                    : 'border-red-300 bg-red-50 text-red-700'
-                            "
-                            :title="t('projets.show.view_grade_summary')"
-                            @click="grilleModalOuverte = true"
-                        >
-                            <Star class="h-4 w-4" />
-                            {{
-                                t('projets.show.my_grade', {
-                                    grade: noteFinaleGrille[userId]?.toFixed(2),
-                                })
-                            }}
-                        </button>
-                    </div>
                 </div>
             </div>
 
@@ -4853,6 +4781,53 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     {{ t('common.save') }}
                 </Button>
             </div>
+            </div>
+
+            <!-- ─── Panneau droit sticky — notes en temps réel ─────────────── -->
+            <div v-if="estEnseignant" class="hidden lg:block lg:w-56 lg:shrink-0">
+                <div class="sticky top-4 mx-auto w-52 rounded-lg border bg-card p-3 text-card-foreground shadow-sm shadow-md">
+                    <div class="mb-2 flex items-center justify-between">
+                        <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Notes
+                        </span>
+                        <button
+                            v-if="grillePersonnalisee"
+                            type="button"
+                            class="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                            @click="grilleModalOuverte = true"
+                        >
+                            <ClipboardList class="h-3 w-3" />
+                            Grille
+                        </button>
+                    </div>
+                    <ul class="space-y-1.5">
+                        <li
+                            v-for="membre in membres"
+                            :key="membre.id"
+                            class="flex items-center justify-between gap-1"
+                        >
+                            <span class="truncate text-sm">
+                                {{ membre.prenom }} {{ membre.nom }}
+                            </span>
+                            <span
+                                v-if="
+                                    noteFinaleGrille[membre.id] !== null &&
+                                    noteFinaleGrille[membre.id] !== undefined
+                                "
+                                class="shrink-0 text-xs font-semibold"
+                                :class="
+                                    (noteFinaleGrille[membre.id] ?? 0) >= 60
+                                        ? 'text-green-700'
+                                        : 'text-red-700'
+                                "
+                            >
+                                {{ noteFinaleGrille[membre.id]?.toFixed(1) }}
+                            </span>
+                            <span v-else class="shrink-0 text-xs text-muted-foreground">—</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
         </div>
 
         <!-- ─── Modal grille de correction personnalisée ──────────────────── -->
@@ -4884,7 +4859,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                         : 'bg-red-100 text-red-700'
                                 "
                             >
-                                {{ membre.prenom }} :
+                                {{ membre.prenom }} {{ membre.nom }} :
                                 {{
                                     noteFinaleGrille[membre.id]?.toFixed(2)
                                 }}/100

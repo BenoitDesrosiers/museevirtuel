@@ -178,14 +178,21 @@ const open = ref(itemIsActive(props.item));
             </CollapsibleContent>
         </Collapsible>
 
-        <!-- Sous-item sans enfants → lien simple, hauteur auto pour titres longs -->
+        <!-- Sous-item sans enfants + avec href → lien simple, hauteur auto pour titres longs -->
         <SidebarMenuSubButton
-            v-else
+            v-else-if="item.href"
             as-child
             :is-active="isActive"
             class="h-auto min-h-7 py-1.5 leading-snug break-words whitespace-normal"
         >
-            <Link :href="item.href!">{{ item.title }}</Link>
+            <Link :href="item.href">{{ item.title }}</Link>
         </SidebarMenuSubButton>
+        <!-- Sous-item sans enfants + sans href → label non-cliquable (ex: nom d'étudiant) -->
+        <div
+            v-else
+            class="min-h-7 break-words whitespace-normal px-2 py-1.5 text-xs leading-snug text-sidebar-foreground/60"
+        >
+            {{ item.title }}
+        </div>
     </template>
 </template>

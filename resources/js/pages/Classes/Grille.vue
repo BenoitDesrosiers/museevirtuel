@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { Minus, Plus, TriangleAlert } from 'lucide-vue-next';
+import { ArrowLeft, Minus, Plus, TriangleAlert } from 'lucide-vue-next';
 import { computed } from 'vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -119,7 +119,8 @@ function submit() {
             <div>
                 <Button variant="ghost" size="sm" as-child>
                     <Link :href="`/classes/${classe.id}`">
-                        ← {{ classe.code }} — {{ classe.groupe }}
+                        <ArrowLeft class="mr-2 h-4 w-4" />
+                        {{ classe.code }} — {{ classe.groupe }}
                     </Link>
                 </Button>
             </div>
