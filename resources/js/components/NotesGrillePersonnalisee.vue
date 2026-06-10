@@ -74,7 +74,9 @@ function tousOntNote(critereId: number, valeur: number): boolean {
 function tousOntMalus(malusId: number): boolean {
     return (
         props.membres.length > 0 &&
-        props.membres.every((m) => props.malusAppliques[m.id]?.[malusId] === true)
+        props.membres.every(
+            (m) => props.malusAppliques[m.id]?.[malusId] === true,
+        )
     );
 }
 
@@ -350,7 +352,6 @@ function totalMalus(membreId: number): number {
                         Total malus : -{{ totalMalus(membre.id) }} pts
                     </p>
                 </div>
-
             </div>
         </div>
     </div>

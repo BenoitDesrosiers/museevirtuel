@@ -190,7 +190,7 @@ const open = ref(itemIsActive(props.item));
         <!-- Sous-item sans enfants + sans href → label non-cliquable (ex: nom d'étudiant) -->
         <div
             v-else
-            class="min-h-7 break-words whitespace-normal px-2 py-1.5 text-xs leading-snug text-sidebar-foreground/60"
+            class="min-h-7 px-2 py-1.5 text-xs leading-snug break-words whitespace-normal text-sidebar-foreground/60"
         >
             {{ item.title }}
         </div>

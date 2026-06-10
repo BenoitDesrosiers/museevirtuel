@@ -1579,7 +1579,9 @@ async function voterRemise(): Promise<void> {
     voteEnCours.value = true;
 
     try {
-        const response = await axios.post(`${baseUrl.value}/voter-remise`, { vote: true });
+        const response = await axios.post(`${baseUrl.value}/voter-remise`, {
+            vote: true,
+        });
 
         // Mise à jour optimiste du vote local
         const idx = votes.value.findIndex((v) => v.user_id === userId.value);
@@ -2444,7 +2446,9 @@ async function toggleMalusGrillePourTous(
 
     try {
         await Promise.all(
-            props.membres.map((m) => toggleMalusGrille(malusId, m.id, applique)),
+            props.membres.map((m) =>
+                toggleMalusGrille(malusId, m.id, applique),
+            ),
         );
     } finally {
         malusSaving[key] = false;
@@ -2484,616 +2488,526 @@ function setOngletActif(section: string, membreId: number | 'tous') {
 
         <div class="mx-auto flex w-full max-w-6xl">
             <div class="flex min-w-0 flex-1 flex-col gap-3 p-3">
-            <!-- En-tête navigation -->
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <Button variant="ghost" size="sm" as-child>
-                    <Link
-                        :href="`/cours/${classe.cours_id}/classes/${groupe.classe_id}/groupes/${groupe.id}/projets`"
+                <!-- En-tête navigation -->
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <Button variant="ghost" size="sm" as-child>
+                        <Link
+                            :href="`/cours/${classe.cours_id}/classes/${groupe.classe_id}/groupes/${groupe.id}/projets`"
+                        >
+                            <ArrowLeft class="mr-2 h-4 w-4" />
+                            {{ t('projets.show.back') }}
+                        </Link>
+                    </Button>
+
+                    <!-- Indicateur de sauvegarde -->
+                    <div
+                        v-if="peutEditer"
+                        class="flex items-center gap-2 text-sm text-muted-foreground"
                     >
-                        <ArrowLeft class="mr-2 h-4 w-4" />
-                        {{ t('projets.show.back') }}
-                    </Link>
-                </Button>
-
-                <!-- Indicateur de sauvegarde -->
-                <div
-                    v-if="peutEditer"
-                    class="flex items-center gap-2 text-sm text-muted-foreground"
-                >
-                    <Loader2
-                        v-if="saveStatus === 'saving'"
-                        class="h-4 w-4 animate-spin"
-                    />
-                    <CheckCircle2
-                        v-else-if="saveStatus === 'saved'"
-                        class="h-4 w-4 text-green-500"
-                    />
-
-                    <span v-if="saveStatus === 'saving'">{{
-                        t('projets.show.saving')
-                    }}</span>
-                    <span
-                        v-else-if="saveStatus === 'saved'"
-                        class="text-green-600"
-                        >{{ t('projets.show.saved') }}</span
-                    >
-                    <span
-                        v-else-if="saveStatus === 'error'"
-                        class="text-destructive"
-                        >{{ t('projets.show.save_error') }}</span
-                    >
-                    <span
-                        v-if="annotationDeleteError"
-                        class="text-destructive"
-                        >{{ annotationDeleteError }}</span
-                    >
-                </div>
-            </div>
-
-            <Heading
-                :title="t('classes.groupes.group_number', { n: groupe.numero })"
-                :description="`${classe.code} — ${classe.nom_cours}`"
-            />
-
-            <!-- Bannière document verrouillé (étudiant uniquement) -->
-            <div
-                v-if="verrouille && !estEnseignant"
-                class="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
-            >
-                <Lock class="h-4 w-4 shrink-0" />
-                {{ t('projets.show.locked_message') }}
-            </div>
-
-            <!-- Boutons d'export + notes finales par étudiant -->
-            <div
-                class="-mx-3 border-b bg-white px-3 py-2 shadow-sm dark:bg-zinc-950"
-            >
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex flex-wrap items-center gap-1">
-                        <!-- ── Groupe 1 : Consultation & exports ─────────────── -->
-                        <BoutonTooltip
-                            texte="Voir le rendu final du projet"
-                            variant="ghost"
-                            size="sm"
-                            as-child
-                        >
-                            <Link :href="`${baseUrl}/apercu`">
-                                <Eye class="h-4 w-4" />
-                                Aperçu
-                            </Link>
-                        </BoutonTooltip>
-                        <BoutonTooltip
-                            texte="Télécharger une version PDF (s'ouvre dans un nouvel onglet)"
-                            variant="ghost"
-                            size="sm"
-                            as-child
-                        >
-                            <a :href="`${baseUrl}/pdf`" target="_blank">
-                                <FileText class="h-4 w-4" />
-                                PDF
-                            </a>
-                        </BoutonTooltip>
-                        <BoutonTooltip
-                            texte="Télécharger une version Word (.docx)"
-                            variant="ghost"
-                            size="sm"
-                            as-child
-                        >
-                            <a :href="`${baseUrl}/word`">
-                                <Download class="h-4 w-4" />
-                                Word
-                            </a>
-                        </BoutonTooltip>
-                        <BoutonTooltip
-                            v-if="estEnseignant"
-                            texte="Voir les notes de tous les étudiants du groupe"
-                            variant="ghost"
-                            size="sm"
-                            as-child
-                        >
-                            <Link :href="`${baseUrl}/apercu-notes`">
-                                <FileBarChart class="h-4 w-4" />
-                                Notes
-                            </Link>
-                        </BoutonTooltip>
-
-                        <!-- ── Séparateur ─────────────────────────────────────── -->
-                        <Separator orientation="vertical" class="mx-1 h-5" />
-
-                        <!-- ── Groupe 2 : Outils ──────────────────────────────── -->
-                        <BoutonTooltip
-                            v-if="peutEditer && !verrouille"
-                            texte="Lancer la correction orthographique globale avec Antidote"
-                            variant="ghost"
-                            size="sm"
-                            class="text-green-700 hover:bg-green-50 hover:text-green-700"
-                            @click="showAntidoteGlobal = true"
-                        >
-                            <SpellCheck class="h-4 w-4" />
-                            Antidote
-                        </BoutonTooltip>
-                        <!-- Consentement vidéo — affiché si au moins une section vidéo/audio existe -->
-                        <ConsentementVideo
-                            v-if="hasVideoOrAudioSection && !estEnseignant"
-                            :params="{
-                                cours: classe.cours_id,
-                                groupe: groupe.id,
-                                typeProjet: typeProjet.id,
-                            }"
-                            :consentement="consentement"
+                        <Loader2
+                            v-if="saveStatus === 'saving'"
+                            class="h-4 w-4 animate-spin"
                         />
-                        <BoutonTooltip
-                            v-if="estEnseignant"
-                            texte="Gérer les sections disponibles pour ce type de projet"
-                            variant="ghost"
-                            size="sm"
-                            as-child
-                        >
-                            <Link
-                                :href="
-                                    editTypeProjet.url({
-                                        cours: classe.cours_id,
-                                        typeProjet: typeProjet.id,
-                                    })
-                                "
-                            >
-                                <Settings2 class="h-4 w-4" />
-                                Sections
-                            </Link>
-                        </BoutonTooltip>
-                        <BoutonTooltip
-                            v-if="champsVisibles.length > 0"
-                            :texte="
-                                tousCommentairesReduits
-                                    ? 'Développer tous les commentaires enseignant'
-                                    : 'Réduire tous les commentaires enseignant'
-                            "
-                            variant="ghost"
-                            size="sm"
-                            @click="toggleTousCommentaires"
-                        >
-                            <MessageSquare class="h-4 w-4" />
-                            Commentaires
-                        </BoutonTooltip>
+                        <CheckCircle2
+                            v-else-if="saveStatus === 'saved'"
+                            class="h-4 w-4 text-green-500"
+                        />
 
-                        <!-- ── Groupe 3 : Actions enseignant ──────────────────── -->
-                        <template v-if="estEnseignant">
+                        <span v-if="saveStatus === 'saving'">{{
+                            t('projets.show.saving')
+                        }}</span>
+                        <span
+                            v-else-if="saveStatus === 'saved'"
+                            class="text-green-600"
+                            >{{ t('projets.show.saved') }}</span
+                        >
+                        <span
+                            v-else-if="saveStatus === 'error'"
+                            class="text-destructive"
+                            >{{ t('projets.show.save_error') }}</span
+                        >
+                        <span
+                            v-if="annotationDeleteError"
+                            class="text-destructive"
+                            >{{ annotationDeleteError }}</span
+                        >
+                    </div>
+                </div>
+
+                <Heading
+                    :title="
+                        t('classes.groupes.group_number', { n: groupe.numero })
+                    "
+                    :description="`${classe.code} — ${classe.nom_cours}`"
+                />
+
+                <!-- Bannière document verrouillé (étudiant uniquement) -->
+                <div
+                    v-if="verrouille && !estEnseignant"
+                    class="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+                >
+                    <Lock class="h-4 w-4 shrink-0" />
+                    {{ t('projets.show.locked_message') }}
+                </div>
+
+                <!-- Boutons d'export + notes finales par étudiant -->
+                <div
+                    class="-mx-3 border-b bg-white px-3 py-2 shadow-sm dark:bg-zinc-950"
+                >
+                    <div
+                        class="flex flex-wrap items-center justify-between gap-2"
+                    >
+                        <div class="flex flex-wrap items-center gap-1">
+                            <!-- ── Groupe 1 : Consultation & exports ─────────────── -->
+                            <BoutonTooltip
+                                texte="Voir le rendu final du projet"
+                                variant="ghost"
+                                size="sm"
+                                as-child
+                            >
+                                <Link :href="`${baseUrl}/apercu`">
+                                    <Eye class="h-4 w-4" />
+                                    Aperçu
+                                </Link>
+                            </BoutonTooltip>
+                            <BoutonTooltip
+                                texte="Télécharger une version PDF (s'ouvre dans un nouvel onglet)"
+                                variant="ghost"
+                                size="sm"
+                                as-child
+                            >
+                                <a :href="`${baseUrl}/pdf`" target="_blank">
+                                    <FileText class="h-4 w-4" />
+                                    PDF
+                                </a>
+                            </BoutonTooltip>
+                            <BoutonTooltip
+                                texte="Télécharger une version Word (.docx)"
+                                variant="ghost"
+                                size="sm"
+                                as-child
+                            >
+                                <a :href="`${baseUrl}/word`">
+                                    <Download class="h-4 w-4" />
+                                    Word
+                                </a>
+                            </BoutonTooltip>
+                            <BoutonTooltip
+                                v-if="estEnseignant"
+                                texte="Voir les notes de tous les étudiants du groupe"
+                                variant="ghost"
+                                size="sm"
+                                as-child
+                            >
+                                <Link :href="`${baseUrl}/apercu-notes`">
+                                    <FileBarChart class="h-4 w-4" />
+                                    Notes
+                                </Link>
+                            </BoutonTooltip>
+
+                            <!-- ── Séparateur ─────────────────────────────────────── -->
                             <Separator
                                 orientation="vertical"
                                 class="mx-1 h-5"
                             />
-                            <Button
-                                :variant="
-                                    modeEditionEnseignant
-                                        ? 'default'
-                                        : 'outline'
-                                "
-                                size="sm"
-                                @click="toggleModeEditionEnseignant"
-                            >
-                                <Settings2 class="mr-2 h-4 w-4" />
-                                {{
-                                    modeEditionEnseignant
-                                        ? 'Mode édition actif'
-                                        : 'Activer mode édition'
-                                }}
-                            </Button>
+
+                            <!-- ── Groupe 2 : Outils ──────────────────────────────── -->
                             <BoutonTooltip
-                                :texte="
-                                    correctionVisible
-                                        ? 'Masquer les corrections aux étudiants'
-                                        : 'Publier les corrections pour que les étudiants puissent les consulter'
-                                "
-                                :variant="
-                                    correctionVisible ? 'default' : 'ghost'
-                                "
+                                v-if="peutEditer && !verrouille"
+                                texte="Lancer la correction orthographique globale avec Antidote"
+                                variant="ghost"
                                 size="sm"
-                                @click="toggleCorrectionVisible"
+                                class="text-green-700 hover:bg-green-50 hover:text-green-700"
+                                @click="showAntidoteGlobal = true"
                             >
-                                <CheckCircle2
-                                    v-if="correctionVisible"
-                                    class="h-4 w-4"
+                                <SpellCheck class="h-4 w-4" />
+                                Antidote
+                            </BoutonTooltip>
+                            <!-- Consentement vidéo — affiché si au moins une section vidéo/audio existe -->
+                            <ConsentementVideo
+                                v-if="hasVideoOrAudioSection && !estEnseignant"
+                                :params="{
+                                    cours: classe.cours_id,
+                                    groupe: groupe.id,
+                                    typeProjet: typeProjet.id,
+                                }"
+                                :consentement="consentement"
+                            />
+                            <BoutonTooltip
+                                v-if="estEnseignant"
+                                texte="Gérer les sections disponibles pour ce type de projet"
+                                variant="ghost"
+                                size="sm"
+                                as-child
+                            >
+                                <Link
+                                    :href="
+                                        editTypeProjet.url({
+                                            cours: classe.cours_id,
+                                            typeProjet: typeProjet.id,
+                                        })
+                                    "
+                                >
+                                    <Settings2 class="h-4 w-4" />
+                                    Sections
+                                </Link>
+                            </BoutonTooltip>
+                            <BoutonTooltip
+                                v-if="champsVisibles.length > 0"
+                                :texte="
+                                    tousCommentairesReduits
+                                        ? 'Développer tous les commentaires enseignant'
+                                        : 'Réduire tous les commentaires enseignant'
+                                "
+                                variant="ghost"
+                                size="sm"
+                                @click="toggleTousCommentaires"
+                            >
+                                <MessageSquare class="h-4 w-4" />
+                                Commentaires
+                            </BoutonTooltip>
+
+                            <!-- ── Groupe 3 : Actions enseignant ──────────────────── -->
+                            <template v-if="estEnseignant">
+                                <Separator
+                                    orientation="vertical"
+                                    class="mx-1 h-5"
                                 />
-                                <Send v-else class="h-4 w-4" />
-                                Correction
-                            </BoutonTooltip>
-                            <BoutonTooltip
-                                :texte="
-                                    verrouille
-                                        ? 'Déverrouiller le document pour permettre les modifications'
-                                        : 'Verrouiller le document pour empêcher toute modification'
-                                "
-                                :variant="verrouille ? 'destructive' : 'ghost'"
-                                size="sm"
-                                @click="toggleVerrouille"
-                            >
-                                <Lock class="h-4 w-4" />
-                                Verrouiller
-                            </BoutonTooltip>
-                        </template>
+                                <Button
+                                    :variant="
+                                        modeEditionEnseignant
+                                            ? 'default'
+                                            : 'outline'
+                                    "
+                                    size="sm"
+                                    @click="toggleModeEditionEnseignant"
+                                >
+                                    <Settings2 class="mr-2 h-4 w-4" />
+                                    {{
+                                        modeEditionEnseignant
+                                            ? 'Mode édition actif'
+                                            : 'Activer mode édition'
+                                    }}
+                                </Button>
+                                <BoutonTooltip
+                                    :texte="
+                                        correctionVisible
+                                            ? 'Masquer les corrections aux étudiants'
+                                            : 'Publier les corrections pour que les étudiants puissent les consulter'
+                                    "
+                                    :variant="
+                                        correctionVisible ? 'default' : 'ghost'
+                                    "
+                                    size="sm"
+                                    @click="toggleCorrectionVisible"
+                                >
+                                    <CheckCircle2
+                                        v-if="correctionVisible"
+                                        class="h-4 w-4"
+                                    />
+                                    <Send v-else class="h-4 w-4" />
+                                    Correction
+                                </BoutonTooltip>
+                                <BoutonTooltip
+                                    :texte="
+                                        verrouille
+                                            ? 'Déverrouiller le document pour permettre les modifications'
+                                            : 'Verrouiller le document pour empêcher toute modification'
+                                    "
+                                    :variant="
+                                        verrouille ? 'destructive' : 'ghost'
+                                    "
+                                    size="sm"
+                                    @click="toggleVerrouille"
+                                >
+                                    <Lock class="h-4 w-4" />
+                                    Verrouiller
+                                </BoutonTooltip>
+                            </template>
+                        </div>
                     </div>
-
                 </div>
-            </div>
 
-            <!-- ─── Page titre ────────────────────────────────────────────── -->
-            <Card v-if="genererPageTitre">
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle
-                        class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
+                <!-- ─── Page titre ────────────────────────────────────────────── -->
+                <Card v-if="genererPageTitre">
+                    <CardHeader
+                        class="flex flex-row items-center justify-between"
                     >
-                        {{ t('projets.show.page_title_card') }}
-                    </CardTitle>
-                    <BoutonTooltip
-                        :texte="collapsed.pageTitre ? 'Développer' : 'Réduire'"
-                        @click="toggleSection('pageTitre')"
-                    >
-                        <ChevronUp
-                            v-if="!collapsed.pageTitre"
-                            class="h-4 w-4"
-                        />
-                        <ChevronDown v-else class="h-4 w-4" />
-                    </BoutonTooltip>
-                </CardHeader>
-                <CardContent v-show="!collapsed.pageTitre">
-                    <RichEditor
-                        v-model="form.page_titre_contenu"
-                        :placeholder="
-                            t('projets.show.page_titre_manuel_placeholder')
-                        "
-                        :read-only="!peutEditer"
-                        :est-enseignant="estEnseignant"
-                        :corrections="annotations['page_titre_contenu'] ?? []"
-                        :renvois="renvoisLocaux"
-                        :renvois-sync-version="renvoisSyncVersion"
-                        editor-id="page-titre-contenu"
-                        :membres="membres"
-                        @update:model-value="scheduleSharedSave"
-                        @save-annotation="
-                            (p) =>
-                                sauvegarderAnnotation('page_titre_contenu', p)
-                        "
-                        @delete-annotation="
-                            (p) => supprimerAnnotation('page_titre_contenu', p)
-                        "
-                        @demander-renvoi="demanderRenvoi"
-                        @renvois-utilises="handleRenvoisUtilises"
-                    />
-
-                    <!-- Commentaire enseignant -->
-                    <CommentaireEnseignant
-                        :commentaire="commentaires['normes_presentation']"
-                        :brouillon="getBrouillon('normes_presentation')"
-                        :est-reduit="
-                            !!commentairesReduits['normes_presentation']
-                        "
-                        :is-saving="!!commentairesSaving['normes_presentation']"
-                        :est-enseignant="estEnseignant"
-                        :placeholder="t('projets.show.comment_presentation')"
-                        class="mt-4"
-                        @toggle="toggleCommentaire('normes_presentation')"
-                        @save="sauvegarderCommentaire('normes_presentation')"
-                        @delete="supprimerCommentaire('normes_presentation')"
-                        @update:brouillon="
-                            (v) => setBrouillon('normes_presentation', v)
-                        "
-                    />
-                </CardContent>
-            </Card>
-            <Card v-else>
-                <!-- ─── Page titre (mode manuel) ──────────────────────────────── -->
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle
-                        class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
-                    >
-                        {{ t('projets.show.page_titre_manuel_card') }}
-                    </CardTitle>
-                    <BoutonTooltip
-                        :texte="collapsed.pageTitre ? 'Développer' : 'Réduire'"
-                        @click="toggleSection('pageTitre')"
-                    >
-                        <ChevronUp
-                            v-if="!collapsed.pageTitre"
-                            class="h-4 w-4"
-                        />
-                        <ChevronDown v-else class="h-4 w-4" />
-                    </BoutonTooltip>
-                </CardHeader>
-                <CardContent v-show="!collapsed.pageTitre">
-                    <p class="mb-3 text-xs text-muted-foreground">
-                        {{ t('projets.show.page_titre_manuel_hint') }}
-                    </p>
-                    <RichEditor
-                        v-model="form.page_titre_contenu"
-                        :placeholder="
-                            t('projets.show.page_titre_manuel_placeholder')
-                        "
-                        :read-only="!peutEditer"
-                        :est-enseignant="estEnseignant"
-                        :corrections="annotations['page_titre_contenu'] ?? []"
-                        :renvois="renvoisLocaux"
-                        :renvois-sync-version="renvoisSyncVersion"
-                        editor-id="page-titre-contenu"
-                        :membres="membres"
-                        @update:model-value="scheduleSharedSave"
-                        @save-annotation="
-                            (p) =>
-                                sauvegarderAnnotation('page_titre_contenu', p)
-                        "
-                        @delete-annotation="
-                            (p) => supprimerAnnotation('page_titre_contenu', p)
-                        "
-                        @demander-renvoi="demanderRenvoi"
-                        @renvois-utilises="handleRenvoisUtilises"
-                    />
-
-                    <!-- Commentaire enseignant -->
-                    <CommentaireEnseignant
-                        :commentaire="commentaires['normes_presentation']"
-                        :brouillon="getBrouillon('normes_presentation')"
-                        :est-reduit="
-                            !!commentairesReduits['normes_presentation']
-                        "
-                        :is-saving="!!commentairesSaving['normes_presentation']"
-                        :est-enseignant="estEnseignant"
-                        :placeholder="t('projets.show.comment_presentation')"
-                        class="mt-4"
-                        @toggle="toggleCommentaire('normes_presentation')"
-                        @save="sauvegarderCommentaire('normes_presentation')"
-                        @delete="supprimerCommentaire('normes_presentation')"
-                        @update:brouillon="
-                            (v) => setBrouillon('normes_presentation', v)
-                        "
-                    />
-                </CardContent>
-            </Card>
-
-            <!-- ─── Table des matières ─────────────────────────────────────── -->
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <CardTitle
-                        class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
-                    >
-                        {{
-                            genererTableMatieres
-                                ? t('projets.show.toc_card')
-                                : t('projets.show.toc_manuel_card')
-                        }}
-                    </CardTitle>
-                    <BoutonTooltip
-                        :texte="collapsed.tdm ? 'Développer' : 'Réduire'"
-                        @click="toggleSection('tdm')"
-                    >
-                        <ChevronUp v-if="!collapsed.tdm" class="h-4 w-4" />
-                        <ChevronDown v-else class="h-4 w-4" />
-                    </BoutonTooltip>
-                </CardHeader>
-                <CardContent v-show="!collapsed.tdm">
-                    <!-- Mode automatique : notice informative, pas d'éditeur -->
-                    <p
-                        v-if="genererTableMatieres"
-                        class="text-sm text-muted-foreground italic"
-                    >
-                        {{ t('projets.show.toc_auto_notice') }}
-                    </p>
-                    <!-- Mode manuel : hint + éditeur -->
-                    <template v-else>
-                        <p class="mb-3 text-xs text-muted-foreground">
-                            {{ t('projets.show.tdm_manuel_hint') }}
-                        </p>
+                        <CardTitle
+                            class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
+                        >
+                            {{ t('projets.show.page_title_card') }}
+                        </CardTitle>
+                        <BoutonTooltip
+                            :texte="
+                                collapsed.pageTitre ? 'Développer' : 'Réduire'
+                            "
+                            @click="toggleSection('pageTitre')"
+                        >
+                            <ChevronUp
+                                v-if="!collapsed.pageTitre"
+                                class="h-4 w-4"
+                            />
+                            <ChevronDown v-else class="h-4 w-4" />
+                        </BoutonTooltip>
+                    </CardHeader>
+                    <CardContent v-show="!collapsed.pageTitre">
                         <RichEditor
-                            v-model="form.table_matieres_contenu"
+                            v-model="form.page_titre_contenu"
                             :placeholder="
-                                t('projets.show.tdm_manuel_placeholder')
+                                t('projets.show.page_titre_manuel_placeholder')
                             "
                             :read-only="!peutEditer"
                             :est-enseignant="estEnseignant"
                             :corrections="
-                                annotations['table_matieres_contenu'] ?? []
+                                annotations['page_titre_contenu'] ?? []
                             "
                             :renvois="renvoisLocaux"
                             :renvois-sync-version="renvoisSyncVersion"
-                            editor-id="table-matieres-contenu"
+                            editor-id="page-titre-contenu"
                             :membres="membres"
                             @update:model-value="scheduleSharedSave"
                             @save-annotation="
                                 (p) =>
                                     sauvegarderAnnotation(
-                                        'table_matieres_contenu',
+                                        'page_titre_contenu',
                                         p,
                                     )
                             "
                             @delete-annotation="
                                 (p) =>
-                                    supprimerAnnotation(
-                                        'table_matieres_contenu',
-                                        p,
-                                    )
+                                    supprimerAnnotation('page_titre_contenu', p)
                             "
                             @demander-renvoi="demanderRenvoi"
                             @renvois-utilises="handleRenvoisUtilises"
                         />
-                    </template>
-                </CardContent>
-            </Card>
 
-            <!-- ─── Sections dynamiques (définies par le professeur) ─────── -->
-            <template v-if="props.sections.length > 0">
-                <template v-for="section in props.sections" :key="section.id">
-                    <!-- ── Type texte : zone de rédaction unique ─────────────── -->
-                    <Card v-if="section.type === 'texte'">
-                        <CardHeader
-                            class="flex flex-row items-center justify-between"
+                        <!-- Commentaire enseignant -->
+                        <CommentaireEnseignant
+                            :commentaire="commentaires['normes_presentation']"
+                            :brouillon="getBrouillon('normes_presentation')"
+                            :est-reduit="
+                                !!commentairesReduits['normes_presentation']
+                            "
+                            :is-saving="
+                                !!commentairesSaving['normes_presentation']
+                            "
+                            :est-enseignant="estEnseignant"
+                            :placeholder="
+                                t('projets.show.comment_presentation')
+                            "
+                            class="mt-4"
+                            @toggle="toggleCommentaire('normes_presentation')"
+                            @save="
+                                sauvegarderCommentaire('normes_presentation')
+                            "
+                            @delete="
+                                supprimerCommentaire('normes_presentation')
+                            "
+                            @update:brouillon="
+                                (v) => setBrouillon('normes_presentation', v)
+                            "
+                        />
+                    </CardContent>
+                </Card>
+                <Card v-else>
+                    <!-- ─── Page titre (mode manuel) ──────────────────────────────── -->
+                    <CardHeader
+                        class="flex flex-row items-center justify-between"
+                    >
+                        <CardTitle
+                            class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
                         >
-                            <CardTitle class="flex flex-col gap-0.5">
-                                <span class="text-base font-semibold">{{
-                                    section.label
-                                }}</span>
-                                <span
-                                    v-if="section.description"
-                                    class="text-xs font-normal text-muted-foreground"
-                                >
-                                    {{ section.description }}
-                                </span>
-                            </CardTitle>
-                            <div class="flex items-center gap-1">
-                                <BoutonTooltip
-                                    :texte="
-                                        collapsed[`section_${section.id}`]
-                                            ? 'Développer'
-                                            : 'Réduire'
-                                    "
-                                    @click="
-                                        toggleSection(`section_${section.id}`)
-                                    "
-                                >
-                                    <ChevronUp
-                                        v-if="
-                                            !collapsed[`section_${section.id}`]
-                                        "
-                                        class="h-4 w-4"
-                                    />
-                                    <ChevronDown v-else class="h-4 w-4" />
-                                </BoutonTooltip>
-                            </div>
-                        </CardHeader>
-                        <CardContent
-                            v-show="!collapsed[`section_${section.id}`]"
-                            class="space-y-4"
+                            {{ t('projets.show.page_titre_manuel_card') }}
+                        </CardTitle>
+                        <BoutonTooltip
+                            :texte="
+                                collapsed.pageTitre ? 'Développer' : 'Réduire'
+                            "
+                            @click="toggleSection('pageTitre')"
                         >
+                            <ChevronUp
+                                v-if="!collapsed.pageTitre"
+                                class="h-4 w-4"
+                            />
+                            <ChevronDown v-else class="h-4 w-4" />
+                        </BoutonTooltip>
+                    </CardHeader>
+                    <CardContent v-show="!collapsed.pageTitre">
+                        <p class="mb-3 text-xs text-muted-foreground">
+                            {{ t('projets.show.page_titre_manuel_hint') }}
+                        </p>
+                        <RichEditor
+                            v-model="form.page_titre_contenu"
+                            :placeholder="
+                                t('projets.show.page_titre_manuel_placeholder')
+                            "
+                            :read-only="!peutEditer"
+                            :est-enseignant="estEnseignant"
+                            :corrections="
+                                annotations['page_titre_contenu'] ?? []
+                            "
+                            :renvois="renvoisLocaux"
+                            :renvois-sync-version="renvoisSyncVersion"
+                            editor-id="page-titre-contenu"
+                            :membres="membres"
+                            @update:model-value="scheduleSharedSave"
+                            @save-annotation="
+                                (p) =>
+                                    sauvegarderAnnotation(
+                                        'page_titre_contenu',
+                                        p,
+                                    )
+                            "
+                            @delete-annotation="
+                                (p) =>
+                                    supprimerAnnotation('page_titre_contenu', p)
+                            "
+                            @demander-renvoi="demanderRenvoi"
+                            @renvois-utilises="handleRenvoisUtilises"
+                        />
+
+                        <!-- Commentaire enseignant -->
+                        <CommentaireEnseignant
+                            :commentaire="commentaires['normes_presentation']"
+                            :brouillon="getBrouillon('normes_presentation')"
+                            :est-reduit="
+                                !!commentairesReduits['normes_presentation']
+                            "
+                            :is-saving="
+                                !!commentairesSaving['normes_presentation']
+                            "
+                            :est-enseignant="estEnseignant"
+                            :placeholder="
+                                t('projets.show.comment_presentation')
+                            "
+                            class="mt-4"
+                            @toggle="toggleCommentaire('normes_presentation')"
+                            @save="
+                                sauvegarderCommentaire('normes_presentation')
+                            "
+                            @delete="
+                                supprimerCommentaire('normes_presentation')
+                            "
+                            @update:brouillon="
+                                (v) => setBrouillon('normes_presentation', v)
+                            "
+                        />
+                    </CardContent>
+                </Card>
+
+                <!-- ─── Table des matières ─────────────────────────────────────── -->
+                <Card>
+                    <CardHeader
+                        class="flex flex-row items-center justify-between"
+                    >
+                        <CardTitle
+                            class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
+                        >
+                            {{
+                                genererTableMatieres
+                                    ? t('projets.show.toc_card')
+                                    : t('projets.show.toc_manuel_card')
+                            }}
+                        </CardTitle>
+                        <BoutonTooltip
+                            :texte="collapsed.tdm ? 'Développer' : 'Réduire'"
+                            @click="toggleSection('tdm')"
+                        >
+                            <ChevronUp v-if="!collapsed.tdm" class="h-4 w-4" />
+                            <ChevronDown v-else class="h-4 w-4" />
+                        </BoutonTooltip>
+                    </CardHeader>
+                    <CardContent v-show="!collapsed.tdm">
+                        <!-- Mode automatique : notice informative, pas d'éditeur -->
+                        <p
+                            v-if="genererTableMatieres"
+                            class="text-sm text-muted-foreground italic"
+                        >
+                            {{ t('projets.show.toc_auto_notice') }}
+                        </p>
+                        <!-- Mode manuel : hint + éditeur -->
+                        <template v-else>
+                            <p class="mb-3 text-xs text-muted-foreground">
+                                {{ t('projets.show.tdm_manuel_hint') }}
+                            </p>
                             <RichEditor
-                                v-model="sectionContenus[section.id]"
-                                :placeholder="`Rédigez la section « ${section.label} »…`"
+                                v-model="form.table_matieres_contenu"
+                                :placeholder="
+                                    t('projets.show.tdm_manuel_placeholder')
+                                "
                                 :read-only="!peutEditer"
                                 :est-enseignant="estEnseignant"
                                 :corrections="
-                                    annotations[`section_${section.id}`] ?? []
+                                    annotations['table_matieres_contenu'] ?? []
                                 "
                                 :renvois="renvoisLocaux"
                                 :renvois-sync-version="renvoisSyncVersion"
-                                :editor-id="`section-${section.id}`"
+                                editor-id="table-matieres-contenu"
                                 :membres="membres"
-                                @update:model-value="
-                                    scheduleSectionSave(section.id)
-                                "
+                                @update:model-value="scheduleSharedSave"
                                 @save-annotation="
                                     (p) =>
                                         sauvegarderAnnotation(
-                                            `section_${section.id}`,
+                                            'table_matieres_contenu',
                                             p,
                                         )
                                 "
                                 @delete-annotation="
                                     (p) =>
                                         supprimerAnnotation(
-                                            `section_${section.id}`,
+                                            'table_matieres_contenu',
                                             p,
                                         )
                                 "
                                 @demander-renvoi="demanderRenvoi"
                                 @renvois-utilises="handleRenvoisUtilises"
                             />
-                            <CommentaireEnseignant
-                                :commentaire="
-                                    commentaires[`section_${section.id}`]
-                                "
-                                :brouillon="
-                                    getBrouillon(`section_${section.id}`)
-                                "
-                                :est-reduit="
-                                    !!commentairesReduits[
-                                        `section_${section.id}`
-                                    ]
-                                "
-                                :is-saving="
-                                    !!commentairesSaving[
-                                        `section_${section.id}`
-                                    ]
-                                "
-                                :est-enseignant="estEnseignant"
-                                class="mt-3"
-                                @toggle="
-                                    toggleCommentaire(`section_${section.id}`)
-                                "
-                                @save="
-                                    sauvegarderCommentaire(
-                                        `section_${section.id}`,
-                                    )
-                                "
-                                @delete="
-                                    supprimerCommentaire(
-                                        `section_${section.id}`,
-                                    )
-                                "
-                                @update:brouillon="
-                                    (v) =>
-                                        setBrouillon(`section_${section.id}`, v)
-                                "
-                            />
-                        </CardContent>
-                    </Card>
+                        </template>
+                    </CardContent>
+                </Card>
 
-                    <!-- ── Type paragraphes : N sous-paragraphes ajoutables ───── -->
-                    <template v-else-if="section.type === 'paragraphes'">
-                        <Card
-                            v-for="para in sectionParagraphesLocaux[
-                                section.id
-                            ] ?? []"
-                            :key="para.id"
-                        >
+                <!-- ─── Sections dynamiques (définies par le professeur) ─────── -->
+                <template v-if="props.sections.length > 0">
+                    <template
+                        v-for="section in props.sections"
+                        :key="section.id"
+                    >
+                        <!-- ── Type texte : zone de rédaction unique ─────────────── -->
+                        <Card v-if="section.type === 'texte'">
                             <CardHeader
                                 class="flex flex-row items-center justify-between"
                             >
-                                <CardTitle class="flex items-center gap-2">
+                                <CardTitle class="flex flex-col gap-0.5">
+                                    <span class="text-base font-semibold">{{
+                                        section.label
+                                    }}</span>
                                     <span
-                                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary"
+                                        v-if="section.description"
+                                        class="text-xs font-normal text-muted-foreground"
                                     >
-                                        {{ para.ordre }}
-                                    </span>
-                                    <span
-                                        class="text-sm font-normal text-muted-foreground italic"
-                                    >
-                                        {{
-                                            para.titre ||
-                                            `${section.label} — paragraphe ${para.ordre}`
-                                        }}
+                                        {{ section.description }}
                                     </span>
                                 </CardTitle>
                                 <div class="flex items-center gap-1">
                                     <BoutonTooltip
-                                        v-if="
-                                            peutEditer &&
-                                            (sectionParagraphesLocaux[
-                                                section.id
-                                            ]?.length ?? 0) > 1
-                                        "
-                                        texte="Supprimer ce paragraphe"
-                                        size="icon-sm"
-                                        class="text-destructive"
-                                        :disabled="
-                                            !!sectionParagrapheEnCours[
-                                                section.id
-                                            ]
-                                        "
-                                        @click="
-                                            supprimerSectionParagraphe(
-                                                para.id,
-                                                section.id,
-                                            )
-                                        "
-                                    >
-                                        <Trash2 class="h-4 w-4" />
-                                    </BoutonTooltip>
-                                    <BoutonTooltip
                                         :texte="
-                                            collapsedDev[para.id]
+                                            collapsed[`section_${section.id}`]
                                                 ? 'Développer'
                                                 : 'Réduire'
                                         "
-                                        @click="toggleDev(para.id)"
+                                        @click="
+                                            toggleSection(
+                                                `section_${section.id}`,
+                                            )
+                                        "
                                     >
                                         <ChevronUp
-                                            v-if="!collapsedDev[para.id]"
+                                            v-if="
+                                                !collapsed[
+                                                    `section_${section.id}`
+                                                ]
+                                            "
                                             class="h-4 w-4"
                                         />
                                         <ChevronDown v-else class="h-4 w-4" />
@@ -3101,62 +3015,36 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 </div>
                             </CardHeader>
                             <CardContent
-                                v-show="!collapsedDev[para.id]"
-                                class="space-y-2"
+                                v-show="!collapsed[`section_${section.id}`]"
+                                class="space-y-4"
                             >
-                                <div v-if="peutEditer" class="mb-1">
-                                    <Label class="text-xs text-muted-foreground"
-                                        >Titre du paragraphe</Label
-                                    >
-                                    <Input
-                                        :model-value="para.titre ?? ''"
-                                        :placeholder="`Titre du paragraphe ${para.ordre}`"
-                                        class="mt-1"
-                                        @update:model-value="
-                                            (val: string) => {
-                                                para.titre = val;
-                                                scheduleSectionParagrapheSave(
-                                                    para.id,
-                                                    section.id,
-                                                );
-                                            }
-                                        "
-                                    />
-                                </div>
                                 <RichEditor
-                                    :model-value="para.contenu ?? ''"
-                                    :placeholder="`Rédigez le contenu du paragraphe ${para.ordre}…`"
+                                    v-model="sectionContenus[section.id]"
+                                    :placeholder="`Rédigez la section « ${section.label} »…`"
                                     :read-only="!peutEditer"
                                     :est-enseignant="estEnseignant"
                                     :corrections="
-                                        annotations[
-                                            `section_paragraphe_${para.id}`
-                                        ] ?? []
+                                        annotations[`section_${section.id}`] ??
+                                        []
                                     "
                                     :renvois="renvoisLocaux"
                                     :renvois-sync-version="renvoisSyncVersion"
-                                    :editor-id="`section-paragraphe-${para.id}`"
+                                    :editor-id="`section-${section.id}`"
                                     :membres="membres"
                                     @update:model-value="
-                                        (val: string) => {
-                                            para.contenu = val;
-                                            scheduleSectionParagrapheSave(
-                                                para.id,
-                                                section.id,
-                                            );
-                                        }
+                                        scheduleSectionSave(section.id)
                                     "
                                     @save-annotation="
                                         (p) =>
                                             sauvegarderAnnotation(
-                                                `section_paragraphe_${para.id}`,
+                                                `section_${section.id}`,
                                                 p,
                                             )
                                     "
                                     @delete-annotation="
                                         (p) =>
                                             supprimerAnnotation(
-                                                `section_paragraphe_${para.id}`,
+                                                `section_${section.id}`,
                                                 p,
                                             )
                                     "
@@ -3165,46 +3053,42 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 />
                                 <CommentaireEnseignant
                                     :commentaire="
-                                        commentaires[
-                                            `section_paragraphe_${para.id}`
-                                        ]
+                                        commentaires[`section_${section.id}`]
                                     "
                                     :brouillon="
-                                        getBrouillon(
-                                            `section_paragraphe_${para.id}`,
-                                        )
+                                        getBrouillon(`section_${section.id}`)
                                     "
                                     :est-reduit="
                                         !!commentairesReduits[
-                                            `section_paragraphe_${para.id}`
+                                            `section_${section.id}`
                                         ]
                                     "
                                     :is-saving="
                                         !!commentairesSaving[
-                                            `section_paragraphe_${para.id}`
+                                            `section_${section.id}`
                                         ]
                                     "
                                     :est-enseignant="estEnseignant"
                                     class="mt-3"
                                     @toggle="
                                         toggleCommentaire(
-                                            `section_paragraphe_${para.id}`,
+                                            `section_${section.id}`,
                                         )
                                     "
                                     @save="
                                         sauvegarderCommentaire(
-                                            `section_paragraphe_${para.id}`,
+                                            `section_${section.id}`,
                                         )
                                     "
                                     @delete="
                                         supprimerCommentaire(
-                                            `section_paragraphe_${para.id}`,
+                                            `section_${section.id}`,
                                         )
                                     "
                                     @update:brouillon="
                                         (v) =>
                                             setBrouillon(
-                                                `section_paragraphe_${para.id}`,
+                                                `section_${section.id}`,
                                                 v,
                                             )
                                     "
@@ -3212,1581 +3096,1881 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             </CardContent>
                         </Card>
 
-                        <div v-if="peutEditer" class="flex justify-center">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                :disabled="
-                                    !!sectionParagrapheEnCours[section.id]
-                                "
-                                @click="ajouterSectionParagraphe(section.id)"
+                        <!-- ── Type paragraphes : N sous-paragraphes ajoutables ───── -->
+                        <template v-else-if="section.type === 'paragraphes'">
+                            <Card
+                                v-for="para in sectionParagraphesLocaux[
+                                    section.id
+                                ] ?? []"
+                                :key="para.id"
                             >
-                                <Loader2
-                                    v-if="sectionParagrapheEnCours[section.id]"
-                                    class="mr-2 h-4 w-4 animate-spin"
-                                />
-                                <Plus v-else class="mr-2 h-4 w-4" />
-                                Ajouter un paragraphe — {{ section.label }}
-                            </Button>
-                        </div>
-                    </template>
-
-                    <!-- ── Type individuel : 1 zone par membre du groupe ─────── -->
-                    <template v-else-if="section.type === 'individuel'">
-                        <Card v-for="membre in props.membres" :key="membre.id">
-                            <CardHeader
-                                class="flex flex-row items-center justify-between"
-                            >
-                                <CardTitle class="flex items-center gap-2">
-                                    <span
-                                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary"
-                                    >
-                                        {{ membre.prenom[0]
-                                        }}{{ membre.nom[0] }}
-                                    </span>
-                                    {{ section.label }} — {{ membre.prenom }}
-                                    {{ membre.nom }}
-                                </CardTitle>
-                                <BoutonTooltip
-                                    :texte="
-                                        collapsedConclusion[
-                                            section.id * 10000 + membre.id
-                                        ]
-                                            ? 'Développer'
-                                            : 'Réduire'
-                                    "
-                                    @click="
-                                        toggleConclusion(
-                                            section.id * 10000 + membre.id,
-                                        )
-                                    "
+                                <CardHeader
+                                    class="flex flex-row items-center justify-between"
                                 >
-                                    <ChevronUp
-                                        v-if="
-                                            !collapsedConclusion[
-                                                section.id * 10000 + membre.id
-                                            ]
-                                        "
-                                        class="h-4 w-4"
-                                    />
-                                    <ChevronDown v-else class="h-4 w-4" />
-                                </BoutonTooltip>
-                            </CardHeader>
-                            <CardContent
-                                v-show="
-                                    !collapsedConclusion[
-                                        section.id * 10000 + membre.id
-                                    ]
-                                "
-                            >
-                                <template v-if="peutEditer">
-                                    <p
-                                        class="mb-2 text-xs text-muted-foreground"
-                                    >
-                                        N'importe quel membre peut rédiger la
-                                        partie d'un autre.
-                                    </p>
+                                    <CardTitle class="flex items-center gap-2">
+                                        <span
+                                            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary"
+                                        >
+                                            {{ para.ordre }}
+                                        </span>
+                                        <span
+                                            class="text-sm font-normal text-muted-foreground italic"
+                                        >
+                                            {{
+                                                para.titre ||
+                                                `${section.label} — paragraphe ${para.ordre}`
+                                            }}
+                                        </span>
+                                    </CardTitle>
+                                    <div class="flex items-center gap-1">
+                                        <BoutonTooltip
+                                            v-if="
+                                                peutEditer &&
+                                                (sectionParagraphesLocaux[
+                                                    section.id
+                                                ]?.length ?? 0) > 1
+                                            "
+                                            texte="Supprimer ce paragraphe"
+                                            size="icon-sm"
+                                            class="text-destructive"
+                                            :disabled="
+                                                !!sectionParagrapheEnCours[
+                                                    section.id
+                                                ]
+                                            "
+                                            @click="
+                                                supprimerSectionParagraphe(
+                                                    para.id,
+                                                    section.id,
+                                                )
+                                            "
+                                        >
+                                            <Trash2 class="h-4 w-4" />
+                                        </BoutonTooltip>
+                                        <BoutonTooltip
+                                            :texte="
+                                                collapsedDev[para.id]
+                                                    ? 'Développer'
+                                                    : 'Réduire'
+                                            "
+                                            @click="toggleDev(para.id)"
+                                        >
+                                            <ChevronUp
+                                                v-if="!collapsedDev[para.id]"
+                                                class="h-4 w-4"
+                                            />
+                                            <ChevronDown
+                                                v-else
+                                                class="h-4 w-4"
+                                            />
+                                        </BoutonTooltip>
+                                    </div>
+                                </CardHeader>
+                                <CardContent
+                                    v-show="!collapsedDev[para.id]"
+                                    class="space-y-2"
+                                >
+                                    <div v-if="peutEditer" class="mb-1">
+                                        <Label
+                                            class="text-xs text-muted-foreground"
+                                            >Titre du paragraphe</Label
+                                        >
+                                        <Input
+                                            :model-value="para.titre ?? ''"
+                                            :placeholder="`Titre du paragraphe ${para.ordre}`"
+                                            class="mt-1"
+                                            @update:model-value="
+                                                (val: string) => {
+                                                    para.titre = val;
+                                                    scheduleSectionParagrapheSave(
+                                                        para.id,
+                                                        section.id,
+                                                    );
+                                                }
+                                            "
+                                        />
+                                    </div>
                                     <RichEditor
-                                        :model-value="
-                                            sectionConclusionsLocales[
-                                                section.id
-                                            ]?.[membre.id] ?? ''
-                                        "
-                                        placeholder="Rédigez votre partie…"
+                                        :model-value="para.contenu ?? ''"
+                                        :placeholder="`Rédigez le contenu du paragraphe ${para.ordre}…`"
+                                        :read-only="!peutEditer"
                                         :est-enseignant="estEnseignant"
+                                        :corrections="
+                                            annotations[
+                                                `section_paragraphe_${para.id}`
+                                            ] ?? []
+                                        "
                                         :renvois="renvoisLocaux"
                                         :renvois-sync-version="
                                             renvoisSyncVersion
                                         "
-                                        :editor-id="`section-conclusion-${section.id}-${membre.id}`"
+                                        :editor-id="`section-paragraphe-${para.id}`"
+                                        :membres="membres"
                                         @update:model-value="
                                             (val: string) => {
-                                                if (
-                                                    !sectionConclusionsLocales[
-                                                        section.id
-                                                    ]
-                                                )
-                                                    sectionConclusionsLocales[
-                                                        section.id
-                                                    ] = {};
-                                                sectionConclusionsLocales[
-                                                    section.id
-                                                ][membre.id] = val;
-                                                scheduleSectionConclusionSave(
+                                                para.contenu = val;
+                                                scheduleSectionParagrapheSave(
+                                                    para.id,
                                                     section.id,
-                                                    membre.id,
                                                 );
                                             }
+                                        "
+                                        @save-annotation="
+                                            (p) =>
+                                                sauvegarderAnnotation(
+                                                    `section_paragraphe_${para.id}`,
+                                                    p,
+                                                )
+                                        "
+                                        @delete-annotation="
+                                            (p) =>
+                                                supprimerAnnotation(
+                                                    `section_paragraphe_${para.id}`,
+                                                    p,
+                                                )
                                         "
                                         @demander-renvoi="demanderRenvoi"
                                         @renvois-utilises="
                                             handleRenvoisUtilises
                                         "
                                     />
-                                </template>
-                                <template v-else>
-                                    <RichEditor
-                                        :model-value="
-                                            sectionConclusionsLocales[
-                                                section.id
-                                            ]?.[membre.id] ?? ''
+                                    <CommentaireEnseignant
+                                        :commentaire="
+                                            commentaires[
+                                                `section_paragraphe_${para.id}`
+                                            ]
                                         "
-                                        :read-only="true"
-                                        :est-enseignant="estEnseignant"
-                                        placeholder="Non rédigé"
-                                    />
-                                </template>
-                                <CommentaireEnseignant
-                                    :commentaire="
-                                        commentaires[
-                                            `section_individuel_${section.id}_${membre.id}`
-                                        ]
-                                    "
-                                    :brouillon="
-                                        getBrouillon(
-                                            `section_individuel_${section.id}_${membre.id}`,
-                                        )
-                                    "
-                                    :est-reduit="
-                                        !!commentairesReduits[
-                                            `section_individuel_${section.id}_${membre.id}`
-                                        ]
-                                    "
-                                    :is-saving="
-                                        !!commentairesSaving[
-                                            `section_individuel_${section.id}_${membre.id}`
-                                        ]
-                                    "
-                                    :est-enseignant="estEnseignant"
-                                    class="mt-3"
-                                    @toggle="
-                                        toggleCommentaire(
-                                            `section_individuel_${section.id}_${membre.id}`,
-                                        )
-                                    "
-                                    @save="
-                                        sauvegarderCommentaire(
-                                            `section_individuel_${section.id}_${membre.id}`,
-                                        )
-                                    "
-                                    @delete="
-                                        supprimerCommentaire(
-                                            `section_individuel_${section.id}_${membre.id}`,
-                                        )
-                                    "
-                                    @update:brouillon="
-                                        (v) =>
-                                            setBrouillon(
-                                                `section_individuel_${section.id}_${membre.id}`,
-                                                v,
+                                        :brouillon="
+                                            getBrouillon(
+                                                `section_paragraphe_${para.id}`,
                                             )
-                                    "
-                                />
-                            </CardContent>
-                        </Card>
-                    </template>
-
-                    <!-- ── Type entrevue DEP/Complet : concepts + tableau dim/indic/questions ── -->
-                    <template
-                        v-else-if="
-                            section.type === 'entrevue' &&
-                            cours.type_cours !== 'cours_complementaire'
-                        "
-                    >
-                        <!-- Compteur de questions -->
-                        <div class="mb-2 flex items-center justify-between">
-                            <span class="text-sm text-muted-foreground">
-                                Questions renseignées :
-                                <span
-                                    :class="
-                                        totalQuestions(section.id) >= 10
-                                            ? 'font-semibold text-green-600'
-                                            : 'font-semibold text-amber-500'
-                                    "
-                                >
-                                    {{ totalQuestions(section.id) }}
-                                </span>
-                                <span class="text-muted-foreground">
-                                    / 10 min.</span
-                                >
-                            </span>
-                        </div>
-
-                        <!-- Liste des concepts -->
-                        <Card
-                            v-for="concept in sectionConceptsLocaux[
-                                section.id
-                            ] ?? []"
-                            :key="concept.id"
-                        >
-                            <CardHeader
-                                class="group flex flex-row items-start justify-between gap-2 pb-2"
-                            >
-                                <div class="flex flex-1 items-center gap-2">
-                                    <span
-                                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary"
-                                    >
-                                        {{ concept.ordre }}
-                                    </span>
-                                    <input
-                                        v-if="peutEditer"
-                                        :value="concept.label"
-                                        class="flex-1 rounded border-0 bg-transparent text-sm font-medium outline-none focus:ring-1 focus:ring-ring"
-                                        placeholder="Nom du concept…"
-                                        @input="
-                                            (e) => {
-                                                concept.label = (
-                                                    e.target as HTMLInputElement
-                                                ).value;
-                                                scheduleConceptLabelSave(
-                                                    concept.id,
-                                                    section.id,
-                                                );
-                                            }
+                                        "
+                                        :est-reduit="
+                                            !!commentairesReduits[
+                                                `section_paragraphe_${para.id}`
+                                            ]
+                                        "
+                                        :is-saving="
+                                            !!commentairesSaving[
+                                                `section_paragraphe_${para.id}`
+                                            ]
+                                        "
+                                        :est-enseignant="estEnseignant"
+                                        class="mt-3"
+                                        @toggle="
+                                            toggleCommentaire(
+                                                `section_paragraphe_${para.id}`,
+                                            )
+                                        "
+                                        @save="
+                                            sauvegarderCommentaire(
+                                                `section_paragraphe_${para.id}`,
+                                            )
+                                        "
+                                        @delete="
+                                            supprimerCommentaire(
+                                                `section_paragraphe_${para.id}`,
+                                            )
+                                        "
+                                        @update:brouillon="
+                                            (v) =>
+                                                setBrouillon(
+                                                    `section_paragraphe_${para.id}`,
+                                                    v,
+                                                )
                                         "
                                     />
-                                    <span v-else class="text-sm font-medium">{{
-                                        concept.label
-                                    }}</span>
-                                </div>
-                                <BoutonTooltip
-                                    v-if="peutEditer"
-                                    texte="Supprimer ce concept"
-                                    class="size-7 shrink-0 text-destructive opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
-                                    :disabled="!!conceptEnCours[section.id]"
+                                </CardContent>
+                            </Card>
+
+                            <div v-if="peutEditer" class="flex justify-center">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    :disabled="
+                                        !!sectionParagrapheEnCours[section.id]
+                                    "
                                     @click="
-                                        supprimerConcept(concept.id, section.id)
+                                        ajouterSectionParagraphe(section.id)
                                     "
                                 >
-                                    <Trash2 class="h-3.5 w-3.5" />
-                                </BoutonTooltip>
-                            </CardHeader>
+                                    <Loader2
+                                        v-if="
+                                            sectionParagrapheEnCours[section.id]
+                                        "
+                                        class="mr-2 h-4 w-4 animate-spin"
+                                    />
+                                    <Plus v-else class="mr-2 h-4 w-4" />
+                                    Ajouter un paragraphe — {{ section.label }}
+                                </Button>
+                            </div>
+                        </template>
 
-                            <CardContent class="pt-0">
-                                <!-- Tableau lignes -->
-                                <table class="w-full text-sm">
-                                    <thead>
-                                        <tr
-                                            class="border-b text-xs text-muted-foreground"
+                        <!-- ── Type individuel : 1 zone par membre du groupe ─────── -->
+                        <template v-else-if="section.type === 'individuel'">
+                            <Card
+                                v-for="membre in props.membres"
+                                :key="membre.id"
+                            >
+                                <CardHeader
+                                    class="flex flex-row items-center justify-between"
+                                >
+                                    <CardTitle class="flex items-center gap-2">
+                                        <span
+                                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary"
                                         >
-                                            <th
-                                                class="pr-2 pb-1 text-left font-medium"
-                                            >
-                                                Dimension
-                                            </th>
-                                            <th
-                                                class="pr-2 pb-1 text-left font-medium"
-                                            >
-                                                Indicateur
-                                            </th>
-                                            <th
-                                                class="pb-1 text-left font-medium"
-                                            >
-                                                Questions spécifiques
-                                            </th>
-                                            <th v-if="peutEditer" class="w-8" />
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr
-                                            v-for="ligne in concept.lignes"
-                                            :key="ligne.id"
-                                            class="group align-top"
+                                            {{ membre.prenom[0]
+                                            }}{{ membre.nom[0] }}
+                                        </span>
+                                        {{ section.label }} —
+                                        {{ membre.prenom }}
+                                        {{ membre.nom }}
+                                    </CardTitle>
+                                    <BoutonTooltip
+                                        :texte="
+                                            collapsedConclusion[
+                                                section.id * 10000 + membre.id
+                                            ]
+                                                ? 'Développer'
+                                                : 'Réduire'
+                                        "
+                                        @click="
+                                            toggleConclusion(
+                                                section.id * 10000 + membre.id,
+                                            )
+                                        "
+                                    >
+                                        <ChevronUp
+                                            v-if="
+                                                !collapsedConclusion[
+                                                    section.id * 10000 +
+                                                        membre.id
+                                                ]
+                                            "
+                                            class="h-4 w-4"
+                                        />
+                                        <ChevronDown v-else class="h-4 w-4" />
+                                    </BoutonTooltip>
+                                </CardHeader>
+                                <CardContent
+                                    v-show="
+                                        !collapsedConclusion[
+                                            section.id * 10000 + membre.id
+                                        ]
+                                    "
+                                >
+                                    <template v-if="peutEditer">
+                                        <p
+                                            class="mb-2 text-xs text-muted-foreground"
                                         >
-                                            <!-- Dimension -->
-                                            <td class="py-1 pr-2 align-top">
-                                                <textarea
-                                                    v-if="peutEditer"
-                                                    :value="
-                                                        ligne.dimension ?? ''
-                                                    "
-                                                    rows="2"
-                                                    class="w-full resize-none rounded border border-input bg-transparent p-1 text-sm outline-none focus:ring-1 focus:ring-ring"
-                                                    placeholder="Dimension…"
-                                                    @input="
-                                                        (e) => {
-                                                            ligne.dimension = (
-                                                                e.target as HTMLTextAreaElement
-                                                            ).value;
-                                                            scheduleLigneSave(
-                                                                ligne.id,
-                                                                concept.id,
-                                                                section.id,
-                                                            );
-                                                        }
-                                                    "
-                                                />
-                                                <span
-                                                    v-else
-                                                    class="block whitespace-pre-wrap"
-                                                    >{{ ligne.dimension }}</span
+                                            N'importe quel membre peut rédiger
+                                            la partie d'un autre.
+                                        </p>
+                                        <RichEditor
+                                            :model-value="
+                                                sectionConclusionsLocales[
+                                                    section.id
+                                                ]?.[membre.id] ?? ''
+                                            "
+                                            placeholder="Rédigez votre partie…"
+                                            :est-enseignant="estEnseignant"
+                                            :renvois="renvoisLocaux"
+                                            :renvois-sync-version="
+                                                renvoisSyncVersion
+                                            "
+                                            :editor-id="`section-conclusion-${section.id}-${membre.id}`"
+                                            @update:model-value="
+                                                (val: string) => {
+                                                    if (
+                                                        !sectionConclusionsLocales[
+                                                            section.id
+                                                        ]
+                                                    )
+                                                        sectionConclusionsLocales[
+                                                            section.id
+                                                        ] = {};
+                                                    sectionConclusionsLocales[
+                                                        section.id
+                                                    ][membre.id] = val;
+                                                    scheduleSectionConclusionSave(
+                                                        section.id,
+                                                        membre.id,
+                                                    );
+                                                }
+                                            "
+                                            @demander-renvoi="demanderRenvoi"
+                                            @renvois-utilises="
+                                                handleRenvoisUtilises
+                                            "
+                                        />
+                                    </template>
+                                    <template v-else>
+                                        <RichEditor
+                                            :model-value="
+                                                sectionConclusionsLocales[
+                                                    section.id
+                                                ]?.[membre.id] ?? ''
+                                            "
+                                            :read-only="true"
+                                            :est-enseignant="estEnseignant"
+                                            placeholder="Non rédigé"
+                                        />
+                                    </template>
+                                    <CommentaireEnseignant
+                                        :commentaire="
+                                            commentaires[
+                                                `section_individuel_${section.id}_${membre.id}`
+                                            ]
+                                        "
+                                        :brouillon="
+                                            getBrouillon(
+                                                `section_individuel_${section.id}_${membre.id}`,
+                                            )
+                                        "
+                                        :est-reduit="
+                                            !!commentairesReduits[
+                                                `section_individuel_${section.id}_${membre.id}`
+                                            ]
+                                        "
+                                        :is-saving="
+                                            !!commentairesSaving[
+                                                `section_individuel_${section.id}_${membre.id}`
+                                            ]
+                                        "
+                                        :est-enseignant="estEnseignant"
+                                        class="mt-3"
+                                        @toggle="
+                                            toggleCommentaire(
+                                                `section_individuel_${section.id}_${membre.id}`,
+                                            )
+                                        "
+                                        @save="
+                                            sauvegarderCommentaire(
+                                                `section_individuel_${section.id}_${membre.id}`,
+                                            )
+                                        "
+                                        @delete="
+                                            supprimerCommentaire(
+                                                `section_individuel_${section.id}_${membre.id}`,
+                                            )
+                                        "
+                                        @update:brouillon="
+                                            (v) =>
+                                                setBrouillon(
+                                                    `section_individuel_${section.id}_${membre.id}`,
+                                                    v,
+                                                )
+                                        "
+                                    />
+                                </CardContent>
+                            </Card>
+                        </template>
+
+                        <!-- ── Type entrevue DEP/Complet : concepts + tableau dim/indic/questions ── -->
+                        <template
+                            v-else-if="
+                                section.type === 'entrevue' &&
+                                cours.type_cours !== 'cours_complementaire'
+                            "
+                        >
+                            <!-- Compteur de questions -->
+                            <div class="mb-2 flex items-center justify-between">
+                                <span class="text-sm text-muted-foreground">
+                                    Questions renseignées :
+                                    <span
+                                        :class="
+                                            totalQuestions(section.id) >= 10
+                                                ? 'font-semibold text-green-600'
+                                                : 'font-semibold text-amber-500'
+                                        "
+                                    >
+                                        {{ totalQuestions(section.id) }}
+                                    </span>
+                                    <span class="text-muted-foreground">
+                                        / 10 min.</span
+                                    >
+                                </span>
+                            </div>
+
+                            <!-- Liste des concepts -->
+                            <Card
+                                v-for="concept in sectionConceptsLocaux[
+                                    section.id
+                                ] ?? []"
+                                :key="concept.id"
+                            >
+                                <CardHeader
+                                    class="group flex flex-row items-start justify-between gap-2 pb-2"
+                                >
+                                    <div class="flex flex-1 items-center gap-2">
+                                        <span
+                                            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary"
+                                        >
+                                            {{ concept.ordre }}
+                                        </span>
+                                        <input
+                                            v-if="peutEditer"
+                                            :value="concept.label"
+                                            class="flex-1 rounded border-0 bg-transparent text-sm font-medium outline-none focus:ring-1 focus:ring-ring"
+                                            placeholder="Nom du concept…"
+                                            @input="
+                                                (e) => {
+                                                    concept.label = (
+                                                        e.target as HTMLInputElement
+                                                    ).value;
+                                                    scheduleConceptLabelSave(
+                                                        concept.id,
+                                                        section.id,
+                                                    );
+                                                }
+                                            "
+                                        />
+                                        <span
+                                            v-else
+                                            class="text-sm font-medium"
+                                            >{{ concept.label }}</span
+                                        >
+                                    </div>
+                                    <BoutonTooltip
+                                        v-if="peutEditer"
+                                        texte="Supprimer ce concept"
+                                        class="size-7 shrink-0 text-destructive opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+                                        :disabled="!!conceptEnCours[section.id]"
+                                        @click="
+                                            supprimerConcept(
+                                                concept.id,
+                                                section.id,
+                                            )
+                                        "
+                                    >
+                                        <Trash2 class="h-3.5 w-3.5" />
+                                    </BoutonTooltip>
+                                </CardHeader>
+
+                                <CardContent class="pt-0">
+                                    <!-- Tableau lignes -->
+                                    <table class="w-full text-sm">
+                                        <thead>
+                                            <tr
+                                                class="border-b text-xs text-muted-foreground"
+                                            >
+                                                <th
+                                                    class="pr-2 pb-1 text-left font-medium"
                                                 >
-                                            </td>
-                                            <!-- Indicateur -->
-                                            <td class="py-1 pr-2 align-top">
-                                                <textarea
-                                                    v-if="peutEditer"
-                                                    :value="
-                                                        ligne.indicateur ?? ''
-                                                    "
-                                                    rows="2"
-                                                    class="w-full resize-none rounded border border-input bg-transparent p-1 text-sm outline-none focus:ring-1 focus:ring-ring"
-                                                    placeholder="Indicateur…"
-                                                    @input="
-                                                        (e) => {
-                                                            ligne.indicateur = (
-                                                                e.target as HTMLTextAreaElement
-                                                            ).value;
-                                                            scheduleLigneSave(
-                                                                ligne.id,
-                                                                concept.id,
-                                                                section.id,
-                                                            );
-                                                        }
-                                                    "
-                                                />
-                                                <span
-                                                    v-else
-                                                    class="block whitespace-pre-wrap"
-                                                    >{{
-                                                        ligne.indicateur
-                                                    }}</span
+                                                    Dimension
+                                                </th>
+                                                <th
+                                                    class="pr-2 pb-1 text-left font-medium"
                                                 >
-                                            </td>
-                                            <!-- Questions -->
-                                            <td class="py-1 align-top">
-                                                <div class="space-y-1">
-                                                    <div
-                                                        v-for="(
-                                                            q, qi
-                                                        ) in ligne.questions"
-                                                        :key="qi"
-                                                        class="group/q flex items-start gap-1"
-                                                    >
-                                                        <span
-                                                            class="mt-1.5 shrink-0 text-xs text-muted-foreground"
-                                                            >{{ qi + 1 }}.</span
-                                                        >
-                                                        <input
-                                                            v-if="peutEditer"
-                                                            :value="q"
-                                                            class="flex-1 rounded border border-input bg-transparent p-1 text-sm outline-none focus:ring-1 focus:ring-ring"
-                                                            placeholder="Question…"
-                                                            @input="
-                                                                (e) => {
-                                                                    ligne.questions[
-                                                                        qi
-                                                                    ] = (
-                                                                        e.target as HTMLInputElement
+                                                    Indicateur
+                                                </th>
+                                                <th
+                                                    class="pb-1 text-left font-medium"
+                                                >
+                                                    Questions spécifiques
+                                                </th>
+                                                <th
+                                                    v-if="peutEditer"
+                                                    class="w-8"
+                                                />
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr
+                                                v-for="ligne in concept.lignes"
+                                                :key="ligne.id"
+                                                class="group align-top"
+                                            >
+                                                <!-- Dimension -->
+                                                <td class="py-1 pr-2 align-top">
+                                                    <textarea
+                                                        v-if="peutEditer"
+                                                        :value="
+                                                            ligne.dimension ??
+                                                            ''
+                                                        "
+                                                        rows="2"
+                                                        class="w-full resize-none rounded border border-input bg-transparent p-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+                                                        placeholder="Dimension…"
+                                                        @input="
+                                                            (e) => {
+                                                                ligne.dimension =
+                                                                    (
+                                                                        e.target as HTMLTextAreaElement
                                                                     ).value;
-                                                                    scheduleLigneSave(
-                                                                        ligne.id,
+                                                                scheduleLigneSave(
+                                                                    ligne.id,
+                                                                    concept.id,
+                                                                    section.id,
+                                                                );
+                                                            }
+                                                        "
+                                                    />
+                                                    <span
+                                                        v-else
+                                                        class="block whitespace-pre-wrap"
+                                                        >{{
+                                                            ligne.dimension
+                                                        }}</span
+                                                    >
+                                                </td>
+                                                <!-- Indicateur -->
+                                                <td class="py-1 pr-2 align-top">
+                                                    <textarea
+                                                        v-if="peutEditer"
+                                                        :value="
+                                                            ligne.indicateur ??
+                                                            ''
+                                                        "
+                                                        rows="2"
+                                                        class="w-full resize-none rounded border border-input bg-transparent p-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+                                                        placeholder="Indicateur…"
+                                                        @input="
+                                                            (e) => {
+                                                                ligne.indicateur =
+                                                                    (
+                                                                        e.target as HTMLTextAreaElement
+                                                                    ).value;
+                                                                scheduleLigneSave(
+                                                                    ligne.id,
+                                                                    concept.id,
+                                                                    section.id,
+                                                                );
+                                                            }
+                                                        "
+                                                    />
+                                                    <span
+                                                        v-else
+                                                        class="block whitespace-pre-wrap"
+                                                        >{{
+                                                            ligne.indicateur
+                                                        }}</span
+                                                    >
+                                                </td>
+                                                <!-- Questions -->
+                                                <td class="py-1 align-top">
+                                                    <div class="space-y-1">
+                                                        <div
+                                                            v-for="(
+                                                                q, qi
+                                                            ) in ligne.questions"
+                                                            :key="qi"
+                                                            class="group/q flex items-start gap-1"
+                                                        >
+                                                            <span
+                                                                class="mt-1.5 shrink-0 text-xs text-muted-foreground"
+                                                                >{{
+                                                                    qi + 1
+                                                                }}.</span
+                                                            >
+                                                            <input
+                                                                v-if="
+                                                                    peutEditer
+                                                                "
+                                                                :value="q"
+                                                                class="flex-1 rounded border border-input bg-transparent p-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+                                                                placeholder="Question…"
+                                                                @input="
+                                                                    (e) => {
+                                                                        ligne.questions[
+                                                                            qi
+                                                                        ] = (
+                                                                            e.target as HTMLInputElement
+                                                                        ).value;
+                                                                        scheduleLigneSave(
+                                                                            ligne.id,
+                                                                            concept.id,
+                                                                            section.id,
+                                                                        );
+                                                                    }
+                                                                "
+                                                            />
+                                                            <span
+                                                                v-else
+                                                                class="flex-1"
+                                                                >{{ q }}</span
+                                                            >
+                                                            <BoutonTooltip
+                                                                v-if="
+                                                                    peutEditer
+                                                                "
+                                                                texte="Supprimer cette question"
+                                                                class="size-6 shrink-0 text-destructive opacity-0 transition-opacity group-focus-within/q:opacity-100 group-hover/q:opacity-100"
+                                                                @click="
+                                                                    supprimerQuestion(
+                                                                        ligne,
+                                                                        qi,
                                                                         concept.id,
                                                                         section.id,
-                                                                    );
-                                                                }
-                                                            "
-                                                        />
-                                                        <span
-                                                            v-else
-                                                            class="flex-1"
-                                                            >{{ q }}</span
-                                                        >
-                                                        <BoutonTooltip
+                                                                    )
+                                                                "
+                                                            >
+                                                                <Trash2
+                                                                    class="h-3 w-3"
+                                                                />
+                                                            </BoutonTooltip>
+                                                        </div>
+                                                        <Button
                                                             v-if="peutEditer"
-                                                            texte="Supprimer cette question"
-                                                            class="size-6 shrink-0 text-destructive opacity-0 transition-opacity group-focus-within/q:opacity-100 group-hover/q:opacity-100"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            class="h-6 gap-1 text-xs"
                                                             @click="
-                                                                supprimerQuestion(
+                                                                ajouterQuestion(
                                                                     ligne,
-                                                                    qi,
                                                                     concept.id,
                                                                     section.id,
                                                                 )
                                                             "
                                                         >
-                                                            <Trash2
+                                                            <Plus
                                                                 class="h-3 w-3"
                                                             />
-                                                        </BoutonTooltip>
+                                                            Ajouter une question
+                                                        </Button>
+                                                        <p
+                                                            v-else-if="
+                                                                !ligne.questions
+                                                                    ?.length
+                                                            "
+                                                            class="text-xs text-muted-foreground italic"
+                                                        >
+                                                            Aucune question
+                                                        </p>
                                                     </div>
-                                                    <Button
-                                                        v-if="peutEditer"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        class="h-6 gap-1 text-xs"
+                                                </td>
+                                                <!-- Supprimer ligne -->
+                                                <td
+                                                    v-if="peutEditer"
+                                                    class="py-1 pl-1 align-top"
+                                                >
+                                                    <BoutonTooltip
+                                                        texte="Supprimer cette ligne"
+                                                        class="size-7 text-muted-foreground opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:text-destructive"
                                                         @click="
-                                                            ajouterQuestion(
-                                                                ligne,
+                                                            supprimerLigne(
+                                                                ligne.id,
                                                                 concept.id,
                                                                 section.id,
                                                             )
                                                         "
                                                     >
-                                                        <Plus class="h-3 w-3" />
-                                                        Ajouter une question
-                                                    </Button>
-                                                    <p
-                                                        v-else-if="
-                                                            !ligne.questions
-                                                                ?.length
-                                                        "
-                                                        class="text-xs text-muted-foreground italic"
-                                                    >
-                                                        Aucune question
-                                                    </p>
-                                                </div>
-                                            </td>
-                                            <!-- Supprimer ligne -->
-                                            <td
-                                                v-if="peutEditer"
-                                                class="py-1 pl-1 align-top"
-                                            >
-                                                <BoutonTooltip
-                                                    texte="Supprimer cette ligne"
-                                                    class="size-7 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-focus-within:opacity-100 group-hover:opacity-100"
-                                                    @click="
-                                                        supprimerLigne(
-                                                            ligne.id,
-                                                            concept.id,
-                                                            section.id,
-                                                        )
-                                                    "
-                                                >
-                                                    <Trash2
-                                                        class="h-3.5 w-3.5"
-                                                    />
-                                                </BoutonTooltip>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                                        <Trash2
+                                                            class="h-3.5 w-3.5"
+                                                        />
+                                                    </BoutonTooltip>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
 
-                                <!-- Bouton ajouter ligne -->
+                                    <!-- Bouton ajouter ligne -->
+                                    <Button
+                                        v-if="peutEditer"
+                                        variant="outline"
+                                        size="sm"
+                                        class="mt-2 gap-1 text-xs"
+                                        @click="
+                                            ajouterLigne(concept.id, section.id)
+                                        "
+                                    >
+                                        <Plus class="h-3 w-3" />
+                                        Ajouter une ligne
+                                    </Button>
+                                </CardContent>
+                            </Card>
+
+                            <!-- Bouton ajouter concept -->
+                            <div v-if="peutEditer" class="flex justify-center">
                                 <Button
-                                    v-if="peutEditer"
                                     variant="outline"
                                     size="sm"
-                                    class="mt-2 gap-1 text-xs"
-                                    @click="
-                                        ajouterLigne(concept.id, section.id)
-                                    "
+                                    :disabled="!!conceptEnCours[section.id]"
+                                    @click="ajouterConcept(section.id)"
                                 >
-                                    <Plus class="h-3 w-3" />
-                                    Ajouter une ligne
+                                    <Loader2
+                                        v-if="conceptEnCours[section.id]"
+                                        class="mr-2 h-4 w-4 animate-spin"
+                                    />
+                                    <Plus v-else class="mr-2 h-4 w-4" />
+                                    Ajouter un concept — {{ section.label }}
                                 </Button>
+                            </div>
+                        </template>
+
+                        <!-- ── Type vidéo : lecteur + upload de vidéos ───────────── -->
+                        <Card v-else-if="section.type === 'video'">
+                            <CardHeader>
+                                <CardTitle class="flex flex-col gap-0.5">
+                                    <span class="text-base font-semibold">{{
+                                        section.label
+                                    }}</span>
+                                    <span
+                                        v-if="section.description"
+                                        class="text-sm font-normal text-muted-foreground"
+                                    >
+                                        {{ section.description }}
+                                    </span>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <SectionVideo
+                                    :params="{
+                                        cours: classe.cours_id,
+                                        classe: classe.id,
+                                        groupe: groupe.id,
+                                        typeProjet: typeProjet.id,
+                                        section: section.id,
+                                    }"
+                                    :medias="section.medias ?? []"
+                                    :readonly="!peutEditer"
+                                />
                             </CardContent>
                         </Card>
 
-                        <!-- Bouton ajouter concept -->
-                        <div v-if="peutEditer" class="flex justify-center">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                :disabled="!!conceptEnCours[section.id]"
-                                @click="ajouterConcept(section.id)"
-                            >
-                                <Loader2
-                                    v-if="conceptEnCours[section.id]"
-                                    class="mr-2 h-4 w-4 animate-spin"
-                                />
-                                <Plus v-else class="mr-2 h-4 w-4" />
-                                Ajouter un concept — {{ section.label }}
-                            </Button>
-                        </div>
-                    </template>
-
-                    <!-- ── Type vidéo : lecteur + upload de vidéos ───────────── -->
-                    <Card v-else-if="section.type === 'video'">
-                        <CardHeader>
-                            <CardTitle class="flex flex-col gap-0.5">
-                                <span class="text-base font-semibold">{{
-                                    section.label
-                                }}</span>
-                                <span
-                                    v-if="section.description"
-                                    class="text-sm font-normal text-muted-foreground"
-                                >
-                                    {{ section.description }}
-                                </span>
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <SectionVideo
-                                :params="{
-                                    cours: classe.cours_id,
-                                    classe: classe.id,
-                                    groupe: groupe.id,
-                                    typeProjet: typeProjet.id,
-                                    section: section.id,
-                                }"
-                                :medias="section.medias ?? []"
-                                :readonly="!peutEditer"
-                            />
-                        </CardContent>
-                    </Card>
-
-                    <!-- ── Type entrevue CC : question principale + sous-questions ─ -->
-                    <Card
-                        v-else-if="
-                            section.type === 'entrevue' &&
-                            cours.type_cours === 'cours_complementaire'
-                        "
-                    >
-                        <CardHeader>
-                            <CardTitle class="text-base font-semibold">{{
-                                section.label
-                            }}</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <SectionEntrevueCC
-                                :params="{
-                                    cours: classe.cours_id,
-                                    classe: classe.id,
-                                    groupe: groupe.id,
-                                    typeProjet: typeProjet.id,
-                                    section: section.id,
-                                }"
-                                :concepts="section.concepts ?? []"
-                                :readonly="!peutEditer"
-                            />
-                        </CardContent>
-                    </Card>
-
-                    <!-- ── Type audio : lecteur + upload d'audios ────────────── -->
-                    <Card v-else-if="section.type === 'audio'">
-                        <CardHeader>
-                            <CardTitle class="flex flex-col gap-0.5">
-                                <span class="text-base font-semibold">{{
-                                    section.label
-                                }}</span>
-                                <span
-                                    v-if="section.description"
-                                    class="text-sm font-normal text-muted-foreground"
-                                >
-                                    {{ section.description }}
-                                </span>
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <SectionAudio
-                                :params="{
-                                    cours: classe.cours_id,
-                                    classe: classe.id,
-                                    groupe: groupe.id,
-                                    typeProjet: typeProjet.id,
-                                    section: section.id,
-                                }"
-                                :medias="section.medias ?? []"
-                                :readonly="!peutEditer"
-                            />
-                        </CardContent>
-                    </Card>
-
-                    <!-- ── Type choix_questions : sélection de questions dans la banque ─ -->
-                    <Card v-else-if="section.type === 'choix_questions'">
-                        <CardHeader>
-                            <CardTitle class="flex flex-col gap-0.5">
-                                <span class="text-base font-semibold">{{
-                                    section.label
-                                }}</span>
-                                <span
-                                    v-if="section.description"
-                                    class="text-sm font-normal text-muted-foreground"
-                                >
-                                    {{ section.description }}
-                                </span>
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <SectionChoixQuestions
-                                :params="{
-                                    cours: classe.cours_id,
-                                    classe: classe.id,
-                                    groupe: groupe.id,
-                                    typeProjet: typeProjet.id,
-                                    section: section.id,
-                                }"
-                                :questions="section.questions ?? []"
-                                :questions-choisies="
-                                    section.questionsChoisies ?? []
-                                "
-                                :readonly="!peutEditer"
-                            />
-                        </CardContent>
-                    </Card>
-
-                    <!-- ── Type tache : liste de tâches assignables ───────────── -->
-                    <Card v-else-if="section.type === 'tache'">
-                        <CardHeader>
-                            <CardTitle class="flex flex-col gap-0.5">
-                                <span class="text-base font-semibold">{{
-                                    section.label
-                                }}</span>
-                                <span
-                                    v-if="section.description"
-                                    class="text-sm font-normal text-muted-foreground"
-                                >
-                                    {{ section.description }}
-                                </span>
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <SectionTache
-                                :params="{
-                                    cours: classe.cours_id,
-                                    classe: classe.id,
-                                    groupe: groupe.id,
-                                    typeProjet: typeProjet.id,
-                                }"
-                                :taches="section.taches ?? []"
-                                :membres="membres"
-                                :readonly="!peutEditer"
-                            />
-                        </CardContent>
-                    </Card>
-
-                    <!-- ── Type schema_visuel : schéma DEP drag-and-drop ─────── -->
-                    <Card v-else-if="section.type === 'schema_visuel'">
-                        <CardHeader>
-                            <CardTitle class="flex flex-col gap-0.5">
-                                <span class="text-base font-semibold">{{
-                                    section.label
-                                }}</span>
-                                <span
-                                    v-if="section.description"
-                                    class="text-sm font-normal text-muted-foreground"
-                                >
-                                    {{ section.description }}
-                                </span>
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <SectionSchemaVisuel
-                                :params="{
-                                    cours: classe.cours_id,
-                                    classe: classe.id,
-                                    groupe: groupe.id,
-                                    typeProjet: typeProjet.id,
-                                    section: section.id,
-                                }"
-                                :schema-visuel="section.schemaVisuel"
-                                :read-only="!peutEditer"
-                            />
-                        </CardContent>
-                    </Card>
-                </template>
-            </template>
-
-            <!-- ─── Introduction (fallback si aucune section définie) ──────── -->
-            <template v-else>
-                <!-- ─── Introduction ───────────────────────────────────────────── -->
-                <Card>
-                    <CardHeader
-                        class="flex flex-row items-center justify-between"
-                    >
-                        <CardTitle class="text-base font-semibold">{{
-                            t('projets.show.introduction')
-                        }}</CardTitle>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            @click="toggleSection('introduction')"
+                        <!-- ── Type entrevue CC : question principale + sous-questions ─ -->
+                        <Card
+                            v-else-if="
+                                section.type === 'entrevue' &&
+                                cours.type_cours === 'cours_complementaire'
+                            "
                         >
-                            <ChevronUp
-                                v-if="!collapsed.introduction"
-                                class="h-4 w-4"
-                            />
-                            <ChevronDown v-else class="h-4 w-4" />
-                        </Button>
-                    </CardHeader>
-                    <CardContent
-                        v-show="!collapsed.introduction"
-                        class="space-y-4"
-                    >
-                        <div class="flex border-b">
-                            <button
-                                v-for="tab in [
-                                    'amener',
-                                    'poser',
-                                    'diviser',
-                                ] as const"
-                                :key="tab"
-                                type="button"
-                                class="border-b-2 px-4 py-2 text-sm font-medium capitalize transition-colors"
-                                :class="
-                                    introTab === tab
-                                        ? 'border-primary text-primary'
-                                        : 'border-transparent text-muted-foreground hover:text-foreground'
-                                "
-                                @click="introTab = tab"
-                            >
-                                {{ tab.charAt(0).toUpperCase() + tab.slice(1) }}
-                            </button>
-                        </div>
+                            <CardHeader>
+                                <CardTitle class="text-base font-semibold">{{
+                                    section.label
+                                }}</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <SectionEntrevueCC
+                                    :params="{
+                                        cours: classe.cours_id,
+                                        classe: classe.id,
+                                        groupe: groupe.id,
+                                        typeProjet: typeProjet.id,
+                                        section: section.id,
+                                    }"
+                                    :concepts="section.concepts ?? []"
+                                    :readonly="!peutEditer"
+                                />
+                            </CardContent>
+                        </Card>
 
-                        <!-- Amener -->
-                        <div v-show="introTab === 'amener'">
-                            <p class="mb-2 text-xs text-muted-foreground">
-                                {{ t('projets.show.amener_hint') }}
-                            </p>
-                            <RichEditor
-                                v-model="form.introduction_amener"
-                                placeholder="Amener le sujet…"
-                                :read-only="!peutEditer"
-                                :est-enseignant="estEnseignant"
-                                :corrections="
-                                    annotations['introduction_amener'] ?? []
-                                "
-                                :renvois="renvoisLocaux"
-                                :renvois-sync-version="renvoisSyncVersion"
-                                editor-id="introduction-amener"
-                                :membres="membres"
-                                @save-annotation="
-                                    (p) =>
-                                        sauvegarderAnnotation(
-                                            'introduction_amener',
-                                            p,
-                                        )
-                                "
-                                @delete-annotation="
-                                    (p) =>
-                                        supprimerAnnotation(
-                                            'introduction_amener',
-                                            p,
-                                        )
-                                "
-                                @demander-renvoi="demanderRenvoi"
-                                @renvois-utilises="handleRenvoisUtilises"
-                            />
-                            <CommentaireEnseignant
-                                :commentaire="
-                                    commentaires['introduction_amener']
-                                "
-                                :brouillon="getBrouillon('introduction_amener')"
-                                :est-reduit="
-                                    !!commentairesReduits['introduction_amener']
-                                "
-                                :is-saving="
-                                    !!commentairesSaving['introduction_amener']
-                                "
-                                :est-enseignant="estEnseignant"
-                                class="mt-3"
-                                @toggle="
-                                    toggleCommentaire('introduction_amener')
-                                "
-                                @save="
-                                    sauvegarderCommentaire(
-                                        'introduction_amener',
-                                    )
-                                "
-                                @delete="
-                                    supprimerCommentaire('introduction_amener')
-                                "
-                                @update:brouillon="
-                                    (v) =>
-                                        setBrouillon('introduction_amener', v)
-                                "
-                            />
-                        </div>
+                        <!-- ── Type audio : lecteur + upload d'audios ────────────── -->
+                        <Card v-else-if="section.type === 'audio'">
+                            <CardHeader>
+                                <CardTitle class="flex flex-col gap-0.5">
+                                    <span class="text-base font-semibold">{{
+                                        section.label
+                                    }}</span>
+                                    <span
+                                        v-if="section.description"
+                                        class="text-sm font-normal text-muted-foreground"
+                                    >
+                                        {{ section.description }}
+                                    </span>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <SectionAudio
+                                    :params="{
+                                        cours: classe.cours_id,
+                                        classe: classe.id,
+                                        groupe: groupe.id,
+                                        typeProjet: typeProjet.id,
+                                        section: section.id,
+                                    }"
+                                    :medias="section.medias ?? []"
+                                    :readonly="!peutEditer"
+                                />
+                            </CardContent>
+                        </Card>
 
-                        <!-- Poser -->
-                        <div v-show="introTab === 'poser'">
-                            <p class="mb-2 text-xs text-muted-foreground">
-                                {{ t('projets.show.poser_hint') }}
-                            </p>
-                            <RichEditor
-                                v-model="form.introduction_poser"
-                                placeholder="Poser le sujet…"
-                                :read-only="!peutEditer"
-                                :est-enseignant="estEnseignant"
-                                :corrections="
-                                    annotations['introduction_poser'] ?? []
-                                "
-                                :renvois="renvoisLocaux"
-                                :renvois-sync-version="renvoisSyncVersion"
-                                editor-id="introduction-poser"
-                                :membres="membres"
-                                @save-annotation="
-                                    (p) =>
-                                        sauvegarderAnnotation(
-                                            'introduction_poser',
-                                            p,
-                                        )
-                                "
-                                @delete-annotation="
-                                    (p) =>
-                                        supprimerAnnotation(
-                                            'introduction_poser',
-                                            p,
-                                        )
-                                "
-                                @demander-renvoi="demanderRenvoi"
-                                @renvois-utilises="handleRenvoisUtilises"
-                            />
-                            <CommentaireEnseignant
-                                :commentaire="
-                                    commentaires['introduction_poser']
-                                "
-                                :brouillon="getBrouillon('introduction_poser')"
-                                :est-reduit="
-                                    !!commentairesReduits['introduction_poser']
-                                "
-                                :is-saving="
-                                    !!commentairesSaving['introduction_poser']
-                                "
-                                :est-enseignant="estEnseignant"
-                                class="mt-3"
-                                @toggle="
-                                    toggleCommentaire('introduction_poser')
-                                "
-                                @save="
-                                    sauvegarderCommentaire('introduction_poser')
-                                "
-                                @delete="
-                                    supprimerCommentaire('introduction_poser')
-                                "
-                                @update:brouillon="
-                                    (v) => setBrouillon('introduction_poser', v)
-                                "
-                            />
-                        </div>
+                        <!-- ── Type choix_questions : sélection de questions dans la banque ─ -->
+                        <Card v-else-if="section.type === 'choix_questions'">
+                            <CardHeader>
+                                <CardTitle class="flex flex-col gap-0.5">
+                                    <span class="text-base font-semibold">{{
+                                        section.label
+                                    }}</span>
+                                    <span
+                                        v-if="section.description"
+                                        class="text-sm font-normal text-muted-foreground"
+                                    >
+                                        {{ section.description }}
+                                    </span>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <SectionChoixQuestions
+                                    :params="{
+                                        cours: classe.cours_id,
+                                        classe: classe.id,
+                                        groupe: groupe.id,
+                                        typeProjet: typeProjet.id,
+                                        section: section.id,
+                                    }"
+                                    :questions="section.questions ?? []"
+                                    :questions-choisies="
+                                        section.questionsChoisies ?? []
+                                    "
+                                    :readonly="!peutEditer"
+                                />
+                            </CardContent>
+                        </Card>
 
-                        <!-- Diviser -->
-                        <div v-show="introTab === 'diviser'">
-                            <p class="mb-2 text-xs text-muted-foreground">
-                                {{ t('projets.show.diviser_hint') }}
-                            </p>
-                            <RichEditor
-                                v-model="form.introduction_diviser"
-                                placeholder="Diviser le sujet…"
-                                :read-only="!peutEditer"
-                                :est-enseignant="estEnseignant"
-                                :corrections="
-                                    annotations['introduction_diviser'] ?? []
-                                "
-                                :renvois="renvoisLocaux"
-                                :renvois-sync-version="renvoisSyncVersion"
-                                editor-id="introduction-diviser"
-                                :membres="membres"
-                                @save-annotation="
-                                    (p) =>
-                                        sauvegarderAnnotation(
-                                            'introduction_diviser',
-                                            p,
-                                        )
-                                "
-                                @delete-annotation="
-                                    (p) =>
-                                        supprimerAnnotation(
-                                            'introduction_diviser',
-                                            p,
-                                        )
-                                "
-                                @demander-renvoi="demanderRenvoi"
-                                @renvois-utilises="handleRenvoisUtilises"
-                            />
-                            <CommentaireEnseignant
-                                :commentaire="
-                                    commentaires['introduction_diviser']
-                                "
-                                :brouillon="
-                                    getBrouillon('introduction_diviser')
-                                "
-                                :est-reduit="
-                                    !!commentairesReduits[
-                                        'introduction_diviser'
-                                    ]
-                                "
-                                :is-saving="
-                                    !!commentairesSaving['introduction_diviser']
-                                "
-                                :est-enseignant="estEnseignant"
-                                class="mt-3"
-                                @toggle="
-                                    toggleCommentaire('introduction_diviser')
-                                "
-                                @save="
-                                    sauvegarderCommentaire(
-                                        'introduction_diviser',
-                                    )
-                                "
-                                @delete="
-                                    supprimerCommentaire('introduction_diviser')
-                                "
-                                @update:brouillon="
-                                    (v) =>
-                                        setBrouillon('introduction_diviser', v)
-                                "
-                            />
-                        </div>
-                    </CardContent>
-                </Card> </template
-            ><!-- /v-else intro fallback -->
+                        <!-- ── Type tache : liste de tâches assignables ───────────── -->
+                        <Card v-else-if="section.type === 'tache'">
+                            <CardHeader>
+                                <CardTitle class="flex flex-col gap-0.5">
+                                    <span class="text-base font-semibold">{{
+                                        section.label
+                                    }}</span>
+                                    <span
+                                        v-if="section.description"
+                                        class="text-sm font-normal text-muted-foreground"
+                                    >
+                                        {{ section.description }}
+                                    </span>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <SectionTache
+                                    :params="{
+                                        cours: classe.cours_id,
+                                        classe: classe.id,
+                                        groupe: groupe.id,
+                                        typeProjet: typeProjet.id,
+                                    }"
+                                    :taches="section.taches ?? []"
+                                    :membres="membres"
+                                    :readonly="!peutEditer"
+                                />
+                            </CardContent>
+                        </Card>
 
-            <!-- ─── Paragraphes de développement (legacy — masqué si sections dynamiques) ── -->
-            <template v-if="sections.length === 0">
-                <Card v-for="dev in developpements" :key="dev.id">
-                    <CardHeader
-                        class="flex flex-row items-center justify-between"
-                    >
-                        <CardTitle class="flex items-center gap-2">
-                            <span
-                                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary"
-                                >{{ dev.ordre }}</span
-                            >
-                            <span
-                                class="text-sm font-normal text-muted-foreground italic"
-                            >
-                                {{
-                                    dev.titre ||
-                                    t('projets.show.dev_paragraph', {
-                                        n: dev.ordre,
-                                    })
-                                }}
-                            </span>
-                        </CardTitle>
-                        <div class="flex items-center gap-1">
-                            <BoutonTooltip
-                                v-if="peutEditer && developpements.length > 1"
-                                :texte="t('projets.show.delete_paragraph')"
-                                size="icon-sm"
-                                class="text-destructive"
-                                :disabled="devEnCours"
-                                @click="supprimerDev(dev.id)"
-                            >
-                                <Trash2 class="h-4 w-4" />
-                            </BoutonTooltip>
-                            <BoutonTooltip
-                                :texte="
-                                    collapsedDev[dev.id]
-                                        ? 'Développer'
-                                        : 'Réduire'
-                                "
-                                @click="toggleDev(dev.id)"
+                        <!-- ── Type schema_visuel : schéma DEP drag-and-drop ─────── -->
+                        <Card v-else-if="section.type === 'schema_visuel'">
+                            <CardHeader>
+                                <CardTitle class="flex flex-col gap-0.5">
+                                    <span class="text-base font-semibold">{{
+                                        section.label
+                                    }}</span>
+                                    <span
+                                        v-if="section.description"
+                                        class="text-sm font-normal text-muted-foreground"
+                                    >
+                                        {{ section.description }}
+                                    </span>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <SectionSchemaVisuel
+                                    :params="{
+                                        cours: classe.cours_id,
+                                        classe: classe.id,
+                                        groupe: groupe.id,
+                                        typeProjet: typeProjet.id,
+                                        section: section.id,
+                                    }"
+                                    :schema-visuel="section.schemaVisuel"
+                                    :read-only="!peutEditer"
+                                />
+                            </CardContent>
+                        </Card>
+                    </template>
+                </template>
+
+                <!-- ─── Introduction (fallback si aucune section définie) ──────── -->
+                <template v-else>
+                    <!-- ─── Introduction ───────────────────────────────────────────── -->
+                    <Card>
+                        <CardHeader
+                            class="flex flex-row items-center justify-between"
+                        >
+                            <CardTitle class="text-base font-semibold">{{
+                                t('projets.show.introduction')
+                            }}</CardTitle>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                @click="toggleSection('introduction')"
                             >
                                 <ChevronUp
-                                    v-if="!collapsedDev[dev.id]"
+                                    v-if="!collapsed.introduction"
                                     class="h-4 w-4"
                                 />
                                 <ChevronDown v-else class="h-4 w-4" />
-                            </BoutonTooltip>
-                        </div>
-                    </CardHeader>
-                    <CardContent
-                        v-show="!collapsedDev[dev.id]"
-                        class="space-y-2"
-                    >
-                        <div v-if="peutEditer" class="mb-1">
-                            <Label class="text-xs text-muted-foreground">{{
-                                t('projets.show.paragraph_title_label')
-                            }}</Label>
-                            <Input
-                                :model-value="dev.titre ?? ''"
-                                :placeholder="`Titre du paragraphe ${dev.ordre}`"
-                                class="mt-1"
-                                @update:model-value="
-                                    (val: string) => {
-                                        dev.titre = val;
-                                        scheduleDeveloppementSave(dev.id);
-                                    }
-                                "
-                            />
-                        </div>
-                        <RichEditor
-                            :model-value="dev.contenu ?? ''"
-                            :placeholder="`Rédigez le contenu du paragraphe ${dev.ordre}…`"
-                            :read-only="!peutEditer"
-                            :est-enseignant="estEnseignant"
-                            :corrections="
-                                annotations[`developpement_${dev.id}`] ?? []
-                            "
-                            :renvois="renvoisLocaux"
-                            :renvois-sync-version="renvoisSyncVersion"
-                            :editor-id="`developpement-${dev.id}`"
-                            :membres="membres"
-                            @update:model-value="
-                                (val: string) => {
-                                    dev.contenu = val;
-                                    scheduleDeveloppementSave(dev.id);
-                                }
-                            "
-                            @save-annotation="
-                                (p) =>
-                                    sauvegarderAnnotation(
-                                        `developpement_${dev.id}`,
-                                        p,
-                                    )
-                            "
-                            @delete-annotation="
-                                (p) =>
-                                    supprimerAnnotation(
-                                        `developpement_${dev.id}`,
-                                        p,
-                                    )
-                            "
-                            @demander-renvoi="demanderRenvoi"
-                            @renvois-utilises="handleRenvoisUtilises"
-                        />
-
-                        <!-- Commentaire -->
-                        <CommentaireEnseignant
-                            :commentaire="
-                                commentaires[`developpement_${dev.id}`]
-                            "
-                            :brouillon="getBrouillon(`developpement_${dev.id}`)"
-                            :est-reduit="
-                                !!commentairesReduits[`developpement_${dev.id}`]
-                            "
-                            :is-saving="
-                                !!commentairesSaving[`developpement_${dev.id}`]
-                            "
-                            :est-enseignant="estEnseignant"
-                            class="mt-3"
-                            @toggle="
-                                toggleCommentaire(`developpement_${dev.id}`)
-                            "
-                            @save="
-                                sauvegarderCommentaire(
-                                    `developpement_${dev.id}`,
-                                )
-                            "
-                            @delete="
-                                supprimerCommentaire(`developpement_${dev.id}`)
-                            "
-                            @update:brouillon="
-                                (v) =>
-                                    setBrouillon(`developpement_${dev.id}`, v)
-                            "
-                        />
-                    </CardContent>
-                </Card>
-
-                <!-- Bouton ajouter un paragraphe (pas de limite) -->
-                <div v-if="peutEditer" class="flex justify-center">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        :disabled="devEnCours"
-                        @click="ajouterDev"
-                    >
-                        <Loader2
-                            v-if="devEnCours"
-                            class="mr-2 h-4 w-4 animate-spin"
-                        />
-                        <Plus v-else class="mr-2 h-4 w-4" />
-                        {{ t('projets.show.add_paragraph') }}
-                    </Button>
-                </div> </template
-            ><!-- /legacy développements -->
-
-            <!-- ─── Conclusions individuelles (legacy — masqué si sections dynamiques) ── -->
-            <template v-if="sections.length === 0">
-                <Card v-for="item in conclusions" :key="item.etudiant.id">
-                    <CardHeader
-                        class="flex flex-row items-center justify-between"
-                    >
-                        <CardTitle class="flex items-center gap-2">
-                            <span
-                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary"
-                            >
-                                {{ item.etudiant.prenom[0]
-                                }}{{ item.etudiant.nom[0] }}
-                            </span>
-                            {{
-                                t('projets.show.conclusion_member', {
-                                    prenom: item.etudiant.prenom,
-                                    nom: item.etudiant.nom,
-                                })
-                            }}
-                        </CardTitle>
-                        <BoutonTooltip
-                            :texte="
-                                collapsedConclusion[item.etudiant.id]
-                                    ? 'Développer'
-                                    : 'Réduire'
-                            "
-                            @click="toggleConclusion(item.etudiant.id)"
+                            </Button>
+                        </CardHeader>
+                        <CardContent
+                            v-show="!collapsed.introduction"
+                            class="space-y-4"
                         >
-                            <ChevronUp
-                                v-if="!collapsedConclusion[item.etudiant.id]"
-                                class="h-4 w-4"
-                            />
-                            <ChevronDown v-else class="h-4 w-4" />
-                        </BoutonTooltip>
-                    </CardHeader>
-                    <CardContent
-                        v-show="!collapsedConclusion[item.etudiant.id]"
-                    >
-                        <template v-if="peutEditer">
-                            <p class="mb-2 text-xs text-muted-foreground">
-                                {{ t('projets.show.conclusion_hint') }}
-                            </p>
-                            <RichEditor
-                                :model-value="
-                                    conclusionsLocales[item.etudiant.id]
-                                "
-                                placeholder="Rédigez votre conclusion…"
-                                :est-enseignant="estEnseignant"
-                                :renvois="renvoisLocaux"
-                                :renvois-sync-version="renvoisSyncVersion"
-                                :editor-id="`conclusion-${item.etudiant.id}`"
-                                @update:model-value="
-                                    (val: string) => {
-                                        conclusionsLocales[item.etudiant.id] =
-                                            val;
-                                        scheduleConclusionSave(
-                                            item.etudiant.id,
-                                        );
-                                    }
-                                "
-                                @demander-renvoi="demanderRenvoi"
-                                @renvois-utilises="handleRenvoisUtilises"
-                            />
-                        </template>
-                        <template v-else>
-                            <RichEditor
-                                :model-value="
-                                    conclusionsLocales[item.etudiant.id] ?? ''
-                                "
-                                :read-only="true"
-                                :est-enseignant="estEnseignant"
-                                :placeholder="
-                                    t('projets.show.section_not_written')
-                                "
-                            />
-                        </template>
-
-                        <!-- Commentaire -->
-                        <CommentaireEnseignant
-                            :commentaire="
-                                commentaires[`conclusion_${item.etudiant.id}`]
-                            "
-                            :brouillon="
-                                getBrouillon(`conclusion_${item.etudiant.id}`)
-                            "
-                            :est-reduit="
-                                !!commentairesReduits[
-                                    `conclusion_${item.etudiant.id}`
-                                ]
-                            "
-                            :is-saving="
-                                !!commentairesSaving[
-                                    `conclusion_${item.etudiant.id}`
-                                ]
-                            "
-                            :est-enseignant="estEnseignant"
-                            class="mt-3"
-                            @toggle="
-                                toggleCommentaire(
-                                    `conclusion_${item.etudiant.id}`,
-                                )
-                            "
-                            @save="
-                                sauvegarderCommentaire(
-                                    `conclusion_${item.etudiant.id}`,
-                                )
-                            "
-                            @delete="
-                                supprimerCommentaire(
-                                    `conclusion_${item.etudiant.id}`,
-                                )
-                            "
-                            @update:brouillon="
-                                (v) =>
-                                    setBrouillon(
-                                        `conclusion_${item.etudiant.id}`,
-                                        v,
-                                    )
-                            "
-                        />
-                    </CardContent>
-                </Card> </template
-            ><!-- /legacy conclusions -->
-
-            <!-- ─── Références (renvois / endnotes) ──────────────────────────── -->
-            <Card>
-                <CardHeader>
-                    <CardTitle class="flex items-center gap-2 text-base">
-                        <BookmarkPlus class="h-4 w-4 text-primary" />
-                        Références
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p
-                        v-if="renvoisLocaux.length === 0"
-                        class="text-sm text-muted-foreground italic"
-                    >
-                        Aucune référence. Cliquez sur ¹ dans la barre d'un
-                        éditeur pour en insérer une.
-                    </p>
-                    <ol v-else class="space-y-3">
-                        <li
-                            v-for="renvoi in renvoisLocaux"
-                            :key="renvoi.id"
-                            class="flex items-start gap-2"
-                        >
-                            <span
-                                class="mt-2 min-w-[1.5rem] text-right text-xs font-bold text-blue-600 dark:text-blue-400"
-                            >
-                                {{ renvoi.numero }}.
-                            </span>
-                            <div class="flex-1 space-y-1.5">
-                                <RichEditor
-                                    :model-value="
-                                        renvoiContenuHtml(renvoi.contenu)
+                            <div class="flex border-b">
+                                <button
+                                    v-for="tab in [
+                                        'amener',
+                                        'poser',
+                                        'diviser',
+                                    ] as const"
+                                    :key="tab"
+                                    type="button"
+                                    class="border-b-2 px-4 py-2 text-sm font-medium capitalize transition-colors"
+                                    :class="
+                                        introTab === tab
+                                            ? 'border-primary text-primary'
+                                            : 'border-transparent text-muted-foreground hover:text-foreground'
                                     "
+                                    @click="introTab = tab"
+                                >
+                                    {{
+                                        tab.charAt(0).toUpperCase() +
+                                        tab.slice(1)
+                                    }}
+                                </button>
+                            </div>
+
+                            <!-- Amener -->
+                            <div v-show="introTab === 'amener'">
+                                <p class="mb-2 text-xs text-muted-foreground">
+                                    {{ t('projets.show.amener_hint') }}
+                                </p>
+                                <RichEditor
+                                    v-model="form.introduction_amener"
+                                    placeholder="Amener le sujet…"
                                     :read-only="!peutEditer"
                                     :est-enseignant="estEnseignant"
                                     :corrections="
-                                        annotations['renvoi_' + renvoi.id] ?? []
+                                        annotations['introduction_amener'] ?? []
                                     "
-                                    :renvois="[]"
+                                    :renvois="renvoisLocaux"
+                                    :renvois-sync-version="renvoisSyncVersion"
+                                    editor-id="introduction-amener"
                                     :membres="membres"
-                                    :editor-id="`renvoi-${renvoi.id}`"
-                                    :compact="true"
-                                    @update:model-value="
-                                        (html: string) => {
-                                            renvoi.contenu = html;
-                                            scheduleRenvoiSave(renvoi.id);
-                                        }
-                                    "
                                     @save-annotation="
                                         (p) =>
                                             sauvegarderAnnotation(
-                                                'renvoi_' + renvoi.id,
+                                                'introduction_amener',
                                                 p,
                                             )
                                     "
                                     @delete-annotation="
                                         (p) =>
                                             supprimerAnnotation(
-                                                'renvoi_' + renvoi.id,
+                                                'introduction_amener',
                                                 p,
                                             )
                                     "
+                                    @demander-renvoi="demanderRenvoi"
+                                    @renvois-utilises="handleRenvoisUtilises"
                                 />
-                                <!-- Commentaires enseignant sur ce renvoi -->
-                                <div
-                                    v-if="
-                                        estEnseignant ||
-                                        (renvoi.commentaires?.length ?? 0) > 0
+                                <CommentaireEnseignant
+                                    :commentaire="
+                                        commentaires['introduction_amener']
                                     "
-                                    class="space-y-1"
+                                    :brouillon="
+                                        getBrouillon('introduction_amener')
+                                    "
+                                    :est-reduit="
+                                        !!commentairesReduits[
+                                            'introduction_amener'
+                                        ]
+                                    "
+                                    :is-saving="
+                                        !!commentairesSaving[
+                                            'introduction_amener'
+                                        ]
+                                    "
+                                    :est-enseignant="estEnseignant"
+                                    class="mt-3"
+                                    @toggle="
+                                        toggleCommentaire('introduction_amener')
+                                    "
+                                    @save="
+                                        sauvegarderCommentaire(
+                                            'introduction_amener',
+                                        )
+                                    "
+                                    @delete="
+                                        supprimerCommentaire(
+                                            'introduction_amener',
+                                        )
+                                    "
+                                    @update:brouillon="
+                                        (v) =>
+                                            setBrouillon(
+                                                'introduction_amener',
+                                                v,
+                                            )
+                                    "
+                                />
+                            </div>
+
+                            <!-- Poser -->
+                            <div v-show="introTab === 'poser'">
+                                <p class="mb-2 text-xs text-muted-foreground">
+                                    {{ t('projets.show.poser_hint') }}
+                                </p>
+                                <RichEditor
+                                    v-model="form.introduction_poser"
+                                    placeholder="Poser le sujet…"
+                                    :read-only="!peutEditer"
+                                    :est-enseignant="estEnseignant"
+                                    :corrections="
+                                        annotations['introduction_poser'] ?? []
+                                    "
+                                    :renvois="renvoisLocaux"
+                                    :renvois-sync-version="renvoisSyncVersion"
+                                    editor-id="introduction-poser"
+                                    :membres="membres"
+                                    @save-annotation="
+                                        (p) =>
+                                            sauvegarderAnnotation(
+                                                'introduction_poser',
+                                                p,
+                                            )
+                                    "
+                                    @delete-annotation="
+                                        (p) =>
+                                            supprimerAnnotation(
+                                                'introduction_poser',
+                                                p,
+                                            )
+                                    "
+                                    @demander-renvoi="demanderRenvoi"
+                                    @renvois-utilises="handleRenvoisUtilises"
+                                />
+                                <CommentaireEnseignant
+                                    :commentaire="
+                                        commentaires['introduction_poser']
+                                    "
+                                    :brouillon="
+                                        getBrouillon('introduction_poser')
+                                    "
+                                    :est-reduit="
+                                        !!commentairesReduits[
+                                            'introduction_poser'
+                                        ]
+                                    "
+                                    :is-saving="
+                                        !!commentairesSaving[
+                                            'introduction_poser'
+                                        ]
+                                    "
+                                    :est-enseignant="estEnseignant"
+                                    class="mt-3"
+                                    @toggle="
+                                        toggleCommentaire('introduction_poser')
+                                    "
+                                    @save="
+                                        sauvegarderCommentaire(
+                                            'introduction_poser',
+                                        )
+                                    "
+                                    @delete="
+                                        supprimerCommentaire(
+                                            'introduction_poser',
+                                        )
+                                    "
+                                    @update:brouillon="
+                                        (v) =>
+                                            setBrouillon(
+                                                'introduction_poser',
+                                                v,
+                                            )
+                                    "
+                                />
+                            </div>
+
+                            <!-- Diviser -->
+                            <div v-show="introTab === 'diviser'">
+                                <p class="mb-2 text-xs text-muted-foreground">
+                                    {{ t('projets.show.diviser_hint') }}
+                                </p>
+                                <RichEditor
+                                    v-model="form.introduction_diviser"
+                                    placeholder="Diviser le sujet…"
+                                    :read-only="!peutEditer"
+                                    :est-enseignant="estEnseignant"
+                                    :corrections="
+                                        annotations['introduction_diviser'] ??
+                                        []
+                                    "
+                                    :renvois="renvoisLocaux"
+                                    :renvois-sync-version="renvoisSyncVersion"
+                                    editor-id="introduction-diviser"
+                                    :membres="membres"
+                                    @save-annotation="
+                                        (p) =>
+                                            sauvegarderAnnotation(
+                                                'introduction_diviser',
+                                                p,
+                                            )
+                                    "
+                                    @delete-annotation="
+                                        (p) =>
+                                            supprimerAnnotation(
+                                                'introduction_diviser',
+                                                p,
+                                            )
+                                    "
+                                    @demander-renvoi="demanderRenvoi"
+                                    @renvois-utilises="handleRenvoisUtilises"
+                                />
+                                <CommentaireEnseignant
+                                    :commentaire="
+                                        commentaires['introduction_diviser']
+                                    "
+                                    :brouillon="
+                                        getBrouillon('introduction_diviser')
+                                    "
+                                    :est-reduit="
+                                        !!commentairesReduits[
+                                            'introduction_diviser'
+                                        ]
+                                    "
+                                    :is-saving="
+                                        !!commentairesSaving[
+                                            'introduction_diviser'
+                                        ]
+                                    "
+                                    :est-enseignant="estEnseignant"
+                                    class="mt-3"
+                                    @toggle="
+                                        toggleCommentaire(
+                                            'introduction_diviser',
+                                        )
+                                    "
+                                    @save="
+                                        sauvegarderCommentaire(
+                                            'introduction_diviser',
+                                        )
+                                    "
+                                    @delete="
+                                        supprimerCommentaire(
+                                            'introduction_diviser',
+                                        )
+                                    "
+                                    @update:brouillon="
+                                        (v) =>
+                                            setBrouillon(
+                                                'introduction_diviser',
+                                                v,
+                                            )
+                                    "
+                                />
+                            </div>
+                        </CardContent>
+                    </Card> </template
+                ><!-- /v-else intro fallback -->
+
+                <!-- ─── Paragraphes de développement (legacy — masqué si sections dynamiques) ── -->
+                <template v-if="sections.length === 0">
+                    <Card v-for="dev in developpements" :key="dev.id">
+                        <CardHeader
+                            class="flex flex-row items-center justify-between"
+                        >
+                            <CardTitle class="flex items-center gap-2">
+                                <span
+                                    class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary"
+                                    >{{ dev.ordre }}</span
                                 >
+                                <span
+                                    class="text-sm font-normal text-muted-foreground italic"
+                                >
+                                    {{
+                                        dev.titre ||
+                                        t('projets.show.dev_paragraph', {
+                                            n: dev.ordre,
+                                        })
+                                    }}
+                                </span>
+                            </CardTitle>
+                            <div class="flex items-center gap-1">
+                                <BoutonTooltip
+                                    v-if="
+                                        peutEditer && developpements.length > 1
+                                    "
+                                    :texte="t('projets.show.delete_paragraph')"
+                                    size="icon-sm"
+                                    class="text-destructive"
+                                    :disabled="devEnCours"
+                                    @click="supprimerDev(dev.id)"
+                                >
+                                    <Trash2 class="h-4 w-4" />
+                                </BoutonTooltip>
+                                <BoutonTooltip
+                                    :texte="
+                                        collapsedDev[dev.id]
+                                            ? 'Développer'
+                                            : 'Réduire'
+                                    "
+                                    @click="toggleDev(dev.id)"
+                                >
+                                    <ChevronUp
+                                        v-if="!collapsedDev[dev.id]"
+                                        class="h-4 w-4"
+                                    />
+                                    <ChevronDown v-else class="h-4 w-4" />
+                                </BoutonTooltip>
+                            </div>
+                        </CardHeader>
+                        <CardContent
+                            v-show="!collapsedDev[dev.id]"
+                            class="space-y-2"
+                        >
+                            <div v-if="peutEditer" class="mb-1">
+                                <Label class="text-xs text-muted-foreground">{{
+                                    t('projets.show.paragraph_title_label')
+                                }}</Label>
+                                <Input
+                                    :model-value="dev.titre ?? ''"
+                                    :placeholder="`Titre du paragraphe ${dev.ordre}`"
+                                    class="mt-1"
+                                    @update:model-value="
+                                        (val: string) => {
+                                            dev.titre = val;
+                                            scheduleDeveloppementSave(dev.id);
+                                        }
+                                    "
+                                />
+                            </div>
+                            <RichEditor
+                                :model-value="dev.contenu ?? ''"
+                                :placeholder="`Rédigez le contenu du paragraphe ${dev.ordre}…`"
+                                :read-only="!peutEditer"
+                                :est-enseignant="estEnseignant"
+                                :corrections="
+                                    annotations[`developpement_${dev.id}`] ?? []
+                                "
+                                :renvois="renvoisLocaux"
+                                :renvois-sync-version="renvoisSyncVersion"
+                                :editor-id="`developpement-${dev.id}`"
+                                :membres="membres"
+                                @update:model-value="
+                                    (val: string) => {
+                                        dev.contenu = val;
+                                        scheduleDeveloppementSave(dev.id);
+                                    }
+                                "
+                                @save-annotation="
+                                    (p) =>
+                                        sauvegarderAnnotation(
+                                            `developpement_${dev.id}`,
+                                            p,
+                                        )
+                                "
+                                @delete-annotation="
+                                    (p) =>
+                                        supprimerAnnotation(
+                                            `developpement_${dev.id}`,
+                                            p,
+                                        )
+                                "
+                                @demander-renvoi="demanderRenvoi"
+                                @renvois-utilises="handleRenvoisUtilises"
+                            />
+
+                            <!-- Commentaire -->
+                            <CommentaireEnseignant
+                                :commentaire="
+                                    commentaires[`developpement_${dev.id}`]
+                                "
+                                :brouillon="
+                                    getBrouillon(`developpement_${dev.id}`)
+                                "
+                                :est-reduit="
+                                    !!commentairesReduits[
+                                        `developpement_${dev.id}`
+                                    ]
+                                "
+                                :is-saving="
+                                    !!commentairesSaving[
+                                        `developpement_${dev.id}`
+                                    ]
+                                "
+                                :est-enseignant="estEnseignant"
+                                class="mt-3"
+                                @toggle="
+                                    toggleCommentaire(`developpement_${dev.id}`)
+                                "
+                                @save="
+                                    sauvegarderCommentaire(
+                                        `developpement_${dev.id}`,
+                                    )
+                                "
+                                @delete="
+                                    supprimerCommentaire(
+                                        `developpement_${dev.id}`,
+                                    )
+                                "
+                                @update:brouillon="
+                                    (v) =>
+                                        setBrouillon(
+                                            `developpement_${dev.id}`,
+                                            v,
+                                        )
+                                "
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <!-- Bouton ajouter un paragraphe (pas de limite) -->
+                    <div v-if="peutEditer" class="flex justify-center">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            :disabled="devEnCours"
+                            @click="ajouterDev"
+                        >
+                            <Loader2
+                                v-if="devEnCours"
+                                class="mr-2 h-4 w-4 animate-spin"
+                            />
+                            <Plus v-else class="mr-2 h-4 w-4" />
+                            {{ t('projets.show.add_paragraph') }}
+                        </Button>
+                    </div> </template
+                ><!-- /legacy développements -->
+
+                <!-- ─── Conclusions individuelles (legacy — masqué si sections dynamiques) ── -->
+                <template v-if="sections.length === 0">
+                    <Card v-for="item in conclusions" :key="item.etudiant.id">
+                        <CardHeader
+                            class="flex flex-row items-center justify-between"
+                        >
+                            <CardTitle class="flex items-center gap-2">
+                                <span
+                                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary"
+                                >
+                                    {{ item.etudiant.prenom[0]
+                                    }}{{ item.etudiant.nom[0] }}
+                                </span>
+                                {{
+                                    t('projets.show.conclusion_member', {
+                                        prenom: item.etudiant.prenom,
+                                        nom: item.etudiant.nom,
+                                    })
+                                }}
+                            </CardTitle>
+                            <BoutonTooltip
+                                :texte="
+                                    collapsedConclusion[item.etudiant.id]
+                                        ? 'Développer'
+                                        : 'Réduire'
+                                "
+                                @click="toggleConclusion(item.etudiant.id)"
+                            >
+                                <ChevronUp
+                                    v-if="
+                                        !collapsedConclusion[item.etudiant.id]
+                                    "
+                                    class="h-4 w-4"
+                                />
+                                <ChevronDown v-else class="h-4 w-4" />
+                            </BoutonTooltip>
+                        </CardHeader>
+                        <CardContent
+                            v-show="!collapsedConclusion[item.etudiant.id]"
+                        >
+                            <template v-if="peutEditer">
+                                <p class="mb-2 text-xs text-muted-foreground">
+                                    {{ t('projets.show.conclusion_hint') }}
+                                </p>
+                                <RichEditor
+                                    :model-value="
+                                        conclusionsLocales[item.etudiant.id]
+                                    "
+                                    placeholder="Rédigez votre conclusion…"
+                                    :est-enseignant="estEnseignant"
+                                    :renvois="renvoisLocaux"
+                                    :renvois-sync-version="renvoisSyncVersion"
+                                    :editor-id="`conclusion-${item.etudiant.id}`"
+                                    @update:model-value="
+                                        (val: string) => {
+                                            conclusionsLocales[
+                                                item.etudiant.id
+                                            ] = val;
+                                            scheduleConclusionSave(
+                                                item.etudiant.id,
+                                            );
+                                        }
+                                    "
+                                    @demander-renvoi="demanderRenvoi"
+                                    @renvois-utilises="handleRenvoisUtilises"
+                                />
+                            </template>
+                            <template v-else>
+                                <RichEditor
+                                    :model-value="
+                                        conclusionsLocales[item.etudiant.id] ??
+                                        ''
+                                    "
+                                    :read-only="true"
+                                    :est-enseignant="estEnseignant"
+                                    :placeholder="
+                                        t('projets.show.section_not_written')
+                                    "
+                                />
+                            </template>
+
+                            <!-- Commentaire -->
+                            <CommentaireEnseignant
+                                :commentaire="
+                                    commentaires[
+                                        `conclusion_${item.etudiant.id}`
+                                    ]
+                                "
+                                :brouillon="
+                                    getBrouillon(
+                                        `conclusion_${item.etudiant.id}`,
+                                    )
+                                "
+                                :est-reduit="
+                                    !!commentairesReduits[
+                                        `conclusion_${item.etudiant.id}`
+                                    ]
+                                "
+                                :is-saving="
+                                    !!commentairesSaving[
+                                        `conclusion_${item.etudiant.id}`
+                                    ]
+                                "
+                                :est-enseignant="estEnseignant"
+                                class="mt-3"
+                                @toggle="
+                                    toggleCommentaire(
+                                        `conclusion_${item.etudiant.id}`,
+                                    )
+                                "
+                                @save="
+                                    sauvegarderCommentaire(
+                                        `conclusion_${item.etudiant.id}`,
+                                    )
+                                "
+                                @delete="
+                                    supprimerCommentaire(
+                                        `conclusion_${item.etudiant.id}`,
+                                    )
+                                "
+                                @update:brouillon="
+                                    (v) =>
+                                        setBrouillon(
+                                            `conclusion_${item.etudiant.id}`,
+                                            v,
+                                        )
+                                "
+                            />
+                        </CardContent>
+                    </Card> </template
+                ><!-- /legacy conclusions -->
+
+                <!-- ─── Références (renvois / endnotes) ──────────────────────────── -->
+                <Card>
+                    <CardHeader>
+                        <CardTitle class="flex items-center gap-2 text-base">
+                            <BookmarkPlus class="h-4 w-4 text-primary" />
+                            Références
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p
+                            v-if="renvoisLocaux.length === 0"
+                            class="text-sm text-muted-foreground italic"
+                        >
+                            Aucune référence. Cliquez sur ¹ dans la barre d'un
+                            éditeur pour en insérer une.
+                        </p>
+                        <ol v-else class="space-y-3">
+                            <li
+                                v-for="renvoi in renvoisLocaux"
+                                :key="renvoi.id"
+                                class="flex items-start gap-2"
+                            >
+                                <span
+                                    class="mt-2 min-w-[1.5rem] text-right text-xs font-bold text-blue-600 dark:text-blue-400"
+                                >
+                                    {{ renvoi.numero }}.
+                                </span>
+                                <div class="flex-1 space-y-1.5">
+                                    <RichEditor
+                                        :model-value="
+                                            renvoiContenuHtml(renvoi.contenu)
+                                        "
+                                        :read-only="!peutEditer"
+                                        :est-enseignant="estEnseignant"
+                                        :corrections="
+                                            annotations[
+                                                'renvoi_' + renvoi.id
+                                            ] ?? []
+                                        "
+                                        :renvois="[]"
+                                        :membres="membres"
+                                        :editor-id="`renvoi-${renvoi.id}`"
+                                        :compact="true"
+                                        @update:model-value="
+                                            (html: string) => {
+                                                renvoi.contenu = html;
+                                                scheduleRenvoiSave(renvoi.id);
+                                            }
+                                        "
+                                        @save-annotation="
+                                            (p) =>
+                                                sauvegarderAnnotation(
+                                                    'renvoi_' + renvoi.id,
+                                                    p,
+                                                )
+                                        "
+                                        @delete-annotation="
+                                            (p) =>
+                                                supprimerAnnotation(
+                                                    'renvoi_' + renvoi.id,
+                                                    p,
+                                                )
+                                        "
+                                    />
+                                    <!-- Commentaires enseignant sur ce renvoi -->
                                     <div
-                                        v-for="commentaire in renvoi.commentaires ??
-                                        []"
-                                        :key="commentaire.id"
-                                        class="flex items-start gap-1.5 rounded border border-amber-200 bg-amber-50 px-2 py-1 dark:border-amber-800 dark:bg-amber-950/30"
+                                        v-if="
+                                            estEnseignant ||
+                                            (renvoi.commentaires?.length ?? 0) >
+                                                0
+                                        "
+                                        class="space-y-1"
                                     >
-                                        <MessageSquare
-                                            class="mt-0.5 h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400"
-                                        />
-                                        <span
-                                            class="flex-1 text-xs text-foreground"
-                                            >{{ commentaire.contenu }}</span
+                                        <div
+                                            v-for="commentaire in renvoi.commentaires ??
+                                            []"
+                                            :key="commentaire.id"
+                                            class="flex items-start gap-1.5 rounded border border-amber-200 bg-amber-50 px-2 py-1 dark:border-amber-800 dark:bg-amber-950/30"
                                         >
-                                        <button
+                                            <MessageSquare
+                                                class="mt-0.5 h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400"
+                                            />
+                                            <span
+                                                class="flex-1 text-xs text-foreground"
+                                                >{{ commentaire.contenu }}</span
+                                            >
+                                            <button
+                                                v-if="estEnseignant"
+                                                type="button"
+                                                class="text-destructive hover:text-destructive/70"
+                                                title="Supprimer ce commentaire"
+                                                @click="
+                                                    supprimerCommentaireRenvoi(
+                                                        renvoi.id,
+                                                        commentaire.id,
+                                                    )
+                                                "
+                                            >
+                                                <Trash2 class="h-3 w-3" />
+                                            </button>
+                                        </div>
+                                        <!-- Saisie nouveau commentaire (enseignant seulement) -->
+                                        <div
                                             v-if="estEnseignant"
-                                            type="button"
-                                            class="text-destructive hover:text-destructive/70"
-                                            title="Supprimer ce commentaire"
-                                            @click="
-                                                supprimerCommentaireRenvoi(
-                                                    renvoi.id,
-                                                    commentaire.id,
-                                                )
-                                            "
+                                            class="flex gap-1"
                                         >
-                                            <Trash2 class="h-3 w-3" />
-                                        </button>
-                                    </div>
-                                    <!-- Saisie nouveau commentaire (enseignant seulement) -->
-                                    <div
-                                        v-if="estEnseignant"
-                                        class="flex gap-1"
-                                    >
-                                        <input
-                                            v-model="
-                                                renvoiNouveauCommentaire[
-                                                    renvoi.id
-                                                ]
-                                            "
-                                            type="text"
-                                            placeholder="Commenter cette référence…"
-                                            class="flex-1 rounded border border-input bg-background px-2 py-0.5 text-xs focus:ring-1 focus:ring-ring focus:outline-none"
-                                            @keydown.enter.prevent="
-                                                ajouterCommentaireRenvoi(
-                                                    renvoi.id,
-                                                )
-                                            "
-                                        />
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            class="h-6 w-6 shrink-0"
-                                            title="Envoyer"
-                                            :disabled="
-                                                !renvoiNouveauCommentaire[
-                                                    renvoi.id
-                                                ]?.trim() ||
-                                                renvoiCommentaireEnCours[
-                                                    renvoi.id
-                                                ]
-                                            "
-                                            @click="
-                                                ajouterCommentaireRenvoi(
-                                                    renvoi.id,
-                                                )
-                                            "
-                                        >
-                                            <Send class="h-3 w-3" />
-                                        </Button>
+                                            <input
+                                                v-model="
+                                                    renvoiNouveauCommentaire[
+                                                        renvoi.id
+                                                    ]
+                                                "
+                                                type="text"
+                                                placeholder="Commenter cette référence…"
+                                                class="flex-1 rounded border border-input bg-background px-2 py-0.5 text-xs focus:ring-1 focus:ring-ring focus:outline-none"
+                                                @keydown.enter.prevent="
+                                                    ajouterCommentaireRenvoi(
+                                                        renvoi.id,
+                                                    )
+                                                "
+                                            />
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                class="h-6 w-6 shrink-0"
+                                                title="Envoyer"
+                                                :disabled="
+                                                    !renvoiNouveauCommentaire[
+                                                        renvoi.id
+                                                    ]?.trim() ||
+                                                    renvoiCommentaireEnCours[
+                                                        renvoi.id
+                                                    ]
+                                                "
+                                                @click="
+                                                    ajouterCommentaireRenvoi(
+                                                        renvoi.id,
+                                                    )
+                                                "
+                                            >
+                                                <Send class="h-3 w-3" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
+                                <BoutonTooltip
+                                    v-if="aideReference && peutEditer"
+                                    texte="Modifier cette référence"
+                                    class="mt-1 size-7 shrink-0"
+                                    @click="ouvrirEditionRenvoi(renvoi)"
+                                >
+                                    <Pencil class="h-3.5 w-3.5" />
+                                </BoutonTooltip>
+                                <BoutonTooltip
+                                    v-if="peutEditer"
+                                    texte="Supprimer cette référence"
+                                    class="mt-1 size-7 shrink-0 text-destructive"
+                                    @click="demanderSupprimerRenvoi(renvoi.id)"
+                                >
+                                    <Trash2 class="h-3.5 w-3.5" />
+                                </BoutonTooltip>
+                            </li>
+                        </ol>
+                    </CardContent>
+                </Card>
+
+                <!-- ─── Remise de travail ──────────────────────────────────────────── -->
+
+                <!-- Panneau de configuration de la remise (enseignant — lecture seule) -->
+                <Card v-if="estEnseignant">
+                    <CardHeader>
+                        <CardTitle class="flex items-center gap-2 text-base">
+                            <CalendarDays class="h-4 w-4 text-primary" />
+                            {{ t('projets.show.submission_settings') }}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent class="space-y-4">
+                        <!-- Paramètres (lecture seule — configurés au niveau du type de projet) -->
+                        <div
+                            class="rounded-md border border-dashed p-3 text-sm text-muted-foreground"
+                        >
+                            <div class="mb-2 flex flex-wrap gap-x-6 gap-y-1">
+                                <span v-if="dateRemise">
+                                    <CalendarDays
+                                        class="mr-1 inline-block h-3.5 w-3.5"
+                                    />
+                                    {{ dateRemiseFormatee }}
+                                </span>
+                                <span v-else class="italic"
+                                    >Aucune date limite définie.</span
+                                >
+                                <span
+                                    v-if="remisesMultiples"
+                                    class="text-green-600 dark:text-green-400"
+                                    >Remises multiples ✓</span
+                                >
+                                <span
+                                    v-if="retardPermis"
+                                    class="text-amber-600 dark:text-amber-400"
+                                    >Retard permis ✓</span
+                                >
                             </div>
-                            <BoutonTooltip
-                                v-if="aideReference && peutEditer"
-                                texte="Modifier cette référence"
-                                class="mt-1 size-7 shrink-0"
-                                @click="ouvrirEditionRenvoi(renvoi)"
+                            <Link
+                                :href="
+                                    editTypeProjet.url({
+                                        cours: classe.cours_id,
+                                        typeProjet: typeProjet.id,
+                                    })
+                                "
+                                class="inline-flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
                             >
-                                <Pencil class="h-3.5 w-3.5" />
-                            </BoutonTooltip>
-                            <BoutonTooltip
-                                v-if="peutEditer"
-                                texte="Supprimer cette référence"
-                                class="mt-1 size-7 shrink-0 text-destructive"
-                                @click="demanderSupprimerRenvoi(renvoi.id)"
-                            >
-                                <Trash2 class="h-3.5 w-3.5" />
-                            </BoutonTooltip>
-                        </li>
-                    </ol>
-                </CardContent>
-            </Card>
-
-            <!-- ─── Remise de travail ──────────────────────────────────────────── -->
-
-            <!-- Panneau de configuration de la remise (enseignant — lecture seule) -->
-            <Card v-if="estEnseignant">
-                <CardHeader>
-                    <CardTitle class="flex items-center gap-2 text-base">
-                        <CalendarDays class="h-4 w-4 text-primary" />
-                        {{ t('projets.show.submission_settings') }}
-                    </CardTitle>
-                </CardHeader>
-                <CardContent class="space-y-4">
-                    <!-- Paramètres (lecture seule — configurés au niveau du type de projet) -->
-                    <div
-                        class="rounded-md border border-dashed p-3 text-sm text-muted-foreground"
-                    >
-                        <div class="mb-2 flex flex-wrap gap-x-6 gap-y-1">
-                            <span v-if="dateRemise">
-                                <CalendarDays
-                                    class="mr-1 inline-block h-3.5 w-3.5"
+                                <Settings2 class="h-3 w-3" />
+                                Modifier les paramètres dans le type de projet
+                            </Link>
+                        </div>
+                        <!-- Annulation de remise si déjà soumis -->
+                        <div
+                            v-if="remisLe"
+                            class="flex items-center justify-between gap-3"
+                        >
+                            <div class="text-sm text-muted-foreground">
+                                <CheckCircle2
+                                    class="mr-1 inline-block h-4 w-4 text-green-500"
                                 />
-                                {{ dateRemiseFormatee }}
+                                {{ t('projets.show.submitted_on') }}
+                                {{
+                                    new Date(remisLe).toLocaleDateString(
+                                        'fr-CA',
+                                        {
+                                            day: 'numeric',
+                                            month: 'long',
+                                            year: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                        },
+                                    )
+                                }}
+                            </div>
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                :disabled="annulationEnCours"
+                                @click="annulerRemise"
+                            >
+                                <Loader2
+                                    v-if="annulationEnCours"
+                                    class="mr-2 h-4 w-4 animate-spin"
+                                />
+                                <XCircle v-else class="mr-2 h-4 w-4" />
+                                {{ t('projets.show.cancel_submission') }}
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <!-- Panneau de remise (étudiant) — vote d'équipe -->
+                <Card v-if="!estEnseignant && (peutRemettre || remisLe)">
+                    <CardHeader>
+                        <CardTitle class="flex items-center gap-2 text-base">
+                            <Users class="h-4 w-4 text-primary" />
+                            {{ t('projets.show.team_vote') }}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent class="space-y-4">
+                        <!-- Confirmation de remise -->
+                        <div
+                            v-if="remisLe"
+                            class="flex items-center gap-2 text-sm text-green-700 dark:text-green-400"
+                        >
+                            <CheckCircle2 class="h-5 w-5 shrink-0" />
+                            <span>
+                                {{ t('projets.show.submitted_on') }}
+                                {{
+                                    new Date(remisLe).toLocaleDateString(
+                                        'fr-CA',
+                                        {
+                                            day: 'numeric',
+                                            month: 'long',
+                                            year: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                        },
+                                    )
+                                }}
                             </span>
-                            <span v-else class="italic"
-                                >Aucune date limite définie.</span
-                            >
-                            <span
-                                v-if="remisesMultiples"
-                                class="text-green-600 dark:text-green-400"
-                                >Remises multiples ✓</span
-                            >
-                            <span
-                                v-if="retardPermis"
-                                class="text-amber-600 dark:text-amber-400"
-                                >Retard permis ✓</span
+                        </div>
+
+                        <!-- Date limite -->
+                        <div
+                            v-if="dateRemise"
+                            class="text-sm"
+                            :class="
+                                dateRemiseDepassee
+                                    ? 'font-semibold text-destructive'
+                                    : 'text-muted-foreground'
+                            "
+                        >
+                            <CalendarDays class="mr-1 inline-block h-4 w-4" />
+                            {{ t('projets.show.deadline') }}
+                            {{ dateRemiseFormatee }}
+                            <span v-if="dateRemiseDepassee">
+                                — {{ t('projets.show.deadline_passed') }}</span
                             >
                         </div>
-                        <Link
-                            :href="
-                                editTypeProjet.url({
-                                    cours: classe.cours_id,
-                                    typeProjet: typeProjet.id,
-                                })
+
+                        <!-- Liste des votes par membre -->
+                        <ul class="space-y-1">
+                            <li
+                                v-for="membre in membres"
+                                :key="membre.id"
+                                class="flex items-center gap-2 text-sm"
+                            >
+                                <CheckCircle2
+                                    v-if="
+                                        votes.find(
+                                            (v) => v.user_id === membre.id,
+                                        )?.vote
+                                    "
+                                    class="h-4 w-4 shrink-0 text-green-500"
+                                />
+                                <Square
+                                    v-else
+                                    class="h-4 w-4 shrink-0 text-muted-foreground"
+                                />
+                                <span
+                                    >{{ membre.prenom }} {{ membre.nom }}</span
+                                >
+                                <span class="text-xs text-muted-foreground">
+                                    —
+                                    {{
+                                        votes.find(
+                                            (v) => v.user_id === membre.id,
+                                        )?.vote
+                                            ? t('projets.show.voted')
+                                            : t('projets.show.waiting_vote')
+                                    }}
+                                </span>
+                            </li>
+                        </ul>
+
+                        <!-- Bouton voter (si pas encore voté et peut encore remettre) -->
+                        <div
+                            v-if="
+                                peutRemettre &&
+                                !votes.find((v) => v.user_id === userId)?.vote
                             "
-                            class="inline-flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
+                            class="flex justify-end"
                         >
-                            <Settings2 class="h-3 w-3" />
-                            Modifier les paramètres dans le type de projet
-                        </Link>
-                    </div>
-                    <!-- Annulation de remise si déjà soumis -->
-                    <div
-                        v-if="remisLe"
-                        class="flex items-center justify-between gap-3"
-                    >
-                        <div class="text-sm text-muted-foreground">
+                            <Button
+                                :disabled="voteEnCours"
+                                @click="voterRemise"
+                            >
+                                <Loader2
+                                    v-if="voteEnCours"
+                                    class="mr-2 h-4 w-4 animate-spin"
+                                />
+                                <Send v-else class="mr-2 h-4 w-4" />
+                                {{ t('projets.show.vote_to_submit') }}
+                            </Button>
+                        </div>
+
+                        <!-- Confirmation que le vote a été enregistré (voté mais pas encore tous) -->
+                        <div
+                            v-else-if="
+                                peutRemettre &&
+                                votes.find((v) => v.user_id === userId)?.vote &&
+                                !remisLe
+                            "
+                            class="text-sm text-muted-foreground"
+                        >
                             <CheckCircle2
                                 class="mr-1 inline-block h-4 w-4 text-green-500"
                             />
-                            {{ t('projets.show.submitted_on') }}
-                            {{
-                                new Date(remisLe).toLocaleDateString('fr-CA', {
-                                    day: 'numeric',
-                                    month: 'long',
-                                    year: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                })
-                            }}
+                            {{ t('projets.show.my_vote_registered') }}
                         </div>
-                        <Button
-                            variant="destructive"
-                            size="sm"
-                            :disabled="annulationEnCours"
-                            @click="annulerRemise"
-                        >
-                            <Loader2
-                                v-if="annulationEnCours"
-                                class="mr-2 h-4 w-4 animate-spin"
-                            />
-                            <XCircle v-else class="mr-2 h-4 w-4" />
-                            {{ t('projets.show.cancel_submission') }}
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
 
-            <!-- Panneau de remise (étudiant) — vote d'équipe -->
-            <Card v-if="!estEnseignant && (peutRemettre || remisLe)">
-                <CardHeader>
-                    <CardTitle class="flex items-center gap-2 text-base">
-                        <Users class="h-4 w-4 text-primary" />
-                        {{ t('projets.show.team_vote') }}
-                    </CardTitle>
-                </CardHeader>
-                <CardContent class="space-y-4">
-                    <!-- Confirmation de remise -->
-                    <div
-                        v-if="remisLe"
-                        class="flex items-center gap-2 text-sm text-green-700 dark:text-green-400"
-                    >
-                        <CheckCircle2 class="h-5 w-5 shrink-0" />
-                        <span>
-                            {{ t('projets.show.submitted_on') }}
-                            {{
-                                new Date(remisLe).toLocaleDateString('fr-CA', {
-                                    day: 'numeric',
-                                    month: 'long',
-                                    year: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                })
-                            }}
-                        </span>
-                    </div>
-
-                    <!-- Date limite -->
-                    <div
-                        v-if="dateRemise"
-                        class="text-sm"
-                        :class="
-                            dateRemiseDepassee
-                                ? 'font-semibold text-destructive'
-                                : 'text-muted-foreground'
-                        "
-                    >
-                        <CalendarDays class="mr-1 inline-block h-4 w-4" />
-                        {{ t('projets.show.deadline') }}
-                        {{ dateRemiseFormatee }}
-                        <span v-if="dateRemiseDepassee">
-                            — {{ t('projets.show.deadline_passed') }}</span
-                        >
-                    </div>
-
-                    <!-- Liste des votes par membre -->
-                    <ul class="space-y-1">
-                        <li
-                            v-for="membre in membres"
-                            :key="membre.id"
-                            class="flex items-center gap-2 text-sm"
-                        >
-                            <CheckCircle2
-                                v-if="
-                                    votes.find((v) => v.user_id === membre.id)
-                                        ?.vote
-                                "
-                                class="h-4 w-4 shrink-0 text-green-500"
-                            />
-                            <Square
-                                v-else
-                                class="h-4 w-4 shrink-0 text-muted-foreground"
-                            />
-                            <span>{{ membre.prenom }} {{ membre.nom }}</span>
-                            <span class="text-xs text-muted-foreground">
-                                —
-                                {{
-                                    votes.find((v) => v.user_id === membre.id)
-                                        ?.vote
-                                        ? t('projets.show.voted')
-                                        : t('projets.show.waiting_vote')
-                                }}
-                            </span>
-                        </li>
-                    </ul>
-
-                    <!-- Bouton voter (si pas encore voté et peut encore remettre) -->
-                    <div
-                        v-if="
-                            peutRemettre &&
-                            !votes.find((v) => v.user_id === userId)?.vote
-                        "
-                        class="flex justify-end"
-                    >
-                        <Button :disabled="voteEnCours" @click="voterRemise">
-                            <Loader2
-                                v-if="voteEnCours"
-                                class="mr-2 h-4 w-4 animate-spin"
-                            />
-                            <Send v-else class="mr-2 h-4 w-4" />
-                            {{ t('projets.show.vote_to_submit') }}
-                        </Button>
-                    </div>
-
-                    <!-- Confirmation que le vote a été enregistré (voté mais pas encore tous) -->
-                    <div
-                        v-else-if="
-                            peutRemettre &&
-                            votes.find((v) => v.user_id === userId)?.vote &&
-                            !remisLe
-                        "
-                        class="text-sm text-muted-foreground"
-                    >
-                        <CheckCircle2
-                            class="mr-1 inline-block h-4 w-4 text-green-500"
+                <!-- Bouton sauvegarder manuel -->
+                <div v-if="peutEditer" class="flex justify-end gap-3 pb-4">
+                    <Button :disabled="saveStatus === 'saving'" @click="save">
+                        <Loader2
+                            v-if="saveStatus === 'saving'"
+                            class="mr-2 h-4 w-4 animate-spin"
                         />
-                        {{ t('projets.show.my_vote_registered') }}
-                    </div>
-                </CardContent>
-            </Card>
-
-            <!-- Bouton sauvegarder manuel -->
-            <div v-if="peutEditer" class="flex justify-end gap-3 pb-4">
-                <Button :disabled="saveStatus === 'saving'" @click="save">
-                    <Loader2
-                        v-if="saveStatus === 'saving'"
-                        class="mr-2 h-4 w-4 animate-spin"
-                    />
-                    <CheckCircle2
-                        v-else-if="saveStatus === 'saved'"
-                        class="mr-2 h-4 w-4"
-                    />
-                    {{ t('common.save') }}
-                </Button>
-            </div>
+                        <CheckCircle2
+                            v-else-if="saveStatus === 'saved'"
+                            class="mr-2 h-4 w-4"
+                        />
+                        {{ t('common.save') }}
+                    </Button>
+                </div>
             </div>
 
             <!-- ─── Panneau droit sticky — notes en temps réel ─────────────── -->
-            <div v-if="estEnseignant" class="hidden lg:block lg:w-56 lg:shrink-0">
-                <div class="sticky top-4 mx-auto w-52 rounded-lg border bg-card p-3 text-card-foreground shadow-sm shadow-md">
+            <div
+                v-if="estEnseignant"
+                class="hidden lg:block lg:w-56 lg:shrink-0"
+            >
+                <div
+                    class="sticky top-4 mx-auto w-52 rounded-lg border bg-card p-3 text-card-foreground shadow-md shadow-sm"
+                >
                     <div class="mb-2 flex items-center justify-between">
-                        <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <span
+                            class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                        >
                             Notes
                         </span>
                         <button
@@ -4822,7 +5006,11 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             >
                                 {{ noteFinaleGrille[membre.id]?.toFixed(1) }}
                             </span>
-                            <span v-else class="shrink-0 text-xs text-muted-foreground">—</span>
+                            <span
+                                v-else
+                                class="shrink-0 text-xs text-muted-foreground"
+                                >—</span
+                            >
                         </li>
                     </ul>
                 </div>

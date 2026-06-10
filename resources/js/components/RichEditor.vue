@@ -672,7 +672,8 @@ function saveEdit(correction: Annotation): void {
         contenu: editingContent.value.trim(),
         html: editor.value.getHTML(),
         type: correction.type,
-        cible_user_id: correction.type === 'correction' ? editingCible.value : null,
+        cible_user_id:
+            correction.type === 'correction' ? editingCible.value : null,
         // L'input affiche des négatifs (ex: -5) — on envoie la valeur absolue au backend
         points_malus:
             correction.type === 'correction' && editingPoints.value !== null
