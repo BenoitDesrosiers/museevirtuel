@@ -9,7 +9,6 @@ import {
     ChevronDown,
     ChevronUp,
     ClipboardList,
-    Cloud,
     Download,
     Eye,
     FileBarChart,
@@ -2509,7 +2508,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         v-else-if="saveStatus === 'saved'"
                         class="h-4 w-4 text-green-500"
                     />
-                    <Cloud v-else class="h-4 w-4" />
+
                     <span v-if="saveStatus === 'saving'">{{
                         t('projets.show.saving')
                     }}</span>
@@ -3421,7 +3420,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :key="concept.id"
                         >
                             <CardHeader
-                                class="flex flex-row items-start justify-between gap-2 pb-2"
+                                class="group flex flex-row items-start justify-between gap-2 pb-2"
                             >
                                 <div class="flex flex-1 items-center gap-2">
                                     <span
@@ -3453,7 +3452,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 <BoutonTooltip
                                     v-if="peutEditer"
                                     texte="Supprimer ce concept"
-                                    class="size-7 shrink-0 text-destructive"
+                                    class="size-7 shrink-0 text-destructive opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
                                     :disabled="!!conceptEnCours[section.id]"
                                     @click="
                                         supprimerConcept(concept.id, section.id)
@@ -3492,7 +3491,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                         <tr
                                             v-for="ligne in concept.lignes"
                                             :key="ligne.id"
-                                            class="align-top"
+                                            class="group align-top"
                                         >
                                             <!-- Dimension -->
                                             <td class="py-1 pr-2 align-top">
@@ -3562,7 +3561,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                                             q, qi
                                                         ) in ligne.questions"
                                                         :key="qi"
-                                                        class="flex items-start gap-1"
+                                                        class="group/q flex items-start gap-1"
                                                     >
                                                         <span
                                                             class="mt-1.5 shrink-0 text-xs text-muted-foreground"
@@ -3596,7 +3595,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                                         <BoutonTooltip
                                                             v-if="peutEditer"
                                                             texte="Supprimer cette question"
-                                                            class="size-6 shrink-0 text-destructive"
+                                                            class="size-6 shrink-0 text-destructive opacity-0 transition-opacity group-focus-within/q:opacity-100 group-hover/q:opacity-100"
                                                             @click="
                                                                 supprimerQuestion(
                                                                     ligne,
@@ -3645,7 +3644,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                             >
                                                 <BoutonTooltip
                                                     texte="Supprimer cette ligne"
-                                                    class="size-7 text-muted-foreground hover:text-destructive"
+                                                    class="size-7 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-focus-within:opacity-100 group-hover:opacity-100"
                                                     @click="
                                                         supprimerLigne(
                                                             ligne.id,

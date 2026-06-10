@@ -67,30 +67,6 @@ type Props = {
 
 const props = defineProps<Props>();
 
-function completionColor(pct: number): string {
-    if (pct >= 80) {
-        return 'text-green-600 dark:text-green-400';
-    }
-
-    if (pct >= 40) {
-        return 'text-yellow-600 dark:text-yellow-400';
-    }
-
-    return 'text-muted-foreground';
-}
-
-function completionBarClass(pct: number): string {
-    if (pct >= 80) {
-        return 'bg-green-500';
-    }
-
-    if (pct >= 40) {
-        return 'bg-yellow-500';
-    }
-
-    return 'bg-primary/40';
-}
-
 function projetUrl(typeProjetId: number): string {
     return `/cours/${props.classe.cours_id}/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/projets/${typeProjetId}/edit`;
 }
@@ -180,47 +156,6 @@ function projetUrl(typeProjetId: number): string {
                                 </Link>
                             </BoutonTooltip>
                         </div>
-                        <!-- Barre de progression -->
-                        <div v-if="card.projet">
-                            <div class="mb-1 flex items-center justify-between">
-                                <span class="text-xs text-muted-foreground">
-                                    {{
-                                        card.projet.titre_projet ?? 'Sans titre'
-                                    }}
-                                </span>
-                                <span
-                                    class="text-xs font-medium"
-                                    :class="
-                                        completionColor(card.projet.completion)
-                                    "
-                                >
-                                    {{ card.projet.completion }}%
-                                </span>
-                            </div>
-                            <div
-                                class="h-1.5 w-full overflow-hidden rounded-full bg-muted"
-                            >
-                                <div
-                                    class="h-full rounded-full transition-all"
-                                    :class="
-                                        completionBarClass(
-                                            card.projet.completion,
-                                        )
-                                    "
-                                    :style="{
-                                        width: `${card.projet.completion}%`,
-                                    }"
-                                />
-                            </div>
-                        </div>
-
-                        <div
-                            v-else
-                            class="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground"
-                        >
-                            Pas encore démarré
-                        </div>
-
                         <!-- Conclusions par membre -->
                         <div>
                             <p
