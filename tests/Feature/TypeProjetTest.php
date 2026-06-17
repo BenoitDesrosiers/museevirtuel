@@ -2,7 +2,6 @@
 
 use App\Models\Classe;
 use App\Models\Cours;
-use App\Models\GrilleCorrection;
 use App\Models\Groupe;
 use App\Models\ProjetRecherche;
 use App\Models\ProjetSectionContenu;
@@ -356,19 +355,6 @@ test("l'enseignant peut supprimer son type de projet", function () {
     $this->assertDatabaseMissing('types_projets', ['id' => $typeProjet->id]);
 });
 
-test('la suppression du type de projet cascade sur la grille de correction', function () {
-    $enseignant = User::factory()->create(['role' => 'enseignant']);
-    $cours = creerCours($enseignant);
-    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Avec grille', 'accessible' => false]);
-    $grille = GrilleCorrection::create(['type_projet_id' => $typeProjet->id, 'nom' => 'Grille à supprimer']);
-
-    $this->actingAs($enseignant)
-        ->delete("/cours/{$cours->id}/types-projets/{$typeProjet->id}")
-        ->assertRedirect();
-
-    $this->assertDatabaseMissing('grilles_correction', ['id' => $grille->id]);
-});
-
 test("un enseignant ne peut pas supprimer le type de projet d'un autre enseignant (IDOR)", function () {
     $enseignantA = User::factory()->create(['role' => 'enseignant']);
     $enseignantB = User::factory()->create(['role' => 'enseignant']);
@@ -613,6 +599,24 @@ test("l'update supprime les sections retirées et leur contenu cascade", functio
     $this->assertDatabaseMissing('type_projet_sections', ['id' => $s2->id]);
     $this->assertDatabaseMissing('projet_section_contenus', ['section_id' => $s2->id]);
     $this->assertDatabaseHas('type_projet_sections', ['id' => $s1->id, 'label' => 'S1 modifiée', 'ordre' => 1]);
+});
+
+test("l'update d'une section conserve le pointage envoyé", function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignant);
+    $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Projet', 'accessible' => false]);
+    $section = TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Intro', 'ordre' => 1]);
+
+    $this->actingAs($enseignant)
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
+            'nom' => 'Projet',
+            'sections' => [
+                ['id' => $section->id, 'label' => 'Intro', 'pointage' => 15.5],
+            ],
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('type_projet_sections', ['id' => $section->id, 'pointage' => 15.5]);
 });
 
 test("l'update sans clé sections ne modifie pas les sections existantes", function () {

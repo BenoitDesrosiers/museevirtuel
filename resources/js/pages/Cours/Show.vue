@@ -12,7 +12,6 @@ import {
     Copy,
     Download,
     FileText,
-    Grid2x2,
     Pencil,
     Plus,
     Trash2,
@@ -105,8 +104,6 @@ type Reference = {
     ordre: number;
 };
 
-type GrilleResume = { id: number; nom: string } | null;
-
 type TypeProjetSection = {
     id: number;
     label: string;
@@ -119,7 +116,6 @@ type TypeProjet = {
     nom: string;
     description: string | null;
     accessible: boolean;
-    grille: GrilleResume;
     sections: TypeProjetSection[];
 };
 
@@ -376,7 +372,7 @@ const deleteTpForm = useForm({});
 function supprimerTp(tp: TypeProjet) {
     if (
         !confirm(
-            `Supprimer « ${tp.nom} » ? Cette action supprimera également la grille de correction associée et ne peut pas être annulée.`,
+            `Supprimer « ${tp.nom} » ? Cette action supprimera également ses sections et ne peut pas être annulée.`,
         )
     ) {
         return;
@@ -812,27 +808,6 @@ function submitTransfert() {
                                 >
                                     {{ tp.description }}
                                 </p>
-                                <div
-                                    class="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground"
-                                >
-                                    <Grid2x2 class="h-3.5 w-3.5" />
-                                    <span>Grille :</span>
-                                    <Link
-                                        :href="
-                                            typesProjetsRoutes.grille.edit.url({
-                                                cours: cours.id,
-                                                typeProjet: tp.id,
-                                            })
-                                        "
-                                        class="text-primary hover:underline"
-                                    >
-                                        {{
-                                            tp.grille
-                                                ? tp.grille.nom
-                                                : 'Configurer la grille'
-                                        }}
-                                    </Link>
-                                </div>
                             </div>
                             <div class="flex shrink-0 items-center gap-1">
                                 <BoutonTooltip

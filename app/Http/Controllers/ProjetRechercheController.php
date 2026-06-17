@@ -6,21 +6,18 @@ use App\Actions\ExportProjetPdf;
 use App\Actions\ExportProjetWord;
 use App\Helpers\HtmlHelper;
 use App\Http\Requests\UpsertProjetCommentaireRequest;
-use App\Http\Requests\UpsertProjetNoteRequest;
 use App\Models\Classe;
 use App\Models\ConsentementVideo;
 use App\Models\Cours;
 use App\Models\EntrevueConcept;
-use App\Models\GrilleCorrection;
 use App\Models\Groupe;
 use App\Models\GroupeTache;
 use App\Models\ProjetAnnotation;
 use App\Models\ProjetCommentaire;
 use App\Models\ProjetConclusion;
+use App\Models\ProjetCritereCorrection;
+use App\Models\ProjetCritereEtudiantCoche;
 use App\Models\ProjetDeveloppement;
-use App\Models\ProjetGrilleMalus;
-use App\Models\ProjetGrilleNote;
-use App\Models\ProjetNote;
 use App\Models\ProjetRecherche;
 use App\Models\ProjetRenvoi;
 use App\Models\ProjetRenvoiCommentaire;
@@ -30,6 +27,7 @@ use App\Models\ProjetSectionMedia;
 use App\Models\ProjetSectionParagraphe;
 use App\Models\ProjetVoteRemise;
 use App\Models\TypeProjet;
+use App\Models\TypeProjetCritere;
 use App\Models\TypeProjetSection;
 use App\Models\TypeProjetTache;
 use App\Models\User;
@@ -155,7 +153,7 @@ class ProjetRechercheController extends Controller
         ]);
 
         // Précharger en une seule requête chacune des relations — évite le N+1
-        $projet->load(['conclusions', 'commentaires', 'annotations', 'developpements', 'votes', 'notes', 'notesGrille.critere', 'malusAppliques.malus', 'typeProjet.grille.criteres', 'typeProjet.grille.malus', 'typeProjet.sections.questionsBanque', 'typeProjet.taches', 'sectionContenus', 'sectionParagraphes', 'entrevueConcepts.lignes', 'sectionMedias', 'questionsChoisies', 'schemaVisuels', 'renvois.commentaires']);
+        $projet->load(['conclusions', 'commentaires', 'annotations', 'developpements', 'votes', 'typeProjet.sections.questionsBanque', 'typeProjet.sections.criteres', 'typeProjet.criteresGlobaux', 'typeProjet.taches', 'sectionContenus', 'sectionParagraphes', 'entrevueConcepts.lignes', 'sectionMedias', 'questionsChoisies', 'schemaVisuels', 'renvois.commentaires', 'critereCorrections']);
 
         // État des tâches pour ce groupe — groupé par tache_id pour O(1) dans construireSections
         $tacheIds = $typeProjet->taches()->pluck('id');
@@ -184,13 +182,10 @@ class ProjetRechercheController extends Controller
             'contenu' => $c->contenu,
         ]);
 
-        // Pour les étudiants, masquer les corrections si correction_visible = false
+        // Pour les étudiants, masquer les annotations si correction_visible = false
         $annotationsFiltrees = $estEnseignant
             ? $projet->annotations
-            : $projet->annotations->when(
-                ! $projet->correction_visible,
-                fn ($coll) => $coll->where('type', 'commentaire')
-            );
+            : $projet->annotations->when(! $projet->correction_visible, fn ($coll) => $coll->whereNull('id'));
 
         // Annotations inline indexées par champ, triées par la position persistée en base.
         $annotationsParChamp = $annotationsFiltrees
@@ -202,10 +197,10 @@ class ProjetRechercheController extends Controller
                         'id' => $a->id,
                         'commentaire_id' => $a->commentaire_id,
                         'contenu' => $a->contenu,
-                        'type' => $a->type,
-                        'user_id' => $a->user_id,
+                        'points_malus' => $a->points_malus !== null ? (float) $a->points_malus : null,
                         'cible_user_id' => $a->cible_user_id,
-                        'points_malus' => $a->points_malus,
+                        'annotation_type' => $a->annotation_type ?? 'commentaire',
+                        'user_id' => $a->user_id,
                     ])
                     ->values();
             });
@@ -232,34 +227,35 @@ class ProjetRechercheController extends Controller
         // L'enseignant en mode édition peut modifier le contenu comme un membre
         $peutEditer = $peutAgir || ($estEnseignant && (bool) $projet->mode_edition_enseignant);
 
-        // Notes standard pondérées (visibles selon correction_visible)
-        $noteFinaleParEtudiant = ($estEnseignant || $projet->correction_visible)
-            ? $groupe->membres->mapWithKeys(fn (User $membre) => [$membre->id => ProjetNote::noteFinale($projet, $membre)])
-            : $groupe->membres->mapWithKeys(fn (User $membre) => [$membre->id => null]);
+        // Corrections filtrées selon le rôle :
+        // - Enseignant : toutes les corrections
+        // - Étudiant : uniquement si correction_visible, et seulement ses corrections + groupe
+        $correctionsVisibles = $estEnseignant
+            ? $projet->critereCorrections
+            : ($projet->correction_visible
+                ? $projet->critereCorrections->filter(fn ($c) => $c->user_id === null || $c->user_id === $user->id)
+                : collect()
+            );
 
-        // Grille de correction personnalisée : dérivée du type de projet associé
-        $grillePersonnalisee = $projet->typeProjet?->grille;
-        $notesGrilleParEtudiant = [];
-        $malusParEtudiant = [];
-        $noteFinaleGrilleParEtudiant = [];
+        $correctionsParCritere = $correctionsVisibles
+            ->groupBy('critere_id')
+            ->map(fn ($corrs) => $corrs->map->only('id', 'user_id', 'points', 'commentaire', 'verifie', 'source_id')->values())
+            ->all();
 
-        if ($grillePersonnalisee) {
-            if ($estEnseignant || $projet->correction_visible) {
-                $notesGrilleParEtudiant = $projet->notesGrille
-                    ->groupBy('user_id')
-                    ->map(fn ($notes) => $notes->keyBy('critere_id')->map(fn (ProjetGrilleNote $n) => $n->note));
+        // Critères globaux — les étudiants ne voient que les critères visibles
+        $criteresGlobaux = $typeProjet->criteresGlobaux
+            ->when(! $estEnseignant, fn ($col) => $col->where('visible', true))
+            ->map->only('id', 'type', 'contenu_type', 'pointage', 'contenu', 'echelle', 'visible', 'ordre')
+            ->values();
 
-                $malusParEtudiant = $projet->malusAppliques
-                    ->groupBy('user_id')
-                    ->map(fn ($malus) => $malus->keyBy('malus_id')->map(fn (ProjetGrilleMalus $m) => (bool) $m->applique));
-
-                $noteFinaleGrilleParEtudiant = $groupe->membres->mapWithKeys(
-                    fn (User $membre) => [$membre->id => ProjetGrilleNote::noteFinale($projet, $membre)]
-                );
-            } else {
-                $noteFinaleGrilleParEtudiant = $groupe->membres->mapWithKeys(fn (User $membre) => [$membre->id => null]);
-            }
-        }
+        // Coches personnelles du membre courant (indicateur local, hors correction)
+        $cochesUtilisateur = $estMembre
+            ? ProjetCritereEtudiantCoche::where('projet_id', $projet->id)
+                ->where('user_id', $user->id)
+                ->pluck('critere_id')
+                ->values()
+                ->all()
+            : [];
 
         return Inertia::render('Projets/Show', [
             'groupe' => $groupe,
@@ -292,12 +288,7 @@ class ProjetRechercheController extends Controller
                 'vote' => (bool) $v->vote,
             ])->values(),
             'retardPermis' => (bool) $typeProjet->retard_permis,
-            'noteFinaleParEtudiant' => $noteFinaleParEtudiant,
-            'grillePersonnalisee' => $grillePersonnalisee,
-            'notesGrilleParEtudiant' => $notesGrilleParEtudiant,
-            'malusParEtudiant' => $malusParEtudiant,
-            'noteFinaleGrilleParEtudiant' => $noteFinaleGrilleParEtudiant,
-            'sections' => $this->construireSections($projet, $groupe->membres, $groupeTachesParTache),
+            'sections' => $this->construireSections($projet, $groupe->membres, $groupeTachesParTache, $estEnseignant),
             'renvois' => $projet->renvois->map(function (ProjetRenvoi $r) use ($estEnseignant, $projet) {
                 $data = $r->only('id', 'numero', 'contenu', 'type_reference', 'champs_reference');
                 $data['commentaires'] = ($estEnseignant || $projet->correction_visible)
@@ -308,6 +299,9 @@ class ProjetRechercheController extends Controller
             })->values(),
             'consentement' => $this->construireConsentement($projet->id, $user->id),
             'mesReferences' => $mesReferences,
+            'criteresGlobaux' => $criteresGlobaux,
+            'correctionsParCritere' => $correctionsParCritere,
+            'cochesUtilisateur' => $cochesUtilisateur,
         ]);
     }
 
@@ -819,48 +813,6 @@ class ProjetRechercheController extends Controller
     }
 
     /**
-     * Crée ou met à jour la note d'un critère de la grille de correction.
-     *
-     * @throws HttpException
-     */
-    public function upsertNote(UpsertProjetNoteRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
-    {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserEnseignant($cours, $classe, $groupe);
-
-        $groupe->loadMissing('membres');
-        abort_unless(
-            $groupe->membres->contains('id', $request->validated('user_id')),
-            422,
-            'Cet étudiant n\'est pas membre de ce groupe.',
-        );
-
-        $projet = ProjetRecherche::firstOrCreate([
-            'groupe_id' => $groupe->id,
-            'type_projet_id' => $typeProjet->id,
-        ]);
-
-        ProjetNote::updateOrCreate(
-            [
-                'projet_id' => $projet->id,
-                'user_id' => $request->validated('user_id'),
-                'critere' => $request->validated('critere'),
-            ],
-            ['note' => $request->validated('note')],
-        );
-
-        $projet->load('notes');
-        $groupe->load('membres');
-
-        return response()->json([
-            'message' => 'saved',
-            'noteFinaleParEtudiant' => $groupe->membres->mapWithKeys(
-                fn (User $membre) => [$membre->id => ProjetNote::noteFinale($projet, $membre)]
-            ),
-        ]);
-    }
-
-    /**
      * Crée ou met à jour une annotation inline sur un champ du projet.
      *
      * @throws HttpException si l'utilisateur n'est pas l'enseignant du cours
@@ -875,10 +827,9 @@ class ProjetRechercheController extends Controller
             'commentaire_id' => ['required', 'string', 'max:36'],
             'contenu' => ['required', 'string', 'max:1000'],
             'html' => ['required', 'string'],
-            'type' => ['sometimes', 'string', 'in:commentaire,correction'],
-            // Malus inline — uniquement pertinents pour type='correction'
-            'cible_user_id' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
-            'points_malus' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
+            'annotation_type' => ['required', 'string', 'in:commentaire,correction'],
+            'points_malus' => ['nullable', 'numeric', 'min:0', 'max:999.99'],
+            'cible_user_id' => ['nullable', 'integer', 'exists:users,id'],
         ]);
 
         $projet = ProjetRecherche::firstOrCreate([
@@ -900,44 +851,35 @@ class ProjetRechercheController extends Controller
         );
         $motAnnote = isset($markMatch[1]) ? strip_tags($markMatch[1]) : null;
 
-        $type = $validated['type'] ?? 'commentaire';
+        $estCorrection = $validated['annotation_type'] === 'correction';
 
         $annotation = ProjetAnnotation::updateOrCreate(
             ['projet_id' => $projet->id, 'commentaire_id' => $validated['commentaire_id']],
             [
                 'champ' => $validated['champ'],
                 'contenu' => $validated['contenu'],
-                'type' => $type,
                 'position' => $position,
                 'mot_annote' => $motAnnote,
+                'annotation_type' => $validated['annotation_type'],
+                // points_malus et cible_user_id n'ont de sens que pour une correction
+                'points_malus' => $estCorrection && isset($validated['points_malus'])
+                    ? (float) $validated['points_malus']
+                    : null,
+                'cible_user_id' => $estCorrection ? ($validated['cible_user_id'] ?? null) : null,
                 'user_id' => auth()->id(),
-                // Les champs malus ne s'appliquent qu'aux corrections ; on les réinitialise sinon.
-                'cible_user_id' => $type === 'correction' ? ($validated['cible_user_id'] ?? null) : null,
-                'points_malus' => $type === 'correction' ? ($validated['points_malus'] ?? null) : null,
             ]
         );
 
-        $responseData = [
+        return response()->json([
             'message' => 'saved',
             'id' => $annotation->id,
             'commentaire_id' => $annotation->commentaire_id,
             'contenu' => $annotation->contenu,
-            'type' => $annotation->type,
-            'user_id' => $annotation->user_id,
+            'annotation_type' => $annotation->annotation_type,
+            'points_malus' => $annotation->points_malus !== null ? (float) $annotation->points_malus : null,
             'cible_user_id' => $annotation->cible_user_id,
-            'points_malus' => $annotation->points_malus,
-        ];
-
-        // Si l'annotation est une correction avec déduction de points et que le projet a une grille,
-        // on retourne la note finale recalculée pour que le frontend la mette à jour immédiatement.
-        if ($annotation->type === 'correction' && $annotation->points_malus !== null && $projet->typeProjet?->grille) {
-            $projet->load(['notesGrille.critere', 'malusAppliques.malus', 'annotations']);
-            $responseData['noteFinaleGrilleParEtudiant'] = $groupe->membres->mapWithKeys(
-                fn (User $membre) => [$membre->id => ProjetGrilleNote::noteFinale($projet, $membre)]
-            );
-        }
-
-        return response()->json($responseData);
+            'user_id' => $annotation->user_id,
+        ]);
     }
 
     /**
@@ -961,22 +903,9 @@ class ProjetRechercheController extends Controller
 
         $this->mettreAJourChampHtml($projet, $validated['champ'], $validated['html']);
 
-        // Capturer avant suppression pour décider du recalcul de note après
-        $estCorrectionAvecMalus = $annotation->type === 'correction' && $annotation->points_malus !== null;
-
         $annotation->delete();
 
-        $responseData = ['message' => 'deleted'];
-
-        // Recalculer la note finale si une déduction venait d'être retirée
-        if ($estCorrectionAvecMalus && $projet->typeProjet?->grille) {
-            $projet->load(['notesGrille.critere', 'malusAppliques.malus', 'annotations']);
-            $responseData['noteFinaleGrilleParEtudiant'] = $groupe->membres->mapWithKeys(
-                fn (User $membre) => [$membre->id => ProjetGrilleNote::noteFinale($projet, $membre)]
-            );
-        }
-
-        return response()->json($responseData);
+        return response()->json(['message' => 'deleted']);
     }
 
     /**
@@ -1107,6 +1036,187 @@ class ProjetRechercheController extends Controller
     }
 
     /**
+     * Crée ou met à jour la correction d'un critère pour ce projet.
+     *
+     * `user_id` null = correction appliquée à tout le groupe.
+     * Pour un critère positif, `verifie = true` et `points = null` accorde
+     * automatiquement le pointage complet du critère.
+     *
+     * @throws HttpException
+     */
+    public function upsertCritereCorrection(
+        Request $request,
+        Cours $cours,
+        Classe $classe,
+        Groupe $groupe,
+        TypeProjet $typeProjet,
+        TypeProjetCritere $critere,
+    ): JsonResponse {
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserEnseignant($cours, $classe, $groupe);
+        abort_if($critere->type_projet_id !== $typeProjet->id, 404);
+
+        $validated = $request->validate([
+            'user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'points' => ['nullable', 'numeric', 'min:0'],
+            'commentaire' => ['nullable', 'string', 'max:2000'],
+            'verifie' => ['boolean'],
+        ]);
+
+        $projet = ProjetRecherche::firstOrCreate([
+            'groupe_id' => $groupe->id,
+            'type_projet_id' => $typeProjet->id,
+        ]);
+
+        $correction = ProjetCritereCorrection::updateOrCreate(
+            [
+                'projet_id' => $projet->id,
+                'critere_id' => $critere->id,
+                'user_id' => $validated['user_id'] ?? null,
+            ],
+            [
+                'points' => $validated['points'] ?? null,
+                'commentaire' => $validated['commentaire'] ?? null,
+                'verifie' => $request->boolean('verifie', false),
+            ]
+        );
+
+        return response()->json([
+            'message' => 'saved',
+            'correction' => $correction->only('id', 'projet_id', 'critere_id', 'user_id', 'points', 'commentaire', 'verifie', 'source_id'),
+        ]);
+    }
+
+    /**
+     * Supprime une correction de critère et tous ses clones.
+     *
+     * @throws HttpException
+     */
+    public function destroyCritereCorrection(
+        Cours $cours,
+        Classe $classe,
+        Groupe $groupe,
+        TypeProjet $typeProjet,
+        ProjetCritereCorrection $correction,
+    ): JsonResponse {
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserEnseignant($cours, $classe, $groupe);
+
+        $projet = $this->trouverProjet($groupe, $typeProjet);
+        abort_if($correction->projet_id !== $projet->id, 404);
+
+        // Supprimer d'abord les clones pour éviter la violation de contrainte FK
+        $correction->clones()->delete();
+        $correction->delete();
+
+        return response()->json(['message' => 'deleted']);
+    }
+
+    /**
+     * Clone une correction de groupe pour appliquer des points différents à un étudiant.
+     *
+     * La correction source peut être une correction de groupe (user_id = null) ou
+     * individuelle. Le clone remplace toute correction individuelle existante pour
+     * le même (projet, critère, étudiant).
+     *
+     * @throws HttpException
+     */
+    public function clonerCritereCorrection(
+        Request $request,
+        Cours $cours,
+        Classe $classe,
+        Groupe $groupe,
+        TypeProjet $typeProjet,
+        ProjetCritereCorrection $correction,
+    ): JsonResponse {
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->autoriserEnseignant($cours, $classe, $groupe);
+
+        $projet = $this->trouverProjet($groupe, $typeProjet);
+        abort_if($correction->projet_id !== $projet->id, 404);
+
+        $validated = $request->validate([
+            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'points' => ['nullable', 'numeric', 'min:0'],
+            'commentaire' => ['nullable', 'string', 'max:2000'],
+            'verifie' => ['boolean'],
+        ]);
+
+        // Remplacer un éventuel clone existant pour ce (critère, étudiant)
+        ProjetCritereCorrection::where('projet_id', $projet->id)
+            ->where('critere_id', $correction->critere_id)
+            ->where('user_id', $validated['user_id'])
+            ->delete();
+
+        $clone = ProjetCritereCorrection::create([
+            'projet_id' => $projet->id,
+            'critere_id' => $correction->critere_id,
+            'user_id' => $validated['user_id'],
+            'points' => $validated['points'] ?? null,
+            'commentaire' => $validated['commentaire'] ?? null,
+            'verifie' => $request->boolean('verifie', (bool) $correction->verifie),
+            'source_id' => $correction->id,
+        ]);
+
+        return response()->json([
+            'message' => 'cloned',
+            'correction' => $clone->only('id', 'projet_id', 'critere_id', 'user_id', 'points', 'commentaire', 'verifie', 'source_id'),
+        ]);
+    }
+
+    /**
+     * Bascule la coche personnelle d'un étudiant pour un critère visible.
+     *
+     * La coche est un indicateur personnel de l'étudiant ; elle n'influence
+     * pas la correction ni la note.
+     *
+     * @throws HttpException
+     */
+    public function toggleCocheCritere(
+        Cours $cours,
+        Classe $classe,
+        Groupe $groupe,
+        TypeProjet $typeProjet,
+        TypeProjetCritere $critere,
+    ): JsonResponse {
+        abort_if($classe->cours_id !== $cours->id, 404);
+        abort_if($groupe->classe_id !== $classe->id, 404);
+        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        abort_if($critere->type_projet_id !== $typeProjet->id, 404);
+
+        $groupe->loadMissing('membres');
+        abort_unless($groupe->membres->contains('id', auth()->id()), 403);
+        abort_unless((bool) $critere->visible, 403);
+
+        $projet = ProjetRecherche::firstOrCreate([
+            'groupe_id' => $groupe->id,
+            'type_projet_id' => $typeProjet->id,
+        ]);
+
+        $coche = ProjetCritereEtudiantCoche::where('projet_id', $projet->id)
+            ->where('critere_id', $critere->id)
+            ->where('user_id', auth()->id())
+            ->first();
+
+        if ($coche) {
+            $coche->delete();
+            $estCoche = false;
+        } else {
+            ProjetCritereEtudiantCoche::create([
+                'projet_id' => $projet->id,
+                'critere_id' => $critere->id,
+                'user_id' => auth()->id(),
+            ]);
+            $estCoche = true;
+        }
+
+        return response()->json([
+            'message' => 'toggled',
+            'coche' => $estCoche,
+        ]);
+    }
+
+    /**
      * Verrouille ou déverrouille le document pour l'édition par les étudiants.
      *
      * @throws HttpException
@@ -1127,74 +1237,6 @@ class ProjetRechercheController extends Controller
             'message' => 'toggled',
             'verrouille' => (bool) $projet->verrouille,
         ]);
-    }
-
-    /**
-     * Crée ou met à jour la note d'un étudiant pour un critère de la grille personnalisée.
-     *
-     * @throws HttpException
-     */
-    public function upsertNoteGrille(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
-    {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserEnseignant($cours, $classe, $groupe);
-
-        $validated = $request->validate([
-            'critere_id' => ['required', 'integer'],
-            'note' => ['required', 'integer', Rule::in([0, 2, 3, 4])],
-            'user_id' => ['required', 'integer', 'exists:users,id'],
-        ]);
-
-        [$grille, $projet] = $this->chargerContexteGrille($cours, $classe, $groupe, $typeProjet, $validated['user_id']);
-
-        $request->validate([
-            'critere_id' => [Rule::exists('grille_criteres', 'id')->where('grille_id', $grille->id)],
-        ]);
-
-        ProjetGrilleNote::updateOrCreate(
-            [
-                'projet_id' => $projet->id,
-                'user_id' => $validated['user_id'],
-                'critere_id' => $validated['critere_id'],
-            ],
-            ['note' => $validated['note']],
-        );
-
-        return $this->reponseGrilleNotesFinales($projet, $groupe);
-    }
-
-    /**
-     * Applique ou retire un malus sur un étudiant pour la grille personnalisée du projet.
-     *
-     * @throws HttpException
-     */
-    public function toggleMalusGrille(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
-    {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserEnseignant($cours, $classe, $groupe);
-
-        $validated = $request->validate([
-            'malus_id' => ['required', 'integer'],
-            'user_id' => ['required', 'integer', 'exists:users,id'],
-            'applique' => ['required', 'boolean'],
-        ]);
-
-        [$grille, $projet] = $this->chargerContexteGrille($cours, $classe, $groupe, $typeProjet, $validated['user_id']);
-
-        $request->validate([
-            'malus_id' => [Rule::exists('grille_malus', 'id')->where('grille_id', $grille->id)],
-        ]);
-
-        ProjetGrilleMalus::updateOrCreate(
-            [
-                'projet_id' => $projet->id,
-                'user_id' => $validated['user_id'],
-                'malus_id' => $validated['malus_id'],
-            ],
-            ['applique' => $validated['applique']],
-        );
-
-        return $this->reponseGrilleNotesFinales($projet, $groupe);
     }
 
     /**
@@ -1227,7 +1269,9 @@ class ProjetRechercheController extends Controller
      * Affiche la page d'aperçu des notes finales du groupe (format DA + note).
      *
      * Accessible aux enseignants et admins uniquement.
-     * Chaque ligne affiche le numéro DA de l'étudiant suivi de sa note finale.
+     * Chaque ligne affiche le numéro DA de l'étudiant suivi de sa note calculée
+     * (somme des critères positifs/négatifs corrigés, moins les malus d'annotations).
+     * La logique de calcul est identique à celle du panneau notesParMembre dans Show.vue.
      *
      * @throws HttpException
      * @throws AuthorizationException
@@ -1249,22 +1293,45 @@ class ProjetRechercheController extends Controller
 
         $projet = $this->trouverProjet($groupe, $typeProjet);
 
-        // Charger la grille personnalisée du TypeProjet pour savoir quelle méthode de notation utiliser
-        $typeProjet->loadMissing('grille');
-        $useGrillePerso = $typeProjet->grille !== null;
+        $typeProjet->load('criteres');
+        $projet->load(['critereCorrections', 'annotations']);
 
-        $projet->load($useGrillePerso
-            ? ['notesGrille.critere', 'malusAppliques.malus']
-            : ['notes']
-        );
+        // Index des corrections par critère_id pour éviter des boucles N+1
+        $correctionsByCritere = $projet->critereCorrections->groupBy('critere_id');
 
-        $lignes = $groupe->membres->map(fn ($membre) => [
-            'da' => preg_replace('/\D/', '', (string) $membre->no_da),
-            'note' => ($n = $useGrillePerso
-                ? ProjetGrilleNote::noteFinale($projet, $membre)
-                : ProjetNote::noteFinale($projet, $membre)
-            ) !== null ? (string) $n : null,
-        ])->values();
+        $lignes = $groupe->membres->map(function ($membre) use ($typeProjet, $correctionsByCritere, $projet) {
+            $obtenu = 0.0;
+
+            foreach ($typeProjet->criteres as $critere) {
+                $corrections = $correctionsByCritere->get($critere->id, collect());
+
+                // Correction individuelle prime sur la correction de groupe (même logique que Show.vue)
+                $correction = $corrections->first(fn ($c) => $c->user_id === $membre->id)
+                    ?? $corrections->first(fn ($c) => $c->user_id === null);
+
+                if ($correction === null) {
+                    continue;
+                }
+
+                $pts = (float) ($correction->points ?? 0);
+                if ($critere->type === 'positif') {
+                    $obtenu += $pts;
+                } else {
+                    $obtenu -= $pts;
+                }
+            }
+
+            // Malus d'annotation : s'applique si cible_user_id = null (tous) ou = cet étudiant
+            $malus = $projet->annotations
+                ->filter(fn ($a) => $a->points_malus !== null
+                    && ($a->cible_user_id === null || $a->cible_user_id === $membre->id))
+                ->sum(fn ($a) => (float) $a->points_malus);
+
+            return [
+                'da' => preg_replace('/\D/', '', (string) $membre->no_da),
+                'note' => round(($obtenu - $malus) * 100) / 100,
+            ];
+        })->values();
 
         return Inertia::render('Projets/ApercuNotes', [
             'cours' => ['id' => $cours->id],
@@ -1523,47 +1590,6 @@ class ProjetRechercheController extends Controller
     }
 
     /**
-     * Charge la grille du type de projet et valide que l'utilisateur est bien membre du groupe.
-     *
-     * @return array{0: GrilleCorrection, 1: ProjetRecherche}
-     *
-     * @throws HttpException
-     */
-    private function chargerContexteGrille(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, int $userId): array
-    {
-        $projet = $this->trouverProjet($groupe, $typeProjet);
-
-        $projet->load('typeProjet.grille');
-        $grille = $projet->typeProjet?->grille;
-        abort_if($grille === null, 422, 'Aucune grille personnalisée n\'est définie pour ce type de projet.');
-
-        $groupe->loadMissing('membres');
-        abort_unless(
-            $groupe->membres->contains('id', $userId),
-            422,
-            'Cet étudiant n\'est pas membre de ce groupe.',
-        );
-
-        return [$grille, $projet];
-    }
-
-    /**
-     * Recharge les notes et malus d'un projet et retourne la réponse JSON standard
-     * pour les endpoints de notation grille.
-     */
-    private function reponseGrilleNotesFinales(ProjetRecherche $projet, Groupe $groupe): JsonResponse
-    {
-        $projet->load(['notesGrille.critere', 'malusAppliques.malus', 'annotations']);
-
-        return response()->json([
-            'message' => 'saved',
-            'noteFinaleGrilleParEtudiant' => $groupe->membres->mapWithKeys(
-                fn (User $membre) => [$membre->id => ProjetGrilleNote::noteFinale($projet, $membre)]
-            ),
-        ]);
-    }
-
-    /**
      * Retourne le consentement vidéo de l'utilisateur pour ce projet,
      * ou null si aucun consentement n'a encore été enregistré.
      *
@@ -1599,7 +1625,7 @@ class ProjetRechercheController extends Controller
      * @param  Collection|null  $groupeTachesParTache  état des tâches du groupe, indexé par tache_id
      * @return array<int, array<string, mixed>>
      */
-    private function construireSections(ProjetRecherche $projet, ?Collection $membres = null, ?Collection $groupeTachesParTache = null): array
+    private function construireSections(ProjetRecherche $projet, ?Collection $membres = null, ?Collection $groupeTachesParTache = null, bool $estEnseignant = true): array
     {
         $sections = $projet->typeProjet?->sections ?? collect();
 
@@ -1693,6 +1719,14 @@ class ProjetRechercheController extends Controller
             'schemaVisuel' => $s->type === 'schema_visuel'
                 ? ($schemaVisuelsParSection->get($s->id)?->contenu ?? ProjetSchemaVisuel::contenuVide())
                 : null,
+            'criteres' => $s->relationLoaded('criteres')
+                ? $s->criteres
+                    ->when(! $estEnseignant, fn ($col) => $col->where('visible', true))
+                    ->map->only('id', 'type', 'contenu_type', 'pointage', 'contenu', 'echelle', 'visible', 'ordre')
+                    ->values()
+                    ->all()
+                : [],
+            'pointage' => $s->pointage !== null ? (float) $s->pointage : null,
         ])->values()->all();
     }
 

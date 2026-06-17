@@ -4,8 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\Classe;
 use App\Models\Cours;
-use App\Models\GrilleCorrection;
-use App\Models\GrilleCritere;
 use App\Models\Groupe;
 use App\Models\ProjetQuestionChoisie;
 use App\Models\ProjetRecherche;
@@ -256,32 +254,6 @@ class DepDemoSeeder extends Seeder
             ]);
         }
 
-        // Grille de correction
-        if (! $typeProjet->grille()->exists()) {
-            /** @var GrilleCorrection $grille */
-            $grille = GrilleCorrection::create([
-                'type_projet_id' => $typeProjet->id,
-                'nom' => 'Grille — Construction de questions d\'entrevue',
-                'description' => 'Évaluation de la pertinence et de la qualité des questions sélectionnées.',
-            ]);
-
-            $criteres = [
-                ['label' => 'Pertinence des questions choisies par rapport à la thématique', 'ponderation' => 35],
-                ['label' => 'Variété et complémentarité des questions',                      'ponderation' => 30],
-                ['label' => 'Qualité de la rédaction et clarté des questions',               'ponderation' => 20],
-                ['label' => 'Respect des consignes (nombre de questions)',                   'ponderation' => 15],
-            ];
-
-            foreach ($criteres as $ordre => $critere) {
-                GrilleCritere::create([
-                    'grille_id' => $grille->id,
-                    'label' => $critere['label'],
-                    'ponderation' => $critere['ponderation'],
-                    'ordre' => $ordre + 1,
-                ]);
-            }
-        }
-
         /** @var ProjetRecherche $projet */
         $projet = ProjetRecherche::firstOrCreate(
             ['groupe_id' => $groupe->id, 'type_projet_id' => $typeProjet->id],
@@ -348,32 +320,6 @@ class DepDemoSeeder extends Seeder
             'description' => 'Déposez la vidéo de l\'entrevue (fichier ou lien URL).',
         ]);
 
-        // Grille de correction
-        if (! $typeProjet->grille()->exists()) {
-            /** @var GrilleCorrection $grille */
-            $grille = GrilleCorrection::create([
-                'type_projet_id' => $typeProjet->id,
-                'nom' => 'Grille — L\'entrevue',
-                'description' => 'Évaluation de la conduite et de la qualité de l\'entrevue.',
-            ]);
-
-            $criteres = [
-                ['label' => 'Qualité des questions posées et écoute active',              'ponderation' => 30],
-                ['label' => 'Pertinence des relances et approfondissement des réponses',  'ponderation' => 25],
-                ['label' => 'Clarté et structure de l\'entrevue',                        'ponderation' => 25],
-                ['label' => 'Qualité technique de l\'enregistrement',                    'ponderation' => 20],
-            ];
-
-            foreach ($criteres as $ordre => $critere) {
-                GrilleCritere::create([
-                    'grille_id' => $grille->id,
-                    'label' => $critere['label'],
-                    'ponderation' => $critere['ponderation'],
-                    'ordre' => $ordre + 1,
-                ]);
-            }
-        }
-
         /** @var ProjetRecherche $projet */
         $projet = ProjetRecherche::firstOrCreate(
             ['groupe_id' => $groupe->id, 'type_projet_id' => $typeProjet->id],
@@ -423,31 +369,6 @@ class DepDemoSeeder extends Seeder
             'ordre' => 2,
             'description' => 'Partagez votre réflexion à l\'oral si vous le souhaitez.',
         ]);
-
-        // Grille de correction
-        if (! $typeProjet->grille()->exists()) {
-            /** @var GrilleCorrection $grille */
-            $grille = GrilleCorrection::create([
-                'type_projet_id' => $typeProjet->id,
-                'nom' => 'Grille — Introspection',
-                'description' => 'Évaluation de la profondeur de la réflexion personnelle.',
-            ]);
-
-            $criteres = [
-                ['label' => 'Profondeur et authenticité de la réflexion',                    'ponderation' => 40],
-                ['label' => 'Liens établis avec les apprentissages du cours',                'ponderation' => 35],
-                ['label' => 'Clarté de l\'expression (écrite ou orale)',                     'ponderation' => 25],
-            ];
-
-            foreach ($criteres as $ordre => $critere) {
-                GrilleCritere::create([
-                    'grille_id' => $grille->id,
-                    'label' => $critere['label'],
-                    'ponderation' => $critere['ponderation'],
-                    'ordre' => $ordre + 1,
-                ]);
-            }
-        }
 
         /** @var ProjetRecherche $projet */
         $projet = ProjetRecherche::firstOrCreate(

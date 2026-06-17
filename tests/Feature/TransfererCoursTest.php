@@ -6,9 +6,6 @@ use App\Models\Cours;
 use App\Models\CoursLienEntrevue;
 use App\Models\CoursObjectif;
 use App\Models\EcheancierEtape;
-use App\Models\GrilleCorrection;
-use App\Models\GrilleCritere;
-use App\Models\GrilleMalus;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetSection;
 use App\Models\TypeProjetTache;
@@ -83,16 +80,6 @@ function scenarioTransfertCours(): array
         'is_sommatif' => true,
     ]);
 
-    $grille = GrilleCorrection::create([
-        'type_projet_id' => $typeProjet->id,
-        'nom' => 'Grille principale',
-        'description' => 'Description grille',
-    ]);
-
-    GrilleCritere::create(['grille_id' => $grille->id, 'label' => 'Contenu', 'ponderation' => 50, 'ordre' => 1]);
-    GrilleCritere::create(['grille_id' => $grille->id, 'label' => 'Forme', 'ponderation' => 30, 'ordre' => 2]);
-    GrilleMalus::create(['grille_id' => $grille->id, 'label' => 'Retard', 'deduction' => 10, 'description' => '-10%', 'ordre' => 1]);
-
     TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Introduction', 'description' => null, 'ordre' => 1, 'type' => 'texte']);
     TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Développement', 'description' => null, 'ordre' => 2, 'type' => 'paragraphes']);
     TypeProjetTache::create(['type_projet_id' => $typeProjet->id, 'titre' => 'Rédiger le plan', 'description' => null, 'ordre' => 1]);
@@ -134,18 +121,16 @@ test("l'action copie les liens d'entrevue", function () {
     expect($nouveau->liensEntrevue->first()->url)->toBe('https://example.com/guide');
 });
 
-test("l'action copie les types de projets avec grille et sections", function () {
+test("l'action copie les types de projets avec sections et taches", function () {
     ['cours' => $cours] = scenarioTransfertCours();
 
     $nouveau = app(TransfererCoursAction::class)->execute($cours, 2027, 'automne');
 
-    $typesProjets = $nouveau->typesProjets()->with(['grille.criteres', 'grille.malus', 'sections', 'taches'])->get();
+    $typesProjets = $nouveau->typesProjets()->with(['sections', 'taches'])->get();
 
     expect($typesProjets)->toHaveCount(1);
 
     $tp = $typesProjets->first();
-    expect($tp->grille->criteres)->toHaveCount(2);
-    expect($tp->grille->malus)->toHaveCount(1);
     expect($tp->sections)->toHaveCount(2);
     expect($tp->taches)->toHaveCount(1);
 });

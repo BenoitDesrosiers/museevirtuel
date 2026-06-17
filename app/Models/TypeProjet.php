@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class TypeProjet extends Model
 {
@@ -59,14 +58,6 @@ class TypeProjet extends Model
     }
 
     /**
-     * Retourne la grille de correction associée à ce type de projet.
-     */
-    public function grille(): HasOne
-    {
-        return $this->hasOne(GrilleCorrection::class, 'type_projet_id');
-    }
-
-    /**
      * Retourne les sections définies par le professeur pour ce type de projet, triées par ordre.
      */
     public function sections(): HasMany
@@ -88,5 +79,25 @@ class TypeProjet extends Model
     public function taches(): HasMany
     {
         return $this->hasMany(TypeProjetTache::class, 'type_projet_id')->orderBy('ordre');
+    }
+
+    /**
+     * Retourne tous les critères de correction (globaux et par section), triés par ordre.
+     */
+    public function criteres(): HasMany
+    {
+        return $this->hasMany(TypeProjetCritere::class, 'type_projet_id')->orderBy('ordre');
+    }
+
+    /**
+     * Retourne uniquement les critères globaux (non liés à une section), triés par ordre.
+     *
+     * Ces critères sont affichés avant les sections dans la vue de correction.
+     */
+    public function criteresGlobaux(): HasMany
+    {
+        return $this->hasMany(TypeProjetCritere::class, 'type_projet_id')
+            ->whereNull('section_id')
+            ->orderBy('ordre');
     }
 }

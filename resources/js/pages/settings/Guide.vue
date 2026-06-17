@@ -38,7 +38,6 @@ const sectionKeysByRole: Record<string, string[]> = {
         'gerer_classes',
         'importer_etudiants',
         'types_projets',
-        'grille_correction',
         'objectifs',
         'reference_apa',
         'echeancier',

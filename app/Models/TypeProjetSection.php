@@ -16,7 +16,20 @@ class TypeProjetSection extends Model
         'description',
         'ordre',
         'type',
+        'pointage',
     ];
+
+    /**
+     * Retourne les casts de colonnes pour l'hydratation automatique.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'pointage' => 'decimal:2',
+        ];
+    }
 
     /**
      * Retourne le type de projet auquel appartient cette section.
@@ -56,5 +69,13 @@ class TypeProjetSection extends Model
     public function medias(): HasMany
     {
         return $this->hasMany(ProjetSectionMedia::class, 'section_id');
+    }
+
+    /**
+     * Retourne les critères de correction définis pour cette section, triés par ordre.
+     */
+    public function criteres(): HasMany
+    {
+        return $this->hasMany(TypeProjetCritere::class, 'section_id')->orderBy('ordre');
     }
 }

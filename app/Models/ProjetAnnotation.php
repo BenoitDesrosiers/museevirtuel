@@ -12,19 +12,23 @@ class ProjetAnnotation extends Model
         'champ',
         'commentaire_id',
         'contenu',
-        'type',
         'position',
         'mot_annote',
-        'user_id',
-        'cible_user_id',
         'points_malus',
+        'cible_user_id',
+        'annotation_type',
+        'user_id',
     ];
 
+    /**
+     * Retourne les casts de colonnes pour l'hydratation automatique.
+     *
+     * @return array<string, string>
+     */
     protected function casts(): array
     {
         return [
-            // float natif pour que les calculs dans noteFinale() restent sans cast explicite
-            'points_malus' => 'float',
+            'points_malus' => 'decimal:2',
         ];
     }
 
@@ -42,13 +46,5 @@ class ProjetAnnotation extends Model
     public function auteur(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
-    }
-
-    /**
-     * Retourne l'étudiant visé par la déduction de points (annotations de correction uniquement).
-     */
-    public function cible(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'cible_user_id');
     }
 }

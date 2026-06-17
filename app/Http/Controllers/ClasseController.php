@@ -5,9 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\EcheancierEtudiantProgress;
-use App\Models\ProjetGrilleNote;
-use App\Models\ProjetNote;
-use App\Models\ProjetRecherche;
 use App\Models\TypeProjet;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
@@ -156,35 +153,13 @@ class ClasseController extends Controller
         $this->autoriserEnseignantOuAdmin($cours, $classe);
         $classe->load('groupes.membres');
 
-        // Déterminer si ce TypeProjet utilise une grille personnalisée
-        $typeProjet->loadMissing('grille');
-        $useGrillePerso = $typeProjet->grille !== null;
-
-        // Charger tous les projets de cette classe pour ce TypeProjet en une seule requête — évite N+1
-        $relationsNotes = $useGrillePerso
-            ? ['notesGrille.critere', 'malusAppliques.malus']
-            : ['notes'];
-
-        $projets = ProjetRecherche::whereIn('groupe_id', $classe->groupes->pluck('id'))
-            ->where('type_projet_id', $typeProjet->id)
-            ->with($relationsNotes)
-            ->get()
-            ->keyBy('groupe_id');
-
         $lignes = collect();
 
         foreach ($classe->groupes as $groupe) {
-            $projet = $projets->get($groupe->id);
-
             foreach ($groupe->membres as $membre) {
-                $note = $projet
-                    ? ($useGrillePerso
-                        ? ProjetGrilleNote::noteFinale($projet, $membre)
-                        : ProjetNote::noteFinale($projet, $membre))
-                    : null;
                 $lignes->push([
                     'da' => preg_replace('/\D/', '', (string) $membre->no_da),
-                    'note' => $note !== null ? (string) $note : null,
+                    'note' => null,
                 ]);
             }
         }
@@ -217,58 +192,21 @@ class ClasseController extends Controller
         $typesProjets = $cours->typesProjets()
             ->where('is_sommatif', true)
             ->whereNotNull('ponderation')
-            ->with('grille')
             ->orderBy('nom')
             ->get();
-
-        // Flag par TypeProjet calculé une seule fois — évite le double accès à $tp->grille
-        $useGrilleParId = $typesProjets->mapWithKeys(
-            fn ($tp) => [$tp->id => $tp->grille !== null]
-        )->all();
-
-        // Charger tous les projets de la classe en une seule requête par TypeProjet — évite N+1
-        $projetsPar = [];
-        foreach ($typesProjets as $tp) {
-            $relations = $useGrilleParId[$tp->id]
-                ? ['notesGrille.critere', 'malusAppliques.malus']
-                : ['notes'];
-
-            $projetsPar[$tp->id] = ProjetRecherche::whereIn('groupe_id', $classe->groupes->pluck('id'))
-                ->where('type_projet_id', $tp->id)
-                ->with($relations)
-                ->get()
-                ->keyBy('groupe_id');
-        }
 
         $lignes = collect();
 
         foreach ($classe->groupes as $groupe) {
             foreach ($groupe->membres as $membre) {
-                $notesParType = [];
-                $total = 0.0;
-
-                foreach ($typesProjets as $tp) {
-                    $useGrillePerso = $useGrilleParId[$tp->id];
-                    $projet = $projetsPar[$tp->id]->get($groupe->id);
-
-                    $note = $projet
-                        ? ($useGrillePerso
-                            ? ProjetGrilleNote::noteFinale($projet, $membre)
-                            : ProjetNote::noteFinale($projet, $membre))
-                        : null;
-
-                    $notesParType[$tp->id] = $note !== null ? (float) $note : null;
-
-                    // Contribution pondérée : 0 si pas de note
-                    $total += ($note !== null ? (float) $note : 0.0) * ((float) $tp->ponderation / 100);
-                }
+                $notesParType = $typesProjets->mapWithKeys(fn ($tp) => [$tp->id => null])->all();
 
                 $lignes->push([
                     'da' => preg_replace('/\D/', '', (string) $membre->no_da),
                     'prenom' => $membre->prenom,
                     'nom' => $membre->nom,
                     'notes_par_type' => $notesParType,
-                    'total' => round($total, 2),
+                    'total' => 0.0,
                 ]);
             }
         }

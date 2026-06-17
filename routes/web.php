@@ -15,7 +15,6 @@ use App\Http\Controllers\EntrevueConceptController;
 use App\Http\Controllers\EtablissementController;
 use App\Http\Controllers\EtudiantController;
 use App\Http\Controllers\EtudiantReferenceController;
-use App\Http\Controllers\GrilleCorrectionController;
 use App\Http\Controllers\GroupeController;
 use App\Http\Controllers\GroupeEchangeController;
 use App\Http\Controllers\GroupeMediaController;
@@ -29,6 +28,7 @@ use App\Http\Controllers\QuestionBanqueController;
 use App\Http\Controllers\ThematiqueController;
 use App\Http\Controllers\TransfererCoursController;
 use App\Http\Controllers\TypeProjetController;
+use App\Http\Controllers\TypeProjetCritereController;
 use App\Http\Controllers\TypeProjetTacheController;
 use App\Http\Controllers\VisioConferenceController;
 use Illuminate\Support\Facades\Route;
@@ -249,19 +249,6 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
     Route::delete('/cours/{cours}/types-projets/{typeProjet}/sections/{section}', [TypeProjetController::class, 'destroySection'])
         ->name('types-projets.sections.destroy');
 
-    // Grille de correction rattachée à un type de projet
-    Route::get('/cours/{cours}/types-projets/{typeProjet}/grille', [GrilleCorrectionController::class, 'edit'])
-        ->name('types-projets.grille.edit');
-
-    Route::post('/cours/{cours}/types-projets/{typeProjet}/grille', [GrilleCorrectionController::class, 'store'])
-        ->name('types-projets.grille.store');
-
-    Route::put('/cours/{cours}/types-projets/{typeProjet}/grille', [GrilleCorrectionController::class, 'update'])
-        ->name('types-projets.grille.update');
-
-    Route::delete('/cours/{cours}/types-projets/{typeProjet}/grille', [GrilleCorrectionController::class, 'destroy'])
-        ->name('types-projets.grille.destroy');
-
     // Banque de questions (sections de type choix_questions) — gérées par l'enseignant
     Route::post('/cours/{cours}/types-projets/{typeProjet}/sections/{section}/questions', [QuestionBanqueController::class, 'store'])
         ->name('types-projets.sections.questions.store');
@@ -287,6 +274,22 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
 
     Route::delete('/cours/{cours}/types-projets/{typeProjet}/taches/{tache}', [TypeProjetTacheController::class, 'destroy'])
         ->name('types-projets.taches.destroy');
+
+    // Critères de correction du type de projet (définis par l'enseignant, par section ou globaux)
+    Route::post('/cours/{cours}/types-projets/{typeProjet}/criteres', [TypeProjetCritereController::class, 'store'])
+        ->name('types-projets.criteres.store');
+
+    Route::patch('/cours/{cours}/types-projets/{typeProjet}/criteres/reorder', [TypeProjetCritereController::class, 'reorder'])
+        ->name('types-projets.criteres.reorder');
+
+    Route::patch('/cours/{cours}/types-projets/{typeProjet}/criteres/visible-groupe', [TypeProjetCritereController::class, 'toggleVisibleGroupe'])
+        ->name('types-projets.criteres.visible-groupe');
+
+    Route::put('/cours/{cours}/types-projets/{typeProjet}/criteres/{critere}', [TypeProjetCritereController::class, 'update'])
+        ->name('types-projets.criteres.update');
+
+    Route::delete('/cours/{cours}/types-projets/{typeProjet}/criteres/{critere}', [TypeProjetCritereController::class, 'destroy'])
+        ->name('types-projets.criteres.destroy');
 
     // Références bibliographiques du cours
     Route::post('/cours/{cours}/references', [CoursReferenceController::class, 'store'])
@@ -471,17 +474,6 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin', 'cours.accessible']
     Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/commentaires/{commentaire}', [ProjetRechercheController::class, 'destroyCommentaire'])
         ->name('projets.commentaires.destroy');
 
-    // Notes de la grille de correction (enseignant uniquement — vérifié dans le controller)
-    Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/notes', [ProjetRechercheController::class, 'upsertNote'])
-        ->name('projets.notes.upsert');
-
-    // Grille de correction personnalisée (enseignant uniquement — vérifié dans le controller)
-    Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/grille/notes', [ProjetRechercheController::class, 'upsertNoteGrille'])
-        ->name('projets.grille.notes.upsert');
-
-    Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/grille/malus', [ProjetRechercheController::class, 'toggleMalusGrille'])
-        ->name('projets.grille.malus.toggle');
-
     // Sections dynamiques — contenu rédigé par les étudiants
     Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}', [ProjetRechercheController::class, 'updateSectionContenu'])
         ->name('projets.sections.update');
@@ -518,6 +510,20 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin', 'cours.accessible']
 
     Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/annotations/{annotation}', [ProjetRechercheController::class, 'destroyAnnotation'])
         ->name('projets.annotations.destroy');
+
+    // Corrections de critères — enseignant uniquement (vérifié dans le controller)
+    Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/criteres/{critere}/correction', [ProjetRechercheController::class, 'upsertCritereCorrection'])
+        ->name('projets.criteres.correction.upsert');
+
+    Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/critere-corrections/{correction}', [ProjetRechercheController::class, 'destroyCritereCorrection'])
+        ->name('projets.critere-corrections.destroy');
+
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/critere-corrections/{correction}/cloner', [ProjetRechercheController::class, 'clonerCritereCorrection'])
+        ->name('projets.critere-corrections.cloner');
+
+    // Coche personnelle étudiant — membre du groupe uniquement (vérifié dans le controller)
+    Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/criteres/{critere}/coche', [ProjetRechercheController::class, 'toggleCocheCritere'])
+        ->name('projets.criteres.coche.toggle');
 
     // Toggles prof — visibilité des corrections + verrouillage (enseignant uniquement — vérifié dans le controller)
     Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/correction-visible', [ProjetRechercheController::class, 'toggleCorrectionVisible'])

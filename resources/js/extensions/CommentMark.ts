@@ -10,6 +10,11 @@ declare module '@tiptap/core' {
             ) => ReturnType;
             /** Retire la marque de correction dont l'ID correspond. */
             unsetComment: (commentId: string) => ReturnType;
+            /** Met à jour le type d'une marque existante sans retirer / réappliquer la sélection. */
+            updateCommentType: (
+                commentId: string,
+                annotationType: 'commentaire' | 'correction',
+            ) => ReturnType;
         };
     }
 }
@@ -107,6 +112,45 @@ export const CommentMark = Mark.create({
 
                         if (mark) {
                             tr.removeMark(pos, pos + node.nodeSize, mark);
+                            modified = true;
+                        }
+                    });
+
+                    if (modified) {
+                        dispatch(tr);
+                    }
+
+                    return modified;
+                },
+
+            updateCommentType:
+                (
+                    commentId: string,
+                    annotationType: 'commentaire' | 'correction',
+                ) =>
+                ({ tr, state, dispatch }) => {
+                    const { doc, schema } = state;
+                    const markType = schema.marks.comment;
+
+                    if (!markType || !dispatch) {
+                        return false;
+                    }
+
+                    let modified = false;
+                    doc.descendants((node, pos) => {
+                        const mark = node.marks.find(
+                            (m) =>
+                                m.type === markType &&
+                                m.attrs.commentId === commentId,
+                        );
+
+                        if (mark) {
+                            const newMark = markType.create({
+                                ...mark.attrs,
+                                annotationType,
+                            });
+                            tr.removeMark(pos, pos + node.nodeSize, mark);
+                            tr.addMark(pos, pos + node.nodeSize, newMark);
                             modified = true;
                         }
                     });
