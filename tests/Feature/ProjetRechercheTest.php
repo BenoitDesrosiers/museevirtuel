@@ -5,7 +5,6 @@ use App\Models\Cours;
 use App\Models\Groupe;
 use App\Models\ProjetAnnotation;
 use App\Models\ProjetConclusion;
-use App\Models\ProjetNote;
 use App\Models\ProjetRecherche;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetSection;
@@ -337,7 +336,7 @@ test('un étudiant ne peut pas modifier la visibilité des corrections', functio
         ->assertForbidden();
 });
 
-test('un étudiant ne voit pas les annotations de type correction si correction_visible est false', function () {
+test('un étudiant ne voit aucune annotation si correction_visible est false', function () {
     ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
     $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'correction_visible' => false]);
@@ -346,17 +345,7 @@ test('un étudiant ne voit pas les annotations de type correction si correction_
         'projet_id' => $projet->id,
         'champ' => 'introduction_amener',
         'commentaire_id' => Str::uuid(),
-        'contenu' => 'Commentaire visible',
-        'type' => 'commentaire',
-        'user_id' => $enseignant->id,
-    ]);
-
-    ProjetAnnotation::create([
-        'projet_id' => $projet->id,
-        'champ' => 'introduction_amener',
-        'commentaire_id' => Str::uuid(),
-        'contenu' => 'Correction masquée',
-        'type' => 'correction',
+        'contenu' => 'Annotation masquée',
         'user_id' => $enseignant->id,
     ]);
 
@@ -364,12 +353,11 @@ test('un étudiant ne voit pas les annotations de type correction si correction_
         ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->has('annotationsParChamp.introduction_amener', 1)
-            ->where('annotationsParChamp.introduction_amener.0.type', 'commentaire')
+            ->missing('annotationsParChamp.introduction_amener')
         );
 });
 
-test('un étudiant voit les corrections si correction_visible est true', function () {
+test('un étudiant voit les annotations si correction_visible est true', function () {
     ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
 
     $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'correction_visible' => true]);
@@ -378,8 +366,7 @@ test('un étudiant voit les corrections si correction_visible est true', functio
         'projet_id' => $projet->id,
         'champ' => 'introduction_amener',
         'commentaire_id' => Str::uuid(),
-        'contenu' => 'Correction visible',
-        'type' => 'correction',
+        'contenu' => 'Annotation visible',
         'user_id' => $enseignant->id,
     ]);
 
@@ -388,7 +375,6 @@ test('un étudiant voit les corrections si correction_visible est true', functio
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('annotationsParChamp.introduction_amener', 1)
-            ->where('annotationsParChamp.introduction_amener.0.type', 'correction')
         );
 });
 
@@ -401,8 +387,7 @@ test("l'enseignant voit toujours toutes les annotations, peu importe correction_
         'projet_id' => $projet->id,
         'champ' => 'introduction_amener',
         'commentaire_id' => Str::uuid(),
-        'contenu' => 'Correction',
-        'type' => 'correction',
+        'contenu' => 'Annotation',
         'user_id' => $enseignant->id,
     ]);
 
@@ -494,70 +479,6 @@ test('la route parametres-remise est supprimée et retourne 404', function () {
         ->assertNotFound();
 });
 
-// ─── Publication des notes ─────────────────────────────────────────────────────
-
-test('un étudiant ne voit pas sa note si correction_visible est false', function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
-
-    $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'correction_visible' => false]);
-
-    ProjetNote::create([
-        'projet_id' => $projet->id,
-        'user_id' => $etudiant->id,
-        'critere' => 'normes_presentation',
-        'note' => 3,
-    ]);
-
-    $this->actingAs($etudiant)
-        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
-        ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('correctionVisible', false)
-            ->where("noteFinaleParEtudiant.{$etudiant->id}", null)
-        );
-});
-
-test('un étudiant voit sa note quand correction_visible est true', function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
-
-    $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'correction_visible' => true]);
-
-    ProjetNote::create([
-        'projet_id' => $projet->id,
-        'user_id' => $etudiant->id,
-        'critere' => 'normes_presentation',
-        'note' => 4,
-    ]);
-
-    $this->actingAs($etudiant)
-        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
-        ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('correctionVisible', true)
-            ->where("noteFinaleParEtudiant.{$etudiant->id}", 100) // normes_presentation=4/4, autres critères = 4 par défaut → 100
-        );
-});
-
-test("l'enseignant voit toujours les notes même si correction_visible est false", function () {
-    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'etudiant1' => $etudiant, 'typeProjet' => $typeProjet] = creerScenario();
-
-    $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'correction_visible' => false]);
-
-    ProjetNote::create([
-        'projet_id' => $projet->id,
-        'user_id' => $etudiant->id,
-        'critere' => 'normes_presentation',
-        'note' => 2,
-    ]);
-
-    $this->actingAs($enseignant)
-        ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
-        ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where("noteFinaleParEtudiant.{$etudiant->id}", 95) // normes_presentation=2/4*10=5, autres critères = 4 par défaut → 95
-        );
-});
-
 test('publier les corrections active correction_visible et le toggle le désactive', function () {
     ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenario();
 
@@ -588,7 +509,7 @@ test('upsertAnnotation persiste la position séquentielle et le mot annoté', fu
             'champ' => $champ,
             'commentaire_id' => $uuid,
             'contenu' => 'Attention à ce terme.',
-            'type' => 'commentaire',
+            'annotation_type' => 'commentaire',
             'html' => $html,
         ])
         ->assertOk()
@@ -617,7 +538,7 @@ test('upsertAnnotation calcule la position correcte quand plusieurs marques exis
             'champ' => $champ,
             'commentaire_id' => $uuidB,
             'contenu' => 'Annotation sur le second mot.',
-            'type' => 'commentaire',
+            'annotation_type' => 'commentaire',
             'html' => $html,
         ])
         ->assertOk();
@@ -635,14 +556,13 @@ test('les annotations sont triées par position dans show()', function () {
     $uuidA = Str::uuid()->toString();
     $uuidB = Str::uuid()->toString();
 
-    $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
+    $projet = ProjetRecherche::create(['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id, 'correction_visible' => true]);
 
     ProjetAnnotation::create([
         'projet_id' => $projet->id,
         'champ' => 'introduction_amener',
         'commentaire_id' => $uuidB,
         'contenu' => 'Second mot',
-        'type' => 'commentaire',
         'position' => 1,
         'user_id' => $enseignant->id,
     ]);
@@ -652,7 +572,6 @@ test('les annotations sont triées par position dans show()', function () {
         'champ' => 'introduction_amener',
         'commentaire_id' => $uuidA,
         'contenu' => 'Premier mot',
-        'type' => 'commentaire',
         'position' => 0,
         'user_id' => $enseignant->id,
     ]);
@@ -693,7 +612,7 @@ test('upsertAnnotation supprime les annotations orphelines du même champ', func
             'champ' => $champ,
             'commentaire_id' => $uuidNouvelle,
             'contenu' => 'Nouvelle annotation.',
-            'type' => 'commentaire',
+            'annotation_type' => 'commentaire',
             'html' => $html,
         ])
         ->assertOk();

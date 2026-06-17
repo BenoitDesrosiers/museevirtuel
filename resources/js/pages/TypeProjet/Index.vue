@@ -3,7 +3,6 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import {
     ChevronDown,
     ChevronRight,
-    Grid2x2,
     Pencil,
     Plus,
     Trash2,
@@ -19,8 +18,6 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import typesProjetsRoutes from '@/routes/types-projets';
 
 const { t } = useI18n();
-
-type GrilleResume = { id: number; nom: string } | null;
 
 type SectionType = 'texte' | 'paragraphes' | 'individuel';
 
@@ -43,7 +40,6 @@ type TypeProjet = {
     nom: string;
     description: string | null;
     accessible: boolean;
-    grille: GrilleResume;
     sections: Section[];
 };
 
@@ -213,29 +209,6 @@ function supprimer(tp: TypeProjet) {
                 </CardHeader>
 
                 <CardContent class="flex flex-col gap-4">
-                    <!-- Grille associée -->
-                    <div class="flex items-center gap-3">
-                        <Grid2x2 class="h-4 w-4 text-muted-foreground" />
-                        <span class="text-sm text-muted-foreground">{{
-                            $t('types_projet.index.grille_label')
-                        }}</span>
-                        <a
-                            :href="
-                                typesProjetsRoutes.grille.edit.url({
-                                    cours: cours.id,
-                                    typeProjet: tp.id,
-                                })
-                            "
-                            class="text-sm font-medium text-primary hover:underline"
-                        >
-                            {{
-                                tp.grille
-                                    ? tp.grille.nom
-                                    : $t('types_projet.index.configure_grille')
-                            }}
-                        </a>
-                    </div>
-
                     <!-- Sections (résumé) -->
                     <div class="border-t pt-3">
                         <p

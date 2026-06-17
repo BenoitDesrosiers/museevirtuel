@@ -7,8 +7,6 @@ use App\Models\Cours;
 use App\Models\CoursLienEntrevue;
 use App\Models\EntrevueConcept;
 use App\Models\EntrevueLigne;
-use App\Models\GrilleCorrection;
-use App\Models\GrilleCritere;
 use App\Models\Groupe;
 use App\Models\ProjetConclusion;
 use App\Models\ProjetRecherche;
@@ -156,32 +154,6 @@ class CoursComplementaireDemoSeeder extends Seeder
                 'type' => $data['type'],
                 'ordre' => $ordre + 1,
             ]);
-        }
-
-        // Grille de correction
-        if (! $typeProjet->grille()->exists()) {
-            /** @var GrilleCorrection $grille */
-            $grille = GrilleCorrection::create([
-                'type_projet_id' => $typeProjet->id,
-                'nom' => 'Grille — Essai argumentatif',
-                'description' => 'Évaluation de l\'essai argumentatif. Total : 100 points.',
-            ]);
-
-            $criteres = [
-                ['label' => 'Clarté et originalité de la thèse',              'ponderation' => 20],
-                ['label' => 'Pertinence et développement des arguments',       'ponderation' => 40],
-                ['label' => 'Utilisation des sources historiques',             'ponderation' => 20],
-                ['label' => 'Qualité de la langue et structure de l\'essai',   'ponderation' => 20],
-            ];
-
-            foreach ($criteres as $ordre => $critere) {
-                GrilleCritere::create([
-                    'grille_id' => $grille->id,
-                    'label' => $critere['label'],
-                    'ponderation' => $critere['ponderation'],
-                    'ordre' => $ordre + 1,
-                ]);
-            }
         }
 
         // ─── Tâches du TypeProjet ─────────────────────────────────────────────

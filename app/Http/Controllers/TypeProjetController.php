@@ -22,7 +22,7 @@ class TypeProjetController extends Controller
         $this->authorize('update', $cours);
 
         $typesProjets = TypeProjet::where('cours_id', $cours->id)
-            ->with(['grille:id,type_projet_id,nom', 'sections'])
+            ->with(['sections'])
             ->orderBy('nom')
             ->get();
 
@@ -46,17 +46,24 @@ class TypeProjetController extends Controller
 
     /**
      * Affiche la page d'édition dédiée d'un type de projet.
+     *
+     * Charge les sections avec leurs questions et leurs critères, ainsi que
+     * les critères globaux (sans section) pour les afficher en tête de page.
      */
     public function edit(Cours $cours, TypeProjet $typeProjet): Response
     {
         $this->authorize('update', $cours);
         abort_if($typeProjet->cours_id !== $cours->id, 404);
 
-        $typeProjet->load(['sections' => fn ($q) => $q->with('questionsBanque')->orderBy('ordre')]);
+        $typeProjet->load([
+            'sections' => fn ($q) => $q->with(['questionsBanque', 'criteres'])->orderBy('ordre'),
+            'criteresGlobaux',
+        ]);
 
         return Inertia::render('TypeProjet/Edit', [
             'cours' => $cours,
             'typeProjet' => $typeProjet,
+            'criteresGlobaux' => $typeProjet->criteresGlobaux,
         ]);
     }
 
@@ -84,6 +91,7 @@ class TypeProjetController extends Controller
             'sections.*.label' => ['required', 'string', 'max:200'],
             'sections.*.description' => ['nullable', 'string', 'max:1000'],
             'sections.*.type' => ['nullable', Rule::enum(TypeSection::class)],
+            'sections.*.pointage' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $typeProjet = TypeProjet::create([
@@ -108,6 +116,7 @@ class TypeProjetController extends Controller
                 'description' => $section['description'] ?? null,
                 'type' => $section['type'] ?? TypeSection::Texte->value,
                 'ordre' => $index + 1,
+                'pointage' => $section['pointage'] ?? null,
             ]);
         }
 
@@ -144,6 +153,7 @@ class TypeProjetController extends Controller
             'sections.*.label' => ['required', 'string', 'max:200'],
             'sections.*.description' => ['nullable', 'string', 'max:1000'],
             'sections.*.type' => ['nullable', Rule::enum(TypeSection::class)],
+            'sections.*.pointage' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $wasGeneratingPageTitre = (bool) $typeProjet->generer_page_titre;
@@ -187,6 +197,7 @@ class TypeProjetController extends Controller
                             'description' => $sec['description'] ?? null,
                             'type' => $sec['type'] ?? TypeSection::Texte->value,
                             'ordre' => $index + 1,
+                            'pointage' => $sec['pointage'] ?? null,
                         ]);
                 } else {
                     $typeProjet->sections()->create([
@@ -194,6 +205,7 @@ class TypeProjetController extends Controller
                         'description' => $sec['description'] ?? null,
                         'type' => $sec['type'] ?? TypeSection::Texte->value,
                         'ordre' => $index + 1,
+                        'pointage' => $sec['pointage'] ?? null,
                     ]);
                 }
             }

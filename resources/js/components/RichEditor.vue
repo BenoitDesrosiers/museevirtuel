@@ -77,10 +77,11 @@ type Annotation = {
     id: number;
     commentaire_id: string;
     contenu: string;
-    type: 'commentaire' | 'correction';
+    annotation_type: 'commentaire' | 'correction';
+    points_malus: number | null;
+    /** null = tous les étudiants ; un id = étudiant spécifique */
+    cible_user_id: number | null;
     user_id: number;
-    cible_user_id?: number | null;
-    points_malus?: number | null;
 };
 
 type Membre = { id: number; prenom: string; nom: string };
@@ -118,10 +119,10 @@ const emit = defineEmits<{
         payload: {
             commentaire_id: string;
             contenu: string;
+            annotation_type: 'commentaire' | 'correction';
+            points_malus: number | null;
+            cible_user_id: number | null;
             html: string;
-            type: string;
-            cible_user_id?: number | null;
-            points_malus?: number | null;
         },
     ];
     'delete-annotation': [
@@ -510,20 +511,20 @@ function generateUUID(): string {
 
 const showBubble = ref(false);
 const brouillon = ref('');
+const brouillonType = ref<'commentaire' | 'correction'>('commentaire');
+const brouillonMalus = ref('');
+/** '' = tous les étudiants ; stringified user_id = étudiant spécifique */
+const brouillonCible = ref('');
 const savedRange = ref<Range | null>(null);
 const isDeletingId = ref<number | null>(null);
 const hoveredCommentId = ref<string | null>(null);
-/** Étudiant ciblé par la déduction — uniquement pour les corrections. */
-const cibleUserId = ref<number | null>(null);
-/** Points à retirer — uniquement pour les corrections. */
-const pointsMalus = ref<number | null>(null);
 const editingId = ref<number | null>(null);
 const panelAnnotationsVisible = ref(true);
 const activeAnnotationId = ref<string | null>(null);
 const editingContent = ref('');
-const editingPoints = ref<number | null>(null);
-const editingCible = ref<number | null>(null);
-const annotationType = ref<'commentaire' | 'correction'>('commentaire');
+const editingType = ref<'commentaire' | 'correction'>('commentaire');
+const editingMalus = ref('');
+const editingCible = ref('');
 
 /**
  * Positionne et affiche la bulle de correction quand du texte est sélectionné.
@@ -582,37 +583,31 @@ function saveAnnotation(): void {
             editor.value
                 .chain()
                 .setTextSelection({ from: fromPos, to: toPos })
-                .setComment(commentId, annotationType.value)
+                .setComment(commentId, brouillonType.value)
                 .run();
         } else {
-            editor.value
-                .chain()
-                .focus()
-                .setComment(commentId, annotationType.value)
-                .run();
+            editor.value.chain().focus().setComment(commentId, brouillonType.value).run();
         }
     } finally {
         editor.value.setEditable(false, false);
     }
 
+    const estCorrection = brouillonType.value === 'correction';
+    const malusVal = estCorrection && brouillonMalus.value ? parseFloat(brouillonMalus.value) : null;
+
     emit('save-annotation', {
         commentaire_id: commentId,
         contenu: brouillon.value.trim(),
+        annotation_type: brouillonType.value,
+        points_malus: malusVal,
+        cible_user_id: estCorrection ? (brouillonCible.value ? parseInt(brouillonCible.value) : null) : null,
         html: editor.value.getHTML(),
-        type: annotationType.value,
-        cible_user_id:
-            annotationType.value === 'correction' ? cibleUserId.value : null,
-        // L'input affiche des négatifs (ex: -5) — on envoie la valeur absolue au backend
-        points_malus:
-            annotationType.value === 'correction' && pointsMalus.value !== null
-                ? Math.abs(pointsMalus.value)
-                : null,
     });
 
     brouillon.value = '';
-    cibleUserId.value = null;
-    pointsMalus.value = null;
-    annotationType.value = 'commentaire';
+    brouillonType.value = 'commentaire';
+    brouillonMalus.value = '';
+    brouillonCible.value = '';
     showBubble.value = false;
     savedRange.value = null;
 }
@@ -620,9 +615,9 @@ function saveAnnotation(): void {
 function cancelBubble(): void {
     showBubble.value = false;
     brouillon.value = '';
-    cibleUserId.value = null;
-    pointsMalus.value = null;
-    annotationType.value = 'commentaire';
+    brouillonType.value = 'commentaire';
+    brouillonMalus.value = '';
+    brouillonCible.value = '';
     savedRange.value = null;
 }
 
@@ -632,10 +627,13 @@ function cancelBubble(): void {
 function startEdit(correction: Annotation): void {
     editingId.value = correction.id;
     editingContent.value = correction.contenu;
-    // Le backend stocke les déductions en positif — on affiche en négatif dans l'input
-    editingPoints.value =
-        correction.points_malus != null ? -correction.points_malus : null;
-    editingCible.value = correction.cible_user_id ?? null;
+    editingType.value = correction.annotation_type ?? 'commentaire';
+    editingMalus.value = correction.points_malus !== null && correction.points_malus !== undefined
+        ? String(correction.points_malus)
+        : '';
+    editingCible.value = correction.cible_user_id !== null && correction.cible_user_id !== undefined
+        ? String(correction.cible_user_id)
+        : '';
     showBubble.value = false;
     brouillon.value = '';
 }
@@ -646,8 +644,9 @@ function startEdit(correction: Annotation): void {
 function cancelEdit(): void {
     editingId.value = null;
     editingContent.value = '';
-    editingPoints.value = null;
-    editingCible.value = null;
+    editingType.value = 'commentaire';
+    editingMalus.value = '';
+    editingCible.value = '';
 }
 
 /**
@@ -667,23 +666,25 @@ function saveEdit(correction: Annotation): void {
         return;
     }
 
+    const estCorrection = editingType.value === 'correction';
+    const malusVal = estCorrection && editingMalus.value ? parseFloat(editingMalus.value) : null;
+
+    // Si le type a changé, mettre à jour la classe CSS de la marque dans l'éditeur
+    editor.value.commands.updateCommentType(correction.commentaire_id, editingType.value);
+
     emit('save-annotation', {
         commentaire_id: correction.commentaire_id,
         contenu: editingContent.value.trim(),
+        annotation_type: editingType.value,
+        points_malus: malusVal,
+        cible_user_id: estCorrection ? (editingCible.value ? parseInt(editingCible.value) : null) : null,
         html: editor.value.getHTML(),
-        type: correction.type,
-        cible_user_id:
-            correction.type === 'correction' ? editingCible.value : null,
-        // L'input affiche des négatifs (ex: -5) — on envoie la valeur absolue au backend
-        points_malus:
-            correction.type === 'correction' && editingPoints.value !== null
-                ? Math.abs(editingPoints.value)
-                : null,
     });
     editingId.value = null;
     editingContent.value = '';
-    editingPoints.value = null;
-    editingCible.value = null;
+    editingType.value = 'commentaire';
+    editingMalus.value = '';
+    editingCible.value = '';
 }
 
 /**
@@ -774,6 +775,17 @@ function handleCardClick(commentId: string): void {
  */
 function togglePanel(): void {
     panelAnnotationsVisible.value = !panelAnnotationsVisible.value;
+}
+
+/**
+ * Retourne le prénom de l'étudiant ciblé par un malus, ou « tous » si null.
+ */
+function nomCibleMalus(cibleUserId: number | null): string {
+    if (cibleUserId === null) {
+        return 'tous';
+    }
+    const membre = props.membres?.find((m) => m.id === cibleUserId);
+    return membre ? membre.prenom : '';
 }
 </script>
 
@@ -1165,82 +1177,75 @@ function togglePanel(): void {
                     v-if="showBubble"
                     class="space-y-1.5 rounded-md border border-amber-300 bg-white p-2 dark:border-amber-600 dark:bg-amber-900"
                 >
-                    <div
-                        class="flex gap-3 text-xs text-amber-700 dark:text-amber-300"
-                    >
-                        <label class="flex cursor-pointer items-center gap-1">
-                            <input
-                                v-model="annotationType"
-                                type="radio"
-                                value="commentaire"
-                            />
+                    <!-- Toggle Commentaire / Correction -->
+                    <div class="flex overflow-hidden rounded border border-amber-300 text-xs dark:border-amber-600">
+                        <button
+                            type="button"
+                            class="flex-1 px-2 py-1 transition-colors"
+                            :class="
+                                brouillonType === 'commentaire'
+                                    ? 'bg-amber-200 font-semibold text-amber-900 dark:bg-amber-700 dark:text-amber-100'
+                                    : 'text-amber-600 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-800'
+                            "
+                            @click="brouillonType = 'commentaire'"
+                        >
                             Commentaire
-                        </label>
-                        <label class="flex cursor-pointer items-center gap-1">
-                            <input
-                                v-model="annotationType"
-                                type="radio"
-                                value="correction"
-                            />
+                        </button>
+                        <button
+                            type="button"
+                            class="flex-1 border-l border-amber-300 px-2 py-1 transition-colors dark:border-amber-600"
+                            :class="
+                                brouillonType === 'correction'
+                                    ? 'bg-red-100 font-semibold text-red-700 dark:bg-red-900/50 dark:text-red-300'
+                                    : 'text-amber-600 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-800'
+                            "
+                            @click="brouillonType = 'correction'"
+                        >
                             Correction
-                        </label>
+                        </button>
                     </div>
-                    <!-- Champs malus — uniquement pour les corrections -->
-                    <template
-                        v-if="
-                            annotationType === 'correction' && membres?.length
-                        "
-                    >
-                        <div class="flex gap-2">
-                            <div class="flex-1">
-                                <label
-                                    class="mb-0.5 block text-xs font-medium text-rose-700 dark:text-rose-300"
-                                >
-                                    Étudiant
-                                </label>
-                                <select
-                                    v-model="cibleUserId"
-                                    class="w-full rounded border border-rose-300 bg-white px-1.5 py-1 text-xs dark:border-rose-700 dark:bg-rose-950 dark:text-rose-100"
-                                >
-                                    <option :value="null">— tous —</option>
-                                    <option
-                                        v-for="m in membres"
-                                        :key="m.id"
-                                        :value="m.id"
-                                    >
-                                        {{ m.prenom }} {{ m.nom }}
-                                    </option>
-                                </select>
-                            </div>
-                            <div class="w-20">
-                                <label
-                                    class="mb-0.5 block text-xs font-medium text-rose-700 dark:text-rose-300"
-                                >
-                                    Pts à enlever
-                                </label>
-                                <input
-                                    v-model.number="pointsMalus"
-                                    type="number"
-                                    min="-100"
-                                    max="0"
-                                    step="0.25"
-                                    placeholder="0"
-                                    class="w-full rounded border border-rose-300 bg-white px-1.5 py-1 text-xs dark:border-rose-700 dark:bg-rose-950 dark:text-rose-100"
-                                />
-                            </div>
-                        </div>
-                    </template>
+
                     <Textarea
                         v-model="brouillon"
-                        :placeholder="
-                            annotationType === 'correction'
-                                ? 'Raison de la déduction…'
-                                : 'Écrire une annotation…'
-                        "
+                        placeholder="Écrire une annotation…"
                         class="min-h-[60px] text-sm"
                         :rows="2"
                         autofocus
                     />
+
+                    <!-- Champs correction — points et ciblage étudiant -->
+                    <template v-if="brouillonType === 'correction'">
+                        <div class="flex items-center gap-1.5">
+                            <span class="shrink-0 text-xs text-red-600 dark:text-red-400">-</span>
+                            <input
+                                v-model="brouillonMalus"
+                                type="number"
+                                min="0"
+                                max="999.99"
+                                step="0.5"
+                                placeholder="0"
+                                class="w-16 rounded border border-red-300 bg-transparent px-1.5 py-0.5 text-xs text-red-700 placeholder-red-300 focus:outline-none dark:border-red-700 dark:text-red-300"
+                            />
+                            <span class="shrink-0 text-xs text-red-600 dark:text-red-400">pts</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="shrink-0 text-xs text-red-600 dark:text-red-400">Pour :</span>
+                            <select
+                                v-model="brouillonCible"
+                                class="flex-1 rounded border border-red-300 bg-transparent px-1.5 py-0.5 text-xs text-red-700 focus:outline-none dark:border-red-700 dark:text-red-300"
+                            >
+                                <option value="">Tous les étudiants</option>
+                                <option
+                                    v-for="m in membres"
+                                    :key="m.id"
+                                    :value="String(m.id)"
+                                >
+                                    {{ m.prenom }} {{ m.nom }}
+                                </option>
+                            </select>
+                        </div>
+                    </template>
+
                     <div class="flex gap-1.5">
                         <Button
                             size="sm"
@@ -1272,58 +1277,74 @@ function togglePanel(): void {
                 >
                     <!-- Mode édition inline -->
                     <template v-if="editingId === correction.id">
-                        <!-- Champs malus — uniquement pour les corrections -->
-                        <template
-                            v-if="
-                                correction.type === 'correction' &&
-                                membres?.length
-                            "
-                        >
-                            <div class="mb-1.5 flex gap-2">
-                                <div class="flex-1">
-                                    <label
-                                        class="mb-0.5 block text-xs font-medium text-rose-700 dark:text-rose-300"
-                                    >
-                                        Étudiant
-                                    </label>
-                                    <select
-                                        v-model="editingCible"
-                                        class="w-full rounded border border-rose-300 bg-white px-1.5 py-1 text-xs dark:border-rose-700 dark:bg-rose-950 dark:text-rose-100"
-                                    >
-                                        <option :value="null">— tous —</option>
-                                        <option
-                                            v-for="m in membres"
-                                            :key="m.id"
-                                            :value="m.id"
-                                        >
-                                            {{ m.prenom }} {{ m.nom }}
-                                        </option>
-                                    </select>
-                                </div>
-                                <div class="w-20">
-                                    <label
-                                        class="mb-0.5 block text-xs font-medium text-rose-700 dark:text-rose-300"
-                                    >
-                                        Pts à enlever
-                                    </label>
-                                    <input
-                                        v-model.number="editingPoints"
-                                        type="number"
-                                        min="-100"
-                                        max="0"
-                                        step="0.25"
-                                        placeholder="0"
-                                        class="w-full rounded border border-rose-300 bg-white px-1.5 py-1 text-xs dark:border-rose-700 dark:bg-rose-950 dark:text-rose-100"
-                                    />
-                                </div>
-                            </div>
-                        </template>
+                        <!-- Toggle Commentaire / Correction -->
+                        <div class="flex overflow-hidden rounded border border-amber-300 text-xs dark:border-amber-600">
+                            <button
+                                type="button"
+                                class="flex-1 px-2 py-1 transition-colors"
+                                :class="
+                                    editingType === 'commentaire'
+                                        ? 'bg-amber-200 font-semibold text-amber-900 dark:bg-amber-700 dark:text-amber-100'
+                                        : 'text-amber-600 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-800'
+                                "
+                                @click="editingType = 'commentaire'"
+                            >
+                                Commentaire
+                            </button>
+                            <button
+                                type="button"
+                                class="flex-1 border-l border-amber-300 px-2 py-1 transition-colors dark:border-amber-600"
+                                :class="
+                                    editingType === 'correction'
+                                        ? 'bg-red-100 font-semibold text-red-700 dark:bg-red-900/50 dark:text-red-300'
+                                        : 'text-amber-600 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-800'
+                                "
+                                @click="editingType = 'correction'"
+                            >
+                                Correction
+                            </button>
+                        </div>
+
                         <Textarea
                             v-model="editingContent"
                             class="min-h-[60px] text-sm"
                             :rows="2"
                             autofocus
                         />
+
+                        <!-- Champs correction — points et ciblage étudiant -->
+                        <template v-if="editingType === 'correction'">
+                            <div class="flex items-center gap-1.5">
+                                <span class="shrink-0 text-xs text-red-600 dark:text-red-400">-</span>
+                                <input
+                                    v-model="editingMalus"
+                                    type="number"
+                                    min="0"
+                                    max="999.99"
+                                    step="0.5"
+                                    placeholder="0"
+                                    class="w-16 rounded border border-red-300 bg-transparent px-1.5 py-0.5 text-xs text-red-700 placeholder-red-300 focus:outline-none dark:border-red-700 dark:text-red-300"
+                                />
+                                <span class="shrink-0 text-xs text-red-600 dark:text-red-400">pts</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="shrink-0 text-xs text-red-600 dark:text-red-400">Pour :</span>
+                                <select
+                                    v-model="editingCible"
+                                    class="flex-1 rounded border border-red-300 bg-transparent px-1.5 py-0.5 text-xs text-red-700 focus:outline-none dark:border-red-700 dark:text-red-300"
+                                >
+                                    <option value="">Tous les étudiants</option>
+                                    <option
+                                        v-for="m in membres"
+                                        :key="m.id"
+                                        :value="String(m.id)"
+                                    >
+                                        {{ m.prenom }} {{ m.nom }}
+                                    </option>
+                                </select>
+                            </div>
+                        </template>
+
                         <div class="mt-1 flex gap-1">
                             <Button
                                 size="sm"
@@ -1351,16 +1372,14 @@ function togglePanel(): void {
                     </template>
                     <!-- Mode lecture -->
                     <template v-else>
-                        <span
-                            class="mb-1 inline-block rounded px-1 py-0.5 text-[10px] font-medium tracking-wide uppercase"
-                            :class="
-                                correction.type === 'correction'
-                                    ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-                                    : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                            "
-                            >{{ correction.type }}</span
-                        >
                         <p>{{ correction.contenu }}</p>
+                        <span
+                            v-if="correction.points_malus"
+                            class="mt-1 inline-flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300"
+                        >
+                            -{{ correction.points_malus }} pts
+                            <span class="font-normal opacity-75">({{ nomCibleMalus(correction.cible_user_id) }})</span>
+                        </span>
                         <div
                             class="absolute top-1 right-1 hidden gap-0.5 group-hover:flex"
                         >
@@ -1416,15 +1435,12 @@ function togglePanel(): void {
                 <div
                     v-for="correction in sortedCorrections"
                     :key="correction.id"
-                    class="correction-card cursor-pointer rounded-md border px-2.5 py-2 text-xs transition-all"
-                    :class="[
-                        correction.type === 'correction'
-                            ? 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-200'
-                            : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200',
+                    class="correction-card cursor-pointer rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-800 transition-all dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+                    :class="
                         activeAnnotationId === correction.commentaire_id
                             ? 'ring-2 ring-blue-400 ring-offset-1'
-                            : '',
-                    ]"
+                            : ''
+                    "
                     @mouseenter="highlightMark(correction.commentaire_id)"
                     @mouseleave="
                         activeAnnotationId
@@ -1433,26 +1449,16 @@ function togglePanel(): void {
                     "
                     @click="handleCardClick(correction.commentaire_id)"
                 >
-                    <div class="mb-1 flex items-center justify-between gap-2">
-                        <MessageSquare
-                            class="h-3 w-3"
-                            :class="
-                                correction.type === 'correction'
-                                    ? 'text-rose-500'
-                                    : 'text-amber-500'
-                            "
-                        />
-                        <span
-                            class="inline-block rounded px-1 py-0.5 text-[10px] font-medium tracking-wide uppercase"
-                            :class="
-                                correction.type === 'correction'
-                                    ? 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300'
-                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
-                            "
-                            >{{ correction.type }}</span
-                        >
+                    <div class="mb-1 flex items-center gap-1">
+                        <MessageSquare class="h-3 w-3 text-amber-500" />
                     </div>
                     <p>{{ correction.contenu }}</p>
+                    <span
+                        v-if="correction.points_malus"
+                        class="mt-1 inline-flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300"
+                    >
+                        -{{ correction.points_malus }} pts
+                    </span>
                 </div>
             </template>
         </div>
@@ -1626,6 +1632,8 @@ mark.comment-mark {
     border-radius: 0;
     cursor: pointer;
     padding-bottom: 1px;
+    /* Empêche le navigateur d'imposer color:black sur <mark>, qui écraserait le texte en dark mode */
+    color: inherit;
 }
 
 mark.comment-mark--commentaire {
@@ -1639,6 +1647,13 @@ mark.comment-mark--correction {
 mark.comment-mark--active {
     background: #bfdbfe;
     border-bottom-color: #3b82f6;
+    color: #1e3a8a;
+}
+
+.dark mark.comment-mark--active {
+    background: #1e3a5f;
+    border-bottom-color: #60a5fa;
+    color: #bfdbfe;
 }
 
 /* ─── Bouton "Corriger" ──────────────────────────────────────────────────────── */

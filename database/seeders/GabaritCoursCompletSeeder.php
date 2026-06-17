@@ -189,6 +189,7 @@ class GabaritCoursCompletSeeder extends Seeder
 
         $this->seederObjectifs($gabarit);
         $this->seederTypesProjets($gabarit);
+        $this->seederCriteres($gabarit);
         $this->seederEcheancier($gabarit);
         $this->seederReferences($gabarit);
     }
@@ -240,6 +241,247 @@ class GabaritCoursCompletSeeder extends Seeder
                     'ordre' => $sOrdre + 1,
                 ]);
             }
+        }
+    }
+
+    /**
+     * Crée les critères de correction du "Projet de recherche" s'ils n'existent pas encore.
+     *
+     * Source : Recherche documentaire_grille de correction.docx
+     * Échelle commune : Excellente (4/4) → Bon (3/4) → Passable (2/4) → Mauvais (0/4).
+     */
+    private function seederCriteres(GabaritCours $gabarit): void
+    {
+        /** @var GabaritTypeProjet|null $typeProjet */
+        $typeProjet = $gabarit->typesProjets()->where('nom', 'Projet de recherche')->first();
+
+        if (! $typeProjet || $typeProjet->criteres()->exists()) {
+            return;
+        }
+
+        // Indexer les sections par label pour les références rapides
+        $sections = $typeProjet->sections->keyBy('label');
+
+        $intro = $sections['Introduction'] ?? null;
+        $dev = $sections['Développement'] ?? null;
+        $conc = $sections['Conclusion'] ?? null;
+
+        // ── Critères globaux (sans section) ──────────────────────────────────
+        $typeProjet->criteres()->create([
+            'gabarit_section_id' => null,
+            'type' => 'positif',
+            'contenu_type' => 'echelle',
+            'pointage' => 10,
+            'contenu' => 'Normes de présentation : page titre, table des matières, pagination.',
+            'echelle' => [
+                ['label' => 'Excellente', 'points' => 10,  'description' => 'La présentation est impeccable, incluant une page titre bien formatée, une table des matières complète et une pagination précise.'],
+                ['label' => 'Bon',        'points' => 7.5, 'description' => 'La présentation est correcte avec une page titre et une table des matières, mais il peut y avoir quelques erreurs mineures dans la pagination.'],
+                ['label' => 'Passable',   'points' => 5,   'description' => 'La présentation manque de clarté, avec une page titre présente mais une table des matières incomplète ou des erreurs de pagination.'],
+                ['label' => 'Mauvais',    'points' => 0,   'description' => 'La présentation est inadéquate, sans page titre, table des matières ou pagination appropriée.'],
+            ],
+            'visible' => true,
+            'ordre' => 1,
+        ]);
+
+        $typeProjet->criteres()->create([
+            'gabarit_section_id' => null,
+            'type' => 'positif',
+            'contenu_type' => 'echelle',
+            'pointage' => 6,
+            'contenu' => 'Liste de références : six sources fiables et plus.',
+            'echelle' => [
+                ['label' => 'Excellente', 'points' => 6,   'description' => 'La recherche comprend plus de six sources fiables et pertinentes, démontrant une excellente compréhension du sujet.'],
+                ['label' => 'Bon',        'points' => 4.5, 'description' => 'La recherche inclut six sources fiables, montrant une bonne compréhension du sujet.'],
+                ['label' => 'Passable',   'points' => 3,   'description' => 'La recherche contient au moins quatre sources, mais certaines ne sont pas entièrement fiables.'],
+                ['label' => 'Mauvais',    'points' => 0,   'description' => 'La recherche présente moins de quatre sources, dont plusieurs ne sont pas fiables.'],
+            ],
+            'visible' => true,
+            'ordre' => 2,
+        ]);
+
+        $typeProjet->criteres()->create([
+            'gabarit_section_id' => null,
+            'type' => 'positif',
+            'contenu_type' => 'echelle',
+            'pointage' => 5,
+            'contenu' => 'Liste de références : selon les normes de présentation.',
+            'echelle' => [
+                ['label' => 'Excellente', 'points' => 5,    'description' => 'Les références sont parfaitement formatées selon les normes de présentation, sans aucune erreur.'],
+                ['label' => 'Bon',        'points' => 3.75, 'description' => 'Les références sont bien formatées, avec quelques erreurs mineures dans le style.'],
+                ['label' => 'Passable',   'points' => 2.5,  'description' => 'Les références montrent des efforts de formatage, mais plusieurs erreurs sont présentes.'],
+                ['label' => 'Mauvais',    'points' => 0,    'description' => 'Les références ne respectent pas les normes de présentation et sont mal formatées.'],
+            ],
+            'visible' => true,
+            'ordre' => 3,
+        ]);
+
+        $typeProjet->criteres()->create([
+            'gabarit_section_id' => null,
+            'type' => 'positif',
+            'contenu_type' => 'echelle',
+            'pointage' => 5,
+            'contenu' => 'Écriture cohérente et fluide.',
+            'echelle' => [
+                ['label' => 'Excellente', 'points' => 5,    'description' => 'Le texte est extrêmement bien structuré, avec des transitions fluides entre les idées.'],
+                ['label' => 'Bon',        'points' => 3.75, 'description' => 'Le texte est généralement bien structuré, bien que certaines transitions puissent être améliorées.'],
+                ['label' => 'Passable',   'points' => 2.5,  'description' => 'Le texte présente des incohérences dans la structure et les transitions entre les idées.'],
+                ['label' => 'Mauvais',    'points' => 0,    'description' => 'Le texte est désorganisé et difficile à suivre, avec peu ou pas de transitions.'],
+            ],
+            'visible' => true,
+            'ordre' => 4,
+        ]);
+
+        // ── Section Introduction ──────────────────────────────────────────────
+        if ($intro) {
+            $typeProjet->criteres()->create([
+                'gabarit_section_id' => $intro->id,
+                'type' => 'positif',
+                'contenu_type' => 'echelle',
+                'pointage' => 3,
+                'contenu' => 'Introduction : sujet amené.',
+                'echelle' => [
+                    ['label' => 'Excellente', 'points' => 3,    'description' => "L'introduction présente de manière claire et engageante le sujet, suscitant un intérêt immédiat."],
+                    ['label' => 'Bon',        'points' => 2.25, 'description' => "L'introduction présente le sujet de façon adéquate, mais manque d'éléments captivants."],
+                    ['label' => 'Passable',   'points' => 1.5,  'description' => "L'introduction aborde le sujet, mais de manière vague ou peu structurée."],
+                    ['label' => 'Mauvais',    'points' => 0,    'description' => "L'introduction ne présente pas le sujet ou est hors sujet."],
+                ],
+                'visible' => true,
+                'ordre' => 1,
+            ]);
+
+            $typeProjet->criteres()->create([
+                'gabarit_section_id' => $intro->id,
+                'type' => 'positif',
+                'contenu_type' => 'echelle',
+                'pointage' => 3,
+                'contenu' => 'Introduction : sujet posé.',
+                'echelle' => [
+                    ['label' => 'Excellente', 'points' => 3,    'description' => "L'introduction présente clairement le sujet et établit un contexte solide pour la recherche."],
+                    ['label' => 'Bon',        'points' => 2.25, 'description' => "L'introduction présente le sujet, mais manque de détails contextuels."],
+                    ['label' => 'Passable',   'points' => 1.5,  'description' => "L'introduction mentionne le sujet, mais reste vague et peu engageante."],
+                    ['label' => 'Mauvais',    'points' => 0,    'description' => "L'introduction est confuse ou ne présente pas le sujet de manière adéquate."],
+                ],
+                'visible' => true,
+                'ordre' => 2,
+            ]);
+
+            $typeProjet->criteres()->create([
+                'gabarit_section_id' => $intro->id,
+                'type' => 'positif',
+                'contenu_type' => 'echelle',
+                'pointage' => 3,
+                'contenu' => 'Introduction : sujet divisé.',
+                'echelle' => [
+                    ['label' => 'Excellente', 'points' => 3,    'description' => "L'introduction présente clairement le sujet et le divise en sections pertinentes, démontrant une compréhension approfondie."],
+                    ['label' => 'Bon',        'points' => 2.25, 'description' => "L'introduction aborde le sujet de manière adéquate et le divise en sections, mais certaines parties manquent de clarté."],
+                    ['label' => 'Passable',   'points' => 1.5,  'description' => "L'introduction mentionne le sujet, mais la division en sections est incomplète ou peu claire."],
+                    ['label' => 'Mauvais',    'points' => 0,    'description' => "L'introduction ne présente pas le sujet de manière claire et ne le divise pas en sections appropriées."],
+                ],
+                'visible' => true,
+                'ordre' => 3,
+            ]);
+        }
+
+        // ── Section Développement ─────────────────────────────────────────────
+        if ($dev) {
+            $typeProjet->criteres()->create([
+                'gabarit_section_id' => $dev->id,
+                'type' => 'positif',
+                'contenu_type' => 'echelle',
+                'pointage' => 10,
+                'contenu' => 'Développement divisé en thématique ou chronologique.',
+                'echelle' => [
+                    ['label' => 'Excellente', 'points' => 10,  'description' => 'Le développement est clairement structuré, avec des thèmes ou des chronologies bien définis et pertinents.'],
+                    ['label' => 'Bon',        'points' => 7.5, 'description' => 'Le développement est structuré, mais quelques thèmes ou chronologies manquent de clarté ou de pertinence.'],
+                    ['label' => 'Passable',   'points' => 5,   'description' => 'Le développement présente une structure, mais les thèmes ou chronologies sont peu clairs ou mal définis.'],
+                    ['label' => 'Mauvais',    'points' => 0,   'description' => 'Le développement manque de structure, avec des thèmes ou des chronologies absents ou inappropriés.'],
+                ],
+                'visible' => true,
+                'ordre' => 1,
+            ]);
+
+            $typeProjet->criteres()->create([
+                'gabarit_section_id' => $dev->id,
+                'type' => 'positif',
+                'contenu_type' => 'echelle',
+                'pointage' => 15,
+                'contenu' => 'Développement : contextualisation du sujet.',
+                'echelle' => [
+                    ['label' => 'Excellente', 'points' => 15,    'description' => 'Le sujet est parfaitement contextualisé avec des informations pertinentes et approfondies.'],
+                    ['label' => 'Bon',        'points' => 11.25, 'description' => 'Le sujet est bien contextualisé, mais manque de certaines informations clés.'],
+                    ['label' => 'Passable',   'points' => 7.5,   'description' => 'Le sujet est partiellement contextualisé, mais plusieurs éléments importants sont absents.'],
+                    ['label' => 'Mauvais',    'points' => 0,     'description' => 'Le sujet est mal contextualisé, avec peu ou pas d\'informations pertinentes.'],
+                ],
+                'visible' => true,
+                'ordre' => 2,
+            ]);
+
+            $typeProjet->criteres()->create([
+                'gabarit_section_id' => $dev->id,
+                'type' => 'positif',
+                'contenu_type' => 'echelle',
+                'pointage' => 20,
+                'contenu' => 'Développement : présentation des faits historiques marquants ou pertinents.',
+                'echelle' => [
+                    ['label' => 'Excellente', 'points' => 20, 'description' => "Les faits historiques sont présentés de manière claire, précise et enrichie d'analyses approfondies."],
+                    ['label' => 'Bon',        'points' => 15, 'description' => "Les faits historiques sont présentés de manière claire, mais manquent d'analyses approfondies."],
+                    ['label' => 'Passable',   'points' => 10, 'description' => 'Les faits historiques sont présentés, mais avec des imprécisions et peu d\'analyses.'],
+                    ['label' => 'Mauvais',    'points' => 0,  'description' => 'Les faits historiques sont mal présentés et manquent de pertinence et d\'analyse.'],
+                ],
+                'visible' => true,
+                'ordre' => 3,
+            ]);
+
+            $typeProjet->criteres()->create([
+                'gabarit_section_id' => $dev->id,
+                'type' => 'positif',
+                'contenu_type' => 'echelle',
+                'pointage' => 10,
+                'contenu' => 'Développement : chaque nouvelle information est soutenue par une source fiable.',
+                'echelle' => [
+                    ['label' => 'Excellente', 'points' => 10,  'description' => 'Les informations présentées sont toutes soutenues par des sources fiables et pertinentes, démontrant une recherche approfondie.'],
+                    ['label' => 'Bon',        'points' => 7.5, 'description' => 'La plupart des informations sont soutenues par des sources fiables, mais quelques éléments manquent de références claires.'],
+                    ['label' => 'Passable',   'points' => 5,   'description' => 'Certaines informations sont soutenues par des sources, mais plusieurs manquent de fiabilité ou de pertinence.'],
+                    ['label' => 'Mauvais',    'points' => 0,   'description' => 'Peu ou pas d\'informations sont soutenues par des sources fiables, ce qui nuit à la crédibilité du travail.'],
+                ],
+                'visible' => true,
+                'ordre' => 4,
+            ]);
+        }
+
+        // ── Section Conclusion ────────────────────────────────────────────────
+        if ($conc) {
+            $typeProjet->criteres()->create([
+                'gabarit_section_id' => $conc->id,
+                'type' => 'positif',
+                'contenu_type' => 'echelle',
+                'pointage' => 5,
+                'contenu' => "Conclusion : ouverture vers le développement d'autres connaissances.",
+                'echelle' => [
+                    ['label' => 'Excellente', 'points' => 5,    'description' => 'La conclusion démontre une compréhension approfondie et propose des pistes claires pour approfondir les connaissances.'],
+                    ['label' => 'Bon',        'points' => 3.75, 'description' => 'La conclusion présente des idées pertinentes pour le développement futur des connaissances.'],
+                    ['label' => 'Passable',   'points' => 2.5,  'description' => 'La conclusion mentionne quelques aspects pour élargir les connaissances, mais manque de profondeur.'],
+                    ['label' => 'Mauvais',    'points' => 0,    'description' => 'La conclusion ne propose pas d\'ouverture vers le développement de nouvelles connaissances.'],
+                ],
+                'visible' => true,
+                'ordre' => 1,
+            ]);
+
+            $typeProjet->criteres()->create([
+                'gabarit_section_id' => $conc->id,
+                'type' => 'positif',
+                'contenu_type' => 'echelle',
+                'pointage' => 5,
+                'contenu' => "Conclusion : introduire l'objectif de recherche et présenter l'entrevue et ses avantages.",
+                'echelle' => [
+                    ['label' => 'Excellente', 'points' => 5,    'description' => "L'objectif de recherche est clairement défini et l'entrevue est présentée de manière exhaustive, en soulignant tous ses avantages."],
+                    ['label' => 'Bon',        'points' => 3.75, 'description' => "L'objectif de recherche est bien défini et l'entrevue est présentée, mais certains avantages pourraient être mieux expliqués."],
+                    ['label' => 'Passable',   'points' => 2.5,  'description' => "L'objectif de recherche est mentionné, mais l'entrevue et ses avantages sont abordés de manière superficielle."],
+                    ['label' => 'Mauvais',    'points' => 0,    'description' => "L'objectif de recherche est flou et l'entrevue ainsi que ses avantages ne sont pas présentés."],
+                ],
+                'visible' => true,
+                'ordre' => 2,
+            ]);
         }
     }
 

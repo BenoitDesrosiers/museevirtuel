@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 class ProjetRecherche extends Model
 {
@@ -91,30 +92,6 @@ class ProjetRecherche extends Model
     }
 
     /**
-     * Retourne la grille de correction via le type de projet.
-     */
-    public function grille(): ?GrilleCorrection
-    {
-        return $this->typeProjet?->grille;
-    }
-
-    /**
-     * Retourne les notes de la grille personnalisée (une ligne par étudiant × critère).
-     */
-    public function notesGrille(): HasMany
-    {
-        return $this->hasMany(ProjetGrilleNote::class, 'projet_id');
-    }
-
-    /**
-     * Retourne les malus appliqués par l'enseignant pour ce projet (une ligne par étudiant × malus).
-     */
-    public function malusAppliques(): HasMany
-    {
-        return $this->hasMany(ProjetGrilleMalus::class, 'projet_id');
-    }
-
-    /**
      * Retourne les conclusions individuelles des membres de l'équipe.
      */
     public function conclusions(): HasMany
@@ -128,14 +105,6 @@ class ProjetRecherche extends Model
     public function commentaires(): HasMany
     {
         return $this->hasMany(ProjetCommentaire::class, 'projet_id');
-    }
-
-    /**
-     * Retourne les notes de la grille de correction.
-     */
-    public function notes(): HasMany
-    {
-        return $this->hasMany(ProjetNote::class, 'projet_id');
     }
 
     /**
@@ -219,6 +188,22 @@ class ProjetRecherche extends Model
     }
 
     /**
+     * Retourne toutes les corrections de critères appliquées sur ce projet.
+     */
+    public function critereCorrections(): HasMany
+    {
+        return $this->hasMany(ProjetCritereCorrection::class, 'projet_id');
+    }
+
+    /**
+     * Retourne les coches personnelles des étudiants sur les critères visibles de ce projet.
+     */
+    public function critereCoches(): HasMany
+    {
+        return $this->hasMany(ProjetCritereEtudiantCoche::class, 'projet_id');
+    }
+
+    /**
      * Calcule le pourcentage de complétion du contenu partagé (hors conclusions).
      *
      * Basé uniquement sur les sections de type 'texte' du TypeProjet.
@@ -255,5 +240,62 @@ class ProjetRecherche extends Model
         }
 
         return (int) round($remplisTotal / $total * 100);
+    }
+
+    /**
+     * Calcule le score d'une section (ou des critères globaux) pour un étudiant donné.
+     *
+     * Les corrections individuelles prennent la priorité sur les corrections de groupe.
+     * Nécessite que les relations `critereCorrections` et `typeProjet.criteres` soient
+     * chargées sur le modèle.
+     *
+     * @param  int|null  $sectionId  null = critères globaux
+     * @param  int|null  $userId  Identifiant de l'étudiant ; null = score de groupe
+     * @return array{points: float, max: float}
+     */
+    public function scoreSection(?int $sectionId, ?int $userId = null): array
+    {
+        /** @var Collection<int, TypeProjetCritere> $tousLesCriteres */
+        $tousLesCriteres = $this->typeProjet?->relationLoaded('criteres')
+            ? $this->typeProjet->criteres
+            : collect();
+
+        $criteresDeLaSection = $tousLesCriteres->filter(
+            fn (TypeProjetCritere $c) => $c->section_id === $sectionId
+        );
+
+        $max = $criteresDeLaSection
+            ->where('type', 'positif')
+            ->sum(fn (TypeProjetCritere $c) => (float) $c->pointage);
+
+        $corrections = $this->relationLoaded('critereCorrections')
+            ? $this->critereCorrections
+            : collect();
+
+        $points = 0.0;
+
+        foreach ($criteresDeLaSection as $critere) {
+            // Correction individuelle prime sur la correction de groupe
+            $individuelle = $userId !== null
+                ? $corrections->first(fn ($cor) => $cor->critere_id === $critere->id && $cor->user_id === $userId)
+                : null;
+            $groupe = $corrections->first(fn ($cor) => $cor->critere_id === $critere->id && $cor->user_id === null);
+
+            $correction = $individuelle ?? $groupe;
+
+            if ($correction === null) {
+                continue;
+            }
+
+            if ($critere->type === 'positif' && $correction->verifie) {
+                $points += $correction->points !== null
+                    ? (float) $correction->points
+                    : (float) $critere->pointage;
+            } elseif ($critere->type === 'negatif') {
+                $points -= (float) ($correction->points ?? $critere->pointage);
+            }
+        }
+
+        return ['points' => $points, 'max' => $max];
     }
 }

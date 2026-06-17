@@ -62,4 +62,12 @@ class GabaritTypeProjet extends Model
     {
         return $this->hasMany(GabaritTypeProjetSection::class, 'gabarit_type_projet_id')->orderBy('ordre');
     }
+
+    /**
+     * Critères de correction définis dans le gabarit pour ce type de projet.
+     */
+    public function criteres(): HasMany
+    {
+        return $this->hasMany(GabaritTypeProjetCritere::class, 'gabarit_type_projet_id')->orderBy('ordre');
+    }
 }

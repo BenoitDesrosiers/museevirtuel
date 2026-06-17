@@ -7,9 +7,6 @@ use App\Models\Cours;
 use App\Models\CoursObjectif;
 use App\Models\EntrevueConcept;
 use App\Models\EntrevueLigne;
-use App\Models\GrilleCorrection;
-use App\Models\GrilleCritere;
-use App\Models\GrilleMalus;
 use App\Models\Groupe;
 use App\Models\ProjetConclusion;
 use App\Models\ProjetRecherche;
@@ -25,38 +22,6 @@ use Illuminate\Support\Facades\Hash;
 
 class DemoSeeder extends Seeder
 {
-    private const CRITERES = [
-        ['label' => 'Introduction : mise en contexte, problématique et annonce du plan',  'ponderation' => 15],
-        ['label' => 'Qualité et diversité des sources bibliographiques (min. 5 sources)',  'ponderation' => 15],
-        ['label' => 'Développement : profondeur de l\'analyse et pertinence des arguments', 'ponderation' => 30],
-        ['label' => 'Intégration et exploitation des données d\'entrevue',                  'ponderation' => 20],
-        ['label' => 'Conclusion : synthèse et ouverture',                                  'ponderation' => 10],
-        ['label' => 'Présentation, structure et respect des normes de mise en page',        'ponderation' => 10],
-    ];
-
-    private const MALUS = [
-        [
-            'label' => 'Fautes de français',
-            'deduction' => 0.5,
-            'description' => '0,5 point déduit par faute (orthographe, grammaire, syntaxe), jusqu\'à un maximum de 5 points.',
-        ],
-        [
-            'label' => 'Remise en retard',
-            'deduction' => 5.0,
-            'description' => '5 points déduits par jour de retard.',
-        ],
-        [
-            'label' => 'Non-respect des normes de présentation',
-            'deduction' => 2.0,
-            'description' => 'Police, marges, espacement ou numérotation non conformes au guide de présentation.',
-        ],
-        [
-            'label' => 'Absence d\'entrevue',
-            'deduction' => 10.0,
-            'description' => 'L\'équipe n\'a pas réalisé d\'entrevue avec un témoin ou participant.',
-        ],
-    ];
-
     public function run(): void
     {
         // ─── Enseignant ───────────────────────────────────────────────────────
@@ -212,35 +177,6 @@ class DemoSeeder extends Seeder
                 'type' => $data['type'],
                 'ordre' => $ordre + 1,
             ]);
-        }
-
-        // ─── Grille de correction (inlinée — une seule par TypeProjet) ────────
-        if (! $typeProjet->grille()->exists()) {
-            /** @var GrilleCorrection $grille */
-            $grille = GrilleCorrection::create([
-                'type_projet_id' => $typeProjet->id,
-                'nom' => 'Grille de correction — Projet de recherche',
-                'description' => 'Grille officielle du projet de recherche (session en cours). Total : 100 points.',
-            ]);
-
-            foreach (self::CRITERES as $ordre => $critere) {
-                GrilleCritere::create([
-                    'grille_id' => $grille->id,
-                    'label' => $critere['label'],
-                    'ponderation' => $critere['ponderation'],
-                    'ordre' => $ordre + 1,
-                ]);
-            }
-
-            foreach (self::MALUS as $ordre => $malus) {
-                GrilleMalus::create([
-                    'grille_id' => $grille->id,
-                    'label' => $malus['label'],
-                    'deduction' => $malus['deduction'],
-                    'description' => $malus['description'],
-                    'ordre' => $ordre + 1,
-                ]);
-            }
         }
 
         // ─── Projet de recherche ──────────────────────────────────────────────
@@ -429,34 +365,6 @@ class DemoSeeder extends Seeder
             ]);
         }
 
-        // Grille de correction du schéma d'entrevue
-        if (! $typeProjetEntrevue->grille()->exists()) {
-            /** @var GrilleCorrection $grilleEntrevue */
-            $grilleEntrevue = GrilleCorrection::create([
-                'type_projet_id' => $typeProjetEntrevue->id,
-                'nom' => "Grille de correction — Schéma d'entrevue",
-                'description' => "Grille d'évaluation du schéma d'entrevue. Total : 100 points.",
-            ]);
-
-            $criteresEntrevue = [
-                ['label' => 'Clarté et pertinence du sujet d\'enquête',          'ponderation' => 10],
-                ['label' => 'Qualité des dimensions (axes d\'analyse)',           'ponderation' => 20],
-                ['label' => 'Pertinence des indicateurs',                         'ponderation' => 20],
-                ['label' => 'Qualité et précision des questions (min. 10)',        'ponderation' => 40],
-                ['label' => 'Structure logique et cohérence d\'ensemble',          'ponderation' => 5],
-                ['label' => 'Respect du nombre minimal de questions',             'ponderation' => 5],
-            ];
-
-            foreach ($criteresEntrevue as $ordre => $critere) {
-                GrilleCritere::create([
-                    'grille_id' => $grilleEntrevue->id,
-                    'label' => $critere['label'],
-                    'ponderation' => $critere['ponderation'],
-                    'ordre' => $ordre + 1,
-                ]);
-            }
-        }
-
         // Projet schéma d'entrevue pour la classe démo
         /** @var ProjetRecherche $projetEntrevue */
         $projetEntrevue = ProjetRecherche::updateOrCreate(
@@ -572,41 +480,6 @@ class DemoSeeder extends Seeder
                 'type' => $data['type'],
                 'ordre' => $ordre + 1,
             ]);
-        }
-
-        // ─── Grille de correction du Plan de travail ──────────────────────────
-        if (! $typeProjetPlanTravail->grille()->exists()) {
-            /** @var GrilleCorrection $grillePlanTravail */
-            $grillePlanTravail = GrilleCorrection::create([
-                'type_projet_id' => $typeProjetPlanTravail->id,
-                'nom' => 'Grille de correction — Plan de travail',
-                'description' => 'Grille d\'évaluation du plan de travail. Total : 100 points.',
-            ]);
-
-            foreach ([
-                ['label' => 'Qualité de la problématique et de l\'angle d\'analyse', 'ponderation' => 25],
-                ['label' => 'Cohérence du plan (introduction, développement, conclusion)', 'ponderation' => 25],
-                ['label' => 'Pertinence et diversité des sources annoncées',          'ponderation' => 20],
-                ['label' => 'Clarté et profondeur de l\'argumentation prévue',        'ponderation' => 20],
-                ['label' => 'Respect des consignes de présentation',                  'ponderation' => 10],
-            ] as $ordre => $critere) {
-                GrilleCritere::create([
-                    'grille_id' => $grillePlanTravail->id,
-                    'label' => $critere['label'],
-                    'ponderation' => $critere['ponderation'],
-                    'ordre' => $ordre + 1,
-                ]);
-            }
-
-            foreach (self::MALUS as $ordre => $malus) {
-                GrilleMalus::create([
-                    'grille_id' => $grillePlanTravail->id,
-                    'label' => $malus['label'],
-                    'deduction' => $malus['deduction'],
-                    'description' => $malus['description'],
-                    'ordre' => $ordre + 1,
-                ]);
-            }
         }
 
         // ─── Projet Plan de travail démo ──────────────────────────────────────

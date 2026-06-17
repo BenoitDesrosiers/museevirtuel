@@ -556,16 +556,6 @@
                         "Activez le type de projet pour le rendre accessible aux groupes."
                     ]
                 },
-                "grille_correction": {
-                    "title": "Configurer une grille de correction",
-                    "description": "Créez des critères d'évaluation pondérés pour noter les projets.",
-                    "steps": [
-                        "Depuis un type de projet, accédez à « Grille de correction ».",
-                        "Ajoutez des critères avec leur pondération respective.",
-                        "Ajoutez des malus si nécessaire (ex : retard, non-respect des consignes).",
-                        "Enregistrez — la grille est prête à l'usage."
-                    ]
-                },
                 "objectifs": {
                     "title": "Ajouter des objectifs pédagogiques",
                     "description": "Listez les compétences visées par votre cours.",
@@ -678,7 +668,6 @@
                     "description": "Accédez aux évaluations et commentaires de votre enseignant.",
                     "steps": [
                         "Depuis votre projet, accédez à l'onglet « Notes ».",
-                        "Consultez le détail par critère de la grille de correction.",
                         "Lisez les annotations laissées par l'enseignant dans le texte."
                     ]
                 },
@@ -915,15 +904,13 @@
         "index": {
             "page_title": "Types de projet",
             "heading_title": "Types de projet",
-            "heading_description": "Chaque type de projet définit les sections que les étudiants devront rédiger, ainsi que sa propre grille de correction.",
+            "heading_description": "Chaque type de projet définit les sections que les étudiants devront rédiger.",
             "new_type": "Nouveau type",
             "no_types": "Aucun type de projet. Créez-en un pour commencer.",
             "badge_accessible": "Accessible",
             "badge_not_accessible": "Non accessible",
             "btn_hide": "Masquer",
             "btn_make_accessible": "Rendre accessible",
-            "grille_label": "Grille de correction :",
-            "configure_grille": "Configurer la grille",
             "default_intro": "— introduction par défaut",
             "modal_title": "Nouveau type de projet",
             "modal_name_label": "Nom",
@@ -936,7 +923,7 @@
             "modal_section_instruction_placeholder": "Consigne pour les étudiants (optionnelle)",
             "modal_add_section": "Ajouter une section",
             "modal_create": "Créer",
-            "confirm_delete": "Supprimer « {nom} » ? Cette action supprimera également la grille de correction et toutes les sections associées, et ne peut pas être annulée.",
+            "confirm_delete": "Supprimer « {nom} » ? Cette action supprimera toutes les sections associées et ne peut pas être annulée.",
             "export_options_title": "Options d'export",
             "label_generer_page_titre": "Générer la page titre automatiquement",
             "label_generer_table_matieres": "Générer la table des matières automatiquement",
@@ -988,34 +975,35 @@
             "section_type_entrevue_desc": "Concepts structurés avec dimensions, indicateurs et questions spécifiques."
         }
     },
-    "grille": {
-        "heading_edit": "Modifier la grille",
-        "heading_new": "Nouvelle grille de correction",
-        "page_title_edit": "Modifier la grille",
-        "page_title_new": "Nouvelle grille de correction",
-        "description_edit": "Modifiez les compétences et les malus. Les scores déjà saisis pour les critères conservés sont préservés.",
-        "description_new": "Définissez les compétences et leurs pondérations. La somme doit être égale à 100.",
-        "back_to_types": "Types de projet",
-        "type_projet_label": "Type de projet : {nom}",
-        "info_title": "Informations",
-        "label_name": "Nom de la grille",
-        "placeholder_name": "Ex. : Grille projet histoire 4e secondaire",
-        "label_description": "Description (optionnelle)",
-        "placeholder_description": "Notes pour vous rappeler quand utiliser cette grille...",
-        "competencies_title": "Compétences",
-        "col_label": "Libellé",
-        "col_weight": "Pondération",
-        "competency_placeholder": "Compétence {n}",
-        "add_competency": "Ajouter une compétence",
-        "penalties_title": "Malus (optionnel)",
-        "penalties_description": "Points déduits de la note finale pour certains cas (ex. : fautes de français).",
-        "penalty_label_placeholder": "Ex. : Fautes de français",
-        "penalty_description_placeholder": "Description (optionnelle)",
-        "penalty_points": "points",
-        "add_penalty": "Ajouter un malus",
-        "cancel": "Annuler",
-        "save_changes": "Enregistrer les modifications",
-        "create_grid": "Créer la grille"
+    "criteres": {
+        "titre_global": "Critères globaux",
+        "titre_section": "Critères de correction",
+        "ajouter": "Ajouter un critère",
+        "type_positif": "Positif",
+        "type_negatif": "Négatif",
+        "contenu_type_texte": "Texte",
+        "contenu_type_echelle": "Échelle",
+        "label_pointage": "Pointage",
+        "label_contenu": "Description",
+        "label_visible": "Visible pour les étudiants",
+        "echelle_ajouter": "Ajouter un niveau",
+        "echelle_diviser": "Diviser automatiquement",
+        "echelle_label_placeholder": "Ex. : Excellent",
+        "echelle_points": "Pts",
+        "echelle_description_placeholder": "Description (optionnelle)",
+        "echelle_total_incorrect": "Total ≠ pointage",
+        "btn_enregistrer": "Enregistrer",
+        "btn_annuler": "Annuler",
+        "btn_modifier": "Modifier",
+        "btn_supprimer": "Supprimer",
+        "btn_visible_positifs": "Rendre tous les positifs visibles",
+        "btn_visible_negatifs": "Rendre tous les négatifs visibles",
+        "pointage_section": "Pointage max. de la section",
+        "pointage_section_placeholder": "ex. : 20",
+        "aucun_critere": "Aucun critère. Cliquez sur « Ajouter » pour commencer.",
+        "sans_description": "Sans description",
+        "cocher_indicateur": "Cocher comme vu (indicateur personnel)",
+        "pts_obtenus": "pts obtenus"
     },
     "apercu": {
         "back_to_editor": "Retour à l'éditeur",

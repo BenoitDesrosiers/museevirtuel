@@ -8,13 +8,13 @@ import {
     CheckCircle2,
     ChevronDown,
     ChevronUp,
-    ClipboardList,
     Download,
     Eye,
     FileBarChart,
     FileText,
     Loader2,
     Lock,
+    Maximize2,
     MessageSquare,
     Pencil,
     Plus,
@@ -39,10 +39,12 @@ import { useI18n } from 'vue-i18n';
 import AntidoteGlobalModal from '@/components/AntidoteGlobalModal.vue';
 import type { GlobalSection } from '@/components/AntidoteGlobalModal.vue';
 import CommentaireEnseignant from '@/components/CommentaireEnseignant.vue';
+import CritereCorrection from '@/components/CritereCorrection.vue';
+import type { Critere as TypeProjetCritere, CorrectionLocale } from '@/components/CritereCorrection.vue';
+import CritereEtudiant from '@/components/CritereEtudiant.vue';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
 import ConsentementVideo from '@/components/ConsentementVideo.vue';
 import Heading from '@/components/Heading.vue';
-import NotesGrillePersonnalisee from '@/components/NotesGrillePersonnalisee.vue';
 import ReferenceApaModal from '@/components/ReferenceApaModal.vue';
 import RichEditor from '@/components/RichEditor.vue';
 import SectionAudio from '@/components/SectionAudio.vue';
@@ -130,35 +132,16 @@ type Annotation = {
     id: number;
     commentaire_id: string;
     contenu: string;
-    type: 'commentaire' | 'correction';
+    annotation_type: 'commentaire' | 'correction';
+    points_malus: number | null;
+    /** null = tous les étudiants ; un id = étudiant spécifique */
+    cible_user_id: number | null;
     user_id: number;
-    cible_user_id?: number | null;
-    points_malus?: number | null;
 };
 
 type VoteRemise = {
     user_id: number;
     vote: boolean;
-};
-
-type GrilleCriterePersonnalisee = {
-    id: number;
-    label: string;
-    ponderation: number;
-    ordre: number;
-};
-type GrilleMalusPersonnalisee = {
-    id: number;
-    label: string;
-    deduction: number;
-    description: string | null;
-    ordre: number;
-};
-type GrillePersonnalisee = {
-    id: number;
-    nom: string;
-    criteres: GrilleCriterePersonnalisee[];
-    malus: GrilleMalusPersonnalisee[];
 };
 
 type SectionParagraphe = {
@@ -264,6 +247,10 @@ type Section = {
     questionsChoisies: number[] | null;
     taches: SectionTacheItem[] | null;
     schemaVisuel: ContenuSchema | null;
+    /** Critères de correction de cette section (triés par ordre). Absent sur certains code-paths. */
+    criteres?: TypeProjetCritere[];
+    /** Pointage maximum de la section (null si non défini). */
+    pointage: number | null;
 };
 
 type ConsentementExistant = {
@@ -318,14 +305,6 @@ type Props = {
     renvois: Renvoi[];
     /** Consentement vidéo de l'utilisateur connecté pour ce projet (null si non renseigné) */
     consentement: ConsentementExistant;
-    // Grille personnalisée (rattachée automatiquement à la classe)
-    grillePersonnalisee: GrillePersonnalisee | null;
-    /** notesGrilleParEtudiant[userId][critereId] = note */
-    notesGrilleParEtudiant: Record<number, Record<number, number>>;
-    /** malusParEtudiant[userId][malusId] = applique */
-    malusParEtudiant: Record<number, Record<number, boolean>>;
-    /** noteFinaleGrilleParEtudiant[userId] = float | null */
-    noteFinaleGrilleParEtudiant: Record<number, number | null>;
     /** true = page titre auto-générée à l'export, false = étudiant la rédige manuellement */
     genererPageTitre: boolean;
     /** true = table des matières auto-générée à l'export, false = étudiant la rédige manuellement */
@@ -338,6 +317,12 @@ type Props = {
     tableMatieresContenu: string | null;
     /** Références personnelles de l'étudiant (vide pour l'enseignant) */
     mesReferences: MesReference[];
+    /** Critères globaux du type de projet (sans section). */
+    criteresGlobaux: TypeProjetCritere[];
+    /** Corrections indexées par critere_id. */
+    correctionsParCritere: Record<number, CorrectionLocale[]>;
+    /** IDs des critères cochés personnellement par l'étudiant courant. */
+    cochesUtilisateur: number[];
 };
 
 const props = defineProps<Props>();
@@ -427,6 +412,129 @@ const conclusionsLocales = reactive<Record<number, string>>(
         props.conclusions.map((c) => [c.etudiant.id, c.contenu ?? '']),
     ),
 );
+
+// ─── Critères de correction ───────────────────────────────────────────────────
+
+/**
+ * Copie locale des corrections par critère — mise à jour optimiste après chaque
+ * action de l'enseignant (CritereCorrection émet @updated).
+ */
+const correctionsLocales = reactive<Record<number, CorrectionLocale[]>>(
+    { ...props.correctionsParCritere },
+);
+
+/** IDs des critères cochés personnellement par l'étudiant courant. */
+const cochesLocales = ref<Set<number>>(new Set(props.cochesUtilisateur));
+
+/** Vrai si l'utilisateur courant est un membre du groupe (peut cocher des critères). */
+const estMembre = computed(
+    () => !props.estEnseignant && props.membres.some((m) => m.id === userId.value),
+);
+
+/** Arguments de route communs pour CritereCorrection et CritereEtudiant. */
+const routeArgsCritere = computed(() => ({
+    cours: props.classe.cours_id,
+    classe: props.classe.id,
+    groupe: props.groupe.id,
+    typeProjet: props.typeProjet.id,
+}));
+
+/**
+ * Met à jour la liste locale des corrections pour un critère donné.
+ * Appelé via @updated depuis CritereCorrection.
+ */
+function onCorrectionsUpdated(critereId: number, nouvelles: CorrectionLocale[]) {
+    correctionsLocales[critereId] = nouvelles;
+}
+
+/**
+ * Met à jour la coche locale d'un critère pour l'étudiant courant.
+ * Appelé via @updated-coche depuis CritereEtudiant.
+ */
+function onCocheUpdated(critereId: number, cochee: boolean) {
+    if (cochee) {
+        cochesLocales.value.add(critereId);
+    } else {
+        cochesLocales.value.delete(critereId);
+    }
+}
+
+/**
+ * Résout la correction effective pour l'étudiant courant :
+ * override individuel (user_id = userId) > correction de groupe (user_id = null).
+ */
+function correctionEffective(critereId: number): CorrectionLocale | null {
+    const corrs = correctionsLocales[critereId] ?? [];
+    const individuelle = corrs.find((c) => c.user_id === userId.value);
+
+    if (individuelle) return individuelle;
+
+    return corrs.find((c) => c.user_id === null) ?? null;
+}
+
+// ─── Calcul des notes en temps réel ───────────────────────────────────────────
+
+/**
+ * Agrège tous les critères positifs et négatifs du type de projet
+ * (globaux + par section) en une liste plate.
+ */
+const tousLesCriteres = computed<TypeProjetCritere[]>(() => {
+    const result: TypeProjetCritere[] = [...props.criteresGlobaux];
+    for (const section of props.sections) {
+        if (section.criteres?.length) {
+            result.push(...section.criteres);
+        }
+    }
+    return result;
+});
+
+/** Points maximum possible (somme des critères positifs). */
+const maxPoints = computed<number>(() =>
+    tousLesCriteres.value
+        .filter((c) => c.type === 'positif')
+        .reduce((sum, c) => sum + Number(c.pointage), 0),
+);
+
+/**
+ * Calcule les points obtenus par chaque membre en temps réel.
+ * Priorité : correction individuelle (user_id = membreId) > groupe (user_id = null).
+ * Réactif : se recalcule à chaque modification de correctionsLocales.
+ */
+const notesParMembre = computed<Record<number, number>>(() => {
+    const toutesAnnotations = Object.values(annotations).flat();
+
+    const result: Record<number, number> = {};
+    for (const membre of props.membres) {
+        let obtenu = 0;
+
+        // Critères de correction
+        for (const critere of tousLesCriteres.value) {
+            const corrections = correctionsLocales[critere.id] ?? [];
+            const corr =
+                corrections.find((c) => c.user_id === membre.id) ??
+                corrections.find((c) => c.user_id === null) ??
+                null;
+            const pts = Number(corr?.points ?? 0);
+            if (critere.type === 'positif') {
+                obtenu += pts;
+            } else {
+                obtenu -= pts;
+            }
+        }
+
+        // Malus annotations : s'applique si cible_user_id = null (tous) OU = cet étudiant
+        const malusMembre = toutesAnnotations.reduce((sum, a) => {
+            if (!a.points_malus) return sum;
+            if (a.cible_user_id === null || a.cible_user_id === membre.id) {
+                return sum + Number(a.points_malus);
+            }
+            return sum;
+        }, 0);
+
+        result[membre.id] = Math.round((obtenu - malusMembre) * 100) / 100;
+    }
+    return result;
+});
 
 // ─── Auto-save ────────────────────────────────────────────────────────────────
 
@@ -605,6 +713,10 @@ async function save() {
 }
 
 watch(form, scheduleSharedSave, { deep: true });
+
+// ─── Modal grille de correction ────────────────────────────────────────────────
+
+const showGrilleModal = ref(false);
 
 // ─── Correction globale Antidote ──────────────────────────────────────────────
 
@@ -1250,7 +1362,16 @@ const collapsed = reactive<Record<string, boolean>>({
     pageTitre: false,
     tdm: false,
     introduction: false,
+    criteres_global: true,
 });
+
+/**
+ * Retourne true si la grille de critères d'une section est repliée.
+ * Par défaut (clé absente) : repliée.
+ */
+function isCriteresSectionCollapsed(sectionId: number): boolean {
+    return collapsed[`criteres_section_${sectionId}`] ?? true;
+}
 
 const collapsedDev = reactive<Record<number, boolean>>({});
 const collapsedConclusion = reactive<Record<number, boolean>>({});
@@ -1626,10 +1747,10 @@ async function sauvegarderAnnotation(
     payload: {
         commentaire_id: string;
         contenu: string;
+        annotation_type: 'commentaire' | 'correction';
+        points_malus: number | null;
+        cible_user_id: number | null;
         html: string;
-        type: string;
-        cible_user_id?: number | null;
-        points_malus?: number | null;
     },
 ): Promise<void> {
     const response = await axios.put(`${baseUrl.value}/annotations`, {
@@ -1648,32 +1769,18 @@ async function sauvegarderAnnotation(
 
     if (existingIndex !== -1) {
         annotations[champ][existingIndex].contenu = response.data.contenu;
-        annotations[champ][existingIndex].type = response.data.type;
-        annotations[champ][existingIndex].cible_user_id =
-            response.data.cible_user_id;
-        annotations[champ][existingIndex].points_malus =
-            response.data.points_malus;
+        annotations[champ][existingIndex].annotation_type = response.data.annotation_type ?? 'commentaire';
+        annotations[champ][existingIndex].points_malus = response.data.points_malus ?? null;
+        annotations[champ][existingIndex].cible_user_id = response.data.cible_user_id ?? null;
     } else {
         annotations[champ].push({
             id: response.data.id,
             commentaire_id: response.data.commentaire_id,
             contenu: response.data.contenu,
-            type: response.data.type,
+            annotation_type: response.data.annotation_type ?? 'commentaire',
+            points_malus: response.data.points_malus ?? null,
+            cible_user_id: response.data.cible_user_id ?? null,
             user_id: response.data.user_id,
-            cible_user_id: response.data.cible_user_id,
-            points_malus: response.data.points_malus,
-        });
-    }
-
-    // Si l'annotation comportait une déduction de points, mettre à jour la note finale affichée.
-    if (response.data.noteFinaleGrilleParEtudiant) {
-        Object.entries(
-            response.data.noteFinaleGrilleParEtudiant as Record<
-                number,
-                number | null
-            >,
-        ).forEach(([uid, val]) => {
-            noteFinaleGrille[Number(uid)] = val;
         });
     }
 }
@@ -1696,18 +1803,6 @@ async function supprimerAnnotation(
             annotations[champ] = annotations[champ].filter(
                 (a) => a.id !== payload.correction.id,
             );
-        }
-
-        // Si la correction supprimée avait une déduction de points, mettre à jour la note finale.
-        if (deleteResponse.data.noteFinaleGrilleParEtudiant) {
-            Object.entries(
-                deleteResponse.data.noteFinaleGrilleParEtudiant as Record<
-                    number,
-                    number | null
-                >,
-            ).forEach(([uid, val]) => {
-                noteFinaleGrille[Number(uid)] = val;
-            });
         }
 
         // Synchronise le modèle local avec le HTML sans marque retourné par deleteAnnotation.
@@ -2276,185 +2371,6 @@ async function supprimerCommentaireRenvoi(
     }
 }
 
-// ─── Grille de correction personnalisée ───────────────────────────────────────
-
-const grillePersonnalisee = ref<GrillePersonnalisee | null>(
-    props.grillePersonnalisee,
-);
-const grilleModalOuverte = ref(false);
-
-// notesGrille[userId][critereId] = note | undefined
-const notesGrille = reactive<
-    Record<number, Record<number, number | undefined>>
->(
-    Object.fromEntries(
-        props.membres.map((m) => [
-            m.id,
-            { ...(props.notesGrilleParEtudiant[m.id] ?? {}) },
-        ]),
-    ),
-);
-
-// malusGrille[userId][malusId] = applique
-const malusGrille = reactive<Record<number, Record<number, boolean>>>(
-    Object.fromEntries(
-        props.membres.map((m) => [
-            m.id,
-            { ...(props.malusParEtudiant[m.id] ?? {}) },
-        ]),
-    ),
-);
-
-const noteFinaleGrille = reactive<Record<number, number | null>>({
-    ...props.noteFinaleGrilleParEtudiant,
-});
-
-/**
- * Aggrège les déductions de points par étudiant depuis les annotations de correction inline.
- * Réactif : se recalcule dès qu'une annotation est ajoutée, modifiée ou supprimée.
- */
-const annotationsMalusParEtudiant = computed<
-    Record<number, Array<{ contenu: string; points_malus: number }>>
->(() => {
-    const result: Record<
-        number,
-        Array<{ contenu: string; points_malus: number }>
-    > = {};
-
-    for (const fieldAnnotations of Object.values(annotations)) {
-        for (const a of fieldAnnotations) {
-            if (a.type !== 'correction' || a.points_malus == null) {
-                continue;
-            }
-
-            const cibles =
-                a.cible_user_id == null
-                    ? // null = tous les membres
-                      props.membres.map((m) => m.id)
-                    : [a.cible_user_id];
-
-            for (const uid of cibles) {
-                if (!result[uid]) {
-                    result[uid] = [];
-                }
-
-                result[uid].push({
-                    contenu: a.contenu,
-                    points_malus: a.points_malus,
-                });
-            }
-        }
-    }
-
-    return result;
-});
-
-const notesSavingGrille = reactive<Record<string, boolean>>({});
-const malusSaving = reactive<Record<string, boolean>>({});
-
-async function sauvegarderNoteGrille(
-    critereId: number,
-    membreId: number,
-    note: number,
-): Promise<void> {
-    const key = `grille_${critereId}_${membreId}`;
-    notesSavingGrille[key] = true;
-
-    if (!notesGrille[membreId]) {
-        notesGrille[membreId] = {};
-    }
-
-    notesGrille[membreId][critereId] = note;
-
-    try {
-        const response = await axios.put(`${baseUrl.value}/grille/notes`, {
-            critere_id: critereId,
-            note,
-            user_id: membreId,
-        });
-        const nouvelles = response.data.noteFinaleGrilleParEtudiant as Record<
-            number,
-            number | null
-        >;
-        Object.entries(nouvelles).forEach(([uid, val]) => {
-            noteFinaleGrille[Number(uid)] = val;
-        });
-    } finally {
-        notesSavingGrille[key] = false;
-    }
-}
-
-async function sauvegarderNoteGrillePourTous(
-    critereId: number,
-    note: number,
-): Promise<void> {
-    const key = `grille_${critereId}_tous`;
-    notesSavingGrille[key] = true;
-
-    try {
-        await Promise.all(
-            props.membres.map((m) =>
-                sauvegarderNoteGrille(critereId, m.id, note),
-            ),
-        );
-    } finally {
-        notesSavingGrille[key] = false;
-    }
-}
-
-async function toggleMalusGrille(
-    malusId: number,
-    membreId: number,
-    applique: boolean,
-): Promise<void> {
-    const key = `malus_${malusId}_${membreId}`;
-    malusSaving[key] = true;
-
-    if (!malusGrille[membreId]) {
-        malusGrille[membreId] = {};
-    }
-
-    malusGrille[membreId][malusId] = applique;
-
-    try {
-        const response = await axios.put(`${baseUrl.value}/grille/malus`, {
-            malus_id: malusId,
-            user_id: membreId,
-            applique,
-        });
-        const nouvelles = response.data.noteFinaleGrilleParEtudiant as Record<
-            number,
-            number | null
-        >;
-        Object.entries(nouvelles).forEach(([uid, val]) => {
-            noteFinaleGrille[Number(uid)] = val;
-        });
-    } finally {
-        malusSaving[key] = false;
-    }
-}
-
-/**
- * Applique ou retire un malus à tous les membres du groupe en parallèle.
- */
-async function toggleMalusGrillePourTous(
-    malusId: number,
-    applique: boolean,
-): Promise<void> {
-    const key = `malus_${malusId}_tous`;
-    malusSaving[key] = true;
-
-    try {
-        await Promise.all(
-            props.membres.map((m) =>
-                toggleMalusGrille(malusId, m.id, applique),
-            ),
-        );
-    } finally {
-        malusSaving[key] = false;
-    }
-}
-
 // Onglet étudiant actif par section — 'tous' = appliquer à tous les étudiants
 const ongletActif = reactive<Record<string, number | 'tous'>>({});
 
@@ -2962,6 +2878,47 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 "
                                 @demander-renvoi="demanderRenvoi"
                                 @renvois-utilises="handleRenvoisUtilises"
+                            />
+                        </template>
+                    </CardContent>
+                </Card>
+
+                <!-- ─── Critères globaux (hors section) ───────────────────────── -->
+                <Card v-if="criteresGlobaux.length > 0">
+                    <CardHeader class="flex flex-row items-center justify-between">
+                        <CardTitle class="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                            {{ t('criteres.titre_global') }}
+                        </CardTitle>
+                        <BoutonTooltip
+                            :texte="collapsed.criteres_global ? 'Développer' : 'Réduire'"
+                            @click="toggleSection('criteres_global')"
+                        >
+                            <ChevronUp v-if="!collapsed.criteres_global" class="h-4 w-4" />
+                            <ChevronDown v-else class="h-4 w-4" />
+                        </BoutonTooltip>
+                    </CardHeader>
+                    <CardContent v-show="!collapsed.criteres_global" class="space-y-1.5 pb-4 pt-0">
+                        <template v-for="critere in criteresGlobaux" :key="critere.id">
+                            <CritereCorrection
+                                v-if="estEnseignant"
+                                :cours-id="classe.cours_id"
+                                :classe-id="classe.id"
+                                :groupe-id="groupe.id"
+                                :type-projet-id="typeProjet.id"
+                                :critere="critere"
+                                :corrections="correctionsLocales[critere.id] ?? []"
+                                :membres="membres"
+                                @updated="(nouvelles) => onCorrectionsUpdated(critere.id, nouvelles)"
+                            />
+                            <CritereEtudiant
+                                v-else
+                                :critere="critere"
+                                :correction="correctionEffective(critere.id)"
+                                :correction-visible="correctionVisible"
+                                :est-coche="cochesLocales.has(critere.id)"
+                                :peut-cocher="estMembre"
+                                :route-args="routeArgsCritere"
+                                @updated-coche="(cochee) => onCocheUpdated(critere.id, cochee)"
                             />
                         </template>
                     </CardContent>
@@ -3977,6 +3934,48 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 />
                             </CardContent>
                         </Card>
+
+                        <!-- ── Critères de correction de cette section ──────────── -->
+                        <Card v-if="section.criteres?.length">
+                            <CardHeader class="flex flex-row items-center justify-between">
+                                <CardTitle class="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                                    {{ t('criteres.titre_section') }}
+                                    <span v-if="section.pointage" class="ml-1 text-xs font-normal normal-case">({{ section.pointage }} pts)</span>
+                                </CardTitle>
+                                <BoutonTooltip
+                                    :texte="isCriteresSectionCollapsed(section.id) ? 'Développer' : 'Réduire'"
+                                    @click="toggleSection(`criteres_section_${section.id}`)"
+                                >
+                                    <ChevronUp v-if="!isCriteresSectionCollapsed(section.id)" class="h-4 w-4" />
+                                    <ChevronDown v-else class="h-4 w-4" />
+                                </BoutonTooltip>
+                            </CardHeader>
+                            <CardContent v-show="!isCriteresSectionCollapsed(section.id)" class="space-y-1.5 pb-4 pt-0">
+                                <template v-for="critere in (section.criteres ?? [])" :key="critere.id">
+                                    <CritereCorrection
+                                        v-if="estEnseignant"
+                                        :cours-id="classe.cours_id"
+                                        :classe-id="classe.id"
+                                        :groupe-id="groupe.id"
+                                        :type-projet-id="typeProjet.id"
+                                        :critere="critere"
+                                        :corrections="correctionsLocales[critere.id] ?? []"
+                                        :membres="membres"
+                                        @updated="(nouvelles) => onCorrectionsUpdated(critere.id, nouvelles)"
+                                    />
+                                    <CritereEtudiant
+                                        v-else
+                                        :critere="critere"
+                                        :correction="correctionEffective(critere.id)"
+                                        :correction-visible="correctionVisible"
+                                        :est-coche="cochesLocales.has(critere.id)"
+                                        :peut-cocher="estMembre"
+                                        :route-args="routeArgsCritere"
+                                        @updated-coche="(cochee) => onCocheUpdated(critere.id, cochee)"
+                                    />
+                                </template>
+                            </CardContent>
+                        </Card>
                     </template>
                 </template>
 
@@ -4962,144 +4961,70 @@ function setOngletActif(section: string, membreId: number | 'tous') {
             <!-- ─── Panneau droit sticky — notes en temps réel ─────────────── -->
             <div
                 v-if="estEnseignant"
+                v-show="!showGrilleModal"
                 class="hidden lg:block lg:w-56 lg:shrink-0"
             >
                 <div
-                    class="sticky top-4 mx-auto w-52 rounded-lg border bg-card p-3 text-card-foreground shadow-md shadow-sm"
+                    class="sticky top-4 mx-auto w-52 rounded-lg border bg-card p-3 text-card-foreground shadow-sm"
                 >
-                    <div class="mb-2 flex items-center justify-between">
+                    <button
+                        class="mb-2 flex w-full items-center justify-between rounded hover:bg-muted/50 transition-colors -mx-1 px-1"
+                        title="Ouvrir la grille de correction"
+                        @click="showGrilleModal = true"
+                    >
                         <span
                             class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
                         >
                             Notes
                         </span>
-                        <button
-                            v-if="grillePersonnalisee"
-                            type="button"
-                            class="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-                            @click="grilleModalOuverte = true"
-                        >
-                            <ClipboardList class="h-3 w-3" />
-                            Grille
-                        </button>
-                    </div>
-                    <ul class="space-y-1.5">
+                        <div class="flex items-center gap-1.5">
+                            <span
+                                v-if="maxPoints > 0"
+                                class="text-[10px] text-muted-foreground"
+                            >
+                                / {{ maxPoints }} pts
+                            </span>
+                            <Maximize2 class="h-3 w-3 text-muted-foreground" />
+                        </div>
+                    </button>
+                    <ul class="space-y-2">
                         <li
                             v-for="membre in membres"
                             :key="membre.id"
-                            class="flex items-center justify-between gap-1"
+                            class="space-y-1"
                         >
-                            <span class="truncate text-sm">
-                                {{ membre.prenom }} {{ membre.nom }}
-                            </span>
-                            <span
-                                v-if="
-                                    noteFinaleGrille[membre.id] !== null &&
-                                    noteFinaleGrille[membre.id] !== undefined
-                                "
-                                class="shrink-0 text-xs font-semibold"
-                                :class="
-                                    (noteFinaleGrille[membre.id] ?? 0) >= 60
-                                        ? 'text-green-700'
-                                        : 'text-red-700'
-                                "
+                            <div class="flex items-center justify-between gap-1">
+                                <span class="truncate text-xs">
+                                    {{ membre.prenom }} {{ membre.nom }}
+                                </span>
+                                <span
+                                    class="shrink-0 tabular-nums text-xs font-semibold"
+                                    :class="
+                                        maxPoints > 0 && notesParMembre[membre.id] === maxPoints
+                                            ? 'text-emerald-600 dark:text-emerald-400'
+                                            : 'text-foreground'
+                                    "
+                                >
+                                    {{ notesParMembre[membre.id] ?? 0 }}
+                                </span>
+                            </div>
+                            <!-- Barre de progression -->
+                            <div
+                                v-if="maxPoints > 0"
+                                class="h-1 w-full overflow-hidden rounded-full bg-muted"
                             >
-                                {{ noteFinaleGrille[membre.id]?.toFixed(1) }}
-                            </span>
-                            <span
-                                v-else
-                                class="shrink-0 text-xs text-muted-foreground"
-                                >—</span
-                            >
+                                <div
+                                    class="h-full rounded-full bg-emerald-500 transition-all duration-300"
+                                    :style="{
+                                        width: `${Math.min(100, Math.max(0, ((notesParMembre[membre.id] ?? 0) / maxPoints) * 100))}%`,
+                                    }"
+                                />
+                            </div>
                         </li>
                     </ul>
                 </div>
             </div>
         </div>
-
-        <!-- ─── Modal grille de correction personnalisée ──────────────────── -->
-        <Dialog v-model:open="grilleModalOuverte">
-            <DialogScrollContent class="max-w-3xl">
-                <DialogHeader>
-                    <DialogTitle class="flex items-center gap-2">
-                        <ClipboardList class="h-4 w-4" />
-                        {{ grillePersonnalisee?.nom ?? 'Grille de correction' }}
-                    </DialogTitle>
-                </DialogHeader>
-
-                <div v-if="grillePersonnalisee">
-                    <!-- Notes finales par étudiant -->
-                    <div
-                        v-if="estEnseignant"
-                        class="mb-3 flex flex-wrap gap-1.5"
-                    >
-                        <template v-for="membre in membres" :key="membre.id">
-                            <span
-                                v-if="
-                                    noteFinaleGrille[membre.id] !== null &&
-                                    noteFinaleGrille[membre.id] !== undefined
-                                "
-                                class="rounded px-2 py-0.5 text-xs font-medium"
-                                :class="
-                                    (noteFinaleGrille[membre.id] ?? 0) >= 60
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'bg-red-100 text-red-700'
-                                "
-                            >
-                                {{ membre.prenom }} {{ membre.nom }} :
-                                {{
-                                    noteFinaleGrille[membre.id]?.toFixed(2)
-                                }}/100
-                            </span>
-                        </template>
-                    </div>
-                    <NotesGrillePersonnalisee
-                        :criteres="grillePersonnalisee.criteres"
-                        :malus="grillePersonnalisee.malus"
-                        :membres="membres"
-                        :notes="notesGrille"
-                        :malus-appliques="malusGrille"
-                        :notes-saving="notesSavingGrille"
-                        :malus-saving="malusSaving"
-                        :est-enseignant="estEnseignant"
-                        :user-id="userId"
-                        :onglet-actif="
-                            getOngletActif(
-                                'grille_personnalisee',
-                                membres[0]?.id ?? 0,
-                            )
-                        "
-                        @set-onglet="
-                            setOngletActif('grille_personnalisee', $event)
-                        "
-                        :annotations-malus="annotationsMalusParEtudiant"
-                        @save-note="
-                            (critereId, membreId, valeur) =>
-                                sauvegarderNoteGrille(
-                                    critereId,
-                                    membreId,
-                                    valeur,
-                                )
-                        "
-                        @save-note-pour-tous="
-                            (critereId, valeur) =>
-                                sauvegarderNoteGrillePourTous(critereId, valeur)
-                        "
-                        @toggle-malus="
-                            (malusId, membreId, applique) =>
-                                toggleMalusGrille(malusId, membreId, applique)
-                        "
-                        @toggle-malus-pour-tous="
-                            (malusId, applique) =>
-                                toggleMalusGrillePourTous(malusId, applique)
-                        "
-                    />
-                </div>
-                <p v-else class="text-sm text-muted-foreground">
-                    Aucune grille personnalisée définie pour cette classe.
-                </p>
-            </DialogScrollContent>
-        </Dialog>
 
         <!-- ─── Modale correction globale Antidote ────────────────────────── -->
         <!-- Pas de v-if : le composant reste monté pour que le watcher réagisse
@@ -5130,5 +5055,84 @@ function setOngletActif(section: string, membreId: number | 'tous') {
             :mes-references="mesReferences"
             @inserer="confirmerReferenceApa"
         />
+
+        <!-- ─── Modal grille de correction ───────────────────────────────────── -->
+        <Dialog v-model:open="showGrilleModal">
+            <DialogScrollContent class="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Grille de correction</DialogTitle>
+                </DialogHeader>
+
+                <!-- Résumé des notes par membre -->
+                <div v-if="maxPoints > 0" class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div
+                        v-for="membre in membres"
+                        :key="membre.id"
+                        class="rounded-md border bg-muted/30 p-2 text-center"
+                    >
+                        <p class="truncate text-xs text-muted-foreground">
+                            {{ membre.prenom }} {{ membre.nom.charAt(0) }}.
+                        </p>
+                        <p
+                            class="mt-0.5 text-lg font-bold tabular-nums"
+                            :class="
+                                notesParMembre[membre.id] === maxPoints
+                                    ? 'text-emerald-600 dark:text-emerald-400'
+                                    : 'text-foreground'
+                            "
+                        >
+                            {{ notesParMembre[membre.id] ?? 0 }}
+                        </p>
+                        <p class="text-[10px] text-muted-foreground">/ {{ maxPoints }}</p>
+                    </div>
+                </div>
+
+                <Separator v-if="maxPoints > 0" />
+
+                <!-- Critères globaux -->
+                <div v-if="criteresGlobaux.length > 0" class="space-y-1.5">
+                    <p class="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                        {{ t('criteres.titre_global') }}
+                    </p>
+                    <CritereCorrection
+                        v-for="critere in criteresGlobaux"
+                        :key="critere.id"
+                        :cours-id="classe.cours_id"
+                        :classe-id="classe.id"
+                        :groupe-id="groupe.id"
+                        :type-projet-id="typeProjet.id"
+                        :critere="critere"
+                        :corrections="correctionsLocales[critere.id] ?? []"
+                        :membres="membres"
+                        @updated="(nouvelles) => onCorrectionsUpdated(critere.id, nouvelles)"
+                    />
+                </div>
+
+                <!-- Critères par section -->
+                <template
+                    v-for="section in props.sections.filter((s) => s.criteres?.length)"
+                    :key="section.id"
+                >
+                    <Separator />
+                    <div class="space-y-1.5">
+                        <p class="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                            {{ section.label }}
+                        </p>
+                        <CritereCorrection
+                            v-for="critere in section.criteres"
+                            :key="critere.id"
+                            :cours-id="classe.cours_id"
+                            :classe-id="classe.id"
+                            :groupe-id="groupe.id"
+                            :type-projet-id="typeProjet.id"
+                            :critere="critere"
+                            :corrections="correctionsLocales[critere.id] ?? []"
+                            :membres="membres"
+                            @updated="(nouvelles) => onCorrectionsUpdated(critere.id, nouvelles)"
+                        />
+                    </div>
+                </template>
+            </DialogScrollContent>
+        </Dialog>
     </AppLayout>
 </template>

@@ -3,9 +3,6 @@
 namespace App\Actions;
 
 use App\Models\Cours;
-use App\Models\GrilleCorrection;
-use App\Models\GrilleCritere;
-use App\Models\GrilleMalus;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetSection;
 use App\Models\TypeProjetTache;
@@ -18,7 +15,7 @@ class TransfererCoursAction
      * Duplique un cours existant vers une nouvelle session/année.
      *
      * Copie l'échéancier, les objectifs, les documents (fichiers physiques),
-     * les liens d'entrevue et les types de projets (avec grilles, sections, tâches).
+     * les liens d'entrevue et les types de projets (sections, tâches).
      * Les classes, étudiants, groupes et projets ne sont PAS copiés.
      *
      * @param  Cours  $source  Le cours source à transférer.
@@ -135,12 +132,12 @@ class TransfererCoursAction
     }
 
     /**
-     * Copie tous les types de projets avec leurs grilles de correction et sections.
+     * Copie tous les types de projets avec leurs sections et tâches.
      */
     private function copierTypesProjets(Cours $source, Cours $nouveau): void
     {
         $typesProjets = $source->typesProjets()
-            ->with(['grille.criteres', 'grille.malus', 'sections', 'taches'])
+            ->with(['sections', 'taches'])
             ->get();
 
         foreach ($typesProjets as $typeProjet) {
@@ -171,10 +168,6 @@ class TransfererCoursAction
             'is_sommatif' => $typeProjet->is_sommatif,
         ]);
 
-        if ($typeProjet->grille) {
-            $this->copierGrille($typeProjet, $nouveauType);
-        }
-
         foreach ($typeProjet->sections as $section) {
             TypeProjetSection::create([
                 'type_projet_id' => $nouveauType->id,
@@ -191,39 +184,6 @@ class TransfererCoursAction
                 'titre' => $tache->titre,
                 'description' => $tache->description,
                 'ordre' => $tache->ordre,
-            ]);
-        }
-    }
-
-    /**
-     * Copie une grille de correction avec ses critères et ses malus.
-     */
-    private function copierGrille(TypeProjet $typeProjet, TypeProjet $nouveauType): void
-    {
-        $grille = $typeProjet->grille;
-
-        $nouvelleGrille = GrilleCorrection::create([
-            'type_projet_id' => $nouveauType->id,
-            'nom' => $grille->nom,
-            'description' => $grille->description,
-        ]);
-
-        foreach ($grille->criteres as $critere) {
-            GrilleCritere::create([
-                'grille_id' => $nouvelleGrille->id,
-                'label' => $critere->label,
-                'ponderation' => $critere->ponderation,
-                'ordre' => $critere->ordre,
-            ]);
-        }
-
-        foreach ($grille->malus as $malus) {
-            GrilleMalus::create([
-                'grille_id' => $nouvelleGrille->id,
-                'label' => $malus->label,
-                'deduction' => $malus->deduction,
-                'description' => $malus->description,
-                'ordre' => $malus->ordre,
             ]);
         }
     }

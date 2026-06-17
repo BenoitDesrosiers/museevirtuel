@@ -174,7 +174,7 @@ class CoursController extends Controller
             ]);
 
         $typesProjets = TypeProjet::where('cours_id', $cours->id)
-            ->with(['grille:id,type_projet_id,nom', 'sections'])
+            ->with(['sections'])
             ->orderBy('nom')
             ->get();
 
@@ -210,7 +210,6 @@ class CoursController extends Controller
                 'nom' => $tp->nom,
                 'description' => $tp->description,
                 'accessible' => $tp->accessible,
-                'grille' => $tp->grille ? ['id' => $tp->grille->id, 'nom' => $tp->grille->nom] : null,
                 'sections' => $tp->sections->map(fn ($s) => [
                     'id' => $s->id,
                     'label' => $s->label,
