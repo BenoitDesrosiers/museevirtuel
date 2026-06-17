@@ -164,7 +164,9 @@
       "Bash(C:/Python313/python.exe:*)",
       "Bash(\"C:\\\\Python313\\\\python.exe\":*)",
       "Bash(\"C:\\\\Python313\\\\python.exe\" -c:*)",
-      "Bash(powershell.exe -Command:*)"
+      "Bash(powershell.exe -Command:*)",
+      "Bash(git fetch:*)",
+      "Bash(git stash push:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
