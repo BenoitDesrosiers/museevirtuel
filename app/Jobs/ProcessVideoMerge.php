@@ -3,7 +3,6 @@
 namespace App\Jobs;
 
 use App\Actions\ConcateneSegments;
-use App\Jobs\TranscrireVideo;
 use App\Models\GroupeVideo;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
