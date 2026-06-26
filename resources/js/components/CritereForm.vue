@@ -3,9 +3,8 @@ import { useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import critereRoutes from '@/actions/App/Http/Controllers/TypeProjetCritereController';
-import EchelleBuilder, {
-    type EchelleNiveau,
-} from '@/components/EchelleBuilder.vue';
+import EchelleBuilder from '@/components/EchelleBuilder.vue';
+import type { EchelleNiveau } from '@/components/EchelleBuilder.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -50,6 +49,7 @@ const echelleErreur = computed<string | null>(() => {
     const entry = Object.entries(form.errors).find(([key]) =>
         key.startsWith('echelle.'),
     );
+
     return entry ? entry[1] : null;
 });
 

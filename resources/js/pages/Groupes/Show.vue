@@ -22,15 +22,13 @@ import {
 } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import * as GroupeMediaController from '@/actions/App/Http/Controllers/GroupeMediaController';
+import * as GroupeVideoController from '@/actions/App/Http/Controllers/GroupeVideoController';
 import FormDialog from '@/components/FormDialog.vue';
 import Heading from '@/components/Heading.vue';
 import NoteAvecCorrections from '@/components/NoteAvecCorrections.vue';
 import PhotoEditor from '@/components/PhotoEditor.vue';
-import VideoCard from '@/components/VideoCard.vue';
-import VideoUploadForm from '@/components/VideoUploadForm.vue';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
-import * as GroupeMediaController from '@/actions/App/Http/Controllers/GroupeMediaController';
-import * as GroupeVideoController from '@/actions/App/Http/Controllers/GroupeVideoController';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -49,6 +47,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import VideoCard from '@/components/VideoCard.vue';
+import VideoUploadForm from '@/components/VideoUploadForm.vue';
 import VisioSession from '@/components/VisioSession.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { Auth } from '@/types/auth';
@@ -467,11 +467,14 @@ function audioEnTranscription(): boolean {
 }
 
 function demarrerPollingAudio(): void {
-    if (audioPollingInterval) return;
+    if (audioPollingInterval) {
+        return;
+    }
 
     audioPollingInterval = setInterval(() => {
         if (!audioEnTranscription()) {
             stopperPollingAudio();
+
             return;
         }
 

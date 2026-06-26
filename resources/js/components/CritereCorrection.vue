@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
 import axios from 'axios';
 import {
     CheckCheck,
@@ -8,6 +7,7 @@ import {
     MessageSquare,
     Trash2,
 } from 'lucide-vue-next';
+import { computed, reactive, ref, watch } from 'vue';
 import {
     clonerCritereCorrection,
     destroyCritereCorrection,
@@ -76,9 +76,11 @@ watch(
     () => props.corrections,
     (v) => {
         correctionsLocales.value = [...v];
+
         // Synchronise les brouillons si pas en train de saisir
         for (const c of v) {
             const key = c.user_id === null ? 'groupe' : String(c.user_id);
+
             if (!(key in saving) || !saving[key]) {
                 pointsDraft[key] = c.points?.toString() ?? '';
                 commentaireDraft[key] = c.commentaire ?? '';
@@ -139,11 +141,13 @@ function appliquerMaj(updated: CorrectionLocale) {
     const idx = correctionsLocales.value.findIndex(
         (c) => c.user_id === updated.user_id,
     );
+
     if (idx >= 0) {
         correctionsLocales.value[idx] = updated;
     } else {
         correctionsLocales.value.push(updated);
     }
+
     // Synchronise les brouillons avec la valeur persistée
     const key = updated.user_id === null ? 'groupe' : String(updated.user_id);
     pointsDraft[key] = updated.points?.toString() ?? '';
@@ -172,6 +176,7 @@ async function sauvegarderPoints(userId: number | null) {
     };
 
     saving[key] = true;
+
     try {
         const { data } = await axios.put(
             upsertCritereCorrection.url({
@@ -205,6 +210,7 @@ async function sauvegarderCommentaire(userId: number | null) {
     };
 
     saving[key] = true;
+
     try {
         const { data } = await axios.put(
             upsertCritereCorrection.url({
@@ -232,6 +238,7 @@ async function toggleVerifie() {
     const pts = newVerifie ? props.critere.pointage : (current?.points ?? null);
 
     saving['groupe'] = true;
+
     try {
         const { data } = await axios.put(
             upsertCritereCorrection.url({
@@ -260,6 +267,7 @@ async function toggleVerifie() {
 async function choisirNiveauEchelle(niveauPts: number) {
     const current = correctionGroupe.value;
     saving['groupe'] = true;
+
     try {
         const { data } = await axios.put(
             upsertCritereCorrection.url({
@@ -288,9 +296,13 @@ async function choisirNiveauEchelle(niveauPts: number) {
  */
 async function forkerPourMembre(userId: number) {
     const groupeCorr = correctionGroupe.value;
-    if (!groupeCorr) return;
+
+    if (!groupeCorr) {
+        return;
+    }
 
     saving[String(userId)] = true;
+
     try {
         const { data } = await axios.post(
             clonerCritereCorrection.url({
@@ -308,11 +320,13 @@ async function forkerPourMembre(userId: number) {
         const idx = correctionsLocales.value.findIndex(
             (c) => c.user_id === userId,
         );
+
         if (idx >= 0) {
             correctionsLocales.value[idx] = clone;
         } else {
             correctionsLocales.value.push(clone);
         }
+
         const key = String(userId);
         pointsDraft[key] = clone.points?.toString() ?? '';
         commentaireDraft[key] = clone.commentaire ?? '';

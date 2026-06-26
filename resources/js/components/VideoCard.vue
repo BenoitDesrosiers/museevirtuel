@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
-import { Edit2, Film, Play, Trash2 } from 'lucide-vue-next';
-import { Button } from '@/components/ui/button';
 import { Link } from '@inertiajs/vue3';
+import { Film, Play, Trash2 } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
 import { formatDuree } from '@/lib/formatters';
 
 type Auteur = {

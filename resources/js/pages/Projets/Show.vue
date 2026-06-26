@@ -39,14 +39,14 @@ import { useI18n } from 'vue-i18n';
 import AntidoteGlobalModal from '@/components/AntidoteGlobalModal.vue';
 import type { GlobalSection } from '@/components/AntidoteGlobalModal.vue';
 import CommentaireEnseignant from '@/components/CommentaireEnseignant.vue';
+import ConfirmationModal from '@/components/ConfirmationModal.vue';
+import ConsentementVideo from '@/components/ConsentementVideo.vue';
 import CritereCorrection from '@/components/CritereCorrection.vue';
 import type {
     Critere as TypeProjetCritere,
     CorrectionLocale,
 } from '@/components/CritereCorrection.vue';
 import CritereEtudiant from '@/components/CritereEtudiant.vue';
-import ConfirmationModal from '@/components/ConfirmationModal.vue';
-import ConsentementVideo from '@/components/ConsentementVideo.vue';
 import Heading from '@/components/Heading.vue';
 import ReferenceApaModal from '@/components/ReferenceApaModal.vue';
 import RichEditor from '@/components/RichEditor.vue';
@@ -475,7 +475,9 @@ function correctionEffective(critereId: number): CorrectionLocale | null {
     const corrs = correctionsLocales[critereId] ?? [];
     const individuelle = corrs.find((c) => c.user_id === userId.value);
 
-    if (individuelle) return individuelle;
+    if (individuelle) {
+        return individuelle;
+    }
 
     return corrs.find((c) => c.user_id === null) ?? null;
 }
@@ -488,11 +490,13 @@ function correctionEffective(critereId: number): CorrectionLocale | null {
  */
 const tousLesCriteres = computed<TypeProjetCritere[]>(() => {
     const result: TypeProjetCritere[] = [...props.criteresGlobaux];
+
     for (const section of props.sections) {
         if (section.criteres?.length) {
             result.push(...section.criteres);
         }
     }
+
     return result;
 });
 
@@ -512,6 +516,7 @@ const notesParMembre = computed<Record<number, number>>(() => {
     const toutesAnnotations = Object.values(annotations).flat();
 
     const result: Record<number, number> = {};
+
     for (const membre of props.membres) {
         let obtenu = 0;
 
@@ -523,6 +528,7 @@ const notesParMembre = computed<Record<number, number>>(() => {
                 corrections.find((c) => c.user_id === null) ??
                 null;
             const pts = Number(corr?.points ?? 0);
+
             if (critere.type === 'positif') {
                 obtenu += pts;
             } else {
@@ -532,15 +538,20 @@ const notesParMembre = computed<Record<number, number>>(() => {
 
         // Malus annotations : s'applique si cible_user_id = null (tous) OU = cet étudiant
         const malusMembre = toutesAnnotations.reduce((sum, a) => {
-            if (!a.points_malus) return sum;
+            if (!a.points_malus) {
+                return sum;
+            }
+
             if (a.cible_user_id === null || a.cible_user_id === membre.id) {
                 return sum + Number(a.points_malus);
             }
+
             return sum;
         }, 0);
 
         result[membre.id] = Math.round((obtenu - malusMembre) * 100) / 100;
     }
+
     return result;
 });
 
@@ -1803,7 +1814,7 @@ async function supprimerAnnotation(
     annotationDeleteError.value = null;
 
     try {
-        const deleteResponse = await axios.delete(
+        await axios.delete(
             `${baseUrl.value}/annotations/${payload.correction.id}`,
             {
                 data: { champ, html: payload.html },
@@ -2380,24 +2391,6 @@ async function supprimerCommentaireRenvoi(
             (c) => c.id !== commentaireId,
         );
     }
-}
-
-// Onglet étudiant actif par section — 'tous' = appliquer à tous les étudiants
-const ongletActif = reactive<Record<string, number | 'tous'>>({});
-
-function getOngletActif(section: string, fallback: number): number | 'tous' {
-    if (ongletActif[section] === undefined) {
-        // L'enseignant voit le premier étudiant ; l'étudiant voit son propre onglet
-        ongletActif[section] = props.estEnseignant
-            ? (props.membres[0]?.id ?? fallback)
-            : userId.value;
-    }
-
-    return ongletActif[section];
-}
-
-function setOngletActif(section: string, membreId: number | 'tous') {
-    ongletActif[section] = membreId;
 }
 </script>
 

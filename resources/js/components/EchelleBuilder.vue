@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { GripVertical, Plus, Trash2 } from 'lucide-vue-next';
+import { computed } from 'vue';
 import { VueDraggable } from 'vue-draggable-plus';
 import { useI18n } from 'vue-i18n';
 import { Button } from '@/components/ui/button';
@@ -70,7 +70,9 @@ function supprimerNiveau(idx: number) {
 function diviserAuto() {
     const n = props.modelValue.length;
 
-    if (n === 0) return;
+    if (n === 0) {
+        return;
+    }
 
     const pts = Math.round((props.pointageTotal / n) * 100) / 100;
     emit(

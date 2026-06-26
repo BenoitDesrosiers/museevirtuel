@@ -35,7 +35,10 @@ const imgNaturalH = ref(0);
 const imgEl = ref<HTMLImageElement | null>(null);
 
 function onImageLoad() {
-    if (!imgEl.value) return;
+    if (!imgEl.value) {
+        return;
+    }
+
     imgNaturalW.value = imgEl.value.naturalWidth;
     imgNaturalH.value = imgEl.value.naturalHeight;
 
@@ -47,7 +50,9 @@ function onImageLoad() {
 }
 
 onMounted(() => {
-    if (imgEl.value?.complete) onImageLoad();
+    if (imgEl.value?.complete) {
+        onImageLoad();
+    }
 });
 
 // ─── Onglet actif ─────────────────────────────────────────────────────────────
@@ -86,7 +91,10 @@ const cropForm = useForm({
 
 /** Aperçu CSS : position/taille de la région gardée, en pourcentage de l'image affichée. */
 const cropPreviewStyle = computed(() => {
-    if (!imgNaturalW.value || !imgNaturalH.value) return {};
+    if (!imgNaturalW.value || !imgNaturalH.value) {
+        return {};
+    }
+
     return {
         left: `${(cropForm.x / imgNaturalW.value) * 100}%`,
         top: `${(cropForm.y / imgNaturalH.value) * 100}%`,
@@ -105,7 +113,9 @@ const dragOriginY = ref(0);
  * de l'image originale, bornées à [0, naturalWidth/Height].
  */
 function versCoordNaturelles(e: PointerEvent): { x: number; y: number } {
-    if (!imgEl.value) return { x: 0, y: 0 };
+    if (!imgEl.value) {
+        return { x: 0, y: 0 };
+    }
 
     const rect = imgEl.value.getBoundingClientRect();
     const scaleX = imgNaturalW.value / rect.width;
@@ -124,7 +134,9 @@ function versCoordNaturelles(e: PointerEvent): { x: number; y: number } {
 }
 
 function onPointerDown(e: PointerEvent) {
-    if (onglet.value !== 'crop' || !imgNaturalW.value) return;
+    if (onglet.value !== 'crop' || !imgNaturalW.value) {
+        return;
+    }
 
     e.preventDefault();
     // Capture pour recevoir pointermove/up même si la souris sort de l'élément.
@@ -141,7 +153,9 @@ function onPointerDown(e: PointerEvent) {
 }
 
 function onPointerMove(e: PointerEvent) {
-    if (!isDragging.value) return;
+    if (!isDragging.value) {
+        return;
+    }
 
     const { x, y } = versCoordNaturelles(e);
     cropForm.x = Math.round(Math.min(x, dragOriginX.value));
@@ -151,11 +165,20 @@ function onPointerMove(e: PointerEvent) {
 }
 
 function onPointerUp() {
-    if (!isDragging.value) return;
+    if (!isDragging.value) {
+        return;
+    }
+
     isDragging.value = false;
+
     // Garantit une sélection d'au moins 1px.
-    if (cropForm.width < 1) cropForm.width = 1;
-    if (cropForm.height < 1) cropForm.height = 1;
+    if (cropForm.width < 1) {
+        cropForm.width = 1;
+    }
+
+    if (cropForm.height < 1) {
+        cropForm.height = 1;
+    }
 }
 
 function appliquerCrop() {
@@ -163,7 +186,7 @@ function appliquerCrop() {
 }
 
 // ─── Soumission générique ─────────────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 function soumettre(form: any) {
     form.post(props.editUrl, {
         preserveScroll: true,

@@ -40,8 +40,13 @@ const toggling = ref(false);
  * que si une correction a été posée pour cet étudiant.
  */
 const visibleEnCorrection = computed(() => {
-    if (!props.correctionVisible) return false;
-    if (props.critere.type === 'positif') return true;
+    if (!props.correctionVisible) {
+        return false;
+    }
+
+    if (props.critere.type === 'positif') {
+        return true;
+    }
 
     return props.correction !== null;
 });
@@ -64,9 +69,12 @@ const ptsObtenus = computed<number | null>(() => {
  * Indicateur local sans effet sur la correction officielle.
  */
 async function toggleCoche() {
-    if (!props.peutCocher || toggling.value) return;
+    if (!props.peutCocher || toggling.value) {
+        return;
+    }
 
     toggling.value = true;
+
     try {
         const { data } = await axios.patch(
             toggleCocheCritere.url({
