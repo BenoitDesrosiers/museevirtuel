@@ -3,7 +3,9 @@ import { useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import critereRoutes from '@/actions/App/Http/Controllers/TypeProjetCritereController';
-import EchelleBuilder, { type EchelleNiveau } from '@/components/EchelleBuilder.vue';
+import EchelleBuilder, {
+    type EchelleNiveau,
+} from '@/components/EchelleBuilder.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -59,7 +61,9 @@ const defaultEchelle: EchelleNiveau[] = [
 const form = useForm({
     section_id: props.sectionId,
     type: (props.critere?.type ?? 'positif') as 'positif' | 'negatif',
-    contenu_type: (props.critere?.contenu_type ?? 'texte') as 'texte' | 'echelle',
+    contenu_type: (props.critere?.contenu_type ?? 'texte') as
+        | 'texte'
+        | 'echelle',
     pointage: props.critere?.pointage ?? 1,
     contenu: props.critere?.contenu ?? '',
     echelle: (props.critere?.echelle ?? defaultEchelle) as EchelleNiveau[],
@@ -152,7 +156,9 @@ function submit() {
         <div class="flex flex-wrap items-end gap-3">
             <!-- Pointage -->
             <div class="grid gap-1">
-                <Label class="text-xs">{{ t('criteres.label_pointage') }}</Label>
+                <Label class="text-xs">{{
+                    t('criteres.label_pointage')
+                }}</Label>
                 <Input
                     v-model.number="form.pointage"
                     type="number"
@@ -195,11 +201,7 @@ function submit() {
         <!-- ─── Contenu texte ────────────────────────────────────────────── -->
         <div v-if="!montrerEchelle" class="grid gap-1">
             <Label class="text-xs">{{ t('criteres.label_contenu') }}</Label>
-            <Textarea
-                v-model="form.contenu"
-                rows="2"
-                class="text-sm"
-            />
+            <Textarea v-model="form.contenu" rows="2" class="text-sm" />
             <InputError :message="form.errors.contenu" />
         </div>
 

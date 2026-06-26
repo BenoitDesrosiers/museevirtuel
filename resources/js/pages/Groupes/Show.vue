@@ -90,7 +90,12 @@ type Media = {
     user_id: number;
     auteur: User;
     transcription: string | null;
-    transcription_statut: 'en_attente' | 'en_cours' | 'terminé' | 'erreur' | null;
+    transcription_statut:
+        | 'en_attente'
+        | 'en_cours'
+        | 'terminé'
+        | 'erreur'
+        | null;
 };
 
 type Video = {
@@ -1101,7 +1106,9 @@ function formatSize(bytes: number): string {
 
                                 <!-- Bouton supprimer -->
                                 <button
-                                    v-if="peutSupprimerMedia(photos[photoIndex])"
+                                    v-if="
+                                        peutSupprimerMedia(photos[photoIndex])
+                                    "
                                     class="absolute top-2 right-14 rounded-full bg-destructive/80 p-1.5 text-white transition-colors hover:bg-destructive"
                                     @click="deleteMedia(photos[photoIndex])"
                                 >
@@ -1113,7 +1120,9 @@ function formatSize(bytes: number): string {
                             <div
                                 class="mt-2 flex items-center justify-between text-xs text-muted-foreground"
                             >
-                                <span>{{ photos[photoIndex].nom_original }}</span>
+                                <span>{{
+                                    photos[photoIndex].nom_original
+                                }}</span>
                                 <span
                                     >{{ photoIndex + 1 }} /
                                     {{ photos.length }} · par
@@ -1152,7 +1161,9 @@ function formatSize(bytes: number): string {
                             v-else
                             class="flex flex-col items-center gap-3 py-10 text-center"
                         >
-                            <ImagePlus class="h-10 w-10 text-muted-foreground" />
+                            <ImagePlus
+                                class="h-10 w-10 text-muted-foreground"
+                            />
                             <p class="text-sm text-muted-foreground">
                                 {{ $t('groupes.show.no_photos') }}
                             </p>
@@ -1169,7 +1180,10 @@ function formatSize(bytes: number): string {
 
                     <!-- Onglet : Documents -->
                     <div v-if="ongletMedia === 'documents'">
-                        <div v-if="documents.length > 0" class="flex flex-col divide-y">
+                        <div
+                            v-if="documents.length > 0"
+                            class="flex flex-col divide-y"
+                        >
                             <div
                                 v-for="doc in documents"
                                 :key="doc.id"
@@ -1183,7 +1197,9 @@ function formatSize(bytes: number): string {
                                         <p class="truncate text-sm font-medium">
                                             {{ doc.nom_original }}
                                         </p>
-                                        <p class="text-xs text-muted-foreground">
+                                        <p
+                                            class="text-xs text-muted-foreground"
+                                        >
                                             {{ doc.type.toUpperCase() }} ·
                                             {{ formatSize(doc.taille) }} ·
                                             <span
@@ -1242,7 +1258,10 @@ function formatSize(bytes: number): string {
 
                     <!-- Onglet : Audio -->
                     <div v-if="ongletMedia === 'audios'">
-                        <div v-if="audios.length > 0" class="flex flex-col divide-y">
+                        <div
+                            v-if="audios.length > 0"
+                            class="flex flex-col divide-y"
+                        >
                             <div
                                 v-for="audio in audios"
                                 :key="audio.id"
@@ -1251,7 +1270,9 @@ function formatSize(bytes: number): string {
                                 <div
                                     class="flex items-center justify-between gap-3"
                                 >
-                                    <div class="flex min-w-0 items-center gap-3">
+                                    <div
+                                        class="flex min-w-0 items-center gap-3"
+                                    >
                                         <Music
                                             class="h-5 w-5 shrink-0 text-muted-foreground"
                                         />
@@ -1267,9 +1288,7 @@ function formatSize(bytes: number): string {
                                                 {{ formatSize(audio.taille) }} ·
                                                 <span
                                                     >{{ audio.auteur.prenom }}
-                                                    {{
-                                                        audio.auteur.nom
-                                                    }}</span
+                                                    {{ audio.auteur.nom }}</span
                                                 >
                                             </p>
                                         </div>
@@ -1392,9 +1411,7 @@ function formatSize(bytes: number): string {
                                     >
                                         <Mic class="mr-1 h-3 w-3" />
                                         {{
-                                            $t(
-                                                'groupes.show.transcrire_audio',
-                                            )
+                                            $t('groupes.show.transcrire_audio')
                                         }}
                                     </Button>
                                 </div>
@@ -1444,7 +1461,9 @@ function formatSize(bytes: number): string {
             <Dialog v-model:open="showPhotoEditorDialog">
                 <DialogContent class="max-w-xl">
                     <DialogHeader>
-                        <DialogTitle>{{ $t('media.editer_photo') }}</DialogTitle>
+                        <DialogTitle>{{
+                            $t('media.editer_photo')
+                        }}</DialogTitle>
                     </DialogHeader>
 
                     <PhotoEditor
@@ -1652,10 +1671,7 @@ function formatSize(bytes: number): string {
                             "
                         />
                     </div>
-                    <p
-                        v-else
-                        class="text-sm text-muted-foreground"
-                    >
+                    <p v-else class="text-sm text-muted-foreground">
                         Aucune vidéo publiée dans ce groupe.
                     </p>
                 </CardContent>
@@ -1937,7 +1953,8 @@ function formatSize(bytes: number): string {
                 </DialogHeader>
                 <VideoUploadForm
                     :upload-url="
-                        GroupeVideoController.store({ cours, classe, groupe }).url
+                        GroupeVideoController.store({ cours, classe, groupe })
+                            .url
                     "
                     :on-success="() => (showVideoUploadDialog = false)"
                 />

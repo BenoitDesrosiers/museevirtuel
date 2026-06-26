@@ -117,7 +117,9 @@ function updateNiveau(
                     :model-value="niveau.label"
                     :placeholder="t('criteres.echelle_label_placeholder')"
                     class="min-w-0 flex-1 text-sm"
-                    @update:model-value="updateNiveau(idx, 'label', String($event))"
+                    @update:model-value="
+                        updateNiveau(idx, 'label', String($event))
+                    "
                 />
 
                 <!-- Points -->

@@ -9,7 +9,12 @@
  *   en pixels naturels envoyés au serveur (Intervention Image applique le crop).
  */
 import { useForm } from '@inertiajs/vue3';
-import { FlipHorizontal2, FlipVertical2, RotateCcw, RotateCw } from 'lucide-vue-next';
+import {
+    FlipHorizontal2,
+    FlipVertical2,
+    RotateCcw,
+    RotateCw,
+} from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 
@@ -107,8 +112,14 @@ function versCoordNaturelles(e: PointerEvent): { x: number; y: number } {
     const scaleY = imgNaturalH.value / rect.height;
 
     return {
-        x: Math.max(0, Math.min((e.clientX - rect.left) * scaleX, imgNaturalW.value)),
-        y: Math.max(0, Math.min((e.clientY - rect.top) * scaleY, imgNaturalH.value)),
+        x: Math.max(
+            0,
+            Math.min((e.clientX - rect.left) * scaleX, imgNaturalW.value),
+        ),
+        y: Math.max(
+            0,
+            Math.min((e.clientY - rect.top) * scaleY, imgNaturalH.value),
+        ),
     };
 }
 
@@ -166,8 +177,12 @@ function soumettre(form: any) {
         <!-- Image avec overlay de rognage -->
         <div class="flex justify-center rounded-lg border bg-muted p-1">
             <div
-                class="relative inline-block select-none overflow-hidden rounded"
-                :class="onglet === 'crop' && imgNaturalW > 0 ? 'cursor-crosshair' : ''"
+                class="relative inline-block overflow-hidden rounded select-none"
+                :class="
+                    onglet === 'crop' && imgNaturalW > 0
+                        ? 'cursor-crosshair'
+                        : ''
+                "
                 @pointerdown="onPointerDown"
                 @pointermove="onPointerMove"
                 @pointerup="onPointerUp"
@@ -222,14 +237,26 @@ function soumettre(form: any) {
 
         <!-- ─── Onglet Pivoter ──────────────────────────────────────────────── -->
         <div v-if="onglet === 'rotate'" class="grid grid-cols-3 gap-2">
-            <Button variant="outline" :disabled="transformForm.processing" @click="appliquerRotation(90)">
+            <Button
+                variant="outline"
+                :disabled="transformForm.processing"
+                @click="appliquerRotation(90)"
+            >
                 <RotateCcw class="mr-2 h-4 w-4" />
                 90°
             </Button>
-            <Button variant="outline" :disabled="transformForm.processing" @click="appliquerRotation(180)">
+            <Button
+                variant="outline"
+                :disabled="transformForm.processing"
+                @click="appliquerRotation(180)"
+            >
                 180°
             </Button>
-            <Button variant="outline" :disabled="transformForm.processing" @click="appliquerRotation(270)">
+            <Button
+                variant="outline"
+                :disabled="transformForm.processing"
+                @click="appliquerRotation(270)"
+            >
                 <RotateCw class="mr-2 h-4 w-4" />
                 270°
             </Button>
@@ -237,11 +264,19 @@ function soumettre(form: any) {
 
         <!-- ─── Onglet Retourner ────────────────────────────────────────────── -->
         <div v-if="onglet === 'flip'" class="grid grid-cols-2 gap-2">
-            <Button variant="outline" :disabled="transformForm.processing" @click="appliquerFlip('horizontal')">
+            <Button
+                variant="outline"
+                :disabled="transformForm.processing"
+                @click="appliquerFlip('horizontal')"
+            >
                 <FlipHorizontal2 class="mr-2 h-4 w-4" />
                 Horizontal
             </Button>
-            <Button variant="outline" :disabled="transformForm.processing" @click="appliquerFlip('vertical')">
+            <Button
+                variant="outline"
+                :disabled="transformForm.processing"
+                @click="appliquerFlip('vertical')"
+            >
                 <FlipVertical2 class="mr-2 h-4 w-4" />
                 Vertical
             </Button>
@@ -253,22 +288,39 @@ function soumettre(form: any) {
                 Chargement des dimensions…
             </p>
 
-            <p v-else class="rounded bg-muted px-3 py-2 text-xs text-muted-foreground">
+            <p
+                v-else
+                class="rounded bg-muted px-3 py-2 text-xs text-muted-foreground"
+            >
                 Glissez sur l'image pour définir la zone à conserver.
-                <span v-if="cropForm.width > 0 && cropForm.height > 0" class="font-medium text-foreground">
+                <span
+                    v-if="cropForm.width > 0 && cropForm.height > 0"
+                    class="font-medium text-foreground"
+                >
                     {{ cropForm.width }} × {{ cropForm.height }} px
                 </span>
             </p>
 
-            <p class="rounded bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+            <p
+                class="rounded bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+            >
                 Cette action est permanente et remplace la photo originale.
             </p>
 
             <Button
-                :disabled="cropForm.processing || imgNaturalW === 0 || cropForm.width < 1 || cropForm.height < 1"
+                :disabled="
+                    cropForm.processing ||
+                    imgNaturalW === 0 ||
+                    cropForm.width < 1 ||
+                    cropForm.height < 1
+                "
                 @click="appliquerCrop"
             >
-                {{ cropForm.processing ? 'Application…' : 'Appliquer le rognage' }}
+                {{
+                    cropForm.processing
+                        ? 'Application…'
+                        : 'Appliquer le rognage'
+                }}
             </Button>
         </div>
     </div>

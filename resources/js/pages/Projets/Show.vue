@@ -40,7 +40,10 @@ import AntidoteGlobalModal from '@/components/AntidoteGlobalModal.vue';
 import type { GlobalSection } from '@/components/AntidoteGlobalModal.vue';
 import CommentaireEnseignant from '@/components/CommentaireEnseignant.vue';
 import CritereCorrection from '@/components/CritereCorrection.vue';
-import type { Critere as TypeProjetCritere, CorrectionLocale } from '@/components/CritereCorrection.vue';
+import type {
+    Critere as TypeProjetCritere,
+    CorrectionLocale,
+} from '@/components/CritereCorrection.vue';
 import CritereEtudiant from '@/components/CritereEtudiant.vue';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
 import ConsentementVideo from '@/components/ConsentementVideo.vue';
@@ -419,16 +422,18 @@ const conclusionsLocales = reactive<Record<number, string>>(
  * Copie locale des corrections par critère — mise à jour optimiste après chaque
  * action de l'enseignant (CritereCorrection émet @updated).
  */
-const correctionsLocales = reactive<Record<number, CorrectionLocale[]>>(
-    { ...props.correctionsParCritere },
-);
+const correctionsLocales = reactive<Record<number, CorrectionLocale[]>>({
+    ...props.correctionsParCritere,
+});
 
 /** IDs des critères cochés personnellement par l'étudiant courant. */
 const cochesLocales = ref<Set<number>>(new Set(props.cochesUtilisateur));
 
 /** Vrai si l'utilisateur courant est un membre du groupe (peut cocher des critères). */
 const estMembre = computed(
-    () => !props.estEnseignant && props.membres.some((m) => m.id === userId.value),
+    () =>
+        !props.estEnseignant &&
+        props.membres.some((m) => m.id === userId.value),
 );
 
 /** Arguments de route communs pour CritereCorrection et CritereEtudiant. */
@@ -443,7 +448,10 @@ const routeArgsCritere = computed(() => ({
  * Met à jour la liste locale des corrections pour un critère donné.
  * Appelé via @updated depuis CritereCorrection.
  */
-function onCorrectionsUpdated(critereId: number, nouvelles: CorrectionLocale[]) {
+function onCorrectionsUpdated(
+    critereId: number,
+    nouvelles: CorrectionLocale[],
+) {
     correctionsLocales[critereId] = nouvelles;
 }
 
@@ -1769,9 +1777,12 @@ async function sauvegarderAnnotation(
 
     if (existingIndex !== -1) {
         annotations[champ][existingIndex].contenu = response.data.contenu;
-        annotations[champ][existingIndex].annotation_type = response.data.annotation_type ?? 'commentaire';
-        annotations[champ][existingIndex].points_malus = response.data.points_malus ?? null;
-        annotations[champ][existingIndex].cible_user_id = response.data.cible_user_id ?? null;
+        annotations[champ][existingIndex].annotation_type =
+            response.data.annotation_type ?? 'commentaire';
+        annotations[champ][existingIndex].points_malus =
+            response.data.points_malus ?? null;
+        annotations[champ][existingIndex].cible_user_id =
+            response.data.cible_user_id ?? null;
     } else {
         annotations[champ].push({
             id: response.data.id,
@@ -2885,20 +2896,37 @@ function setOngletActif(section: string, membreId: number | 'tous') {
 
                 <!-- ─── Critères globaux (hors section) ───────────────────────── -->
                 <Card v-if="criteresGlobaux.length > 0">
-                    <CardHeader class="flex flex-row items-center justify-between">
-                        <CardTitle class="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                    <CardHeader
+                        class="flex flex-row items-center justify-between"
+                    >
+                        <CardTitle
+                            class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
+                        >
                             {{ t('criteres.titre_global') }}
                         </CardTitle>
                         <BoutonTooltip
-                            :texte="collapsed.criteres_global ? 'Développer' : 'Réduire'"
+                            :texte="
+                                collapsed.criteres_global
+                                    ? 'Développer'
+                                    : 'Réduire'
+                            "
                             @click="toggleSection('criteres_global')"
                         >
-                            <ChevronUp v-if="!collapsed.criteres_global" class="h-4 w-4" />
+                            <ChevronUp
+                                v-if="!collapsed.criteres_global"
+                                class="h-4 w-4"
+                            />
                             <ChevronDown v-else class="h-4 w-4" />
                         </BoutonTooltip>
                     </CardHeader>
-                    <CardContent v-show="!collapsed.criteres_global" class="space-y-1.5 pb-4 pt-0">
-                        <template v-for="critere in criteresGlobaux" :key="critere.id">
+                    <CardContent
+                        v-show="!collapsed.criteres_global"
+                        class="space-y-1.5 pt-0 pb-4"
+                    >
+                        <template
+                            v-for="critere in criteresGlobaux"
+                            :key="critere.id"
+                        >
                             <CritereCorrection
                                 v-if="estEnseignant"
                                 :cours-id="classe.cours_id"
@@ -2906,9 +2934,17 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 :groupe-id="groupe.id"
                                 :type-projet-id="typeProjet.id"
                                 :critere="critere"
-                                :corrections="correctionsLocales[critere.id] ?? []"
+                                :corrections="
+                                    correctionsLocales[critere.id] ?? []
+                                "
                                 :membres="membres"
-                                @updated="(nouvelles) => onCorrectionsUpdated(critere.id, nouvelles)"
+                                @updated="
+                                    (nouvelles) =>
+                                        onCorrectionsUpdated(
+                                            critere.id,
+                                            nouvelles,
+                                        )
+                                "
                             />
                             <CritereEtudiant
                                 v-else
@@ -2918,7 +2954,10 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                 :est-coche="cochesLocales.has(critere.id)"
                                 :peut-cocher="estMembre"
                                 :route-args="routeArgsCritere"
-                                @updated-coche="(cochee) => onCocheUpdated(critere.id, cochee)"
+                                @updated-coche="
+                                    (cochee) =>
+                                        onCocheUpdated(critere.id, cochee)
+                                "
                             />
                         </template>
                     </CardContent>
@@ -3937,21 +3976,50 @@ function setOngletActif(section: string, membreId: number | 'tous') {
 
                         <!-- ── Critères de correction de cette section ──────────── -->
                         <Card v-if="section.criteres?.length">
-                            <CardHeader class="flex flex-row items-center justify-between">
-                                <CardTitle class="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                            <CardHeader
+                                class="flex flex-row items-center justify-between"
+                            >
+                                <CardTitle
+                                    class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
+                                >
                                     {{ t('criteres.titre_section') }}
-                                    <span v-if="section.pointage" class="ml-1 text-xs font-normal normal-case">({{ section.pointage }} pts)</span>
+                                    <span
+                                        v-if="section.pointage"
+                                        class="ml-1 text-xs font-normal normal-case"
+                                        >({{ section.pointage }} pts)</span
+                                    >
                                 </CardTitle>
                                 <BoutonTooltip
-                                    :texte="isCriteresSectionCollapsed(section.id) ? 'Développer' : 'Réduire'"
-                                    @click="toggleSection(`criteres_section_${section.id}`)"
+                                    :texte="
+                                        isCriteresSectionCollapsed(section.id)
+                                            ? 'Développer'
+                                            : 'Réduire'
+                                    "
+                                    @click="
+                                        toggleSection(
+                                            `criteres_section_${section.id}`,
+                                        )
+                                    "
                                 >
-                                    <ChevronUp v-if="!isCriteresSectionCollapsed(section.id)" class="h-4 w-4" />
+                                    <ChevronUp
+                                        v-if="
+                                            !isCriteresSectionCollapsed(
+                                                section.id,
+                                            )
+                                        "
+                                        class="h-4 w-4"
+                                    />
                                     <ChevronDown v-else class="h-4 w-4" />
                                 </BoutonTooltip>
                             </CardHeader>
-                            <CardContent v-show="!isCriteresSectionCollapsed(section.id)" class="space-y-1.5 pb-4 pt-0">
-                                <template v-for="critere in (section.criteres ?? [])" :key="critere.id">
+                            <CardContent
+                                v-show="!isCriteresSectionCollapsed(section.id)"
+                                class="space-y-1.5 pt-0 pb-4"
+                            >
+                                <template
+                                    v-for="critere in section.criteres ?? []"
+                                    :key="critere.id"
+                                >
                                     <CritereCorrection
                                         v-if="estEnseignant"
                                         :cours-id="classe.cours_id"
@@ -3959,19 +4027,37 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                                         :groupe-id="groupe.id"
                                         :type-projet-id="typeProjet.id"
                                         :critere="critere"
-                                        :corrections="correctionsLocales[critere.id] ?? []"
+                                        :corrections="
+                                            correctionsLocales[critere.id] ?? []
+                                        "
                                         :membres="membres"
-                                        @updated="(nouvelles) => onCorrectionsUpdated(critere.id, nouvelles)"
+                                        @updated="
+                                            (nouvelles) =>
+                                                onCorrectionsUpdated(
+                                                    critere.id,
+                                                    nouvelles,
+                                                )
+                                        "
                                     />
                                     <CritereEtudiant
                                         v-else
                                         :critere="critere"
-                                        :correction="correctionEffective(critere.id)"
+                                        :correction="
+                                            correctionEffective(critere.id)
+                                        "
                                         :correction-visible="correctionVisible"
-                                        :est-coche="cochesLocales.has(critere.id)"
+                                        :est-coche="
+                                            cochesLocales.has(critere.id)
+                                        "
                                         :peut-cocher="estMembre"
                                         :route-args="routeArgsCritere"
-                                        @updated-coche="(cochee) => onCocheUpdated(critere.id, cochee)"
+                                        @updated-coche="
+                                            (cochee) =>
+                                                onCocheUpdated(
+                                                    critere.id,
+                                                    cochee,
+                                                )
+                                        "
                                     />
                                 </template>
                             </CardContent>
@@ -4968,7 +5054,7 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                     class="sticky top-4 mx-auto w-52 rounded-lg border bg-card p-3 text-card-foreground shadow-sm"
                 >
                     <button
-                        class="mb-2 flex w-full items-center justify-between rounded hover:bg-muted/50 transition-colors -mx-1 px-1"
+                        class="-mx-1 mb-2 flex w-full items-center justify-between rounded px-1 transition-colors hover:bg-muted/50"
                         title="Ouvrir la grille de correction"
                         @click="showGrilleModal = true"
                     >
@@ -4993,14 +5079,17 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :key="membre.id"
                             class="space-y-1"
                         >
-                            <div class="flex items-center justify-between gap-1">
+                            <div
+                                class="flex items-center justify-between gap-1"
+                            >
                                 <span class="truncate text-xs">
                                     {{ membre.prenom }} {{ membre.nom }}
                                 </span>
                                 <span
-                                    class="shrink-0 tabular-nums text-xs font-semibold"
+                                    class="shrink-0 text-xs font-semibold tabular-nums"
                                     :class="
-                                        maxPoints > 0 && notesParMembre[membre.id] === maxPoints
+                                        maxPoints > 0 &&
+                                        notesParMembre[membre.id] === maxPoints
                                             ? 'text-emerald-600 dark:text-emerald-400'
                                             : 'text-foreground'
                                     "
@@ -5064,7 +5153,10 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                 </DialogHeader>
 
                 <!-- Résumé des notes par membre -->
-                <div v-if="maxPoints > 0" class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div
+                    v-if="maxPoints > 0"
+                    class="grid grid-cols-2 gap-2 sm:grid-cols-4"
+                >
                     <div
                         v-for="membre in membres"
                         :key="membre.id"
@@ -5083,7 +5175,9 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         >
                             {{ notesParMembre[membre.id] ?? 0 }}
                         </p>
-                        <p class="text-[10px] text-muted-foreground">/ {{ maxPoints }}</p>
+                        <p class="text-[10px] text-muted-foreground">
+                            / {{ maxPoints }}
+                        </p>
                     </div>
                 </div>
 
@@ -5091,7 +5185,9 @@ function setOngletActif(section: string, membreId: number | 'tous') {
 
                 <!-- Critères globaux -->
                 <div v-if="criteresGlobaux.length > 0" class="space-y-1.5">
-                    <p class="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                    <p
+                        class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                    >
                         {{ t('criteres.titre_global') }}
                     </p>
                     <CritereCorrection
@@ -5104,18 +5200,25 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                         :critere="critere"
                         :corrections="correctionsLocales[critere.id] ?? []"
                         :membres="membres"
-                        @updated="(nouvelles) => onCorrectionsUpdated(critere.id, nouvelles)"
+                        @updated="
+                            (nouvelles) =>
+                                onCorrectionsUpdated(critere.id, nouvelles)
+                        "
                     />
                 </div>
 
                 <!-- Critères par section -->
                 <template
-                    v-for="section in props.sections.filter((s) => s.criteres?.length)"
+                    v-for="section in props.sections.filter(
+                        (s) => s.criteres?.length,
+                    )"
                     :key="section.id"
                 >
                     <Separator />
                     <div class="space-y-1.5">
-                        <p class="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                        <p
+                            class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                        >
                             {{ section.label }}
                         </p>
                         <CritereCorrection
@@ -5128,7 +5231,10 @@ function setOngletActif(section: string, membreId: number | 'tous') {
                             :critere="critere"
                             :corrections="correctionsLocales[critere.id] ?? []"
                             :membres="membres"
-                            @updated="(nouvelles) => onCorrectionsUpdated(critere.id, nouvelles)"
+                            @updated="
+                                (nouvelles) =>
+                                    onCorrectionsUpdated(critere.id, nouvelles)
+                            "
                         />
                     </div>
                 </template>

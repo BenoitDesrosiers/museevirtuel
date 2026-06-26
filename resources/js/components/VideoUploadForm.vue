@@ -90,10 +90,7 @@ function submit() {
                 placeholder="Décrivez brièvement votre vidéo…"
                 class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
             />
-            <p
-                v-if="form.errors.description"
-                class="text-xs text-destructive"
-            >
+            <p v-if="form.errors.description" class="text-xs text-destructive">
                 {{ form.errors.description }}
             </p>
         </div>

@@ -586,21 +586,32 @@ function saveAnnotation(): void {
                 .setComment(commentId, brouillonType.value)
                 .run();
         } else {
-            editor.value.chain().focus().setComment(commentId, brouillonType.value).run();
+            editor.value
+                .chain()
+                .focus()
+                .setComment(commentId, brouillonType.value)
+                .run();
         }
     } finally {
         editor.value.setEditable(false, false);
     }
 
     const estCorrection = brouillonType.value === 'correction';
-    const malusVal = estCorrection && brouillonMalus.value ? parseFloat(brouillonMalus.value) : null;
+    const malusVal =
+        estCorrection && brouillonMalus.value
+            ? parseFloat(brouillonMalus.value)
+            : null;
 
     emit('save-annotation', {
         commentaire_id: commentId,
         contenu: brouillon.value.trim(),
         annotation_type: brouillonType.value,
         points_malus: malusVal,
-        cible_user_id: estCorrection ? (brouillonCible.value ? parseInt(brouillonCible.value) : null) : null,
+        cible_user_id: estCorrection
+            ? brouillonCible.value
+                ? parseInt(brouillonCible.value)
+                : null
+            : null,
         html: editor.value.getHTML(),
     });
 
@@ -628,12 +639,16 @@ function startEdit(correction: Annotation): void {
     editingId.value = correction.id;
     editingContent.value = correction.contenu;
     editingType.value = correction.annotation_type ?? 'commentaire';
-    editingMalus.value = correction.points_malus !== null && correction.points_malus !== undefined
-        ? String(correction.points_malus)
-        : '';
-    editingCible.value = correction.cible_user_id !== null && correction.cible_user_id !== undefined
-        ? String(correction.cible_user_id)
-        : '';
+    editingMalus.value =
+        correction.points_malus !== null &&
+        correction.points_malus !== undefined
+            ? String(correction.points_malus)
+            : '';
+    editingCible.value =
+        correction.cible_user_id !== null &&
+        correction.cible_user_id !== undefined
+            ? String(correction.cible_user_id)
+            : '';
     showBubble.value = false;
     brouillon.value = '';
 }
@@ -667,17 +682,27 @@ function saveEdit(correction: Annotation): void {
     }
 
     const estCorrection = editingType.value === 'correction';
-    const malusVal = estCorrection && editingMalus.value ? parseFloat(editingMalus.value) : null;
+    const malusVal =
+        estCorrection && editingMalus.value
+            ? parseFloat(editingMalus.value)
+            : null;
 
     // Si le type a changé, mettre à jour la classe CSS de la marque dans l'éditeur
-    editor.value.commands.updateCommentType(correction.commentaire_id, editingType.value);
+    editor.value.commands.updateCommentType(
+        correction.commentaire_id,
+        editingType.value,
+    );
 
     emit('save-annotation', {
         commentaire_id: correction.commentaire_id,
         contenu: editingContent.value.trim(),
         annotation_type: editingType.value,
         points_malus: malusVal,
-        cible_user_id: estCorrection ? (editingCible.value ? parseInt(editingCible.value) : null) : null,
+        cible_user_id: estCorrection
+            ? editingCible.value
+                ? parseInt(editingCible.value)
+                : null
+            : null,
         html: editor.value.getHTML(),
     });
     editingId.value = null;
@@ -1178,7 +1203,9 @@ function nomCibleMalus(cibleUserId: number | null): string {
                     class="space-y-1.5 rounded-md border border-amber-300 bg-white p-2 dark:border-amber-600 dark:bg-amber-900"
                 >
                     <!-- Toggle Commentaire / Correction -->
-                    <div class="flex overflow-hidden rounded border border-amber-300 text-xs dark:border-amber-600">
+                    <div
+                        class="flex overflow-hidden rounded border border-amber-300 text-xs dark:border-amber-600"
+                    >
                         <button
                             type="button"
                             class="flex-1 px-2 py-1 transition-colors"
@@ -1216,7 +1243,10 @@ function nomCibleMalus(cibleUserId: number | null): string {
                     <!-- Champs correction — points et ciblage étudiant -->
                     <template v-if="brouillonType === 'correction'">
                         <div class="flex items-center gap-1.5">
-                            <span class="shrink-0 text-xs text-red-600 dark:text-red-400">-</span>
+                            <span
+                                class="shrink-0 text-xs text-red-600 dark:text-red-400"
+                                >-</span
+                            >
                             <input
                                 v-model="brouillonMalus"
                                 type="number"
@@ -1226,10 +1256,16 @@ function nomCibleMalus(cibleUserId: number | null): string {
                                 placeholder="0"
                                 class="w-16 rounded border border-red-300 bg-transparent px-1.5 py-0.5 text-xs text-red-700 placeholder-red-300 focus:outline-none dark:border-red-700 dark:text-red-300"
                             />
-                            <span class="shrink-0 text-xs text-red-600 dark:text-red-400">pts</span>
+                            <span
+                                class="shrink-0 text-xs text-red-600 dark:text-red-400"
+                                >pts</span
+                            >
                         </div>
                         <div class="flex items-center gap-1.5">
-                            <span class="shrink-0 text-xs text-red-600 dark:text-red-400">Pour :</span>
+                            <span
+                                class="shrink-0 text-xs text-red-600 dark:text-red-400"
+                                >Pour :</span
+                            >
                             <select
                                 v-model="brouillonCible"
                                 class="flex-1 rounded border border-red-300 bg-transparent px-1.5 py-0.5 text-xs text-red-700 focus:outline-none dark:border-red-700 dark:text-red-300"
@@ -1278,7 +1314,9 @@ function nomCibleMalus(cibleUserId: number | null): string {
                     <!-- Mode édition inline -->
                     <template v-if="editingId === correction.id">
                         <!-- Toggle Commentaire / Correction -->
-                        <div class="flex overflow-hidden rounded border border-amber-300 text-xs dark:border-amber-600">
+                        <div
+                            class="flex overflow-hidden rounded border border-amber-300 text-xs dark:border-amber-600"
+                        >
                             <button
                                 type="button"
                                 class="flex-1 px-2 py-1 transition-colors"
@@ -1315,7 +1353,10 @@ function nomCibleMalus(cibleUserId: number | null): string {
                         <!-- Champs correction — points et ciblage étudiant -->
                         <template v-if="editingType === 'correction'">
                             <div class="flex items-center gap-1.5">
-                                <span class="shrink-0 text-xs text-red-600 dark:text-red-400">-</span>
+                                <span
+                                    class="shrink-0 text-xs text-red-600 dark:text-red-400"
+                                    >-</span
+                                >
                                 <input
                                     v-model="editingMalus"
                                     type="number"
@@ -1325,10 +1366,16 @@ function nomCibleMalus(cibleUserId: number | null): string {
                                     placeholder="0"
                                     class="w-16 rounded border border-red-300 bg-transparent px-1.5 py-0.5 text-xs text-red-700 placeholder-red-300 focus:outline-none dark:border-red-700 dark:text-red-300"
                                 />
-                                <span class="shrink-0 text-xs text-red-600 dark:text-red-400">pts</span>
+                                <span
+                                    class="shrink-0 text-xs text-red-600 dark:text-red-400"
+                                    >pts</span
+                                >
                             </div>
                             <div class="flex items-center gap-1.5">
-                                <span class="shrink-0 text-xs text-red-600 dark:text-red-400">Pour :</span>
+                                <span
+                                    class="shrink-0 text-xs text-red-600 dark:text-red-400"
+                                    >Pour :</span
+                                >
                                 <select
                                     v-model="editingCible"
                                     class="flex-1 rounded border border-red-300 bg-transparent px-1.5 py-0.5 text-xs text-red-700 focus:outline-none dark:border-red-700 dark:text-red-300"
@@ -1378,7 +1425,11 @@ function nomCibleMalus(cibleUserId: number | null): string {
                             class="mt-1 inline-flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300"
                         >
                             -{{ correction.points_malus }} pts
-                            <span class="font-normal opacity-75">({{ nomCibleMalus(correction.cible_user_id) }})</span>
+                            <span class="font-normal opacity-75"
+                                >({{
+                                    nomCibleMalus(correction.cible_user_id)
+                                }})</span
+                            >
                         </span>
                         <div
                             class="absolute top-1 right-1 hidden gap-0.5 group-hover:flex"

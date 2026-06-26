@@ -76,10 +76,7 @@ const statutClasses: Record<string, string> = {
                 :alt="video.titre"
                 class="h-full w-full object-cover"
             />
-            <div
-                v-else
-                class="flex h-full w-full items-center justify-center"
-            >
+            <div v-else class="flex h-full w-full items-center justify-center">
                 <Film class="h-10 w-10 text-white/40" />
             </div>
 
@@ -107,12 +104,14 @@ const statutClasses: Record<string, string> = {
 
         <!-- Informations -->
         <div class="flex flex-1 flex-col gap-2 p-3">
-            <p class="line-clamp-2 text-sm font-medium leading-snug">
+            <p class="line-clamp-2 text-sm leading-snug font-medium">
                 {{ video.titre }}
             </p>
             <p class="text-xs text-muted-foreground">
                 <span>{{ video.auteur.prenom }} {{ video.auteur.nom }}</span>
-                <span v-if="video.duree"> · {{ formatDuree(video.duree) }}</span>
+                <span v-if="video.duree">
+                    · {{ formatDuree(video.duree) }}</span
+                >
                 <span> · {{ formatSize(video.taille) }}</span>
             </p>
         </div>

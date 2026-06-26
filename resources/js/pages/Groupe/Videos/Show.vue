@@ -1,6 +1,20 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, Check, ChevronDown, ChevronUp, Combine, Copy, LoaderCircle, Mic, Play, Plus, Square, Trash2, X } from 'lucide-vue-next';
+import {
+    ArrowLeft,
+    Check,
+    ChevronDown,
+    ChevronUp,
+    Combine,
+    Copy,
+    LoaderCircle,
+    Mic,
+    Play,
+    Plus,
+    Square,
+    Trash2,
+    X,
+} from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -124,7 +138,10 @@ function submitEdit() {
 // ─── Coupes internes ──────────────────────────────────────────────────────────
 function ajouterCoupe() {
     const mi = dureeVideo.value / 2;
-    editForm.coupes.push({ debut: Math.max(0, mi - 2), fin: Math.min(dureeVideo.value, mi + 2) });
+    editForm.coupes.push({
+        debut: Math.max(0, mi - 2),
+        fin: Math.min(dureeVideo.value, mi + 2),
+    });
 }
 
 function supprimerCoupe(idx: number) {
@@ -139,7 +156,11 @@ let previewCleanup: (() => void) | null = null;
  * Calcule les segments [debut, fin] à conserver après application des coupes.
  * Miroir JS de ProcessVideoEdit::calculerSegments() pour le preview client.
  */
-function calculerSegments(debut: number, fin: number, coupes: Coupe[]): [number, number][] {
+function calculerSegments(
+    debut: number,
+    fin: number,
+    coupes: Coupe[],
+): [number, number][] {
     if (coupes.length === 0) {
         return [[debut, fin]];
     }
@@ -175,7 +196,11 @@ function previewModifications() {
 
     stopPreview();
 
-    const segments = calculerSegments(editForm.debut, editForm.fin, editForm.coupes);
+    const segments = calculerSegments(
+        editForm.debut,
+        editForm.fin,
+        editForm.coupes,
+    );
 
     if (segments.length === 0) {
         return;
@@ -237,8 +262,9 @@ const jumelageForm = useForm({
 });
 
 /** Vidéo sélectionnée pour l'insertion (null si aucune sélection). */
-const videoJumelage = computed(() =>
-    props.autresVideos.find((v) => v.id === jumelageVideoId.value) ?? null,
+const videoJumelage = computed(
+    () =>
+        props.autresVideos.find((v) => v.id === jumelageVideoId.value) ?? null,
 );
 
 /** Durée totale estimée après jumelage. */
@@ -257,7 +283,9 @@ const proportions = computed(() => {
     return {
         avant: jumelagePosition.value / total,
         insert: (videoJumelage.value?.duree ?? 0) / total,
-        apres: Math.max(0, (dureeVideo.value ?? 0) - jumelagePosition.value) / total,
+        apres:
+            Math.max(0, (dureeVideo.value ?? 0) - jumelagePosition.value) /
+            total,
     };
 });
 
@@ -293,7 +321,9 @@ function annulerJumelage() {
 // ─── Transcription Whisper ────────────────────────────────────────────────────
 const transcriptionStatut = ref(props.video.transcription_statut);
 const transcriptionTexte = ref(props.video.transcription);
-const transcriptionSegments = ref<TranscriptionSegment[] | null>(props.video.transcription_segments ?? null);
+const transcriptionSegments = ref<TranscriptionSegment[] | null>(
+    props.video.transcription_segments ?? null,
+);
 
 // Index du segment dont le début ≤ currentTime < fin — sert à surligner
 // la phrase en cours de lecture en temps réel.
@@ -302,7 +332,9 @@ const segmentActifIndex = computed(() => {
         return -1;
     }
     const t = currentTime.value;
-    return transcriptionSegments.value.findIndex((s) => t >= s.start && t < s.end);
+    return transcriptionSegments.value.findIndex(
+        (s) => t >= s.start && t < s.end,
+    );
 });
 
 // Élément DOM du panneau de transcription — utilisé pour l'auto-scroll.
@@ -316,7 +348,9 @@ watch(segmentActifIndex, (idx) => {
     if (idx < 0 || !transcriptionEl.value) {
         return;
     }
-    const span = transcriptionEl.value.querySelectorAll('[data-segment]')[idx] as HTMLElement | undefined;
+    const span = transcriptionEl.value.querySelectorAll('[data-segment]')[
+        idx
+    ] as HTMLElement | undefined;
     span?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 });
 
@@ -483,8 +517,6 @@ onUnmounted(() => {
     arreterPolling();
     stopPreview();
 });
-
-
 </script>
 
 <template>
@@ -496,7 +528,9 @@ onUnmounted(() => {
             <div>
                 <Button variant="ghost" size="sm" as-child>
                     <Link
-                        :href="GroupeController.show({ cours, classe, groupe }).url"
+                        :href="
+                            GroupeController.show({ cours, classe, groupe }).url
+                        "
                     >
                         <ArrowLeft class="mr-2 h-4 w-4" />
                         Retour au groupe
@@ -539,7 +573,9 @@ onUnmounted(() => {
                         v-if="isPreviewing"
                         class="mb-2 flex items-center gap-2 rounded-md bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary"
                     >
-                        <span class="inline-block h-2 w-2 animate-pulse rounded-full bg-primary" />
+                        <span
+                            class="inline-block h-2 w-2 animate-pulse rounded-full bg-primary"
+                        />
                         Aperçu en cours — lecture de la version modifiée
                     </div>
 
@@ -562,17 +598,23 @@ onUnmounted(() => {
                 <CardContent class="flex flex-col gap-4">
                     <!-- En attente ou en cours -->
                     <div
-                        v-if="transcriptionStatut === 'en_attente' || transcriptionStatut === 'en_cours'"
+                        v-if="
+                            transcriptionStatut === 'en_attente' ||
+                            transcriptionStatut === 'en_cours'
+                        "
                         class="flex items-center gap-3 text-sm text-muted-foreground"
                     >
-                        <LoaderCircle class="h-4 w-4 animate-spin text-primary" />
+                        <LoaderCircle
+                            class="h-4 w-4 animate-spin text-primary"
+                        />
                         Transcription en cours…
                     </div>
 
                     <!-- Erreur -->
                     <template v-else-if="transcriptionStatut === 'erreur'">
                         <p class="text-sm text-destructive">
-                            La transcription a échoué. Vérifiez que Whisper est installé sur le serveur.
+                            La transcription a échoué. Vérifiez que Whisper est
+                            installé sur le serveur.
                         </p>
                         <Button
                             v-if="peutTranscrire"
@@ -595,11 +637,20 @@ onUnmounted(() => {
                                 variant="ghost"
                                 size="sm"
                                 class="-ml-2"
-                                @click="transcriptionOuverte = !transcriptionOuverte"
+                                @click="
+                                    transcriptionOuverte = !transcriptionOuverte
+                                "
                             >
-                                <ChevronUp v-if="transcriptionOuverte" class="mr-2 h-4 w-4" />
+                                <ChevronUp
+                                    v-if="transcriptionOuverte"
+                                    class="mr-2 h-4 w-4"
+                                />
                                 <ChevronDown v-else class="mr-2 h-4 w-4" />
-                                {{ transcriptionOuverte ? 'Réduire' : 'Afficher' }}
+                                {{
+                                    transcriptionOuverte
+                                        ? 'Réduire'
+                                        : 'Afficher'
+                                }}
                             </Button>
                             <Button
                                 type="button"
@@ -607,7 +658,10 @@ onUnmounted(() => {
                                 size="sm"
                                 @click="copierTranscription"
                             >
-                                <Check v-if="copié" class="mr-2 h-4 w-4 text-green-600" />
+                                <Check
+                                    v-if="copié"
+                                    class="mr-2 h-4 w-4 text-green-600"
+                                />
                                 <Copy v-else class="mr-2 h-4 w-4" />
                                 {{ copié ? 'Copié !' : 'Copier' }}
                             </Button>
@@ -618,9 +672,16 @@ onUnmounted(() => {
                             class="rounded-md bg-muted p-4 text-sm leading-relaxed"
                         >
                             <!-- Segments horodatés cliquables -->
-                            <template v-if="transcriptionSegments && transcriptionSegments.length">
+                            <template
+                                v-if="
+                                    transcriptionSegments &&
+                                    transcriptionSegments.length
+                                "
+                            >
                                 <span
-                                    v-for="(segment, i) in transcriptionSegments"
+                                    v-for="(
+                                        segment, i
+                                    ) in transcriptionSegments"
                                     :key="i"
                                     data-segment
                                     :class="[
@@ -631,10 +692,13 @@ onUnmounted(() => {
                                     ]"
                                     :title="`${Math.floor(segment.start / 60)}:${String(Math.floor(segment.start % 60)).padStart(2, '0')}`"
                                     @click="seekToSegment(segment)"
-                                >{{ segment.text }} </span>
+                                    >{{ segment.text }}
+                                </span>
                             </template>
                             <!-- Fallback texte brut (transcriptions avant la migration) -->
-                            <span v-else class="whitespace-pre-wrap">{{ transcriptionTexte }}</span>
+                            <span v-else class="whitespace-pre-wrap">{{
+                                transcriptionTexte
+                            }}</span>
                         </div>
                         <Button
                             v-if="peutTranscrire"
@@ -697,10 +761,7 @@ onUnmounted(() => {
                     <!-- Trim début/fin -->
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div class="grid gap-1.5">
-                            <label
-                                class="text-sm font-medium"
-                                for="trim-debut"
-                            >
+                            <label class="text-sm font-medium" for="trim-debut">
                                 Début (secondes)
                             </label>
                             <input
@@ -736,7 +797,9 @@ onUnmounted(() => {
                     </div>
 
                     <!-- Barre de timeline visuelle -->
-                    <div class="relative h-8 w-full overflow-hidden rounded bg-muted">
+                    <div
+                        class="relative h-8 w-full overflow-hidden rounded bg-muted"
+                    >
                         <!-- Segment gardé (en bleu) -->
                         <div
                             class="absolute top-0 h-full bg-primary/30"
@@ -761,7 +824,9 @@ onUnmounted(() => {
                         <div
                             v-if="dureeVideo > 0"
                             class="absolute top-0 h-full w-0.5 bg-foreground/60 transition-none"
-                            :style="{ left: `${(currentTime / dureeVideo) * 100}%` }"
+                            :style="{
+                                left: `${(currentTime / dureeVideo) * 100}%`,
+                            }"
                         />
 
                         <!-- Marqueurs temps -->
@@ -806,7 +871,7 @@ onUnmounted(() => {
                             class="flex items-center gap-3 rounded-lg border p-3"
                         >
                             <div class="flex flex-1 gap-4">
-                                <div class="grid gap-1 flex-1">
+                                <div class="grid flex-1 gap-1">
                                     <label
                                         class="text-xs font-medium text-muted-foreground"
                                     >
@@ -820,11 +885,12 @@ onUnmounted(() => {
                                         step="0.1"
                                         class="w-full accent-destructive"
                                     />
-                                    <span class="text-xs text-muted-foreground">{{
-                                        formatDuree(coupe.debut)
-                                    }}</span>
+                                    <span
+                                        class="text-xs text-muted-foreground"
+                                        >{{ formatDuree(coupe.debut) }}</span
+                                    >
                                 </div>
-                                <div class="grid gap-1 flex-1">
+                                <div class="grid flex-1 gap-1">
                                     <label
                                         class="text-xs font-medium text-muted-foreground"
                                     >
@@ -838,9 +904,10 @@ onUnmounted(() => {
                                         step="0.1"
                                         class="w-full accent-destructive"
                                     />
-                                    <span class="text-xs text-muted-foreground">{{
-                                        formatDuree(coupe.fin)
-                                    }}</span>
+                                    <span
+                                        class="text-xs text-muted-foreground"
+                                        >{{ formatDuree(coupe.fin) }}</span
+                                    >
                                 </div>
                             </div>
                             <Button
@@ -875,11 +942,19 @@ onUnmounted(() => {
                                 traitementStatut === 'en_attente' ||
                                 traitementStatut === 'en_cours'
                             "
-                            @click="isPreviewing ? stopPreview() : previewModifications()"
+                            @click="
+                                isPreviewing
+                                    ? stopPreview()
+                                    : previewModifications()
+                            "
                         >
                             <Square v-if="isPreviewing" class="mr-2 h-4 w-4" />
                             <Play v-else class="mr-2 h-4 w-4" />
-                            {{ isPreviewing ? 'Arrêter l\'aperçu' : 'Prévisualiser' }}
+                            {{
+                                isPreviewing
+                                    ? "Arrêter l'aperçu"
+                                    : 'Prévisualiser'
+                            }}
                         </Button>
 
                         <!-- Bouton soumettre -->
@@ -904,7 +979,12 @@ onUnmounted(() => {
             </Card>
 
             <!-- Section jumelage -->
-            <Card v-if="traitementStatut !== 'en_attente' && traitementStatut !== 'en_cours'">
+            <Card
+                v-if="
+                    traitementStatut !== 'en_attente' &&
+                    traitementStatut !== 'en_cours'
+                "
+            >
                 <CardHeader>
                     <CardTitle>Jumeler avec une autre vidéo</CardTitle>
                 </CardHeader>
@@ -951,7 +1031,7 @@ onUnmounted(() => {
                             <select
                                 id="jumelage-video"
                                 v-model.number="jumelageVideoId"
-                                class="border-input bg-background focus:ring-ring w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+                                class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring focus:outline-none"
                             >
                                 <option :value="null" disabled>
                                     — Choisir une vidéo —
@@ -986,9 +1066,13 @@ onUnmounted(() => {
                                 step="0.1"
                                 class="w-full accent-primary"
                             />
-                            <div class="flex justify-between text-xs text-muted-foreground">
+                            <div
+                                class="flex justify-between text-xs text-muted-foreground"
+                            >
                                 <span>0:00</span>
-                                <span class="font-medium">{{ formatDuree(jumelagePosition) }}</span>
+                                <span class="font-medium">{{
+                                    formatDuree(jumelagePosition)
+                                }}</span>
                                 <span>{{ formatDuree(dureeVideo) }}</span>
                             </div>
                         </div>
@@ -996,35 +1080,49 @@ onUnmounted(() => {
                         <!-- Timeline de prévisualisation proportionnelle -->
                         <div v-if="videoJumelage" class="flex flex-col gap-1.5">
                             <p class="text-sm font-medium">Aperçu du montage</p>
-                            <div class="flex h-8 w-full overflow-hidden rounded">
+                            <div
+                                class="flex h-8 w-full overflow-hidden rounded"
+                            >
                                 <!-- Segment base avant insertion -->
                                 <div
                                     v-if="proportions.avant > 0"
                                     class="flex items-center justify-center bg-primary/40 text-xs font-medium text-primary"
-                                    :style="{ width: `${proportions.avant * 100}%` }"
+                                    :style="{
+                                        width: `${proportions.avant * 100}%`,
+                                    }"
                                     title="Base (avant)"
                                 />
                                 <!-- Segment inséré -->
                                 <div
                                     class="flex items-center justify-center bg-amber-400/60 text-xs font-medium text-amber-800"
-                                    :style="{ width: `${proportions.insert * 100}%` }"
+                                    :style="{
+                                        width: `${proportions.insert * 100}%`,
+                                    }"
                                     title="Vidéo insérée"
                                 />
                                 <!-- Segment base après insertion -->
                                 <div
                                     v-if="proportions.apres > 0"
                                     class="flex items-center justify-center bg-primary/40 text-xs font-medium text-primary"
-                                    :style="{ width: `${proportions.apres * 100}%` }"
+                                    :style="{
+                                        width: `${proportions.apres * 100}%`,
+                                    }"
                                     title="Base (après)"
                                 />
                             </div>
-                            <div class="flex gap-4 text-xs text-muted-foreground">
+                            <div
+                                class="flex gap-4 text-xs text-muted-foreground"
+                            >
                                 <span class="flex items-center gap-1">
-                                    <span class="inline-block h-2.5 w-2.5 rounded-sm bg-primary/40" />
+                                    <span
+                                        class="inline-block h-2.5 w-2.5 rounded-sm bg-primary/40"
+                                    />
                                     Base
                                 </span>
                                 <span class="flex items-center gap-1">
-                                    <span class="inline-block h-2.5 w-2.5 rounded-sm bg-amber-400/60" />
+                                    <span
+                                        class="inline-block h-2.5 w-2.5 rounded-sm bg-amber-400/60"
+                                    />
                                     {{ videoJumelage.titre }}
                                 </span>
                             </div>
@@ -1036,10 +1134,16 @@ onUnmounted(() => {
 
                         <!-- Erreurs de validation -->
                         <p
-                            v-if="jumelageForm.errors.video_a_inserer_id || jumelageForm.errors.position"
+                            v-if="
+                                jumelageForm.errors.video_a_inserer_id ||
+                                jumelageForm.errors.position
+                            "
                             class="text-sm text-destructive"
                         >
-                            {{ jumelageForm.errors.video_a_inserer_id || jumelageForm.errors.position }}
+                            {{
+                                jumelageForm.errors.video_a_inserer_id ||
+                                jumelageForm.errors.position
+                            }}
                         </p>
 
                         <!-- Actions -->
@@ -1054,7 +1158,10 @@ onUnmounted(() => {
                             </Button>
                             <Button
                                 type="button"
-                                :disabled="jumelageForm.processing || jumelageVideoId === null"
+                                :disabled="
+                                    jumelageForm.processing ||
+                                    jumelageVideoId === null
+                                "
                                 @click="submitJumelage"
                             >
                                 <Combine class="mr-2 h-4 w-4" />

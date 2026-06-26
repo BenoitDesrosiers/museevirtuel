@@ -621,7 +621,7 @@ function executeDeleteGroupe() {
                         <BoutonTooltip
                             texte="Voir le total pondéré de tous les types de projets"
                             variant="default"
-                        size="sm"
+                            size="sm"
                             as-child
                         >
                             <Link

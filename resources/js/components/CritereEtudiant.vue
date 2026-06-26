@@ -4,7 +4,10 @@ import { CheckSquare, MessageSquare, Square } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toggleCocheCritere } from '@/actions/App/Http/Controllers/ProjetRechercheController';
-import type { Critere, CorrectionLocale } from '@/components/CritereCorrection.vue';
+import type {
+    Critere,
+    CorrectionLocale,
+} from '@/components/CritereCorrection.vue';
 
 const props = defineProps<{
     critere: Critere;
@@ -16,7 +19,12 @@ const props = defineProps<{
     estCoche: boolean;
     /** true = l'utilisateur courant est membre du groupe (peut basculer sa coche). */
     peutCocher: boolean;
-    routeArgs: { cours: number; classe: number; groupe: number; typeProjet: number };
+    routeArgs: {
+        cours: number;
+        classe: number;
+        groupe: number;
+        typeProjet: number;
+    };
 }>();
 
 const emit = defineEmits<{
@@ -79,7 +87,9 @@ async function toggleCoche() {
         v-if="!correctionVisible"
         class="border-l-2 py-1.5 pl-3"
         :class="
-            critere.type === 'positif' ? 'border-emerald-400' : 'border-rose-400'
+            critere.type === 'positif'
+                ? 'border-emerald-400'
+                : 'border-rose-400'
         "
     >
         <div class="flex items-start gap-2">
@@ -92,17 +102,16 @@ async function toggleCoche() {
                         : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'
                 "
             >
-                {{ critere.type === 'positif' ? '+' : '−' }}{{ critere.pointage }}
+                {{ critere.type === 'positif' ? '+' : '−'
+                }}{{ critere.pointage }}
             </span>
 
-            <span
-                v-if="critere.contenu"
-                class="flex-1 text-xs leading-snug"
-            >{{ critere.contenu }}</span>
-            <span
-                v-else
-                class="flex-1 text-xs italic text-muted-foreground"
-            >{{ t('criteres.sans_description') }}</span>
+            <span v-if="critere.contenu" class="flex-1 text-xs leading-snug">{{
+                critere.contenu
+            }}</span>
+            <span v-else class="flex-1 text-xs text-muted-foreground italic">{{
+                t('criteres.sans_description')
+            }}</span>
 
             <!-- Coche personnelle (indicateur local, sans effet sur la note) -->
             <button
@@ -129,7 +138,9 @@ async function toggleCoche() {
         v-else-if="visibleEnCorrection"
         class="space-y-1 border-l-2 py-1.5 pl-3"
         :class="
-            critere.type === 'positif' ? 'border-emerald-400' : 'border-rose-400'
+            critere.type === 'positif'
+                ? 'border-emerald-400'
+                : 'border-rose-400'
         "
     >
         <div class="flex items-start gap-2">
@@ -145,19 +156,15 @@ async function toggleCoche() {
                 <template v-if="critere.type === 'positif'">
                     {{ ptsObtenus }}/{{ critere.pointage }}
                 </template>
-                <template v-else>
-                    −{{ ptsObtenus }}
-                </template>
+                <template v-else> −{{ ptsObtenus }} </template>
             </span>
 
-            <span
-                v-if="critere.contenu"
-                class="flex-1 text-xs leading-snug"
-            >{{ critere.contenu }}</span>
-            <span
-                v-else
-                class="flex-1 text-xs italic text-muted-foreground"
-            >{{ t('criteres.sans_description') }}</span>
+            <span v-if="critere.contenu" class="flex-1 text-xs leading-snug">{{
+                critere.contenu
+            }}</span>
+            <span v-else class="flex-1 text-xs text-muted-foreground italic">{{
+                t('criteres.sans_description')
+            }}</span>
         </div>
 
         <!-- Commentaire de l'enseignant -->

@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { router } from '@inertiajs/vue3';
-import { ArrowLeft, ChevronDown, GripVertical, Plus, Trash2 } from 'lucide-vue-next';
+import {
+    ArrowLeft,
+    ChevronDown,
+    GripVertical,
+    Plus,
+    Trash2,
+} from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { VueDraggable } from 'vue-draggable-plus';
 import { useI18n } from 'vue-i18n';
@@ -521,7 +527,9 @@ function fermerForms() {
                                 <span class="min-w-0 flex-1 text-xs">
                                     {{ critere.contenu }}
                                     <span
-                                        v-if="critere.contenu_type === 'echelle'"
+                                        v-if="
+                                            critere.contenu_type === 'echelle'
+                                        "
                                         class="ml-1 text-muted-foreground"
                                         >(échelle)</span
                                     >
@@ -566,10 +574,7 @@ function fermerForms() {
                     </div>
 
                     <!-- Message vide -->
-                    <p
-                        v-else
-                        class="text-xs text-muted-foreground"
-                    >
+                    <p v-else class="text-xs text-muted-foreground">
                         {{ $t('criteres.aucun_critere') }}
                     </p>
 
@@ -726,7 +731,9 @@ function fermerForms() {
                                     step="0.25"
                                     class="w-28 text-sm"
                                     :placeholder="
-                                        $t('criteres.pointage_section_placeholder')
+                                        $t(
+                                            'criteres.pointage_section_placeholder',
+                                        )
                                     "
                                 />
                             </div>
@@ -742,19 +749,23 @@ function fermerForms() {
                                             <span
                                                 v-if="
                                                     typeProjet.sections.find(
-                                                        (s) => s.id === section.id,
+                                                        (s) =>
+                                                            s.id === section.id,
                                                     )?.criteres?.length
                                                 "
                                                 class="rounded-full bg-muted px-1.5 py-0.5 text-[10px]"
                                             >
                                                 {{
                                                     typeProjet.sections.find(
-                                                        (s) => s.id === section.id,
+                                                        (s) =>
+                                                            s.id === section.id,
                                                     )?.criteres?.length
                                                 }}
                                             </span>
                                         </span>
-                                        <ChevronDown class="h-3.5 w-3.5 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180" />
+                                        <ChevronDown
+                                            class="h-3.5 w-3.5 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180"
+                                        />
                                     </CollapsibleTrigger>
 
                                     <CollapsibleContent class="mt-2 space-y-2">
@@ -825,11 +836,14 @@ function fermerForms() {
                                                                 )
                                                             "
                                                         >
-                                                            <span class="text-xs">{{
-                                                                $t(
-                                                                    'criteres.btn_modifier',
-                                                                )
-                                                            }}</span>
+                                                            <span
+                                                                class="text-xs"
+                                                                >{{
+                                                                    $t(
+                                                                        'criteres.btn_modifier',
+                                                                    )
+                                                                }}</span
+                                                            >
                                                         </button>
                                                         <button
                                                             type="button"
@@ -857,7 +871,9 @@ function fermerForms() {
                                                     :type-projet-id="
                                                         typeProjet.id
                                                     "
-                                                    :section-id="section.id ?? null"
+                                                    :section-id="
+                                                        section.id ?? null
+                                                    "
                                                     :critere="critere"
                                                     @saved="fermerForms"
                                                     @cancelled="fermerForms"
@@ -875,7 +891,9 @@ function fermerForms() {
 
                                         <!-- Formulaire de création -->
                                         <CritereForm
-                                            v-if="formOuvertePour === section.id"
+                                            v-if="
+                                                formOuvertePour === section.id
+                                            "
                                             :cours-id="cours.id"
                                             :type-projet-id="typeProjet.id"
                                             :section-id="section.id ?? null"
@@ -885,12 +903,16 @@ function fermerForms() {
 
                                         <!-- Bouton ajouter -->
                                         <Button
-                                            v-if="formOuvertePour !== section.id"
+                                            v-if="
+                                                formOuvertePour !== section.id
+                                            "
                                             type="button"
                                             size="sm"
                                             variant="outline"
                                             class="text-xs"
-                                            @click="ouvrirFormCreation(section.id!)"
+                                            @click="
+                                                ouvrirFormCreation(section.id!)
+                                            "
                                         >
                                             <Plus class="mr-1 h-3 w-3" />
                                             {{ $t('criteres.ajouter') }}

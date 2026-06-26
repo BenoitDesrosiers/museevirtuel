@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import axios from 'axios';
-import { CheckCheck, GitFork, Loader2, MessageSquare, Trash2 } from 'lucide-vue-next';
+import {
+    CheckCheck,
+    GitFork,
+    Loader2,
+    MessageSquare,
+    Trash2,
+} from 'lucide-vue-next';
 import {
     clonerCritereCorrection,
     destroyCritereCorrection,
@@ -155,9 +161,7 @@ async function sauvegarderPoints(userId: number | null) {
     const key = userId === null ? 'groupe' : String(userId);
     const pts = parseFloat(pointsDraft[key] ?? '');
     const existing =
-        userId === null
-            ? correctionGroupe.value
-            : correctionPourMembre(userId);
+        userId === null ? correctionGroupe.value : correctionPourMembre(userId);
 
     const payload = {
         user_id: userId,
@@ -190,9 +194,7 @@ async function sauvegarderPoints(userId: number | null) {
 async function sauvegarderCommentaire(userId: number | null) {
     const key = userId === null ? 'groupe' : String(userId);
     const existing =
-        userId === null
-            ? correctionGroupe.value
-            : correctionPourMembre(userId);
+        userId === null ? correctionGroupe.value : correctionPourMembre(userId);
 
     const pts = parseFloat(pointsDraft[key] ?? '');
     const payload = {
@@ -351,7 +353,7 @@ async function supprimerCorrection(
 
 <template>
     <div
-        class="border-l-2 py-1.5 pl-3 space-y-1.5"
+        class="space-y-1.5 border-l-2 py-1.5 pl-3"
         :class="
             critere.type === 'positif'
                 ? 'border-emerald-400'
@@ -371,14 +373,10 @@ async function supprimerCorrection(
                 {{ critere.type === 'positif' ? '+' : '−'
                 }}{{ critere.pointage }}
             </span>
-            <span
-                v-if="critere.contenu"
-                class="flex-1 text-xs leading-snug"
-                >{{ critere.contenu }}</span
-            >
-            <span
-                v-else
-                class="flex-1 text-xs italic text-muted-foreground"
+            <span v-if="critere.contenu" class="flex-1 text-xs leading-snug">{{
+                critere.contenu
+            }}</span>
+            <span v-else class="flex-1 text-xs text-muted-foreground italic"
                 >Sans description</span
             >
         </div>
@@ -444,16 +442,12 @@ async function supprimerCorrection(
                 type="button"
                 :class="[
                     'shrink-0 transition-colors',
-                    showCommentaire['groupe'] ||
-                    correctionGroupe?.commentaire
+                    showCommentaire['groupe'] || correctionGroupe?.commentaire
                         ? 'text-blue-500'
                         : 'text-muted-foreground hover:text-blue-400',
                 ]"
                 title="Commentaire"
-                @click="
-                    showCommentaire['groupe'] =
-                        !showCommentaire['groupe']
-                "
+                @click="showCommentaire['groupe'] = !showCommentaire['groupe']"
             >
                 <MessageSquare class="h-3.5 w-3.5" />
             </button>
@@ -468,7 +462,11 @@ async function supprimerCorrection(
                         ? 'text-foreground'
                         : 'text-muted-foreground hover:text-foreground',
                 ]"
-                :title="showOverrides ? 'Masquer les valeurs individuelles' : 'Valeurs différentes par étudiant'"
+                :title="
+                    showOverrides
+                        ? 'Masquer les valeurs individuelles'
+                        : 'Valeurs différentes par étudiant'
+                "
                 @click="showOverrides = !showOverrides"
             >
                 <GitFork class="h-3 w-3" />
@@ -504,7 +502,9 @@ async function supprimerCorrection(
         </div>
 
         <!-- ─── Overrides par étudiant (si correction groupe existe) ──── -->
-        <template v-if="correctionGroupe && membres.length > 0 && showOverrides">
+        <template
+            v-if="correctionGroupe && membres.length > 0 && showOverrides"
+        >
             <div
                 v-for="membre in membres"
                 :key="membre.id"
