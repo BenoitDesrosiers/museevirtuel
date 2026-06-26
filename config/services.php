@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'whisper' => [
+        // Modèles : tiny, base, small, medium, large — trade-off vitesse/précision.
+        // small est un bon équilibre pour du français sur CPU.
+        'model' => env('WHISPER_MODEL', 'small'),
+        // Chemin vers l'exécutable whisper — nécessaire si whisper.exe n'est pas dans le PATH.
+        // Ex. Windows : C:\Users\Adam\AppData\Roaming\Python\Python313\Scripts\whisper.exe
+        'binary' => env('WHISPER_BINARY', 'whisper'),
+    ],
+
 ];

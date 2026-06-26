@@ -31,7 +31,10 @@
     "thematique.unauthorized": "You cannot modify this theme.",
     "media.format_error": "Unsupported format. Use JPG, PNG, WEBP, PDF, DOCX, MP3, WAV, OGG, M4A or AAC.",
     "media.added": "File added successfully.",
+    "media.edited": "Photo updated successfully.",
     "media.deleted": "File deleted.",
+    "media.transcription_started": "Transcription started. The result will appear automatically.",
+    "media.transcription_already_running": "A transcription is already running for this voice message.",
     "questions.added": "Question added.",
     "questions.updated": "Question updated.",
     "questions.deleted": "Question deleted.",
@@ -67,5 +70,13 @@
     "cours.verrouille.description": "The course {cours} is not accessible at this time. Contact your instructor for more information.",
     "cours.verrouille.retour": "Back to home",
     "cours.deverrouille": "Course unlocked — students have access again.",
-    "cours.transfere": "Course transferred successfully."
+    "cours.transfere": "Course transferred successfully.",
+    "video.uploaded": "Video uploaded successfully.",
+    "video.updated": "Video updated.",
+    "video.deleted": "Video deleted.",
+    "video.published": "Video published.",
+    "video.processing": "Processing started — the video will be available shortly.",
+    "video.merged": "Merge started — the video will be available shortly.",
+    "video.transcription_started": "Transcription started — the text will be available shortly.",
+    "video.transcription_already_running": "A transcription is already running for this video."
 }

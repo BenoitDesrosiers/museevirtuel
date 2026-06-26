@@ -114,4 +114,12 @@ class Groupe extends Model
     {
         return $this->hasMany(ProjetRecherche::class);
     }
+
+    /**
+     * Retourne les vidéos publiées du groupe, triées du plus récent au plus ancien.
+     */
+    public function videos(): HasMany
+    {
+        return $this->hasMany(GroupeVideo::class)->orderByDesc('created_at');
+    }
 }

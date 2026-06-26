@@ -31,7 +31,10 @@
     "thematique.unauthorized": "Vous ne pouvez pas modifier cette thématique.",
     "media.format_error": "Format non supporté. Utilisez JPG, PNG, WEBP, PDF, DOCX, MP3, WAV, OGG, M4A ou AAC.",
     "media.added": "Fichier ajouté avec succès.",
+    "media.edited": "Photo modifiée avec succès.",
     "media.deleted": "Fichier supprimé.",
+    "media.transcription_started": "Transcription démarrée. Le résultat apparaîtra automatiquement.",
+    "media.transcription_already_running": "Une transcription est déjà en cours pour ce message vocal.",
     "questions.added": "Question ajoutée.",
     "questions.updated": "Question mise à jour.",
     "questions.deleted": "Question supprimée.",
@@ -67,5 +70,13 @@
     "cours.verrouille.description": "Le cours {cours} n'est pas accessible pour le moment. Contactez votre enseignant pour plus d'informations.",
     "cours.verrouille.retour": "Retour à l'accueil",
     "cours.deverrouille": "Cours déverrouillé — les étudiants y ont de nouveau accès.",
-    "cours.transfere": "Cours transféré avec succès."
+    "cours.transfere": "Cours transféré avec succès.",
+    "video.uploaded": "Vidéo téléversée avec succès.",
+    "video.updated": "Vidéo mise à jour.",
+    "video.deleted": "Vidéo supprimée.",
+    "video.published": "Vidéo publiée.",
+    "video.processing": "Traitement lancé — la vidéo sera disponible sous peu.",
+    "video.merged": "Jumelage lancé — la vidéo sera disponible sous peu.",
+    "video.transcription_started": "Transcription lancée — le texte sera disponible sous peu.",
+    "video.transcription_already_running": "Une transcription est déjà en cours pour cette vidéo."
 }

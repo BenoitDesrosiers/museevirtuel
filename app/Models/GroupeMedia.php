@@ -12,6 +12,14 @@ class GroupeMedia extends Model
 
     protected $table = 'groupe_medias';
 
+    public const TRANSCRIPTION_EN_ATTENTE = 'en_attente';
+
+    public const TRANSCRIPTION_EN_COURS = 'en_cours';
+
+    public const TRANSCRIPTION_TERMINEE = 'terminé';
+
+    public const TRANSCRIPTION_ERREUR = 'erreur';
+
     protected $fillable = [
         'groupe_id',
         'user_id',
@@ -19,13 +27,28 @@ class GroupeMedia extends Model
         'file_path',
         'type',
         'taille',
+        'transcription',
+        'transcription_statut',
     ];
 
     protected $appends = ['url'];
 
     public function getUrlAttribute(): string
     {
-        return asset($this->file_path);
+        // Le paramètre ?v= force le navigateur à refetch l'image après une édition
+        // (rotation, rognage…) qui modifie le fichier sans changer son chemin.
+        return asset($this->file_path).'?v='.$this->updated_at->timestamp;
+    }
+
+    /**
+     * Vérifie si une transcription est en cours ou en attente pour ce média.
+     */
+    public function isBeingTranscribed(): bool
+    {
+        return in_array($this->transcription_statut, [
+            self::TRANSCRIPTION_EN_ATTENTE,
+            self::TRANSCRIPTION_EN_COURS,
+        ]);
     }
 
     /**

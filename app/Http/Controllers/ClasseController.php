@@ -185,7 +185,6 @@ class ClasseController extends Controller
     public function apercuNotesAccumulees(Cours $cours, Classe $classe): Response
     {
         $this->autoriserEnseignantOuAdmin($cours, $classe);
-        $classe->load('groupes.membres');
 
         // TypeProjets sommatifs du cours ayant une pondération définie.
         // Les projets non-sommatifs (is_sommatif = false) n'ont pas de poids sur la note finale.
@@ -193,20 +192,73 @@ class ClasseController extends Controller
             ->where('is_sommatif', true)
             ->whereNotNull('ponderation')
             ->orderBy('nom')
+            ->with('criteres')
             ->get();
+
+        $typeProjetIds = $typesProjets->pluck('id');
+
+        $classe->load([
+            'groupes.membres',
+            'groupes.projets' => fn ($q) => $q->whereIn('type_projet_id', $typeProjetIds),
+            'groupes.projets.critereCorrections',
+        ]);
 
         $lignes = collect();
 
         foreach ($classe->groupes as $groupe) {
+            // Index des projets du groupe par type_projet_id pour accès O(1)
+            $projetParType = $groupe->projets->keyBy('type_projet_id');
+
             foreach ($groupe->membres as $membre) {
-                $notesParType = $typesProjets->mapWithKeys(fn ($tp) => [$tp->id => null])->all();
+                $notesParType = [];
+                $total = 0.0;
+
+                foreach ($typesProjets as $tp) {
+                    $projet = $projetParType->get($tp->id);
+
+                    if ($projet === null) {
+                        $notesParType[$tp->id] = null;
+
+                        continue;
+                    }
+
+                    $corrections = $projet->critereCorrections;
+                    $totalMax = $tp->criteres->where('type', 'positif')->sum(fn ($c) => (float) $c->pointage);
+                    $totalPoints = 0.0;
+
+                    foreach ($tp->criteres as $critere) {
+                        // La correction individuelle prime sur la correction de groupe (user_id null)
+                        $individuelle = $corrections->first(fn ($cor) => $cor->critere_id === $critere->id && $cor->user_id === $membre->id);
+                        $groupeCorrection = $corrections->first(fn ($cor) => $cor->critere_id === $critere->id && $cor->user_id === null);
+                        $correction = $individuelle ?? $groupeCorrection;
+
+                        if ($correction === null) {
+                            continue;
+                        }
+
+                        if ($critere->type === 'positif' && $correction->verifie) {
+                            $totalPoints += $correction->points !== null
+                                ? (float) $correction->points
+                                : (float) $critere->pointage;
+                        } elseif ($critere->type === 'negatif') {
+                            $totalPoints -= (float) ($correction->points ?? $critere->pointage);
+                        }
+                    }
+
+                    $note = $totalMax > 0 ? round($totalPoints / $totalMax * 100, 2) : null;
+                    $notesParType[$tp->id] = $note;
+
+                    if ($note !== null) {
+                        $total += $note * ((float) $tp->ponderation / 100);
+                    }
+                }
 
                 $lignes->push([
                     'da' => preg_replace('/\D/', '', (string) $membre->no_da),
                     'prenom' => $membre->prenom,
                     'nom' => $membre->nom,
                     'notes_par_type' => $notesParType,
-                    'total' => 0.0,
+                    'total' => round($total, 2),
                 ]);
             }
         }

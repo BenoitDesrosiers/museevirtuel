@@ -1,5 +1,10 @@
 <?php
 
+use App\Models\Classe;
+use App\Models\Cours;
+use App\Models\Groupe;
+use App\Models\GroupeVideo;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -44,7 +49,50 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+// ─── Helpers partagés — Vidéos de groupe ──────────────────────────────────────
+
+/**
+ * Crée un scénario standard : enseignant, cours, classe, groupe, étudiant membre.
+ *
+ * @return array{enseignant: User, etudiant: User, cours: Cours, classe: Classe, groupe: Groupe}
+ */
+function creerScenarioVideo(): array
 {
-    // ..
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $etudiant = User::factory()->create(['role' => 'etudiant']);
+
+    $cours = Cours::create([
+        'nom_cours' => 'Histoire du Québec',
+        'description' => 'Test',
+        'code' => '330-VID',
+        'groupe' => 'A',
+        'enseignant_id' => $enseignant->id,
+    ]);
+
+    $classe = Classe::create(['cours_id' => $cours->id]);
+    $classe->etudiants()->attach($etudiant->id);
+
+    $groupe = Groupe::create([
+        'classe_id' => $classe->id,
+        'created_by' => $etudiant->id,
+    ]);
+    $groupe->membres()->attach($etudiant->id);
+
+    return compact('enseignant', 'etudiant', 'cours', 'classe', 'groupe');
+}
+
+/**
+ * Crée une vidéo enregistrée en base (sans fichier physique réel).
+ */
+function creerVideo(Groupe $groupe, User $auteur, array $attrs = []): GroupeVideo
+{
+    return GroupeVideo::create(array_merge([
+        'groupe_id' => $groupe->id,
+        'user_id' => $auteur->id,
+        'titre' => 'Ma vidéo test',
+        'nom_original' => 'video.mp4',
+        'file_path' => 'medias/groupes/'.$groupe->id.'/videos/fake.mp4',
+        'taille' => 1024 * 1024, // 1 Mo
+        'statut' => 'brouillon',
+    ], $attrs));
 }

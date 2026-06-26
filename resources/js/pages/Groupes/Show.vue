@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     ArrowLeft,
     BookOpen,
@@ -11,18 +11,26 @@ import {
     FileText,
     ImagePlus,
     MessageSquare,
+    Mic,
     Music,
     Pencil,
+    Plus,
     Search,
+    SlidersHorizontal,
     Trash2,
     Video,
 } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import FormDialog from '@/components/FormDialog.vue';
 import Heading from '@/components/Heading.vue';
 import NoteAvecCorrections from '@/components/NoteAvecCorrections.vue';
+import PhotoEditor from '@/components/PhotoEditor.vue';
+import VideoCard from '@/components/VideoCard.vue';
+import VideoUploadForm from '@/components/VideoUploadForm.vue';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
+import * as GroupeMediaController from '@/actions/App/Http/Controllers/GroupeMediaController';
+import * as GroupeVideoController from '@/actions/App/Http/Controllers/GroupeVideoController';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -78,6 +86,21 @@ type Media = {
     nom_original: string;
     type: 'photo' | 'document' | 'audio';
     taille: number;
+    url: string;
+    user_id: number;
+    auteur: User;
+    transcription: string | null;
+    transcription_statut: 'en_attente' | 'en_cours' | 'terminé' | 'erreur' | null;
+};
+
+type Video = {
+    id: number;
+    titre: string;
+    statut: 'brouillon' | 'publié' | 'archivé';
+    traitement_statut: string | null;
+    duree: number | null;
+    taille: number;
+    thumbnail_url: string | null;
     url: string;
     user_id: number;
     auteur: User;
@@ -144,6 +167,8 @@ type Props = {
     temoinsDisponibles: User[];
     tousLesTemoins: User[];
     visioConferences: VisioConference[];
+    videos: Video[];
+    peutTranscrireMedia: boolean;
 };
 
 const props = defineProps<Props>();
@@ -333,6 +358,35 @@ function peutSupprimerMedia(media: Media): boolean {
     return media.user_id === userId.value || props.estEnseignant;
 }
 
+// ─── Sélecteur de fichier ─────────────────────────────────────────────────────
+
+/**
+ * Ouvre directement la boîte de dialogue de sélection de fichier.
+ * L'input caché est toujours présent dans le DOM (hors v-if).
+ */
+function ouvrirSelecteurFichier() {
+    mediaFileInput.value?.click();
+}
+
+// ─── Upload vidéo ─────────────────────────────────────────────────────────────
+const showVideoUploadDialog = ref(false);
+
+// ─── Édition de photo ──────────────────────────────────────────────────────────
+const showPhotoEditorDialog = ref(false);
+
+function ouvrirEditeurPhoto() {
+    showPhotoEditorDialog.value = true;
+}
+
+function editerPhotoUrl(): string {
+    return GroupeMediaController.editer({
+        cours: props.cours,
+        classe: props.classe,
+        groupe: props.groupe,
+        media: photos.value[photoIndex.value],
+    }).url;
+}
+
 // ─── Nouvelle note ────────────────────────────────────────────────────────────
 const noteForm = useForm({ contenu: '' });
 
@@ -385,13 +439,96 @@ const ouvert = ref({
     temoin: true,
     membres: true,
     thematiques: true,
-    photos: true,
-    documents: true,
-    audios: true,
-    upload: true,
+    medias: true,
+    videos: true,
     notes: true,
     visios: true,
 });
+
+const ongletMedia = ref<'photos' | 'documents' | 'audios'>('photos');
+
+// ─── Transcription des messages vocaux ────────────────────────────────────────
+const transcrivantIds = ref<Set<number>>(new Set());
+
+let audioPollingInterval: ReturnType<typeof setInterval> | null = null;
+
+function audioEnTranscription(): boolean {
+    return props.groupe.medias.some(
+        (m) =>
+            m.type === 'audio' &&
+            (m.transcription_statut === 'en_attente' ||
+                m.transcription_statut === 'en_cours'),
+    );
+}
+
+function demarrerPollingAudio(): void {
+    if (audioPollingInterval) return;
+
+    audioPollingInterval = setInterval(() => {
+        if (!audioEnTranscription()) {
+            stopperPollingAudio();
+            return;
+        }
+
+        router.reload({ only: ['groupe'], preserveScroll: true });
+    }, 4000);
+}
+
+function stopperPollingAudio(): void {
+    if (audioPollingInterval) {
+        clearInterval(audioPollingInterval);
+        audioPollingInterval = null;
+    }
+}
+
+function transcrireAudio(mediaId: number): void {
+    transcrivantIds.value = new Set([...transcrivantIds.value, mediaId]);
+
+    router.post(
+        GroupeMediaController.transcrire({
+            cours: props.cours.id,
+            classe: props.classe.id,
+            groupe: props.groupe.id,
+            media: mediaId,
+        }).url,
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                transcrivantIds.value.delete(mediaId);
+                transcrivantIds.value = new Set(transcrivantIds.value);
+
+                if (audioEnTranscription()) {
+                    demarrerPollingAudio();
+                }
+            },
+        },
+    );
+}
+
+// Démarre le polling si des audios sont déjà en transcription au chargement.
+onMounted(() => {
+    if (audioEnTranscription()) {
+        demarrerPollingAudio();
+    }
+});
+
+onUnmounted(() => {
+    stopperPollingAudio();
+});
+
+// Reprend le polling si les props Inertia sont mis à jour avec un audio en cours.
+watch(
+    () => props.groupe.medias,
+    () => {
+        if (audioEnTranscription()) {
+            demarrerPollingAudio();
+        } else {
+            stopperPollingAudio();
+        }
+    },
+    { deep: true },
+);
 
 // ─── Planifier une visioconférence (membres + enseignant) ─────────────────────
 const showPlanifierDialog = ref(false);
@@ -839,245 +976,452 @@ function formatSize(bytes: number): string {
                 </Card>
             </div>
 
-            <!-- Carrousel photos -->
-            <Card v-if="photos.length > 0">
+            <!-- Médias du groupe -->
+            <Card v-if="groupe.medias.length > 0 || estMembre">
                 <CardHeader class="flex flex-row items-center justify-between">
                     <button
                         type="button"
                         class="flex cursor-pointer items-center gap-2 text-left select-none"
-                        @click="ouvert.photos = !ouvert.photos"
+                        @click="ouvert.medias = !ouvert.medias"
                     >
-                        <CardTitle>{{ $t('groupes.show.photos') }}</CardTitle>
-                        <ChevronDown
-                            class="h-4 w-4 text-muted-foreground transition-transform"
-                            :class="{ '-rotate-180': ouvert.photos }"
-                        />
-                    </button>
-                    <span class="text-sm text-muted-foreground">
-                        {{ photoIndex + 1 }} / {{ photos.length }}
-                    </span>
-                </CardHeader>
-                <CardContent v-show="ouvert.photos">
-                    <div class="relative overflow-hidden rounded-lg">
-                        <!-- Image -->
-                        <img
-                            :src="photos[photoIndex].url"
-                            :alt="photos[photoIndex].nom_original"
-                            class="max-h-96 w-full bg-muted object-contain"
-                        />
-
-                        <!-- Boutons navigation -->
-                        <button
-                            v-if="photos.length > 1"
-                            class="absolute top-1/2 left-2 -translate-y-1/2 rounded-full bg-black/40 p-1.5 text-white transition-colors hover:bg-black/60"
-                            @click="prevPhoto"
-                        >
-                            <ChevronLeft class="h-5 w-5" />
-                        </button>
-                        <button
-                            v-if="photos.length > 1"
-                            class="absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-black/40 p-1.5 text-white transition-colors hover:bg-black/60"
-                            @click="nextPhoto"
-                        >
-                            <ChevronRight class="h-5 w-5" />
-                        </button>
-
-                        <!-- Bouton supprimer (uploader ou enseignant) -->
-                        <button
-                            v-if="peutSupprimerMedia(photos[photoIndex])"
-                            class="absolute top-2 right-2 rounded-full bg-destructive/80 p-1.5 text-white transition-colors hover:bg-destructive"
-                            @click="deleteMedia(photos[photoIndex])"
-                        >
-                            <Trash2 class="h-4 w-4" />
-                        </button>
-                    </div>
-
-                    <!-- Légende -->
-                    <div
-                        class="mt-2 flex items-center justify-between text-xs text-muted-foreground"
-                    >
-                        <span>{{ photos[photoIndex].nom_original }}</span>
+                        <CardTitle>{{ $t('groupes.show.medias') }}</CardTitle>
                         <span
-                            >par {{ photos[photoIndex].auteur.prenom }}
-                            {{ photos[photoIndex].auteur.nom }}</span
+                            v-if="groupe.medias.length > 0"
+                            class="text-sm font-normal text-muted-foreground"
+                            >({{ groupe.medias.length }})</span
                         >
-                    </div>
-
-                    <!-- Miniatures -->
-                    <div
-                        v-if="photos.length > 1"
-                        class="mt-3 flex gap-2 overflow-x-auto pb-1"
-                    >
-                        <button
-                            v-for="(photo, idx) in photos"
-                            :key="photo.id"
-                            class="h-14 w-14 shrink-0 overflow-hidden rounded border-2 transition-colors"
-                            :class="
-                                idx === photoIndex
-                                    ? 'border-primary'
-                                    : 'border-transparent'
-                            "
-                            @click="photoIndex = idx"
-                        >
-                            <img
-                                :src="photo.url"
-                                :alt="photo.nom_original"
-                                class="h-full w-full object-cover"
-                            />
-                        </button>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <!-- Documents du groupe -->
-            <Card v-if="documents.length > 0">
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <button
-                        type="button"
-                        class="flex cursor-pointer items-center gap-2 text-left select-none"
-                        @click="ouvert.documents = !ouvert.documents"
-                    >
-                        <CardTitle>{{
-                            $t('groupes.show.documents')
-                        }}</CardTitle>
                         <ChevronDown
                             class="h-4 w-4 text-muted-foreground transition-transform"
-                            :class="{ '-rotate-180': ouvert.documents }"
+                            :class="{ '-rotate-180': ouvert.medias }"
                         />
                     </button>
+                    <Button
+                        v-if="estMembre"
+                        variant="outline"
+                        size="sm"
+                        @click.stop="ouvrirSelecteurFichier()"
+                    >
+                        <ImagePlus class="mr-2 h-4 w-4" />
+                        {{ $t('groupes.show.add_files') }}
+                    </Button>
                 </CardHeader>
-                <CardContent v-show="ouvert.documents">
-                    <div class="flex flex-col divide-y">
-                        <div
-                            v-for="doc in documents"
-                            :key="doc.id"
-                            class="flex items-center justify-between gap-3 py-3"
+                <CardContent v-show="ouvert.medias" class="flex flex-col gap-4">
+                    <!-- Barre d'onglets -->
+                    <div class="flex rounded-lg border p-1 text-sm">
+                        <button
+                            type="button"
+                            class="flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition-colors"
+                            :class="
+                                ongletMedia === 'photos'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            "
+                            @click="ongletMedia = 'photos'"
                         >
-                            <div class="flex min-w-0 items-center gap-3">
-                                <FileText
-                                    class="h-5 w-5 shrink-0 text-muted-foreground"
+                            <ImagePlus class="h-4 w-4" />
+                            {{ $t('groupes.show.photos') }}
+                            <span v-if="photos.length > 0" class="opacity-70"
+                                >({{ photos.length }})</span
+                            >
+                        </button>
+                        <button
+                            type="button"
+                            class="flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition-colors"
+                            :class="
+                                ongletMedia === 'documents'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            "
+                            @click="ongletMedia = 'documents'"
+                        >
+                            <FileText class="h-4 w-4" />
+                            {{ $t('groupes.show.documents') }}
+                            <span v-if="documents.length > 0" class="opacity-70"
+                                >({{ documents.length }})</span
+                            >
+                        </button>
+                        <button
+                            type="button"
+                            class="flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition-colors"
+                            :class="
+                                ongletMedia === 'audios'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            "
+                            @click="ongletMedia = 'audios'"
+                        >
+                            <Music class="h-4 w-4" />
+                            {{ $t('groupes.show.audio') }}
+                            <span v-if="audios.length > 0" class="opacity-70"
+                                >({{ audios.length }})</span
+                            >
+                        </button>
+                    </div>
+
+                    <!-- Onglet : Photos -->
+                    <div v-if="ongletMedia === 'photos'">
+                        <div v-if="photos.length > 0">
+                            <div class="relative overflow-hidden rounded-lg">
+                                <img
+                                    :src="photos[photoIndex].url"
+                                    :alt="photos[photoIndex].nom_original"
+                                    class="max-h-96 w-full bg-muted object-contain"
                                 />
-                                <div class="min-w-0">
-                                    <p class="truncate text-sm font-medium">
-                                        {{ doc.nom_original }}
-                                    </p>
-                                    <p class="text-xs text-muted-foreground">
-                                        {{ doc.type.toUpperCase() }} ·
-                                        {{ formatSize(doc.taille) }} ·
-                                        <span
-                                            >{{ doc.auteur.prenom }}
-                                            {{ doc.auteur.nom }}</span
-                                        >
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="flex shrink-0 gap-2">
-                                <BoutonTooltip
-                                    texte="Télécharger ce document"
-                                    size="sm"
-                                    variant="outline"
-                                    as-child
+
+                                <!-- Navigation -->
+                                <button
+                                    v-if="photos.length > 1"
+                                    class="absolute top-1/2 left-2 -translate-y-1/2 rounded-full bg-black/40 p-1.5 text-white transition-colors hover:bg-black/60"
+                                    @click="prevPhoto"
                                 >
-                                    <a :href="doc.url" target="_blank" download>
-                                        <Download class="h-4 w-4" />
-                                    </a>
-                                </BoutonTooltip>
-                                <Button
-                                    v-if="peutSupprimerMedia(doc)"
-                                    size="sm"
-                                    variant="destructive"
-                                    @click="deleteMedia(doc)"
+                                    <ChevronLeft class="h-5 w-5" />
+                                </button>
+                                <button
+                                    v-if="photos.length > 1"
+                                    class="absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-black/40 p-1.5 text-white transition-colors hover:bg-black/60"
+                                    @click="nextPhoto"
+                                >
+                                    <ChevronRight class="h-5 w-5" />
+                                </button>
+
+                                <!-- Bouton éditer (membres + enseignant, GIF exclu) -->
+                                <button
+                                    v-if="
+                                        (estMembre || estEnseignant) &&
+                                        !photos[photoIndex].nom_original
+                                            .toLowerCase()
+                                            .endsWith('.gif')
+                                    "
+                                    class="absolute top-2 right-2 rounded-full bg-black/40 p-1.5 text-white transition-colors hover:bg-black/60"
+                                    :title="$t('media.editer_photo')"
+                                    @click="ouvrirEditeurPhoto"
+                                >
+                                    <SlidersHorizontal class="h-4 w-4" />
+                                </button>
+
+                                <!-- Bouton supprimer -->
+                                <button
+                                    v-if="peutSupprimerMedia(photos[photoIndex])"
+                                    class="absolute top-2 right-14 rounded-full bg-destructive/80 p-1.5 text-white transition-colors hover:bg-destructive"
+                                    @click="deleteMedia(photos[photoIndex])"
                                 >
                                     <Trash2 class="h-4 w-4" />
-                                </Button>
+                                </button>
+                            </div>
+
+                            <!-- Légende -->
+                            <div
+                                class="mt-2 flex items-center justify-between text-xs text-muted-foreground"
+                            >
+                                <span>{{ photos[photoIndex].nom_original }}</span>
+                                <span
+                                    >{{ photoIndex + 1 }} /
+                                    {{ photos.length }} · par
+                                    {{ photos[photoIndex].auteur.prenom }}
+                                    {{ photos[photoIndex].auteur.nom }}</span
+                                >
+                            </div>
+
+                            <!-- Miniatures -->
+                            <div
+                                v-if="photos.length > 1"
+                                class="mt-3 flex gap-2 overflow-x-auto pb-1"
+                            >
+                                <button
+                                    v-for="(photo, idx) in photos"
+                                    :key="photo.id"
+                                    class="h-14 w-14 shrink-0 overflow-hidden rounded border-2 transition-colors"
+                                    :class="
+                                        idx === photoIndex
+                                            ? 'border-primary'
+                                            : 'border-transparent'
+                                    "
+                                    @click="photoIndex = idx"
+                                >
+                                    <img
+                                        :src="photo.url"
+                                        :alt="photo.nom_original"
+                                        class="h-full w-full object-cover"
+                                    />
+                                </button>
                             </div>
                         </div>
-                    </div>
-                </CardContent>
-            </Card>
 
-            <!-- Fichiers audio -->
-            <Card v-if="audios.length > 0">
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <button
-                        type="button"
-                        class="flex cursor-pointer items-center gap-2 text-left select-none"
-                        @click="ouvert.audios = !ouvert.audios"
-                    >
-                        <CardTitle>{{ $t('groupes.show.audio') }}</CardTitle>
-                        <ChevronDown
-                            class="h-4 w-4 text-muted-foreground transition-transform"
-                            :class="{ '-rotate-180': ouvert.audios }"
-                        />
-                    </button>
-                </CardHeader>
-                <CardContent v-show="ouvert.audios">
-                    <div class="flex flex-col divide-y">
+                        <!-- État vide -->
                         <div
-                            v-for="audio in audios"
-                            :key="audio.id"
-                            class="flex flex-col gap-2 py-3"
+                            v-else
+                            class="flex flex-col items-center gap-3 py-10 text-center"
                         >
+                            <ImagePlus class="h-10 w-10 text-muted-foreground" />
+                            <p class="text-sm text-muted-foreground">
+                                {{ $t('groupes.show.no_photos') }}
+                            </p>
+                            <Button
+                                v-if="estMembre"
+                                size="sm"
+                                variant="outline"
+                                @click="ouvrirSelecteurFichier()"
+                            >
+                                {{ $t('groupes.show.add_photo') }}
+                            </Button>
+                        </div>
+                    </div>
+
+                    <!-- Onglet : Documents -->
+                    <div v-if="ongletMedia === 'documents'">
+                        <div v-if="documents.length > 0" class="flex flex-col divide-y">
                             <div
-                                class="flex items-center justify-between gap-3"
+                                v-for="doc in documents"
+                                :key="doc.id"
+                                class="flex items-center justify-between gap-3 py-3"
                             >
                                 <div class="flex min-w-0 items-center gap-3">
-                                    <Music
+                                    <FileText
                                         class="h-5 w-5 shrink-0 text-muted-foreground"
                                     />
                                     <div class="min-w-0">
                                         <p class="truncate text-sm font-medium">
-                                            {{ audio.nom_original }}
+                                            {{ doc.nom_original }}
                                         </p>
-                                        <p
-                                            class="text-xs text-muted-foreground"
-                                        >
-                                            {{ formatSize(audio.taille) }} ·
+                                        <p class="text-xs text-muted-foreground">
+                                            {{ doc.type.toUpperCase() }} ·
+                                            {{ formatSize(doc.taille) }} ·
                                             <span
-                                                >{{ audio.auteur.prenom }}
-                                                {{ audio.auteur.nom }}</span
+                                                >{{ doc.auteur.prenom }}
+                                                {{ doc.auteur.nom }}</span
                                             >
                                         </p>
                                     </div>
                                 </div>
-                                <Button
-                                    v-if="peutSupprimerMedia(audio)"
-                                    size="sm"
-                                    variant="destructive"
-                                    @click="deleteMedia(audio)"
-                                >
-                                    <Trash2 class="h-4 w-4" />
-                                </Button>
+                                <div class="flex shrink-0 gap-2">
+                                    <BoutonTooltip
+                                        texte="Télécharger ce document"
+                                        size="sm"
+                                        variant="outline"
+                                        as-child
+                                    >
+                                        <a
+                                            :href="doc.url"
+                                            target="_blank"
+                                            download
+                                        >
+                                            <Download class="h-4 w-4" />
+                                        </a>
+                                    </BoutonTooltip>
+                                    <Button
+                                        v-if="peutSupprimerMedia(doc)"
+                                        size="sm"
+                                        variant="destructive"
+                                        @click="deleteMedia(doc)"
+                                    >
+                                        <Trash2 class="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
-                            <audio controls class="h-10 w-full">
-                                <source :src="audio.url" />
-                                {{
-                                    $t('groupes.show.browser_no_audio_support')
-                                }}
-                            </audio>
+                        </div>
+
+                        <!-- État vide -->
+                        <div
+                            v-else
+                            class="flex flex-col items-center gap-3 py-10 text-center"
+                        >
+                            <FileText class="h-10 w-10 text-muted-foreground" />
+                            <p class="text-sm text-muted-foreground">
+                                {{ $t('groupes.show.no_documents') }}
+                            </p>
+                            <Button
+                                v-if="estMembre"
+                                size="sm"
+                                variant="outline"
+                                @click="ouvrirSelecteurFichier()"
+                            >
+                                {{ $t('groupes.show.add_document') }}
+                            </Button>
                         </div>
                     </div>
-                </CardContent>
-            </Card>
 
-            <!-- Zone upload (membres seulement) -->
-            <Card v-if="estMembre">
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <button
-                        type="button"
-                        class="flex cursor-pointer items-center gap-2 text-left select-none"
-                        @click="ouvert.upload = !ouvert.upload"
-                    >
-                        <CardTitle>{{
-                            $t('groupes.show.add_files')
-                        }}</CardTitle>
-                        <ChevronDown
-                            class="h-4 w-4 text-muted-foreground transition-transform"
-                            :class="{ '-rotate-180': ouvert.upload }"
-                        />
-                    </button>
-                </CardHeader>
-                <CardContent v-show="ouvert.upload">
+                    <!-- Onglet : Audio -->
+                    <div v-if="ongletMedia === 'audios'">
+                        <div v-if="audios.length > 0" class="flex flex-col divide-y">
+                            <div
+                                v-for="audio in audios"
+                                :key="audio.id"
+                                class="flex flex-col gap-2 py-3"
+                            >
+                                <div
+                                    class="flex items-center justify-between gap-3"
+                                >
+                                    <div class="flex min-w-0 items-center gap-3">
+                                        <Music
+                                            class="h-5 w-5 shrink-0 text-muted-foreground"
+                                        />
+                                        <div class="min-w-0">
+                                            <p
+                                                class="truncate text-sm font-medium"
+                                            >
+                                                {{ audio.nom_original }}
+                                            </p>
+                                            <p
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                {{ formatSize(audio.taille) }} ·
+                                                <span
+                                                    >{{ audio.auteur.prenom }}
+                                                    {{
+                                                        audio.auteur.nom
+                                                    }}</span
+                                                >
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        v-if="peutSupprimerMedia(audio)"
+                                        size="sm"
+                                        variant="destructive"
+                                        @click="deleteMedia(audio)"
+                                    >
+                                        <Trash2 class="h-4 w-4" />
+                                    </Button>
+                                </div>
+                                <audio controls class="h-10 w-full">
+                                    <source :src="audio.url" />
+                                    {{
+                                        $t(
+                                            'groupes.show.browser_no_audio_support',
+                                        )
+                                    }}
+                                </audio>
+
+                                <!-- Transcription -->
+                                <div class="mt-1">
+                                    <!-- En cours / en attente -->
+                                    <div
+                                        v-if="
+                                            audio.transcription_statut ===
+                                                'en_attente' ||
+                                            audio.transcription_statut ===
+                                                'en_cours'
+                                        "
+                                        class="flex items-center gap-2 text-xs text-muted-foreground"
+                                    >
+                                        <svg
+                                            class="h-3 w-3 animate-spin"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                        >
+                                            <circle
+                                                class="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                stroke-width="4"
+                                            />
+                                            <path
+                                                class="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                            />
+                                        </svg>
+                                        {{
+                                            $t(
+                                                'groupes.show.transcription_en_cours',
+                                            )
+                                        }}
+                                    </div>
+
+                                    <!-- Erreur + réessayer -->
+                                    <div
+                                        v-else-if="
+                                            audio.transcription_statut ===
+                                            'erreur'
+                                        "
+                                        class="flex items-center gap-2"
+                                    >
+                                        <p class="text-xs text-destructive">
+                                            {{
+                                                $t(
+                                                    'groupes.show.transcription_erreur',
+                                                )
+                                            }}
+                                        </p>
+                                        <Button
+                                            v-if="peutTranscrireMedia"
+                                            size="sm"
+                                            variant="ghost"
+                                            class="h-6 px-2 text-xs"
+                                            :disabled="
+                                                transcrivantIds.has(audio.id)
+                                            "
+                                            @click="transcrireAudio(audio.id)"
+                                        >
+                                            <Mic class="mr-1 h-3 w-3" />
+                                            {{
+                                                $t(
+                                                    'groupes.show.reessayer_transcription',
+                                                )
+                                            }}
+                                        </Button>
+                                    </div>
+
+                                    <!-- Transcription disponible -->
+                                    <p
+                                        v-else-if="
+                                            audio.transcription_statut ===
+                                                'terminé' && audio.transcription
+                                        "
+                                        class="text-xs text-muted-foreground italic"
+                                    >
+                                        {{ audio.transcription }}
+                                    </p>
+
+                                    <!-- Pas encore transcrit -->
+                                    <Button
+                                        v-else-if="
+                                            peutTranscrireMedia &&
+                                            !audio.transcription_statut
+                                        "
+                                        size="sm"
+                                        variant="ghost"
+                                        class="h-6 px-2 text-xs text-muted-foreground"
+                                        :disabled="
+                                            transcrivantIds.has(audio.id)
+                                        "
+                                        @click="transcrireAudio(audio.id)"
+                                    >
+                                        <Mic class="mr-1 h-3 w-3" />
+                                        {{
+                                            $t(
+                                                'groupes.show.transcrire_audio',
+                                            )
+                                        }}
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- État vide -->
+                        <div
+                            v-else
+                            class="flex flex-col items-center gap-3 py-10 text-center"
+                        >
+                            <Music class="h-10 w-10 text-muted-foreground" />
+                            <p class="text-sm text-muted-foreground">
+                                {{ $t('groupes.show.no_audio') }}
+                            </p>
+                            <Button
+                                v-if="estMembre"
+                                size="sm"
+                                variant="outline"
+                                @click="ouvrirSelecteurFichier()"
+                            >
+                                {{ $t('groupes.show.add_audio') }}
+                            </Button>
+                        </div>
+                    </div>
+
+                    <!-- Input caché : hors v-if pour être toujours disponible dans le DOM -->
                     <input
                         ref="mediaFileInput"
                         type="file"
@@ -1085,32 +1429,31 @@ function formatSize(bytes: number): string {
                         class="hidden"
                         @change="handleMediaChange"
                     />
+
+                    <!-- Erreur d'upload (visible depuis n'importe quel onglet) -->
                     <p
                         v-if="mediaForm.errors.fichier"
-                        class="mb-3 text-sm text-destructive"
+                        class="text-sm text-destructive"
                     >
                         {{ mediaForm.errors.fichier }}
                     </p>
-                    <div
-                        class="flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed p-8 transition-colors hover:bg-muted/50"
-                        @click="mediaFileInput?.click()"
-                    >
-                        <ImagePlus class="h-8 w-8 text-muted-foreground" />
-                        <div class="text-center">
-                            <p class="text-sm font-medium">
-                                {{
-                                    mediaForm.processing
-                                        ? $t('groupes.show.uploading')
-                                        : $t('groupes.show.click_to_add')
-                                }}
-                            </p>
-                            <p class="mt-1 text-xs text-muted-foreground">
-                                {{ $t('groupes.show.upload_help') }}
-                            </p>
-                        </div>
-                    </div>
                 </CardContent>
             </Card>
+
+            <!-- Dialog éditeur de photo ─────────────────────────────────────── -->
+            <Dialog v-model:open="showPhotoEditorDialog">
+                <DialogContent class="max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>{{ $t('media.editer_photo') }}</DialogTitle>
+                    </DialogHeader>
+
+                    <PhotoEditor
+                        :photo-url="photos[photoIndex]?.url ?? ''"
+                        :edit-url="photos.length > 0 ? editerPhotoUrl() : ''"
+                        :on-success="() => (showPhotoEditorDialog = false)"
+                    />
+                </DialogContent>
+            </Dialog>
 
             <!-- Notes -->
             <Card>
@@ -1233,6 +1576,88 @@ function formatSize(bytes: number): string {
                             </form>
                         </div>
                     </template>
+                </CardContent>
+            </Card>
+
+            <!-- Vidéos du groupe -->
+            <Card v-if="videos.length > 0 || estMembre">
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-2 text-left select-none"
+                        @click="ouvert.videos = !ouvert.videos"
+                    >
+                        <Video class="h-5 w-5" />
+                        <CardTitle>Vidéos</CardTitle>
+                        <span
+                            v-if="videos.length > 0"
+                            class="text-sm font-normal text-muted-foreground"
+                            >({{ videos.length }})</span
+                        >
+                        <ChevronDown
+                            class="h-4 w-4 text-muted-foreground transition-transform"
+                            :class="{ '-rotate-180': ouvert.videos }"
+                        />
+                    </button>
+                    <Button
+                        v-if="estMembre"
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        @click.stop="showVideoUploadDialog = true"
+                    >
+                        <Plus class="mr-1.5 h-3.5 w-3.5" />
+                        Ajouter une vidéo
+                    </Button>
+                </CardHeader>
+                <CardContent v-show="ouvert.videos" class="flex flex-col gap-4">
+                    <!-- Grille de vidéos -->
+                    <div
+                        v-if="videos.length > 0"
+                        class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                    >
+                        <VideoCard
+                            v-for="video in videos"
+                            :key="video.id"
+                            :video="video"
+                            :show-url="
+                                GroupeVideoController.show({
+                                    cours,
+                                    classe,
+                                    groupe,
+                                    video,
+                                }).url
+                            "
+                            :publier-url="
+                                GroupeVideoController.publier({
+                                    cours,
+                                    classe,
+                                    groupe,
+                                    video,
+                                }).url
+                            "
+                            :destroy-url="
+                                GroupeVideoController.destroy({
+                                    cours,
+                                    classe,
+                                    groupe,
+                                    video,
+                                }).url
+                            "
+                            :peut-publier="
+                                estEnseignant || video.user_id === userId
+                            "
+                            :peut-supprimer="
+                                estEnseignant || video.user_id === userId
+                            "
+                        />
+                    </div>
+                    <p
+                        v-else
+                        class="text-sm text-muted-foreground"
+                    >
+                        Aucune vidéo publiée dans ce groupe.
+                    </p>
                 </CardContent>
             </Card>
 
@@ -1504,6 +1929,21 @@ function formatSize(bytes: number): string {
         </Dialog>
 
         <!-- Dialog : modifier les thématiques -->
+        <!-- Dialog : ajouter une vidéo -->
+        <Dialog v-model:open="showVideoUploadDialog">
+            <DialogContent class="max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Ajouter une vidéo</DialogTitle>
+                </DialogHeader>
+                <VideoUploadForm
+                    :upload-url="
+                        GroupeVideoController.store({ cours, classe, groupe }).url
+                    "
+                    :on-success="() => (showVideoUploadDialog = false)"
+                />
+            </DialogContent>
+        </Dialog>
+
         <FormDialog
             v-model:open="showThematiquesDialog"
             :title="$t('groupes.show.modal_edit_thematic')"
