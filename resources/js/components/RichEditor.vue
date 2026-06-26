@@ -809,7 +809,9 @@ function nomCibleMalus(cibleUserId: number | null): string {
     if (cibleUserId === null) {
         return 'tous';
     }
+
     const membre = props.membres?.find((m) => m.id === cibleUserId);
+
     return membre ? membre.prenom : '';
 }
 </script>

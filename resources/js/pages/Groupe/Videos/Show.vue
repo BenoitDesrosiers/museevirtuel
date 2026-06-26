@@ -16,11 +16,11 @@ import {
     X,
 } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import * as GroupeController from '@/actions/App/Http/Controllers/GroupeController';
+import * as GroupeVideoController from '@/actions/App/Http/Controllers/GroupeVideoController';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
-import * as GroupeVideoController from '@/actions/App/Http/Controllers/GroupeVideoController';
-import * as GroupeController from '@/actions/App/Http/Controllers/GroupeController';
 import { formatDuree } from '@/lib/formatters';
 
 type Auteur = {
@@ -331,7 +331,9 @@ const segmentActifIndex = computed(() => {
     if (!transcriptionSegments.value || !transcriptionSegments.value.length) {
         return -1;
     }
+
     const t = currentTime.value;
+
     return transcriptionSegments.value.findIndex(
         (s) => t >= s.start && t < s.end,
     );
@@ -348,6 +350,7 @@ watch(segmentActifIndex, (idx) => {
     if (idx < 0 || !transcriptionEl.value) {
         return;
     }
+
     const span = transcriptionEl.value.querySelectorAll('[data-segment]')[
         idx
     ] as HTMLElement | undefined;
@@ -406,6 +409,7 @@ watch(
     () => props.video.transcription_statut,
     (newVal) => {
         transcriptionStatut.value = newVal;
+
         if (newVal === 'en_attente' || newVal === 'en_cours') {
             demarrerPolling();
         }
@@ -459,6 +463,7 @@ function demarrerPolling() {
 
         if (!traitementActif && !transcriptionActive) {
             arreterPolling();
+
             return;
         }
 
