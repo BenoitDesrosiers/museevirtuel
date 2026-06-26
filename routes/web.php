@@ -19,6 +19,7 @@ use App\Http\Controllers\GroupeController;
 use App\Http\Controllers\GroupeEchangeController;
 use App\Http\Controllers\GroupeMediaController;
 use App\Http\Controllers\GroupeTacheController;
+use App\Http\Controllers\GroupeVideoController;
 use App\Http\Controllers\InscriptionTemoinController;
 use App\Http\Controllers\PersonneAgeeController;
 use App\Http\Controllers\ProjetRechercheController;
@@ -343,10 +344,14 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
         ->name('cours.visio.recording.store');
 });
 
-// Streaming de l'enregistrement — accessible à tous les rôles authentifiés (auth contrôlée dans le controller)
+// Streaming des fichiers privés — accessible à tous les rôles authentifiés (auth contrôlée dans le controller/policy)
 Route::middleware(['auth'])->group(function () {
     Route::get('/cours/{cours}/visio/{visio}/recording', [VisioConferenceController::class, 'streamRecording'])
         ->name('cours.visio.recording');
+
+    // Vidéos de groupe — stockées hors webroot, servies après vérification policy
+    Route::get('/videos/{video}/stream', [GroupeVideoController::class, 'stream'])
+        ->name('groupes.videos.stream');
 });
 
 // ─── Étudiant ─────────────────────────────────────────────────────────────────
@@ -447,6 +452,45 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin', 'cours.accessible']
 
     Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/medias/{media}', [GroupeMediaController::class, 'destroy'])
         ->name('groupes.medias.destroy');
+
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/medias/{media}/editer', [GroupeMediaController::class, 'editer'])
+        ->name('groupes.medias.editer');
+
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/medias/{media}/transcrire', [GroupeMediaController::class, 'transcrire'])
+        ->name('groupes.medias.transcrire')
+        ->middleware('throttle:5,1');
+
+    // Vidéos du groupe
+    Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos', [GroupeVideoController::class, 'index'])
+        ->name('groupes.videos.index');
+
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos', [GroupeVideoController::class, 'store'])
+        ->name('groupes.videos.store');
+
+    Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}', [GroupeVideoController::class, 'show'])
+        ->name('groupes.videos.show');
+
+    Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}', [GroupeVideoController::class, 'update'])
+        ->name('groupes.videos.update');
+
+    Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}', [GroupeVideoController::class, 'destroy'])
+        ->name('groupes.videos.destroy');
+
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/publier', [GroupeVideoController::class, 'publier'])
+        ->name('groupes.videos.publier');
+
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/editer', [GroupeVideoController::class, 'editer'])
+        ->name('groupes.videos.editer');
+
+    Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/statut', [GroupeVideoController::class, 'statut'])
+        ->name('groupes.videos.statut');
+
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/jumeler', [GroupeVideoController::class, 'jumeler'])
+        ->name('groupes.videos.jumeler');
+
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/transcrire', [GroupeVideoController::class, 'transcrire'])
+        ->name('groupes.videos.transcrire')
+        ->middleware('throttle:5,1');
 
     // ─── Projets de recherche ─────────────────────────────────────────────────
     // Un projet par (groupe × TypeProjet) — index liste tous les TypeProjets accessibles

@@ -202,7 +202,18 @@
             "modal_thematic_help": "Select 0 to 3 thematic areas for your group.",
             "modal_no_thematic_available": "No thematic areas available for this course.",
             "confirm_delete_media": "Delete \"{nom}\"?",
-            "confirm_delete_note": "Delete this note?"
+            "confirm_delete_note": "Delete this note?",
+            "medias": "Media",
+            "no_photos": "No photos in this group.",
+            "add_photo": "Add a photo",
+            "no_documents": "No documents in this group.",
+            "add_document": "Add a document",
+            "no_audio": "No audio files in this group.",
+            "add_audio": "Add an audio file",
+            "transcrire_audio": "Transcribe",
+            "transcription_en_cours": "Transcription in progress…",
+            "transcription_erreur": "Transcription failed.",
+            "reessayer_transcription": "Retry"
         }
     },
     "enseignant": {
@@ -1028,6 +1039,7 @@
         "not_signed": "Not signed"
     },
     "media": {
+        "editer_photo": "Edit photo",
         "add_video": "Add a video",
         "add_audio": "Add audio",
         "url_placeholder": "https://...",

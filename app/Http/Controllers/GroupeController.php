@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\ValidatesGroupeChain;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
 use App\Models\GroupeNote;
 use App\Models\GroupeNoteCorrection;
+use App\Models\GroupeVideo;
 use App\Models\Thematique;
 use App\Models\User;
 use App\Models\VisioConference;
@@ -22,6 +24,8 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class GroupeController extends Controller
 {
+    use ValidatesGroupeChain;
+
     /**
      * Redirige vers groupes.show si l'étudiant appartient déjà à un groupe,
      * sinon affiche la page de création de groupe.
@@ -143,9 +147,7 @@ class GroupeController extends Controller
      */
     public function show(Cours $cours, Classe $classe, Groupe $groupe): Response
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
-
+        $this->verifierChaine($cours, $classe, $groupe);
         $groupe->load('classe.cours');
         $this->authorize('view', $groupe);
 
@@ -230,6 +232,26 @@ class GroupeController extends Controller
                 ],
             ]);
 
+        // Vidéos visibles : publiées pour tous les membres, brouillons pour l'auteur et l'enseignant.
+        $videos = GroupeVideo::where('groupe_id', $groupe->id)
+            ->where(function ($q) use ($user, $estEnseignant) {
+                // Toujours voir les vidéos publiées.
+                $q->where('statut', 'publié');
+
+                if ($estEnseignant || $user->isAdmin()) {
+                    // L'enseignant voit aussi les brouillons et les archives.
+                    $q->orWhereIn('statut', ['brouillon', 'archivé']);
+                } else {
+                    // L'étudiant voit ses propres brouillons.
+                    $q->orWhere(function ($q2) use ($user) {
+                        $q2->where('statut', 'brouillon')->where('user_id', $user->id);
+                    });
+                }
+            })
+            ->with('auteur:id,prenom,nom')
+            ->orderByDesc('created_at')
+            ->get();
+
         return Inertia::render('Groupes/Show', [
             'groupe' => $groupe,
             'classe' => $classe->only('id', 'code', 'cours_id'),
@@ -243,6 +265,8 @@ class GroupeController extends Controller
             'temoinsDisponibles' => $temoinsDisponibles,
             'tousLesTemoins' => $tousLesTemoins,
             'visioConferences' => $visioConferences,
+            'videos' => $videos,
+            'peutTranscrireMedia' => $user->can('transcrireMedia', $groupe),
         ]);
     }
 
@@ -253,9 +277,7 @@ class GroupeController extends Controller
      */
     public function updateMembres(Request $request, Cours $cours, Classe $classe, Groupe $groupe): RedirectResponse
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
-
+        $this->verifierChaine($cours, $classe, $groupe);
         $groupe->load('classe.cours');
         $this->authorize('manageMembers', $groupe);
 
@@ -324,9 +346,7 @@ class GroupeController extends Controller
      */
     public function updateThematiques(Request $request, Cours $cours, Classe $classe, Groupe $groupe): RedirectResponse
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
-
+        $this->verifierChaine($cours, $classe, $groupe);
         $groupe->load('classe.cours');
         $this->authorize('manageThematiques', $groupe);
 
@@ -355,9 +375,7 @@ class GroupeController extends Controller
      */
     public function storeNote(Request $request, Cours $cours, Classe $classe, Groupe $groupe): RedirectResponse
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
-
+        $this->verifierChaine($cours, $classe, $groupe);
         $groupe->load('classe.cours');
         $this->authorize('addNote', $groupe);
 
@@ -381,9 +399,7 @@ class GroupeController extends Controller
      */
     public function destroyNote(Cours $cours, Classe $classe, Groupe $groupe, GroupeNote $note): RedirectResponse
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
-        abort_if($note->groupe_id !== $groupe->id, 404);
+        $this->verifierChaine($cours, $classe, $groupe, $note);
         abort_if($note->user_id !== auth()->id(), 403);
 
         $note->delete();
@@ -398,8 +414,7 @@ class GroupeController extends Controller
      */
     public function upsertNoteCorrection(Request $request, Cours $cours, Classe $classe, Groupe $groupe, GroupeNote $note): RedirectResponse
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
+        $this->verifierChaine($cours, $classe, $groupe);
         $this->autoriserCorrectionNote($cours, $groupe, $note);
 
         $validated = $request->validate([
@@ -425,8 +440,7 @@ class GroupeController extends Controller
      */
     public function destroyNoteCorrection(Request $request, Cours $cours, Classe $classe, Groupe $groupe, GroupeNote $note, GroupeNoteCorrection $correction): RedirectResponse
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
+        $this->verifierChaine($cours, $classe, $groupe);
         $this->autoriserCorrectionNote($cours, $groupe, $note);
 
         abort_if($correction->note_id !== $note->id, 404);
@@ -448,9 +462,7 @@ class GroupeController extends Controller
      */
     public function assignerTemoin(Request $request, Cours $cours, Classe $classe, Groupe $groupe): RedirectResponse
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
-
+        $this->verifierChaine($cours, $classe, $groupe);
         $groupe->load('classe.cours');
         $this->authorize('assignerTemoin', $groupe);
 
@@ -474,9 +486,7 @@ class GroupeController extends Controller
      */
     public function destroy(Cours $cours, Classe $classe, Groupe $groupe): RedirectResponse
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
-
+        $this->verifierChaine($cours, $classe, $groupe);
         $groupe->load('classe.cours');
         $this->authorize('delete', $groupe);
 

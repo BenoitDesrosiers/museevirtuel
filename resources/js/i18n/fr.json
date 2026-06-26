@@ -201,7 +201,18 @@
             "modal_thematic_help": "Sélectionnez de 0 à 3 thématiques pour votre groupe.",
             "modal_no_thematic_available": "Aucune thématique disponible pour ce cours.",
             "confirm_delete_media": "Supprimer \"{nom}\" ?",
-            "confirm_delete_note": "Supprimer cette note ?"
+            "confirm_delete_note": "Supprimer cette note ?",
+            "medias": "Médias",
+            "no_photos": "Aucune photo dans ce groupe.",
+            "add_photo": "Ajouter une photo",
+            "no_documents": "Aucun document dans ce groupe.",
+            "add_document": "Ajouter un document",
+            "no_audio": "Aucun fichier audio dans ce groupe.",
+            "add_audio": "Ajouter un fichier audio",
+            "transcrire_audio": "Transcrire",
+            "transcription_en_cours": "Transcription en cours…",
+            "transcription_erreur": "La transcription a échoué.",
+            "reessayer_transcription": "Réessayer"
         }
     },
     "enseignant": {
@@ -1027,6 +1038,7 @@
         "not_signed": "Non signé"
     },
     "media": {
+        "editer_photo": "Modifier la photo",
         "add_video": "Ajouter une vidéo",
         "add_audio": "Ajouter un audio",
         "url_placeholder": "https://...",

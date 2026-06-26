@@ -8,20 +8,25 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('groupe_medias', function (Blueprint $table) {
+        Schema::create('groupe_videos', function (Blueprint $table) {
             $table->id();
             $table->foreignId('groupe_id')->constrained('groupes')->cascadeOnDelete();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->string('titre');
+            $table->text('description')->nullable();
             $table->string('nom_original');
-            $table->string('chemin');
-            $table->enum('type', ['photo', 'document', 'audio']);
+            $table->string('file_path');
             $table->unsignedBigInteger('taille'); // bytes
+            $table->unsignedSmallInteger('duree')->nullable(); // secondes
+            $table->string('thumbnail_path')->nullable();
+            $table->enum('statut', ['brouillon', 'publié', 'archivé'])->default('brouillon');
+            $table->string('traitement_statut')->nullable(); // en_attente|en_cours|terminé|erreur
             $table->timestamps();
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('groupe_medias');
+        Schema::dropIfExists('groupe_videos');
     }
 };

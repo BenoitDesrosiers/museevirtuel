@@ -117,6 +117,16 @@ class GroupePolicy
     }
 
     /**
+     * Détermine si l'utilisateur peut éditer (rogner, pivoter, retourner) une photo du groupe.
+     *
+     * Accessible à tous les membres du groupe et à l'enseignant du cours.
+     */
+    public function editerMedia(User $user, Groupe $groupe): bool
+    {
+        return $this->estMembreOuEnseignantOuAdmin($user, $groupe);
+    }
+
+    /**
      * Détermine si l'utilisateur peut supprimer un média du groupe.
      *
      * L'enseignant du cours et les admins peuvent supprimer.
@@ -124,5 +134,29 @@ class GroupePolicy
     public function deleteMedia(User $user, Groupe $groupe): bool
     {
         return $user->isAdmin() || $groupe->classe->cours->enseignant_id === $user->id;
+    }
+
+    /**
+     * Détermine si l'utilisateur peut lancer la transcription d'un message vocal.
+     *
+     * Accessible à tous les membres du groupe, à l'enseignant du cours et aux admins.
+     */
+    public function transcrireMedia(User $user, Groupe $groupe): bool
+    {
+        return $this->estMembreOuEnseignantOuAdmin($user, $groupe);
+    }
+
+    /**
+     * Vérifie si l'utilisateur est membre du groupe, l'enseignant du cours ou un admin.
+     *
+     * Utilisé par les permissions qui suivent la même règle d'accès (éditer, transcrire…).
+     */
+    private function estMembreOuEnseignantOuAdmin(User $user, Groupe $groupe): bool
+    {
+        if ($user->isAdmin() || $groupe->classe->cours->enseignant_id === $user->id) {
+            return true;
+        }
+
+        return $groupe->membres()->where('users.id', $user->id)->exists();
     }
 }
