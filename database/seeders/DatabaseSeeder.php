@@ -79,9 +79,11 @@ class DatabaseSeeder extends Seeder
             ];
 
             // EtablissementSeeder a déjà tourné : $enseignant->etablissement_id est défini.
+            // La clé de recherche utilise (nom, etablissement_id) pour correspondre
+            // à la contrainte unique — évite les doublons si enseignant_id diffère.
             foreach ($thematiques as $data) {
                 Thematique::firstOrCreate(
-                    ['nom' => $data['nom'], 'enseignant_id' => $enseignant->id],
+                    ['nom' => $data['nom'], 'etablissement_id' => $enseignant->etablissement_id],
                     array_merge($data, [
                         'enseignant_id' => $enseignant->id,
                         'etablissement_id' => $enseignant->etablissement_id,
