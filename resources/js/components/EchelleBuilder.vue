@@ -5,6 +5,7 @@ import { VueDraggable } from 'vue-draggable-plus';
 import { useI18n } from 'vue-i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 export type EchelleNiveau = {
     label: string;
@@ -32,18 +33,23 @@ const niveaux = computed({
 });
 
 /**
- * Somme actuelle des points de tous les niveaux.
+ * Calcule le pourcentage affiché pour un niveau donné.
+ * Retourne 0 si pointageTotal vaut 0 pour éviter une division par zéro.
  */
-const totalPoints = computed(() =>
-    props.modelValue.reduce((acc, n) => acc + (n.points || 0), 0),
-);
+function pourcentageDuNiveau(idx: number): number {
+    if (props.pointageTotal === 0) return 0;
+    return Math.round((props.modelValue[idx].points / props.pointageTotal) * 10000) / 100;
+}
 
 /**
- * Vrai si le total ne correspond pas au pointage du critère.
+ * Convertit un pourcentage saisi en points et met à jour le niveau.
+ * Le pourcentage est borné entre 0 et 100.
  */
-const totalIncorrect = computed(
-    () => Math.abs(totalPoints.value - props.pointageTotal) > 0.001,
-);
+function updatePourcentage(idx: number, pct: string | number) {
+    const pctNum = Math.min(100, Math.max(0, Number(pct)));
+    const pts = Math.round((pctNum / 100) * props.pointageTotal * 100) / 100;
+    updateNiveau(idx, 'points', pts);
+}
 
 /**
  * Ajoute un niveau vide à la fin.
@@ -65,7 +71,8 @@ function supprimerNiveau(idx: number) {
 }
 
 /**
- * Distribue le pointage total équitablement entre tous les niveaux.
+ * Distribue le pointage selon la séquence N/N, (N-1)/N, ..., 2/N, 0/N.
+ * Le palier 1/N est intentionnellement sauté (pas de note passable minimale).
  */
 function diviserAuto() {
     const n = props.modelValue.length;
@@ -74,23 +81,34 @@ function diviserAuto() {
         return;
     }
 
-    const pts = Math.round((props.pointageTotal / n) * 100) / 100;
     emit(
         'update:modelValue',
-        props.modelValue.map((niv) => ({ ...niv, points: pts })),
+        props.modelValue.map((niv, i) => {
+            const rang = n - i; // N, N-1, ..., 1
+            const multiplicateur = rang === 1 ? 0 : rang; // saute 1/N → 0
+            const pts = Math.round((multiplicateur / n) * props.pointageTotal * 100) / 100;
+            return { ...niv, points: pts };
+        }),
     );
 }
 
 /**
  * Met à jour un champ d'un niveau spécifique.
+ * Lorsque le champ est « points », la valeur est bornée entre 0 et pointageTotal.
  */
 function updateNiveau(
     idx: number,
     champ: keyof EchelleNiveau,
     val: string | number | null,
 ) {
+    let valeur: string | number | null = val;
+
+    if (champ === 'points') {
+        valeur = Math.round(Math.min(props.pointageTotal, Math.max(0, Number(val))) * 100) / 100;
+    }
+
     const copy = props.modelValue.map((n, i) =>
-        i === idx ? { ...n, [champ]: val } : n,
+        i === idx ? { ...n, [champ]: valeur } : n,
     );
     emit('update:modelValue', copy);
 }
@@ -103,15 +121,15 @@ function updateNiveau(
             v-model="niveaux"
             handle=".echelle-drag"
             :animation="150"
-            class="space-y-1"
+            class="space-y-2"
         >
             <div
                 v-for="(niveau, idx) in niveaux"
                 :key="idx"
-                class="flex items-center gap-1.5"
+                class="flex items-start gap-1.5"
             >
                 <GripVertical
-                    class="echelle-drag h-4 w-4 shrink-0 cursor-grab text-muted-foreground active:cursor-grabbing"
+                    class="echelle-drag mt-2 h-4 w-4 shrink-0 cursor-grab text-muted-foreground active:cursor-grabbing"
                 />
 
                 <!-- Label du niveau -->
@@ -124,12 +142,28 @@ function updateNiveau(
                     "
                 />
 
+                <!-- Pourcentage lié au pointage -->
+                <div class="flex items-center gap-0.5">
+                    <Input
+                        :model-value="pourcentageDuNiveau(idx)"
+                        type="number"
+                        step="1"
+                        min="0"
+                        max="100"
+                        class="w-16 text-sm"
+                        placeholder="%"
+                        @update:model-value="updatePourcentage(idx, $event)"
+                    />
+                    <span class="text-xs text-muted-foreground">%</span>
+                </div>
+
                 <!-- Points -->
                 <Input
                     :model-value="niveau.points"
                     type="number"
                     step="0.25"
                     min="0"
+                    :max="pointageTotal"
                     class="w-20 text-sm"
                     :placeholder="t('criteres.echelle_points')"
                     @update:model-value="
@@ -137,11 +171,12 @@ function updateNiveau(
                     "
                 />
 
-                <!-- Description optionnelle -->
-                <Input
+                <!-- Description (textarea multi-ligne) -->
+                <Textarea
                     :model-value="niveau.description ?? ''"
                     :placeholder="t('criteres.echelle_description_placeholder')"
                     class="min-w-0 flex-1 text-sm"
+                    rows="2"
                     @update:model-value="
                         updateNiveau(idx, 'description', $event || null)
                     "
@@ -150,7 +185,7 @@ function updateNiveau(
                 <!-- Supprimer -->
                 <button
                     type="button"
-                    class="shrink-0 text-muted-foreground hover:text-destructive"
+                    class="mt-2 shrink-0 text-muted-foreground hover:text-destructive"
                     @click="supprimerNiveau(idx)"
                 >
                     <Trash2 class="h-3.5 w-3.5" />
@@ -158,43 +193,27 @@ function updateNiveau(
             </div>
         </VueDraggable>
 
-        <!-- Total + boutons d'action -->
-        <div class="flex items-center justify-between gap-2 pt-1">
-            <p
-                :class="[
-                    'text-xs',
-                    totalIncorrect
-                        ? 'font-medium text-destructive'
-                        : 'text-muted-foreground',
-                ]"
+        <!-- Boutons d'action -->
+        <div class="flex justify-end gap-1.5 pt-1">
+            <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                class="text-xs"
+                @click="diviserAuto"
             >
-                {{ totalPoints }} / {{ pointageTotal }}
-                <span v-if="totalIncorrect">
-                    — {{ t('criteres.echelle_total_incorrect') }}</span
-                >
-            </p>
-
-            <div class="flex gap-1.5">
-                <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    class="text-xs"
-                    @click="diviserAuto"
-                >
-                    {{ t('criteres.echelle_diviser') }}
-                </Button>
-                <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    class="text-xs"
-                    @click="ajouterNiveau"
-                >
-                    <Plus class="mr-1 h-3 w-3" />
-                    {{ t('criteres.echelle_ajouter') }}
-                </Button>
-            </div>
+                {{ t('criteres.echelle_diviser') }}
+            </Button>
+            <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                class="text-xs"
+                @click="ajouterNiveau"
+            >
+                <Plus class="mr-1 h-3 w-3" />
+                {{ t('criteres.echelle_ajouter') }}
+            </Button>
         </div>
     </div>
 </template>

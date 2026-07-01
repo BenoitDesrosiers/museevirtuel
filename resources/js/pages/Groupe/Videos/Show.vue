@@ -1,25 +1,32 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import {
     ArrowLeft,
+    BookMarked,
     Check,
     ChevronDown,
     ChevronUp,
     Combine,
     Copy,
+    Edit3,
     LoaderCircle,
     Mic,
     Play,
     Plus,
     Square,
     Trash2,
+    Upload,
     X,
 } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import * as GroupeController from '@/actions/App/Http/Controllers/GroupeController';
+import * as ChapitreRoutes from '@/actions/App/Http/Controllers/GroupeVideoChapitreController';
 import * as GroupeVideoController from '@/actions/App/Http/Controllers/GroupeVideoController';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { formatDuree } from '@/lib/formatters';
 
@@ -35,6 +42,14 @@ type TranscriptionSegment = {
     text: string;
 };
 
+type Chapitre = {
+    id: number;
+    label: string;
+    debut: number;
+    fin: number | null;
+    ordre: number;
+};
+
 type Video = {
     id: number;
     titre: string;
@@ -44,12 +59,14 @@ type Video = {
     transcription_statut: string | null;
     transcription: string | null;
     transcription_segments: TranscriptionSegment[] | null;
+    transcription_modifiee: boolean;
     duree: number | null;
     taille: number;
     url: string;
     thumbnail_url: string | null;
     user_id: number;
     auteur: Auteur;
+    chapitres: Chapitre[];
 };
 
 type Cours = { id: number; nom_cours: string };
@@ -70,6 +87,8 @@ type Props = {
     video: Video;
     autresVideos: AutreVideo[];
     peutTranscrire: boolean;
+    peutModifierTranscription: boolean;
+    peutGererChapitres: boolean;
 };
 
 const props = defineProps<Props>();
@@ -107,13 +126,20 @@ function onTimeUpdate() {
 }
 
 /**
+ * Positionne la lecture vidéo à un timestamp donné.
+ */
+function seekTo(seconds: number) {
+    if (videoEl.value) {
+        videoEl.value.currentTime = seconds;
+        videoEl.value.play();
+    }
+}
+
+/**
  * Positionne la lecture vidéo au début du segment cliqué.
  */
 function seekToSegment(segment: TranscriptionSegment) {
-    if (videoEl.value) {
-        videoEl.value.currentTime = segment.start;
-        videoEl.value.play();
-    }
+    seekTo(segment.start);
 }
 
 function submitEdit() {
@@ -318,9 +344,195 @@ function annulerJumelage() {
     jumelageForm.reset();
 }
 
+// ─── Upload inline pour le jumelage ──────────────────────────────────────────
+const showUploadInline = ref(false);
+const uploadInlineForm = useForm({
+    titre: '',
+    fichier: null as File | null,
+});
+
+function onUploadInlineFichier(e: Event) {
+    const input = e.target as HTMLInputElement;
+    uploadInlineForm.fichier = input.files?.[0] ?? null;
+}
+
+/**
+ * Soumet le formulaire d'upload inline et recharge la page via Inertia.
+ * La nouvelle vidéo apparaîtra dans autresVideos après le rechargement.
+ */
+function submitUploadInline() {
+    uploadInlineForm.post(
+        GroupeVideoController.store({
+            cours: props.cours,
+            classe: props.classe,
+            groupe: props.groupe,
+        }).url,
+        {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                showUploadInline.value = false;
+                uploadInlineForm.reset();
+            },
+        },
+    );
+}
+
+// ─── Chapitres ────────────────────────────────────────────────────────────────
+const chapitres = ref<Chapitre[]>(props.video.chapitres ?? []);
+
+// Synchronise quand Inertia met à jour les props.
+watch(
+    () => props.video.chapitres,
+    (val) => {
+        chapitres.value = val ?? [];
+    },
+);
+
+const chapitreForm = useForm({
+    label: '',
+    debut: 0,
+    fin: null as number | null,
+});
+
+const chapitreEnEdition = ref<Chapitre | null>(null);
+const showChapitreForm = ref(false);
+
+/**
+ * Positionne le temps de début du chapitre sur le temps de lecture actuel.
+ */
+function capturerDebutActuel() {
+    chapitreForm.debut = Math.round(currentTime.value * 100) / 100;
+}
+
+/**
+ * Positionne le temps de fin du chapitre sur le temps de lecture actuel.
+ */
+function capturerFinActuelle() {
+    chapitreForm.fin = Math.round(currentTime.value * 100) / 100;
+}
+
+/**
+ * Parse un timestamp texte (MM:SS, M:SS, HH:MM:SS ou secondes brutes) en secondes.
+ * Retourne 0 si la valeur est vide ou invalide.
+ */
+function parseTemps(val: string): number {
+    const s = val.trim();
+    if (s === '') return 0;
+    if (s.includes(':')) {
+        const parts = s.split(':').map((p) => parseFloat(p) || 0);
+        if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+        if (parts.length === 2) return parts[0] * 60 + parts[1];
+    }
+    const n = parseFloat(s);
+    return isNaN(n) ? 0 : n;
+}
+
+/**
+ * Refs locaux pour les champs texte (MM:SS) des temps de début et de fin.
+ * Synchronisés avec chapitreForm via des watchers.
+ */
+const debutTexte = ref(formatDuree(chapitreForm.debut));
+const finTexte = ref('');
+
+watch(
+    () => chapitreForm.debut,
+    (val) => {
+        debutTexte.value = formatDuree(val);
+    },
+);
+watch(
+    () => chapitreForm.fin,
+    (val) => {
+        finTexte.value = val !== null ? formatDuree(val) : '';
+    },
+);
+
+/** Appelé au blur du champ Début : parse le texte et normalise l'affichage. */
+function normaliserDebutTexte() {
+    chapitreForm.debut = parseTemps(debutTexte.value);
+    debutTexte.value = formatDuree(chapitreForm.debut);
+}
+
+/** Appelé au blur du champ Fin : vide → null, sinon parse et normalise. */
+function normaliserFinTexte() {
+    const s = finTexte.value.trim();
+    if (s === '') {
+        chapitreForm.fin = null;
+    } else {
+        chapitreForm.fin = parseTemps(s);
+        finTexte.value = formatDuree(chapitreForm.fin);
+    }
+}
+
+function ouvrirFormChapitre(chapitre?: Chapitre) {
+    if (chapitre) {
+        chapitreEnEdition.value = chapitre;
+        chapitreForm.label = chapitre.label;
+        chapitreForm.debut = chapitre.debut;
+        chapitreForm.fin = chapitre.fin;
+    } else {
+        chapitreEnEdition.value = null;
+        chapitreForm.reset();
+        chapitreForm.debut = Math.round(currentTime.value * 100) / 100;
+    }
+
+    showChapitreForm.value = true;
+}
+
+function annulerChapitre() {
+    showChapitreForm.value = false;
+    chapitreEnEdition.value = null;
+    chapitreForm.reset();
+}
+
+function submitChapitre() {
+    const routeArgs = {
+        cours: props.cours,
+        classe: props.classe,
+        groupe: props.groupe,
+        video: props.video,
+    };
+
+    const opts = {
+        preserveScroll: true,
+        onSuccess: () => {
+            showChapitreForm.value = false;
+            chapitreEnEdition.value = null;
+            chapitreForm.reset();
+        },
+    };
+
+    if (chapitreEnEdition.value) {
+        chapitreForm.patch(
+            ChapitreRoutes.update({
+                ...routeArgs,
+                chapitre: chapitreEnEdition.value,
+            }).url,
+            opts,
+        );
+    } else {
+        chapitreForm.post(ChapitreRoutes.store(routeArgs).url, opts);
+    }
+}
+
+function supprimerChapitre(chapitre: Chapitre) {
+    router.delete(
+        ChapitreRoutes.destroy({
+            cours: props.cours,
+            classe: props.classe,
+            groupe: props.groupe,
+            video: props.video,
+            chapitre,
+        }).url,
+        { preserveScroll: true },
+    );
+}
+
 // ─── Transcription Whisper ────────────────────────────────────────────────────
 const transcriptionStatut = ref(props.video.transcription_statut);
 const transcriptionTexte = ref(props.video.transcription);
+const transcriptionModifiee = ref(props.video.transcription_modifiee);
 const transcriptionSegments = ref<TranscriptionSegment[] | null>(
     props.video.transcription_segments ?? null,
 );
@@ -347,7 +559,7 @@ const transcriptionEl = ref<HTMLElement | null>(null);
  * actif visible sans déclencher un scroll sur toute la page.
  */
 watch(segmentActifIndex, (idx) => {
-    if (idx < 0 || !transcriptionEl.value) {
+    if (idx < 0 || !transcriptionEl.value || modeEditionTranscription.value) {
         return;
     }
 
@@ -358,6 +570,172 @@ watch(segmentActifIndex, (idx) => {
 });
 
 const transcrireForm = useForm({});
+
+// ─── Éditeur de transcription ─────────────────────────────────────────────────
+const modeEditionTranscription = ref(false);
+
+/**
+ * Copie profonde des segments pour l'édition locale sans modifier la source.
+ */
+const segmentsEdites = ref<TranscriptionSegment[]>([]);
+
+// ─── Groupage transcription par chapitre ──────────────────────────────────────
+
+/**
+ * Retourne le chapitre auquel appartient un segment, ou null.
+ * Le segment appartient au dernier chapitre dont debut ≤ segment.start
+ * et dont fin est nulle ou > segment.start.
+ */
+function trouverChapitreDeSegment(
+    seg: TranscriptionSegment,
+    chaps: Chapitre[],
+): Chapitre | null {
+    for (let i = chaps.length - 1; i >= 0; i--) {
+        const c = chaps[i];
+        if (seg.start >= c.debut) {
+            return c.fin === null || seg.start < c.fin ? c : null;
+        }
+    }
+    return null;
+}
+
+/**
+ * Regroupe les segments de transcription (avec leur index global) par chapitre.
+ * Chaque groupe contient le chapitre (ou null pour les segments non couverts)
+ * et la liste des entrées { s: segment, i: index global }.
+ */
+const groupesTranscription = computed(() => {
+    const segs = transcriptionSegments.value;
+    if (!segs?.length) return null;
+
+    const chaps = [...chapitres.value].sort((a, b) => a.debut - b.debut);
+
+    const groupes: {
+        chapitre: Chapitre | null;
+        segments: { s: TranscriptionSegment; i: number }[];
+    }[] = [];
+    let chapCourantId: number | null | undefined = undefined;
+
+    for (let i = 0; i < segs.length; i++) {
+        const seg = segs[i];
+        const chap = chaps.length ? trouverChapitreDeSegment(seg, chaps) : null;
+        const chapId = chap?.id ?? null;
+        if (chapId !== chapCourantId) {
+            groupes.push({ chapitre: chap, segments: [{ s: seg, i }] });
+            chapCourantId = chapId;
+        } else {
+            groupes.at(-1)!.segments.push({ s: seg, i });
+        }
+    }
+
+    return groupes;
+});
+
+/**
+ * Même regroupement que groupesTranscription mais sur segmentsEdites,
+ * pour conserver les index globaux nécessaires au v-model en mode édition.
+ */
+const groupesEdites = computed(() => {
+    if (!segmentsEdites.value.length) return null;
+
+    const chaps = [...chapitres.value].sort((a, b) => a.debut - b.debut);
+
+    const groupes: {
+        chapitre: Chapitre | null;
+        segments: { s: TranscriptionSegment; i: number }[];
+    }[] = [];
+    let chapCourantId: number | null | undefined = undefined;
+
+    for (let i = 0; i < segmentsEdites.value.length; i++) {
+        const seg = segmentsEdites.value[i];
+        const chap = chaps.length ? trouverChapitreDeSegment(seg, chaps) : null;
+        const chapId = chap?.id ?? null;
+        if (chapId !== chapCourantId) {
+            groupes.push({ chapitre: chap, segments: [{ s: seg, i }] });
+            chapCourantId = chapId;
+        } else {
+            groupes.at(-1)!.segments.push({ s: seg, i });
+        }
+    }
+
+    return groupes;
+});
+
+function ouvrirEditionTranscription() {
+    segmentsEdites.value = (transcriptionSegments.value ?? []).map((s) => ({
+        ...s,
+    }));
+    modeEditionTranscription.value = true;
+}
+
+function annulerEditionTranscription() {
+    modeEditionTranscription.value = false;
+    segmentsEdites.value = [];
+}
+
+const sauvegardeTranscriptionForm = useForm({});
+
+function sauvegarderTranscription() {
+    sauvegardeTranscriptionForm
+        .transform(() => ({ segments: segmentsEdites.value }))
+        .post(
+            GroupeVideoController.modifierTranscription({
+                cours: props.cours,
+                classe: props.classe,
+                groupe: props.groupe,
+                video: props.video,
+            }).url,
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    transcriptionSegments.value = segmentsEdites.value.map(
+                        (s) => ({ ...s }),
+                    );
+                    transcriptionTexte.value = segmentsEdites.value
+                        .map((s) => s.text)
+                        .join(' ');
+                    transcriptionModifiee.value = true;
+                    modeEditionTranscription.value = false;
+                },
+            },
+        );
+}
+
+// ─── Import de transcription (.txt / .srt / .vtt) ────────────────────────────
+const importTranscriptionForm = useForm({
+    fichier: null as File | null,
+});
+
+const importFichierRef = ref<HTMLInputElement | null>(null);
+
+function onImportFichierChange(e: Event) {
+    const input = e.target as HTMLInputElement;
+    importTranscriptionForm.fichier = input.files?.[0] ?? null;
+
+    if (importTranscriptionForm.fichier) {
+        importTranscriptionForm
+            .transform((data) => ({ fichier: data.fichier }))
+            .post(
+                GroupeVideoController.importerTranscription({
+                    cours: props.cours,
+                    classe: props.classe,
+                    groupe: props.groupe,
+                    video: props.video,
+                }).url,
+                {
+                    forceFormData: true,
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        importTranscriptionForm.reset();
+                        if (importFichierRef.value) {
+                            importFichierRef.value.value = '';
+                        }
+                        transcriptionModifiee.value = true;
+                    },
+                },
+            );
+    }
+}
 
 // ─── Copie transcription ──────────────────────────────────────────────────────
 const copié = ref(false);
@@ -391,6 +769,7 @@ async function copierTranscription() {
 function submitTranscrire() {
     // Mise à jour optimiste — afficher le spinner sans attendre la réponse.
     transcriptionStatut.value = 'en_attente';
+    transcriptionModifiee.value = false;
     demarrerPolling();
 
     transcrireForm.post(
@@ -427,6 +806,13 @@ watch(
     () => props.video.transcription_segments,
     (newVal) => {
         transcriptionSegments.value = newVal ?? null;
+    },
+);
+
+watch(
+    () => props.video.transcription_modifiee,
+    (newVal) => {
+        transcriptionModifiee.value = newVal;
     },
 );
 
@@ -592,10 +978,236 @@ onUnmounted(() => {
                         @loadedmetadata="onVideoLoaded"
                         @timeupdate="onTimeUpdate"
                     />
+
+                    <!-- Marqueurs de chapitres sous le lecteur -->
+                    <div
+                        v-if="chapitres.length > 0 && dureeVideo > 0"
+                        class="relative mt-2 h-5 w-full"
+                    >
+                        <button
+                            v-for="chap in chapitres"
+                            :key="chap.id"
+                            type="button"
+                            class="absolute top-0 flex -translate-x-1/2 flex-col items-center"
+                            :style="{
+                                left: `${(chap.debut / dureeVideo) * 100}%`,
+                            }"
+                            :title="chap.label"
+                            @click="seekTo(chap.debut)"
+                        >
+                            <span class="h-3 w-0.5 bg-primary/60" />
+                            <span
+                                class="max-w-[80px] truncate text-[9px] text-muted-foreground"
+                                >{{ chap.label }}</span
+                            >
+                        </button>
+                    </div>
                 </CardContent>
             </Card>
 
-            <!-- Section transcription Whisper -->
+            <!-- ─── Chapitres ──────────────────────────────────────────────── -->
+            <Card>
+                <CardHeader>
+                    <div class="flex items-center justify-between">
+                        <CardTitle class="flex items-center gap-2">
+                            <BookMarked class="h-4 w-4" />
+                            Chapitres
+                        </CardTitle>
+                        <Button
+                            v-if="peutGererChapitres && !showChapitreForm"
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            @click="ouvrirFormChapitre()"
+                        >
+                            <Plus class="mr-1.5 h-3.5 w-3.5" />
+                            Ajouter un chapitre
+                        </Button>
+                    </div>
+                </CardHeader>
+                <CardContent class="flex flex-col gap-4">
+                    <!-- Liste des chapitres -->
+                    <div
+                        v-if="chapitres.length > 0"
+                        class="divide-y rounded-md border"
+                    >
+                        <div
+                            v-for="chap in chapitres"
+                            :key="chap.id"
+                            class="flex items-center gap-3 px-3 py-2"
+                        >
+                            <button
+                                type="button"
+                                class="flex flex-1 items-center gap-2 text-left"
+                                @click="seekTo(chap.debut)"
+                            >
+                                <span
+                                    class="min-w-[3.5rem] text-xs tabular-nums text-primary"
+                                >
+                                    {{ formatDuree(chap.debut) }}
+                                </span>
+                                <span
+                                    v-if="chap.fin !== null"
+                                    class="text-xs text-muted-foreground"
+                                >
+                                    → {{ formatDuree(chap.fin) }}
+                                </span>
+                                <span class="text-sm">{{ chap.label }}</span>
+                            </button>
+                            <div
+                                v-if="peutGererChapitres"
+                                class="flex shrink-0 gap-1"
+                            >
+                                <button
+                                    type="button"
+                                    class="text-muted-foreground hover:text-foreground"
+                                    @click="ouvrirFormChapitre(chap)"
+                                >
+                                    <Edit3 class="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                    type="button"
+                                    class="text-muted-foreground hover:text-destructive"
+                                    @click="supprimerChapitre(chap)"
+                                >
+                                    <Trash2 class="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p
+                        v-else-if="!showChapitreForm"
+                        class="text-sm text-muted-foreground"
+                    >
+                        Aucun chapitre défini. Ajoutez des chapitres pour
+                        structurer la transcription.
+                    </p>
+
+                    <!-- Formulaire d'ajout / édition de chapitre -->
+                    <div
+                        v-if="showChapitreForm && peutGererChapitres"
+                        class="rounded-md border bg-muted/30 p-4"
+                    >
+                        <p class="mb-3 text-sm font-medium">
+                            {{
+                                chapitreEnEdition
+                                    ? 'Modifier le chapitre'
+                                    : 'Nouveau chapitre'
+                            }}
+                        </p>
+                        <div class="flex flex-col gap-3">
+                            <div class="grid gap-1">
+                                <label class="text-xs font-medium"
+                                    >Titre du chapitre</label
+                                >
+                                <Input
+                                    v-model="chapitreForm.label"
+                                    placeholder="ex. Introduction, Méthode…"
+                                    class="text-sm"
+                                />
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <!-- Début -->
+                                <div class="grid gap-1">
+                                    <label class="text-xs font-medium"
+                                        >Début</label
+                                    >
+                                    <div class="flex items-center gap-1.5">
+                                        <Input
+                                            v-model="debutTexte"
+                                            placeholder="0:00"
+                                            class="w-20 text-center text-sm tabular-nums"
+                                            @blur="normaliserDebutTexte"
+                                        />
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            class="shrink-0 text-xs"
+                                            :title="`Capter le temps actuel : ${formatDuree(currentTime)}`"
+                                            @click="capturerDebutActuel"
+                                        >
+                                            Capter ({{
+                                                formatDuree(currentTime)
+                                            }})
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <!-- Fin -->
+                                <div class="grid gap-1">
+                                    <label class="text-xs font-medium">
+                                        Fin
+                                        <span
+                                            class="font-normal text-muted-foreground"
+                                            >(optionnel)</span
+                                        >
+                                    </label>
+                                    <div class="flex items-center gap-1.5">
+                                        <Input
+                                            v-model="finTexte"
+                                            placeholder="—"
+                                            class="w-20 text-center text-sm tabular-nums"
+                                            @blur="normaliserFinTexte"
+                                        />
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            class="shrink-0 text-xs"
+                                            :title="`Capter le temps actuel : ${formatDuree(currentTime)}`"
+                                            @click="capturerFinActuelle"
+                                        >
+                                            Capter ({{
+                                                formatDuree(currentTime)
+                                            }})
+                                        </Button>
+                                        <button
+                                            v-if="chapitreForm.fin !== null"
+                                            type="button"
+                                            class="shrink-0 text-muted-foreground hover:text-destructive"
+                                            title="Effacer la fin"
+                                            @click="chapitreForm.fin = null"
+                                        >
+                                            <X class="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-2 pt-1">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    :disabled="
+                                        chapitreForm.processing ||
+                                        !chapitreForm.label
+                                    "
+                                    @click="submitChapitre"
+                                >
+                                    {{
+                                        chapitreForm.processing
+                                            ? 'Sauvegarde…'
+                                            : 'Sauvegarder'
+                                    }}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    @click="annulerChapitre"
+                                >
+                                    Annuler
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- ─── Transcription ──────────────────────────────────────────── -->
             <Card>
                 <CardHeader>
                     <CardTitle>Transcription</CardTitle>
@@ -636,86 +1248,276 @@ onUnmounted(() => {
 
                     <!-- Transcription disponible -->
                     <template v-else-if="transcriptionTexte">
-                        <div class="flex items-center justify-between">
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                class="-ml-2"
-                                @click="
-                                    transcriptionOuverte = !transcriptionOuverte
-                                "
-                            >
-                                <ChevronUp
-                                    v-if="transcriptionOuverte"
-                                    class="mr-2 h-4 w-4"
-                                />
-                                <ChevronDown v-else class="mr-2 h-4 w-4" />
-                                {{
-                                    transcriptionOuverte
-                                        ? 'Réduire'
-                                        : 'Afficher'
-                                }}
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                @click="copierTranscription"
-                            >
-                                <Check
-                                    v-if="copié"
-                                    class="mr-2 h-4 w-4 text-green-600"
-                                />
-                                <Copy v-else class="mr-2 h-4 w-4" />
-                                {{ copié ? 'Copié !' : 'Copier' }}
-                            </Button>
-                        </div>
-                        <div
-                            v-if="transcriptionOuverte"
-                            ref="transcriptionEl"
-                            class="rounded-md bg-muted p-4 text-sm leading-relaxed"
-                        >
-                            <!-- Segments horodatés cliquables -->
-                            <template
-                                v-if="
-                                    transcriptionSegments &&
-                                    transcriptionSegments.length
-                                "
-                            >
+                        <!-- Barre d'outils -->
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div class="flex items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    class="-ml-2"
+                                    @click="
+                                        transcriptionOuverte =
+                                            !transcriptionOuverte
+                                    "
+                                >
+                                    <ChevronUp
+                                        v-if="transcriptionOuverte"
+                                        class="mr-2 h-4 w-4"
+                                    />
+                                    <ChevronDown
+                                        v-else
+                                        class="mr-2 h-4 w-4"
+                                    />
+                                    {{
+                                        transcriptionOuverte
+                                            ? 'Réduire'
+                                            : 'Afficher'
+                                    }}
+                                </Button>
+
+                                <!-- Badge transcription modifiée manuellement -->
                                 <span
-                                    v-for="(
-                                        segment, i
-                                    ) in transcriptionSegments"
-                                    :key="i"
-                                    data-segment
-                                    :class="[
-                                        'cursor-pointer rounded px-0.5 transition-colors',
-                                        i === segmentActifIndex
-                                            ? 'bg-primary/20 text-primary'
-                                            : 'hover:bg-primary/10',
-                                    ]"
-                                    :title="`${Math.floor(segment.start / 60)}:${String(Math.floor(segment.start % 60)).padStart(2, '0')}`"
-                                    @click="seekToSegment(segment)"
-                                    >{{ segment.text }}
+                                    v-if="transcriptionModifiee"
+                                    class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
+                                >
+                                    Modifiée manuellement
                                 </span>
-                            </template>
-                            <!-- Fallback texte brut (transcriptions avant la migration) -->
-                            <span v-else class="whitespace-pre-wrap">{{
-                                transcriptionTexte
-                            }}</span>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                <!-- Mode édition / lecture -->
+                                <Button
+                                    v-if="
+                                        peutModifierTranscription &&
+                                        transcriptionSegments?.length &&
+                                        !modeEditionTranscription
+                                    "
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    @click="ouvrirEditionTranscription"
+                                >
+                                    <Edit3 class="mr-2 h-4 w-4" />
+                                    Modifier
+                                </Button>
+
+                                <!-- Import fichier .txt / .srt / .vtt -->
+                                <template v-if="peutModifierTranscription">
+                                    <input
+                                        ref="importFichierRef"
+                                        type="file"
+                                        accept=".txt,.srt,.vtt"
+                                        class="hidden"
+                                        @change="onImportFichierChange"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        :disabled="
+                                            importTranscriptionForm.processing
+                                        "
+                                        @click="importFichierRef?.click()"
+                                    >
+                                        <Upload class="mr-2 h-4 w-4" />
+                                        {{
+                                            importTranscriptionForm.processing
+                                                ? 'Import…'
+                                                : 'Importer (.txt/.srt/.vtt)'
+                                        }}
+                                    </Button>
+                                </template>
+
+                                <!-- Copier -->
+                                <Button
+                                    v-if="!modeEditionTranscription"
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    @click="copierTranscription"
+                                >
+                                    <Check
+                                        v-if="copié"
+                                        class="mr-2 h-4 w-4 text-green-600"
+                                    />
+                                    <Copy v-else class="mr-2 h-4 w-4" />
+                                    {{ copié ? 'Copié !' : 'Copier' }}
+                                </Button>
+                            </div>
                         </div>
-                        <Button
-                            v-if="peutTranscrire"
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            :disabled="transcrireForm.processing"
-                            @click="submitTranscrire"
-                        >
-                            <Mic class="mr-2 h-4 w-4" />
-                            Regénérer la transcription
-                        </Button>
+
+                        <!-- Panneau transcription ouvert -->
+                        <div v-if="transcriptionOuverte">
+                            <!-- ── Mode lecture ── -->
+                            <div
+                                v-if="!modeEditionTranscription"
+                                ref="transcriptionEl"
+                                class="rounded-md bg-muted p-4 text-sm leading-relaxed"
+                            >
+                                <!-- Segments groupés par chapitre -->
+                                <template v-if="groupesTranscription">
+                                    <div
+                                        v-for="(groupe, gi) in groupesTranscription"
+                                        :key="gi"
+                                        :class="gi > 0 ? 'mt-4' : ''"
+                                    >
+                                        <!-- En-tête de section (chapitre) -->
+                                        <div
+                                            v-if="groupe.chapitre"
+                                            class="mb-2 flex items-center gap-2"
+                                        >
+                                            <div
+                                                class="h-px flex-1 bg-border"
+                                            />
+                                            <button
+                                                type="button"
+                                                class="shrink-0 text-xs font-semibold text-foreground hover:text-primary"
+                                                :title="`Aller à ${formatDuree(groupe.chapitre.debut)}`"
+                                                @click="seekTo(groupe.chapitre.debut)"
+                                            >
+                                                {{ groupe.chapitre.label }}
+                                            </button>
+                                            <span
+                                                class="shrink-0 tabular-nums text-xs text-muted-foreground"
+                                            >
+                                                {{
+                                                    formatDuree(
+                                                        groupe.chapitre.debut,
+                                                    )
+                                                }}
+                                            </span>
+                                            <div
+                                                class="h-px flex-1 bg-border"
+                                            />
+                                        </div>
+
+                                        <!-- Segments du groupe -->
+                                        <span
+                                            v-for="entry in groupe.segments"
+                                            :key="entry.i"
+                                            data-segment
+                                            :class="[
+                                                'cursor-pointer rounded px-0.5 transition-colors',
+                                                entry.i === segmentActifIndex
+                                                    ? 'bg-primary/20 text-primary'
+                                                    : 'hover:bg-primary/10',
+                                            ]"
+                                            :title="formatDuree(entry.s.start)"
+                                            @click="seekToSegment(entry.s)"
+                                            >{{ entry.s.text }}
+                                        </span>
+                                    </div>
+                                </template>
+                                <!-- Fallback texte brut -->
+                                <span v-else class="whitespace-pre-wrap">{{
+                                    transcriptionTexte
+                                }}</span>
+                            </div>
+
+                            <!-- ── Mode édition ── -->
+                            <div v-else class="flex flex-col gap-3">
+                                <p class="text-xs text-muted-foreground">
+                                    Modifiez le texte de chaque segment.
+                                    Les horodatages sont conservés.
+                                </p>
+                                <div class="max-h-[50vh] overflow-y-auto rounded-md border">
+                                    <template
+                                        v-if="groupesEdites"
+                                        v-for="(groupe, gi) in groupesEdites"
+                                        :key="gi"
+                                    >
+                                        <!-- En-tête de section -->
+                                        <div
+                                            v-if="groupe.chapitre"
+                                            class="flex items-center gap-2 border-b bg-muted/50 px-3 py-1.5"
+                                        >
+                                            <span
+                                                class="text-xs font-semibold"
+                                                >{{
+                                                    groupe.chapitre.label
+                                                }}</span
+                                            >
+                                            <span
+                                                class="tabular-nums text-xs text-muted-foreground"
+                                                >{{
+                                                    formatDuree(
+                                                        groupe.chapitre.debut,
+                                                    )
+                                                }}</span
+                                            >
+                                        </div>
+                                        <!-- Segments du groupe -->
+                                        <div
+                                            v-for="entry in groupe.segments"
+                                            :key="entry.i"
+                                            class="flex gap-2 border-b p-2 last:border-b-0"
+                                        >
+                                            <button
+                                                type="button"
+                                                class="mt-1 shrink-0 tabular-nums text-xs text-primary hover:underline"
+                                                @click="seekTo(entry.s.start)"
+                                            >
+                                                {{
+                                                    formatDuree(entry.s.start)
+                                                }}
+                                            </button>
+                                            <Textarea
+                                                v-model="
+                                                    segmentsEdites[entry.i].text
+                                                "
+                                                rows="2"
+                                                class="flex-1 text-sm"
+                                            />
+                                        </div>
+                                    </template>
+                                </div>
+                                <div class="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        :disabled="
+                                            sauvegardeTranscriptionForm.processing
+                                        "
+                                        @click="sauvegarderTranscription"
+                                    >
+                                        {{
+                                            sauvegardeTranscriptionForm.processing
+                                                ? 'Sauvegarde…'
+                                                : 'Sauvegarder les corrections'
+                                        }}
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        @click="annulerEditionTranscription"
+                                    >
+                                        Annuler
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Regénérer Whisper -->
+                        <div v-if="peutTranscrire" class="flex items-center gap-3">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                :disabled="transcrireForm.processing"
+                                @click="submitTranscrire"
+                            >
+                                <Mic class="mr-2 h-4 w-4" />
+                                Regénérer la transcription
+                            </Button>
+                            <p
+                                v-if="transcriptionModifiee"
+                                class="text-xs text-amber-600"
+                            >
+                                ⚠ Vos corrections manuelles seront écrasées.
+                            </p>
+                        </div>
                     </template>
 
                     <!-- Aucune transcription -->
@@ -723,17 +1525,43 @@ onUnmounted(() => {
                         <p class="text-sm text-muted-foreground">
                             Aucune transcription disponible pour cette vidéo.
                         </p>
-                        <Button
-                            v-if="peutTranscrire"
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            :disabled="transcrireForm.processing"
-                            @click="submitTranscrire"
-                        >
-                            <Mic class="mr-2 h-4 w-4" />
-                            Générer la transcription
-                        </Button>
+
+                        <div class="flex flex-wrap gap-2">
+                            <Button
+                                v-if="peutTranscrire"
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                :disabled="transcrireForm.processing"
+                                @click="submitTranscrire"
+                            >
+                                <Mic class="mr-2 h-4 w-4" />
+                                Générer la transcription
+                            </Button>
+
+                            <!-- Import même sans transcription existante -->
+                            <template v-if="peutModifierTranscription">
+                                <input
+                                    ref="importFichierRef"
+                                    type="file"
+                                    accept=".txt,.srt,.vtt"
+                                    class="hidden"
+                                    @change="onImportFichierChange"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    :disabled="
+                                        importTranscriptionForm.processing
+                                    "
+                                    @click="importFichierRef?.click()"
+                                >
+                                    <Upload class="mr-2 h-4 w-4" />
+                                    Importer une transcription (.txt/.srt/.vtt)
+                                </Button>
+                            </template>
+                        </div>
                     </template>
                 </CardContent>
             </Card>
@@ -823,6 +1651,17 @@ onUnmounted(() => {
                                 left: `${(coupe.debut / dureeVideo) * 100}%`,
                                 width: `${((coupe.fin - coupe.debut) / dureeVideo) * 100}%`,
                             }"
+                        />
+
+                        <!-- Marqueurs de chapitres -->
+                        <div
+                            v-for="chap in chapitres"
+                            :key="chap.id"
+                            class="absolute top-0 h-full w-px bg-foreground/40"
+                            :style="{
+                                left: `${(chap.debut / dureeVideo) * 100}%`,
+                            }"
+                            :title="chap.label"
                         />
 
                         <!-- Curseur de lecture -->
@@ -983,7 +1822,7 @@ onUnmounted(() => {
                 </CardContent>
             </Card>
 
-            <!-- Section jumelage -->
+            <!-- ─── Section jumelage ───────────────────────────────────────── -->
             <Card
                 v-if="
                     traitementStatut !== 'en_attente' &&
@@ -1003,180 +1842,267 @@ onUnmounted(() => {
                         après le traitement pour utiliser le jumelage.
                     </div>
 
-                    <!-- Aucune autre vidéo disponible dans le groupe -->
-                    <div
-                        v-else-if="autresVideos.length === 0"
-                        class="text-sm text-muted-foreground"
-                    >
-                        Aucune autre vidéo disponible dans ce groupe.
-                    </div>
-
-                    <!-- Bouton d'ouverture -->
-                    <div v-else-if="!showJumelage">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            @click="showJumelage = true"
-                        >
-                            <Combine class="mr-2 h-4 w-4" />
-                            Jumeler
-                        </Button>
-                    </div>
-
-                    <!-- Formulaire de jumelage -->
                     <template v-else>
-                        <!-- Sélection de la vidéo à insérer -->
-                        <div class="grid gap-1.5">
-                            <label
-                                class="text-sm font-medium"
-                                for="jumelage-video"
+                        <!-- Upload inline d'une nouvelle vidéo -->
+                        <div>
+                            <Button
+                                v-if="!showUploadInline"
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                class="text-xs"
+                                @click="showUploadInline = true"
                             >
-                                Vidéo à insérer
-                            </label>
-                            <select
-                                id="jumelage-video"
-                                v-model.number="jumelageVideoId"
-                                class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring focus:outline-none"
-                            >
-                                <option :value="null" disabled>
-                                    — Choisir une vidéo —
-                                </option>
-                                <option
-                                    v-for="v in autresVideos"
-                                    :key="v.id"
-                                    :value="v.id"
-                                >
-                                    {{ v.titre }}
-                                    <template v-if="v.duree">
-                                        ({{ formatDuree(v.duree) }})
-                                    </template>
-                                </option>
-                            </select>
-                        </div>
+                                <Upload class="mr-1.5 h-3.5 w-3.5" />
+                                Uploader une nouvelle vidéo pour le jumelage
+                            </Button>
 
-                        <!-- Curseur de position -->
-                        <div class="grid gap-1.5">
-                            <label
-                                class="text-sm font-medium"
-                                for="jumelage-position"
-                            >
-                                Position d'insertion
-                            </label>
-                            <input
-                                id="jumelage-position"
-                                v-model.number="jumelagePosition"
-                                type="range"
-                                :min="0"
-                                :max="dureeVideo"
-                                step="0.1"
-                                class="w-full accent-primary"
-                            />
+                            <!-- Formulaire d'upload inline -->
                             <div
-                                class="flex justify-between text-xs text-muted-foreground"
+                                v-if="showUploadInline"
+                                class="rounded-md border bg-muted/30 p-4"
                             >
-                                <span>0:00</span>
-                                <span class="font-medium">{{
-                                    formatDuree(jumelagePosition)
-                                }}</span>
-                                <span>{{ formatDuree(dureeVideo) }}</span>
+                                <p class="mb-3 text-sm font-medium">
+                                    Uploader une vidéo dans ce groupe
+                                </p>
+                                <div class="flex flex-col gap-3">
+                                    <div class="grid gap-1">
+                                        <label class="text-xs font-medium"
+                                            >Titre</label
+                                        >
+                                        <Input
+                                            v-model="uploadInlineForm.titre"
+                                            placeholder="Titre de la vidéo"
+                                            class="text-sm"
+                                        />
+                                    </div>
+                                    <div class="grid gap-1">
+                                        <label class="text-xs font-medium"
+                                            >Fichier vidéo (mp4, webm, mov, avi,
+                                            mkv — max 2 Go)</label
+                                        >
+                                        <input
+                                            type="file"
+                                            accept="video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska"
+                                            class="text-sm"
+                                            @change="onUploadInlineFichier"
+                                        />
+                                    </div>
+                                    <div class="flex gap-2 pt-1">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            :disabled="
+                                                uploadInlineForm.processing ||
+                                                !uploadInlineForm.titre ||
+                                                !uploadInlineForm.fichier
+                                            "
+                                            @click="submitUploadInline"
+                                        >
+                                            {{
+                                                uploadInlineForm.processing
+                                                    ? 'Upload…'
+                                                    : 'Uploader'
+                                            }}
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="ghost"
+                                            @click="
+                                                showUploadInline = false;
+                                                uploadInlineForm.reset();
+                                            "
+                                        >
+                                            Annuler
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Timeline de prévisualisation proportionnelle -->
-                        <div v-if="videoJumelage" class="flex flex-col gap-1.5">
-                            <p class="text-sm font-medium">Aperçu du montage</p>
-                            <div
-                                class="flex h-8 w-full overflow-hidden rounded"
-                            >
-                                <!-- Segment base avant insertion -->
-                                <div
-                                    v-if="proportions.avant > 0"
-                                    class="flex items-center justify-center bg-primary/40 text-xs font-medium text-primary"
-                                    :style="{
-                                        width: `${proportions.avant * 100}%`,
-                                    }"
-                                    title="Base (avant)"
-                                />
-                                <!-- Segment inséré -->
-                                <div
-                                    class="flex items-center justify-center bg-amber-400/60 text-xs font-medium text-amber-800"
-                                    :style="{
-                                        width: `${proportions.insert * 100}%`,
-                                    }"
-                                    title="Vidéo insérée"
-                                />
-                                <!-- Segment base après insertion -->
-                                <div
-                                    v-if="proportions.apres > 0"
-                                    class="flex items-center justify-center bg-primary/40 text-xs font-medium text-primary"
-                                    :style="{
-                                        width: `${proportions.apres * 100}%`,
-                                    }"
-                                    title="Base (après)"
-                                />
-                            </div>
-                            <div
-                                class="flex gap-4 text-xs text-muted-foreground"
-                            >
-                                <span class="flex items-center gap-1">
-                                    <span
-                                        class="inline-block h-2.5 w-2.5 rounded-sm bg-primary/40"
-                                    />
-                                    Base
-                                </span>
-                                <span class="flex items-center gap-1">
-                                    <span
-                                        class="inline-block h-2.5 w-2.5 rounded-sm bg-amber-400/60"
-                                    />
-                                    {{ videoJumelage.titre }}
-                                </span>
-                            </div>
-                            <p class="text-xs text-muted-foreground">
-                                Durée finale estimée :
-                                {{ formatDuree(dureeTotale) }}
-                            </p>
-                        </div>
-
-                        <!-- Erreurs de validation -->
-                        <p
-                            v-if="
-                                jumelageForm.errors.video_a_inserer_id ||
-                                jumelageForm.errors.position
-                            "
-                            class="text-sm text-destructive"
+                        <!-- Aucune autre vidéo disponible dans le groupe -->
+                        <div
+                            v-if="autresVideos.length === 0 && !showJumelage"
+                            class="text-sm text-muted-foreground"
                         >
-                            {{
-                                jumelageForm.errors.video_a_inserer_id ||
-                                jumelageForm.errors.position
-                            }}
-                        </p>
+                            Aucune autre vidéo disponible dans ce groupe.
+                            Uploadez-en une ci-dessus pour pouvoir jumeler.
+                        </div>
 
-                        <!-- Actions -->
-                        <div class="flex items-center gap-3">
+                        <!-- Bouton d'ouverture -->
+                        <div
+                            v-else-if="
+                                autresVideos.length > 0 && !showJumelage
+                            "
+                        >
                             <Button
                                 type="button"
                                 variant="outline"
-                                @click="annulerJumelage"
-                            >
-                                <X class="mr-2 h-4 w-4" />
-                                Annuler
-                            </Button>
-                            <Button
-                                type="button"
-                                :disabled="
-                                    jumelageForm.processing ||
-                                    jumelageVideoId === null
-                                "
-                                @click="submitJumelage"
+                                @click="showJumelage = true"
                             >
                                 <Combine class="mr-2 h-4 w-4" />
-                                {{
-                                    jumelageForm.processing
-                                        ? 'Envoi…'
-                                        : 'Confirmer le jumelage'
-                                }}
+                                Jumeler
                             </Button>
                         </div>
+
+                        <!-- Formulaire de jumelage -->
+                        <template v-else-if="showJumelage">
+                            <!-- Sélection de la vidéo à insérer -->
+                            <div class="grid gap-1.5">
+                                <label
+                                    class="text-sm font-medium"
+                                    for="jumelage-video"
+                                >
+                                    Vidéo à insérer
+                                </label>
+                                <select
+                                    id="jumelage-video"
+                                    v-model.number="jumelageVideoId"
+                                    class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring focus:outline-none"
+                                >
+                                    <option :value="null" disabled>
+                                        — Choisir une vidéo —
+                                    </option>
+                                    <option
+                                        v-for="v in autresVideos"
+                                        :key="v.id"
+                                        :value="v.id"
+                                    >
+                                        {{ v.titre }}
+                                        <template v-if="v.duree">
+                                            ({{ formatDuree(v.duree) }})
+                                        </template>
+                                    </option>
+                                </select>
+                            </div>
+
+                            <!-- Curseur de position -->
+                            <div class="grid gap-1.5">
+                                <label
+                                    class="text-sm font-medium"
+                                    for="jumelage-position"
+                                >
+                                    Position d'insertion
+                                </label>
+                                <input
+                                    id="jumelage-position"
+                                    v-model.number="jumelagePosition"
+                                    type="range"
+                                    :min="0"
+                                    :max="dureeVideo"
+                                    step="0.1"
+                                    class="w-full accent-primary"
+                                />
+                                <div
+                                    class="flex justify-between text-xs text-muted-foreground"
+                                >
+                                    <span>0:00</span>
+                                    <span class="font-medium">{{
+                                        formatDuree(jumelagePosition)
+                                    }}</span>
+                                    <span>{{ formatDuree(dureeVideo) }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Timeline de prévisualisation proportionnelle -->
+                            <div
+                                v-if="videoJumelage"
+                                class="flex flex-col gap-1.5"
+                            >
+                                <p class="text-sm font-medium">
+                                    Aperçu du montage
+                                </p>
+                                <div
+                                    class="flex h-8 w-full overflow-hidden rounded"
+                                >
+                                    <div
+                                        v-if="proportions.avant > 0"
+                                        class="flex items-center justify-center bg-primary/40 text-xs font-medium text-primary"
+                                        :style="{
+                                            width: `${proportions.avant * 100}%`,
+                                        }"
+                                        title="Base (avant)"
+                                    />
+                                    <div
+                                        class="flex items-center justify-center bg-amber-400/60 text-xs font-medium text-amber-800"
+                                        :style="{
+                                            width: `${proportions.insert * 100}%`,
+                                        }"
+                                        title="Vidéo insérée"
+                                    />
+                                    <div
+                                        v-if="proportions.apres > 0"
+                                        class="flex items-center justify-center bg-primary/40 text-xs font-medium text-primary"
+                                        :style="{
+                                            width: `${proportions.apres * 100}%`,
+                                        }"
+                                        title="Base (après)"
+                                    />
+                                </div>
+                                <div
+                                    class="flex gap-4 text-xs text-muted-foreground"
+                                >
+                                    <span class="flex items-center gap-1">
+                                        <span
+                                            class="inline-block h-2.5 w-2.5 rounded-sm bg-primary/40"
+                                        />
+                                        Base
+                                    </span>
+                                    <span class="flex items-center gap-1">
+                                        <span
+                                            class="inline-block h-2.5 w-2.5 rounded-sm bg-amber-400/60"
+                                        />
+                                        {{ videoJumelage.titre }}
+                                    </span>
+                                </div>
+                                <p class="text-xs text-muted-foreground">
+                                    Durée finale estimée :
+                                    {{ formatDuree(dureeTotale) }}
+                                </p>
+                            </div>
+
+                            <!-- Erreurs de validation -->
+                            <p
+                                v-if="
+                                    jumelageForm.errors.video_a_inserer_id ||
+                                    jumelageForm.errors.position
+                                "
+                                class="text-sm text-destructive"
+                            >
+                                {{
+                                    jumelageForm.errors.video_a_inserer_id ||
+                                    jumelageForm.errors.position
+                                }}
+                            </p>
+
+                            <!-- Actions -->
+                            <div class="flex items-center gap-3">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    @click="annulerJumelage"
+                                >
+                                    <X class="mr-2 h-4 w-4" />
+                                    Annuler
+                                </Button>
+                                <Button
+                                    type="button"
+                                    :disabled="
+                                        jumelageForm.processing ||
+                                        jumelageVideoId === null
+                                    "
+                                    @click="submitJumelage"
+                                >
+                                    <Combine class="mr-2 h-4 w-4" />
+                                    {{
+                                        jumelageForm.processing
+                                            ? 'Envoi…'
+                                            : 'Confirmer le jumelage'
+                                    }}
+                                </Button>
+                            </div>
+                        </template>
                     </template>
                 </CardContent>
             </Card>
