@@ -10,6 +10,7 @@ use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
 use App\Models\GroupeVideo;
+use App\Services\ImportTranscriptionService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -81,7 +82,7 @@ class GroupeVideoController extends Controller
             'fichier' => [
                 'required',
                 'file',
-                'max:512000', // 500 Mo en kilo-octets
+                'max:2097152', // 2 Go en kilo-octets
                 'mimes:mp4,webm,mov,avi,mkv',
             ],
         ]);
@@ -145,6 +146,8 @@ class GroupeVideoController extends Controller
             ->orderByDesc('created_at')
             ->get(['id', 'titre', 'duree', 'thumbnail_path']);
 
+        $video->load('chapitres');
+
         return Inertia::render('Groupe/Videos/Show', [
             'cours' => $cours,
             'classe' => $classe,
@@ -152,6 +155,8 @@ class GroupeVideoController extends Controller
             'video' => $video,
             'autresVideos' => $autresVideos,
             'peutTranscrire' => auth()->user()->can('transcrire', $video),
+            'peutModifierTranscription' => auth()->user()->can('modifierTranscription', $video),
+            'peutGererChapitres' => auth()->user()->can('gererChapitres', $video),
         ]);
     }
 
@@ -293,7 +298,11 @@ class GroupeVideoController extends Controller
             return back()->with('info', __('video.transcription_already_running'));
         }
 
-        $video->update(['transcription_statut' => GroupeVideo::TRANSCRIPTION_EN_ATTENTE]);
+        // La re-génération écrase les corrections manuelles — réinitialiser le flag.
+        $video->update([
+            'transcription_statut' => GroupeVideo::TRANSCRIPTION_EN_ATTENTE,
+            'transcription_modifiee' => false,
+        ]);
         TranscrireVideo::dispatch($video);
 
         return back()->with('success', __('video.transcription_started'));
@@ -318,6 +327,81 @@ class GroupeVideoController extends Controller
         abort_unless(file_exists($path), 404);
 
         return response()->file($path);
+    }
+
+    /**
+     * Sauvegarde les segments de transcription édités manuellement.
+     *
+     * Reconstruit le texte plat à partir des segments modifiés et pose
+     * le flag transcription_modifiee = true pour avertir avant une re-génération Whisper.
+     *
+     * @throws AuthorizationException
+     */
+    public function modifierTranscription(
+        Request $request,
+        Cours $cours,
+        Classe $classe,
+        Groupe $groupe,
+        GroupeVideo $video,
+    ): RedirectResponse {
+        $this->verifierChaine($cours, $classe, $groupe, $video);
+        $video->load('groupe.classe.cours');
+        $this->authorize('modifierTranscription', $video);
+
+        $validated = $request->validate([
+            // max:500 évite le dépassement de la colonne TEXT (65 535 octets) en production MySQL.
+            'segments' => ['required', 'array', 'min:1', 'max:500'],
+            'segments.*.start' => ['required', 'numeric', 'min:0'],
+            'segments.*.end' => ['required', 'numeric', 'gt:segments.*.start'],
+            'segments.*.text' => ['required', 'string', 'max:2000'],
+        ]);
+
+        // Reconstruit le texte plat à partir des segments modifiés.
+        $transcription = implode(' ', array_column($validated['segments'], 'text'));
+
+        $video->update([
+            'transcription' => $transcription,
+            'transcription_segments' => $validated['segments'],
+            'transcription_modifiee' => true,
+        ]);
+
+        return back()->with('success', 'Transcription mise à jour.');
+    }
+
+    /**
+     * Importe une transcription depuis un fichier .txt, .srt ou .vtt.
+     *
+     * Délègue le parsing à ImportTranscriptionService, puis écrase
+     * la transcription existante. Pose transcription_modifiee = true.
+     *
+     * @throws AuthorizationException
+     */
+    public function importerTranscription(
+        Request $request,
+        Cours $cours,
+        Classe $classe,
+        Groupe $groupe,
+        GroupeVideo $video,
+        ImportTranscriptionService $service,
+    ): RedirectResponse {
+        $this->verifierChaine($cours, $classe, $groupe, $video);
+        $video->load('groupe.classe.cours');
+        $this->authorize('modifierTranscription', $video);
+
+        $request->validate([
+            'fichier' => ['required', 'file', 'max:2048', 'mimes:txt,srt,vtt'],
+        ]);
+
+        $resultat = $service->importer($request->file('fichier'));
+
+        $video->update([
+            'transcription' => $resultat['transcription'],
+            'transcription_segments' => $resultat['segments'],
+            'transcription_statut' => GroupeVideo::TRANSCRIPTION_TERMINEE,
+            'transcription_modifiee' => true,
+        ]);
+
+        return back()->with('success', 'Transcription importée avec succès.');
     }
 
     /**

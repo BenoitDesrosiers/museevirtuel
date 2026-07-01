@@ -22,7 +22,18 @@ trait HasCritereRules
             'contenu' => ['nullable', 'string', 'max:10000'],
             'echelle' => ['nullable', 'array'],
             'echelle.*.label' => ['required_if:contenu_type,echelle', 'string', 'max:255'],
-            'echelle.*.points' => ['required_if:contenu_type,echelle', 'numeric', 'min:0'],
+            'echelle.*.points' => [
+                'required_if:contenu_type,echelle',
+                'numeric',
+                'min:0',
+                // Chaque niveau ne peut pas dépasser le pointage total du critère.
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $pointage = (float) request()->input('pointage', 0);
+                    if ((float) $value > $pointage) {
+                        $fail('Le pointage d\'un niveau ne peut pas dépasser le pointage total du critère.');
+                    }
+                },
+            ],
             'echelle.*.description' => ['nullable', 'string', 'max:1000'],
             'visible' => ['boolean'],
         ];

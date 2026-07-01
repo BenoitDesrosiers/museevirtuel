@@ -404,6 +404,7 @@ async function supprimerCorrection(
                 v-for="niveau in critere.echelle"
                 :key="niveau.label"
                 type="button"
+                :title="niveau.description ?? undefined"
                 :class="[
                     'rounded border px-2 py-0.5 text-[10px] transition-colors',
                     correctionGroupe?.points === niveau.points

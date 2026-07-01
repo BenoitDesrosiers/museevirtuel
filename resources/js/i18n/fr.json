@@ -969,6 +969,7 @@
             "input_mode_label": "Mode de saisie",
             "save_btn_saving": "Enregistrement…",
             "save_btn": "Enregistrer les modifications",
+            "total_criteres": "Total des critères",
             "export_options_title": "Options d'export",
             "label_generer_page_titre": "Générer la page titre automatiquement",
             "label_generer_table_matieres": "Générer la table des matières automatiquement",

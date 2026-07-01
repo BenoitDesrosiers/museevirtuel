@@ -239,6 +239,39 @@ function fermerForms() {
     formOuvertePour.value = null;
     critereEnEdition.value = null;
 }
+
+/**
+ * Retourne la somme des pointages des critères positifs d'une section déjà sauvegardée.
+ * Permet d'afficher le budget alloué vs le pointage maximum de la section.
+ */
+function totalPointsSection(sectionId: number): number {
+    const section = typeProjet.sections.find((s) => s.id === sectionId);
+    if (!section) return 0;
+    return section.criteres
+        .filter((c) => c.type === 'positif')
+        .reduce((acc, c) => acc + (c.pointage ?? 0), 0);
+}
+
+/**
+ * Total global de tous les critères positifs (sections + globaux).
+ * Affiché en permanence dans la barre sticky pour aider à atteindre 100 pts.
+ */
+const totalPointsGlobal = computed(() => {
+    const ptsSections = props.typeProjet.sections.reduce((acc, s) => {
+        return (
+            acc +
+            s.criteres
+                .filter((c) => c.type === 'positif')
+                .reduce((sum, c) => sum + (Number(c.pointage) || 0), 0)
+        );
+    }, 0);
+
+    const ptsGlobaux = props.criteresGlobaux
+        .filter((c) => c.type === 'positif')
+        .reduce((acc, c) => acc + (Number(c.pointage) || 0), 0);
+
+    return Math.round((ptsSections + ptsGlobaux) * 100) / 100 || 0;
+});
 </script>
 
 <template>
@@ -247,7 +280,7 @@ function fermerForms() {
             :title="`${$t('types_projet.edit.heading_title')} — ${props.typeProjet.nom}`"
         />
 
-        <div class="mx-auto flex max-w-2xl flex-col gap-6 p-6">
+        <div class="mx-auto flex max-w-5xl flex-col gap-6 p-6">
             <!-- En-tête -->
             <div>
                 <Link
@@ -737,6 +770,30 @@ function fermerForms() {
                                         )
                                     "
                                 />
+                                <!-- Progression des critères positifs assignés -->
+                                <p
+                                    v-if="
+                                        section.id !== undefined &&
+                                        form.sections[idx].pointage !== null
+                                    "
+                                    :class="[
+                                        'text-xs',
+                                        totalPointsSection(section.id) >
+                                        (form.sections[idx].pointage ?? 0)
+                                            ? 'text-destructive'
+                                            : totalPointsSection(section.id) ===
+                                                (form.sections[idx].pointage ??
+                                                    0) &&
+                                                totalPointsSection(section.id) >
+                                                    0
+                                              ? 'text-emerald-600 dark:text-emerald-400'
+                                              : 'text-muted-foreground',
+                                    ]"
+                                >
+                                    {{ totalPointsSection(section.id!) }} /
+                                    {{ form.sections[idx].pointage }}
+                                    pts assignés aux critères
+                                </p>
                             </div>
 
                             <!-- ─── Critères de la section (collapsible) ───────── -->
@@ -938,8 +995,25 @@ function fermerForms() {
                 </Button>
             </div>
 
-            <!-- Bouton enregistrer -->
-            <div class="flex justify-end">
+        </div>
+
+        <!-- Barre fixe : total des critères + bouton Enregistrer -->
+        <div class="sticky bottom-0 z-10 border-t bg-background">
+            <div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-3">
+                <p
+                    :class="[
+                        'text-sm font-medium tabular-nums',
+                        totalPointsGlobal === 100
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : totalPointsGlobal > 100
+                              ? 'text-destructive'
+                              : 'text-muted-foreground',
+                    ]"
+                >
+                    {{ $t('types_projet.edit.total_criteres') }} :
+                    {{ totalPointsGlobal }} / 100 pts
+                </p>
+
                 <Button :disabled="form.processing" @click="sauvegarder">
                     {{
                         form.processing

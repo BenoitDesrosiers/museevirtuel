@@ -82,8 +82,8 @@ test('un type de fichier invalide est refusé', function () {
 test('un fichier trop volumineux est refusé', function () {
     ['etudiant' => $etudiant, 'cours' => $cours, 'classe' => $classe, 'groupe' => $groupe] = creerScenarioVideo();
 
-    // 512001 Ko = >500 Mo
-    $file = UploadedFile::fake()->create('grosse-video.mp4', 512001, 'video/mp4');
+    // 2097153 Ko = >2 Go (limite actuelle)
+    $file = UploadedFile::fake()->create('grosse-video.mp4', 2097153, 'video/mp4');
 
     $this->actingAs($etudiant)
         ->post(

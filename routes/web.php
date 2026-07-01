@@ -19,6 +19,7 @@ use App\Http\Controllers\GroupeController;
 use App\Http\Controllers\GroupeEchangeController;
 use App\Http\Controllers\GroupeMediaController;
 use App\Http\Controllers\GroupeTacheController;
+use App\Http\Controllers\GroupeVideoChapitreController;
 use App\Http\Controllers\GroupeVideoController;
 use App\Http\Controllers\InscriptionTemoinController;
 use App\Http\Controllers\PersonneAgeeController;
@@ -491,6 +492,27 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin', 'cours.accessible']
     Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/transcrire', [GroupeVideoController::class, 'transcrire'])
         ->name('groupes.videos.transcrire')
         ->middleware('throttle:5,1');
+
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/transcription/modifier', [GroupeVideoController::class, 'modifierTranscription'])
+        ->name('groupes.videos.transcription.modifier')
+        ->middleware('throttle:10,1');
+
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/transcription/importer', [GroupeVideoController::class, 'importerTranscription'])
+        ->name('groupes.videos.transcription.importer')
+        ->middleware('throttle:10,1');
+
+    // Chapitres
+    Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/chapitres', [GroupeVideoChapitreController::class, 'index'])
+        ->name('groupes.videos.chapitres.index');
+
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/chapitres', [GroupeVideoChapitreController::class, 'store'])
+        ->name('groupes.videos.chapitres.store');
+
+    Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/chapitres/{chapitre}', [GroupeVideoChapitreController::class, 'update'])
+        ->name('groupes.videos.chapitres.update');
+
+    Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/chapitres/{chapitre}', [GroupeVideoChapitreController::class, 'destroy'])
+        ->name('groupes.videos.chapitres.destroy');
 
     // ─── Projets de recherche ─────────────────────────────────────────────────
     // Un projet par (groupe × TypeProjet) — index liste tous les TypeProjets accessibles

@@ -121,6 +121,33 @@ class GroupeVideoPolicy
     }
 
     /**
+     * Détermine si l'utilisateur peut modifier manuellement la transcription d'une vidéo.
+     *
+     * Réservé à l'auteur, à l'enseignant du cours et aux admins.
+     */
+    public function modifierTranscription(User $user, GroupeVideo $video): bool
+    {
+        return $this->estAuteurOuEnseignantOuAdmin($user, $video);
+    }
+
+    /**
+     * Détermine si l'utilisateur peut créer, modifier ou supprimer des chapitres.
+     *
+     * Membres du groupe, enseignant et admins — les chapitres sont
+     * une navigation collaborative, pas seulement réservée à l'auteur.
+     */
+    public function gererChapitres(User $user, GroupeVideo $video): bool
+    {
+        $groupe = $video->groupe;
+
+        if ($user->isAdmin() || $groupe->classe->cours->enseignant_id === $user->id) {
+            return true;
+        }
+
+        return $groupe->membres()->where('users.id', $user->id)->exists();
+    }
+
+    /**
      * Détermine si l'utilisateur peut soumettre des coupes FFmpeg sur la vidéo.
      *
      * Accessible à tous les membres du groupe et à l'enseignant du cours.

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Concerns\HasPublicFile;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class GroupeVideo extends Model
 {
@@ -46,6 +47,7 @@ class GroupeVideo extends Model
         'transcription',
         'transcription_segments',
         'transcription_statut',
+        'transcription_modifiee',
     ];
 
     protected $appends = ['url', 'thumbnail_url'];
@@ -59,6 +61,7 @@ class GroupeVideo extends Model
             'taille' => 'integer',
             'duree' => 'integer',
             'transcription_segments' => 'array',
+            'transcription_modifiee' => 'boolean',
         ];
     }
 
@@ -140,6 +143,14 @@ class GroupeVideo extends Model
     public function isBeingTranscribed(): bool
     {
         return in_array($this->transcription_statut, [self::TRANSCRIPTION_EN_ATTENTE, self::TRANSCRIPTION_EN_COURS]);
+    }
+
+    /**
+     * Retourne les chapitres de la vidéo, ordonnés par position de début.
+     */
+    public function chapitres(): HasMany
+    {
+        return $this->hasMany(GroupeVideoChapitre::class, 'video_id')->orderBy('debut');
     }
 
     /**
