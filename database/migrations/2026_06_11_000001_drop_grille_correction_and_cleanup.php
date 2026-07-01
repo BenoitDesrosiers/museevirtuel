@@ -52,7 +52,7 @@ return new class extends Migration
      * SQLite interdit ALTER TABLE DROP COLUMN sur une colonne qui est source d'une FK
      * (ex. cible_user_id → users). La seule solution portable est de reconstruire la table
      * sans cette colonne via un CREATE/INSERT/DROP/RENAME explicite.
-     * MySQL supprime implicitement la FK lors du DROP COLUMN — pas de cas particulier nécessaire.
+     * MySQL exige de supprimer explicitement la contrainte FK avant de pouvoir DROP la colonne.
      */
     private function supprimerColonnesAnnotations(): void
     {
@@ -99,6 +99,10 @@ return new class extends Migration
             DB::statement('PRAGMA foreign_keys = ON');
         } else {
             Schema::table('projet_annotations', function (Blueprint $table) use ($colonnesPresentes) {
+                // MySQL requiert de supprimer la FK avant de pouvoir DROP la colonne source.
+                if (in_array('cible_user_id', $colonnesPresentes)) {
+                    $table->dropForeign(['cible_user_id']);
+                }
                 $table->dropColumn(array_values($colonnesPresentes));
             });
         }
