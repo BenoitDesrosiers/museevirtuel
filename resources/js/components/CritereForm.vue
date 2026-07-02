@@ -1,23 +1,17 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
-import { Info } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import critereRoutes from '@/actions/App/Http/Controllers/TypeProjetCritereController';
 import EchelleBuilder from '@/components/EchelleBuilder.vue';
 import type { EchelleNiveau } from '@/components/EchelleBuilder.vue';
+import InfoTooltip from '@/components/InfoTooltip.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
 
 export type Critere = {
     id: number;
@@ -157,18 +151,7 @@ function submit() {
             >
                 {{ t('criteres.type_negatif') }}
             </button>
-            <TooltipProvider>
-                <Tooltip>
-                    <TooltipTrigger as-child>
-                        <button type="button" class="text-muted-foreground hover:text-foreground">
-                            <Info class="h-3 w-3" />
-                        </button>
-                    </TooltipTrigger>
-                    <TooltipContent class="max-w-60">
-                        {{ t('criteres.tooltip_positif_negatif') }}
-                    </TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
+            <InfoTooltip :texte="t('criteres.tooltip_positif_negatif')" content-class="max-w-60" />
         </div>
 
         <!-- ─── Pointage + mode de saisie ────────────────────────────────── -->
@@ -214,18 +197,7 @@ function submit() {
                 >
                     {{ t('criteres.contenu_type_echelle') }}
                 </button>
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger as-child>
-                            <button type="button" class="text-muted-foreground hover:text-foreground">
-                                <Info class="h-3 w-3" />
-                            </button>
-                        </TooltipTrigger>
-                        <TooltipContent class="max-w-64">
-                            {{ t('criteres.tooltip_texte_echelle') }}
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
+                <InfoTooltip :texte="t('criteres.tooltip_texte_echelle')" />
             </div>
         </div>
 
@@ -251,18 +223,7 @@ function submit() {
             <Label for="critere-visible" class="cursor-pointer text-xs">
                 {{ t('criteres.label_visible') }}
             </Label>
-            <TooltipProvider>
-                <Tooltip>
-                    <TooltipTrigger as-child>
-                        <button type="button" class="text-muted-foreground hover:text-foreground">
-                            <Info class="h-3 w-3" />
-                        </button>
-                    </TooltipTrigger>
-                    <TooltipContent class="max-w-64">
-                        {{ t('criteres.tooltip_visible') }}
-                    </TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
+            <InfoTooltip :texte="t('criteres.tooltip_visible')" />
         </div>
 
         <!-- ─── Actions ──────────────────────────────────────────────────── -->

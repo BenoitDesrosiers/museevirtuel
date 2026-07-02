@@ -17,7 +17,9 @@ import { useI18n } from 'vue-i18n';
 import critereRoutes from '@/actions/App/Http/Controllers/TypeProjetCritereController';
 import CritereForm from '@/components/CritereForm.vue';
 import type { Critere } from '@/components/CritereForm.vue';
+import CritereTable from '@/components/CritereTable.vue';
 import Heading from '@/components/Heading.vue';
+import InfoTooltip from '@/components/InfoTooltip.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -37,12 +39,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import typesProjets from '@/routes/types-projets';
 
@@ -482,18 +478,7 @@ const totalPointsGlobal = computed(() => {
                     <div class="grid gap-2">
                         <div class="flex items-center gap-1">
                             <Label for="ponderation">{{ $t('types_projet.edit.label_ponderation') }}</Label>
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger as-child>
-                                        <button type="button" class="text-muted-foreground hover:text-foreground">
-                                            <Info class="h-3 w-3" />
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent class="max-w-72">
-                                        {{ $t('types_projet.edit.tooltip_ponderation') }}
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
+                            <InfoTooltip :texte="$t('types_projet.edit.tooltip_ponderation')" content-class="max-w-72" />
                         </div>
                         <Input
                             id="ponderation"
@@ -537,18 +522,11 @@ const totalPointsGlobal = computed(() => {
                             <h2 class="text-sm font-semibold">
                                 {{ $t('criteres.titre_global') }}
                             </h2>
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger as-child>
-                                        <button type="button" class="text-muted-foreground hover:text-foreground">
-                                            <Info class="h-3.5 w-3.5" />
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent class="max-w-72">
-                                        {{ $t('criteres.tooltip_global_vs_section') }}
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
+                            <InfoTooltip
+                                :texte="$t('criteres.tooltip_global_vs_section')"
+                                content-class="max-w-72"
+                                icon-class="h-3.5 w-3.5"
+                            />
                         </div>
                         <div class="flex gap-1.5">
                             <button
@@ -668,79 +646,17 @@ const totalPointsGlobal = computed(() => {
                     </div>
 
                     <!-- Critères globaux (mode tableau) -->
-                    <div
+                    <CritereTable
                         v-else-if="criteresGlobaux.length > 0 && vueModeCriteres === 'tableau'"
-                        class="overflow-x-auto"
-                    >
-                        <table class="w-full text-xs">
-                            <thead>
-                                <tr class="border-b text-muted-foreground">
-                                    <th class="pb-1.5 pr-3 text-left font-medium">{{ $t('criteres.col_type') }}</th>
-                                    <th class="pb-1.5 pr-3 text-left font-medium">{{ $t('criteres.col_description') }}</th>
-                                    <th class="pb-1.5 pr-3 text-left font-medium">{{ $t('criteres.col_pts') }}</th>
-                                    <th class="pb-1.5 pr-3 text-left font-medium">{{ $t('criteres.col_mode') }}</th>
-                                    <th class="pb-1.5 pr-3 text-left font-medium">{{ $t('criteres.col_visible') }}</th>
-                                    <th class="pb-1.5 text-right"></th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y">
-                                <template v-for="critere in criteresGlobaux" :key="critere.id">
-                                    <tr class="align-top">
-                                        <td class="py-1.5 pr-3">
-                                            <span
-                                                :class="[
-                                                    'rounded px-1.5 py-0.5 font-medium',
-                                                    critere.type === 'positif'
-                                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                                                        : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300',
-                                                ]"
-                                            >
-                                                {{ critere.type === 'positif' ? $t('criteres.type_positif') : $t('criteres.type_negatif') }}
-                                            </span>
-                                        </td>
-                                        <td class="max-w-[220px] py-1.5 pr-3">
-                                            <span class="line-clamp-2">{{ critere.contenu || '—' }}</span>
-                                        </td>
-                                        <td class="py-1.5 pr-3 tabular-nums">
-                                            {{ critere.type === 'positif' ? '+' : '-' }}{{ critere.pointage }}
-                                        </td>
-                                        <td class="py-1.5 pr-3 capitalize">{{ critere.contenu_type }}</td>
-                                        <td class="py-1.5 pr-3">
-                                            {{ critere.visible ? '✓' : '—' }}
-                                        </td>
-                                        <td class="py-1.5 text-right">
-                                            <div class="flex justify-end gap-1">
-                                                <button
-                                                    type="button"
-                                                    class="text-muted-foreground hover:text-foreground"
-                                                    @click="ouvrirFormEdition(critere.id)"
-                                                >{{ $t('criteres.btn_modifier') }}</button>
-                                                <button
-                                                    type="button"
-                                                    class="text-muted-foreground hover:text-destructive"
-                                                    @click="supprimerCritere(critere.id)"
-                                                >
-                                                    <Trash2 class="h-3.5 w-3.5" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr v-if="critereEnEdition === critere.id">
-                                        <td colspan="6" class="py-2">
-                                            <CritereForm
-                                                :cours-id="cours.id"
-                                                :type-projet-id="typeProjet.id"
-                                                :section-id="null"
-                                                :critere="critere"
-                                                @saved="fermerForms"
-                                                @cancelled="fermerForms"
-                                            />
-                                        </td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
+                        :criteres="criteresGlobaux"
+                        :cours-id="cours.id"
+                        :type-projet-id="typeProjet.id"
+                        :section-id="null"
+                        :critere-en-edition="critereEnEdition"
+                        @edit="ouvrirFormEdition"
+                        @delete="supprimerCritere"
+                        @close="fermerForms"
+                    />
 
                     <!-- Message vide -->
                     <p v-else class="text-xs text-muted-foreground">
@@ -977,71 +893,20 @@ const totalPointsGlobal = computed(() => {
                                         </div>
 
                                         <!-- Critères existants (mode tableau) -->
-                                        <div
+                                        <CritereTable
                                             v-else-if="
                                                 typeProjet.sections.find((s) => s.id === section.id)?.criteres?.length &&
                                                 vueModeCriteres === 'tableau'
                                             "
-                                            class="overflow-x-auto"
-                                        >
-                                            <table class="w-full text-xs">
-                                                <thead>
-                                                    <tr class="border-b text-muted-foreground">
-                                                        <th class="pb-1.5 pr-3 text-left font-medium">{{ $t('criteres.col_type') }}</th>
-                                                        <th class="pb-1.5 pr-3 text-left font-medium">{{ $t('criteres.col_description') }}</th>
-                                                        <th class="pb-1.5 pr-3 text-left font-medium">{{ $t('criteres.col_pts') }}</th>
-                                                        <th class="pb-1.5 pr-3 text-left font-medium">{{ $t('criteres.col_mode') }}</th>
-                                                        <th class="pb-1.5 pr-3 text-left font-medium">{{ $t('criteres.col_visible') }}</th>
-                                                        <th class="pb-1.5 text-right"></th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="divide-y">
-                                                    <template
-                                                        v-for="critere in typeProjet.sections.find((s) => s.id === section.id)?.criteres"
-                                                        :key="critere.id"
-                                                    >
-                                                        <tr class="align-top">
-                                                            <td class="py-1.5 pr-3">
-                                                                <span
-                                                                    :class="[
-                                                                        'rounded px-1.5 py-0.5 font-medium',
-                                                                        critere.type === 'positif'
-                                                                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                                                                            : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300',
-                                                                    ]"
-                                                                >{{ critere.type === 'positif' ? $t('criteres.type_positif') : $t('criteres.type_negatif') }}</span>
-                                                            </td>
-                                                            <td class="max-w-[180px] py-1.5 pr-3">
-                                                                <span class="line-clamp-2">{{ critere.contenu || '—' }}</span>
-                                                            </td>
-                                                            <td class="py-1.5 pr-3 tabular-nums">{{ critere.type === 'positif' ? '+' : '-' }}{{ critere.pointage }}</td>
-                                                            <td class="py-1.5 pr-3 capitalize">{{ critere.contenu_type }}</td>
-                                                            <td class="py-1.5 pr-3">{{ critere.visible ? '✓' : '—' }}</td>
-                                                            <td class="py-1.5 text-right">
-                                                                <div class="flex justify-end gap-1">
-                                                                    <button type="button" class="text-muted-foreground hover:text-foreground" @click="ouvrirFormEdition(critere.id)">{{ $t('criteres.btn_modifier') }}</button>
-                                                                    <button type="button" class="text-muted-foreground hover:text-destructive" @click="supprimerCritere(critere.id)">
-                                                                        <Trash2 class="h-3.5 w-3.5" />
-                                                                    </button>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                        <tr v-if="critereEnEdition === critere.id">
-                                                            <td colspan="6" class="py-2">
-                                                                <CritereForm
-                                                                    :cours-id="cours.id"
-                                                                    :type-projet-id="typeProjet.id"
-                                                                    :section-id="section.id ?? null"
-                                                                    :critere="critere"
-                                                                    @saved="fermerForms"
-                                                                    @cancelled="fermerForms"
-                                                                />
-                                                            </td>
-                                                        </tr>
-                                                    </template>
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                            :criteres="typeProjet.sections.find((s) => s.id === section.id)?.criteres ?? []"
+                                            :cours-id="cours.id"
+                                            :type-projet-id="typeProjet.id"
+                                            :section-id="section.id ?? null"
+                                            :critere-en-edition="critereEnEdition"
+                                            @edit="ouvrirFormEdition"
+                                            @delete="supprimerCritere"
+                                            @close="fermerForms"
+                                        />
 
                                         <!-- Message vide -->
                                         <p
