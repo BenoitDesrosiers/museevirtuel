@@ -252,8 +252,6 @@ type Section = {
     schemaVisuel: ContenuSchema | null;
     /** Critères de correction de cette section (triés par ordre). Absent sur certains code-paths. */
     criteres?: TypeProjetCritere[];
-    /** Pointage maximum de la section (null si non défini). */
-    pointage: number | null;
 };
 
 type ConsentementExistant = {
@@ -3976,11 +3974,6 @@ async function supprimerCommentaireRenvoi(
                                     class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
                                 >
                                     {{ t('criteres.titre_section') }}
-                                    <span
-                                        v-if="section.pointage"
-                                        class="ml-1 text-xs font-normal normal-case"
-                                        >({{ section.pointage }} pts)</span
-                                    >
                                 </CardTitle>
                                 <BoutonTooltip
                                     :texte="

@@ -16,20 +16,7 @@ class TypeProjetSection extends Model
         'description',
         'ordre',
         'type',
-        'pointage',
     ];
-
-    /**
-     * Retourne les casts de colonnes pour l'hydratation automatique.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'pointage' => 'decimal:2',
-        ];
-    }
 
     /**
      * Retourne le type de projet auquel appartient cette section.

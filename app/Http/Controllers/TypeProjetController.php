@@ -91,7 +91,6 @@ class TypeProjetController extends Controller
             'sections.*.label' => ['required', 'string', 'max:200'],
             'sections.*.description' => ['nullable', 'string', 'max:1000'],
             'sections.*.type' => ['nullable', Rule::enum(TypeSection::class)],
-            'sections.*.pointage' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $typeProjet = TypeProjet::create([
@@ -116,7 +115,6 @@ class TypeProjetController extends Controller
                 'description' => $section['description'] ?? null,
                 'type' => $section['type'] ?? TypeSection::Texte->value,
                 'ordre' => $index + 1,
-                'pointage' => $section['pointage'] ?? null,
             ]);
         }
 
@@ -153,7 +151,6 @@ class TypeProjetController extends Controller
             'sections.*.label' => ['required', 'string', 'max:200'],
             'sections.*.description' => ['nullable', 'string', 'max:1000'],
             'sections.*.type' => ['nullable', Rule::enum(TypeSection::class)],
-            'sections.*.pointage' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $wasGeneratingPageTitre = (bool) $typeProjet->generer_page_titre;
@@ -197,7 +194,6 @@ class TypeProjetController extends Controller
                             'description' => $sec['description'] ?? null,
                             'type' => $sec['type'] ?? TypeSection::Texte->value,
                             'ordre' => $index + 1,
-                            'pointage' => $sec['pointage'] ?? null,
                         ]);
                 } else {
                     $typeProjet->sections()->create([
@@ -205,7 +201,6 @@ class TypeProjetController extends Controller
                         'description' => $sec['description'] ?? null,
                         'type' => $sec['type'] ?? TypeSection::Texte->value,
                         'ordre' => $index + 1,
-                        'pointage' => $sec['pointage'] ?? null,
                     ]);
                 }
             }

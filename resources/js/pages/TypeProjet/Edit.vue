@@ -57,7 +57,6 @@ type SectionFormItem = {
     label: string;
     description: string;
     type: SectionType;
-    pointage: number | null;
 };
 
 type Section = {
@@ -66,7 +65,6 @@ type Section = {
     description: string | null;
     ordre: number;
     type: SectionType;
-    pointage: number | null;
     criteres: Critere[];
 };
 
@@ -161,7 +159,6 @@ const form = useForm({
         label: s.label,
         description: s.description ?? '',
         type: s.type ?? 'texte',
-        pointage: s.pointage ?? null,
     })),
 });
 
@@ -174,7 +171,6 @@ function ajouterSection() {
         label: '',
         description: '',
         type: 'texte',
-        pointage: null,
     });
 }
 
@@ -267,22 +263,6 @@ function ouvrirFormEdition(critereId: number) {
 function fermerForms() {
     formOuvertePour.value = null;
     critereEnEdition.value = null;
-}
-
-/**
- * Retourne la somme des pointages des critères positifs d'une section déjà sauvegardée.
- * Permet d'afficher le budget alloué vs le pointage maximum de la section.
- */
-function totalPointsSection(sectionId: number): number {
-    const section = typeProjet.sections.find((s) => s.id === sectionId);
-
-    if (!section) {
-        return 0;
-    }
-
-    return section.criteres
-        .filter((c) => c.type === 'positif')
-        .reduce((acc, c) => acc + (c.pointage ?? 0), 0);
 }
 
 /**
@@ -911,63 +891,6 @@ const totalPointsGlobal = computed(() => {
                                         </span>
                                     </button>
                                 </div>
-                            </div>
-
-                            <!-- Pointage de la section -->
-                            <div class="ml-11 grid gap-1">
-                                <div class="flex items-center gap-1">
-                                    <Label class="text-xs">{{
-                                        $t('criteres.pointage_section')
-                                    }}</Label>
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger as-child>
-                                                <button type="button" class="text-muted-foreground hover:text-foreground">
-                                                    <Info class="h-3 w-3" />
-                                                </button>
-                                            </TooltipTrigger>
-                                            <TooltipContent class="max-w-64">
-                                                {{ $t('criteres.tooltip_pointage_section') }}
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                </div>
-                                <Input
-                                    v-model.number="form.sections[idx].pointage"
-                                    type="number"
-                                    min="0"
-                                    step="0.25"
-                                    class="w-28 text-sm"
-                                    :placeholder="
-                                        $t(
-                                            'criteres.pointage_section_placeholder',
-                                        )
-                                    "
-                                />
-                                <!-- Progression des critères positifs assignés -->
-                                <p
-                                    v-if="
-                                        section.id !== undefined &&
-                                        form.sections[idx].pointage !== null
-                                    "
-                                    :class="[
-                                        'text-xs',
-                                        totalPointsSection(section.id) >
-                                        (form.sections[idx].pointage ?? 0)
-                                            ? 'text-destructive'
-                                            : totalPointsSection(section.id) ===
-                                                (form.sections[idx].pointage ??
-                                                    0) &&
-                                                totalPointsSection(section.id) >
-                                                    0
-                                              ? 'text-emerald-600 dark:text-emerald-400'
-                                              : 'text-muted-foreground',
-                                    ]"
-                                >
-                                    {{ totalPointsSection(section.id!) }} /
-                                    {{ form.sections[idx].pointage }}
-                                    pts assignés aux critères
-                                </p>
                             </div>
 
                             <!-- ─── Critères de la section (collapsible) ───────── -->
