@@ -984,7 +984,16 @@
             "section_type_individuel_label": "Individuel",
             "section_type_individuel_desc": "Chaque membre rédige sa propre version de cette section.",
             "section_type_entrevue_label": "Schéma d'entrevue",
-            "section_type_entrevue_desc": "Concepts structurés avec dimensions, indicateurs et questions spécifiques."
+            "section_type_entrevue_desc": "Concepts structurés avec dimensions, indicateurs et questions spécifiques.",
+            "label_ponderation": "Pondération (%)",
+            "hint_ponderation": "Poids de ce type de projet dans la note finale du cours (0–100 %). Laissez vide si non applicable.",
+            "tooltip_ponderation": "La pondération définit le poids de ce type de projet dans la note globale du cours (ex. : 30 %). Le pointage des critères est en points (ex. : sur 100). Ces deux systèmes sont indépendants : les critères déterminent la note du projet, la pondération détermine son poids dans le cours.",
+            "modes_info_title": "Modes de saisie",
+            "modes_info_subtitle": "Chaque section peut avoir un mode de saisie différent selon le type de contenu attendu.",
+            "modes_info_exemple_texte": "Exemple : « Introduction générale au sujet » — le groupe rédige un seul texte ensemble.",
+            "modes_info_exemple_paragraphes": "Exemple : « Arguments » — le groupe peut ajouter autant de paragraphes que nécessaire.",
+            "modes_info_exemple_individuel": "Exemple : « Réflexion personnelle » — chaque membre a sa propre zone de saisie.",
+            "modes_info_exemple_entrevue": "Exemple : « Grille d'entrevue » — l'enseignant complète les réponses lors de la rencontre orale."
         }
     },
     "criteres": {
@@ -1015,7 +1024,20 @@
         "aucun_critere": "Aucun critère. Cliquez sur « Ajouter » pour commencer.",
         "sans_description": "Sans description",
         "cocher_indicateur": "Cocher comme vu (indicateur personnel)",
-        "pts_obtenus": "pts obtenus"
+        "pts_obtenus": "pts obtenus",
+        "trigger_hint": "cliquer pour voir et gérer",
+        "tooltip_pointage_section": "Maximum de points que l'étudiant peut obtenir sur cette section. Les critères positifs assignés à la section devraient totaliser ce nombre.",
+        "tooltip_global_vs_section": "Les critères globaux s'appliquent à l'ensemble du projet, quelle que soit la section. Les critères par section évaluent uniquement le contenu de cette section spécifique.",
+        "tooltip_positif_negatif": "Positif : ajoute des points à la note finale (récompense). Négatif : retire des points (pénalité pour un oubli ou une erreur).",
+        "tooltip_texte_echelle": "Texte : critère binaire, l'enseignant le coche si atteint. Échelle : plusieurs niveaux de réussite avec des points distincts (ex. : Excellent 4 pts, Bien 3 pts, Insuffisant 1 pt).",
+        "tooltip_visible": "Si coché, les étudiants voient ce critère avant de remettre leur projet, ce qui les aide à vérifier leur travail.",
+        "vue_liste": "Vue liste",
+        "vue_tableau": "Vue tableau",
+        "col_type": "Type",
+        "col_description": "Description",
+        "col_pts": "Pts",
+        "col_mode": "Mode",
+        "col_visible": "Visible"
     },
     "apercu": {
         "back_to_editor": "Retour à l'éditeur",
