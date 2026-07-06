@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import critereRoutes from '@/actions/App/Http/Controllers/TypeProjetCritereController';
 import EchelleBuilder from '@/components/EchelleBuilder.vue';
 import type { EchelleNiveau } from '@/components/EchelleBuilder.vue';
+import InfoTooltip from '@/components/InfoTooltip.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -125,7 +126,7 @@ function submit() {
 <template>
     <div class="space-y-3 rounded-md border bg-muted/30 p-3">
         <!-- ─── Toggle positif / négatif ────────────────────────────────── -->
-        <div class="flex gap-1.5">
+        <div class="flex items-center gap-1.5">
             <button
                 type="button"
                 :class="[
@@ -150,6 +151,7 @@ function submit() {
             >
                 {{ t('criteres.type_negatif') }}
             </button>
+            <InfoTooltip :texte="t('criteres.tooltip_positif_negatif')" content-class="max-w-60" />
         </div>
 
         <!-- ─── Pointage + mode de saisie ────────────────────────────────── -->
@@ -170,7 +172,7 @@ function submit() {
             </div>
 
             <!-- Toggle texte / échelle (positif uniquement) -->
-            <div v-if="estPositif" class="flex gap-1.5">
+            <div v-if="estPositif" class="flex items-center gap-1.5">
                 <button
                     type="button"
                     :class="[
@@ -195,6 +197,7 @@ function submit() {
                 >
                     {{ t('criteres.contenu_type_echelle') }}
                 </button>
+                <InfoTooltip :texte="t('criteres.tooltip_texte_echelle')" />
             </div>
         </div>
 
@@ -220,6 +223,7 @@ function submit() {
             <Label for="critere-visible" class="cursor-pointer text-xs">
                 {{ t('criteres.label_visible') }}
             </Label>
+            <InfoTooltip :texte="t('criteres.tooltip_visible')" />
         </div>
 
         <!-- ─── Actions ──────────────────────────────────────────────────── -->

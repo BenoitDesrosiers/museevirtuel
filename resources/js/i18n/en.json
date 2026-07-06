@@ -985,7 +985,16 @@
             "section_type_individuel_label": "Individual",
             "section_type_individuel_desc": "Each member writes their own version of this section.",
             "section_type_entrevue_label": "Interview schema",
-            "section_type_entrevue_desc": "Structured concepts with dimensions, indicators and specific questions."
+            "section_type_entrevue_desc": "Structured concepts with dimensions, indicators and specific questions.",
+            "label_ponderation": "Weighting (%)",
+            "hint_ponderation": "Weight of this project type in the final course grade (0–100%). Leave blank if not applicable.",
+            "tooltip_ponderation": "Weighting defines the weight of this project type in the overall course grade (e.g. 30%). Criteria scores are in points (e.g. out of 100). These two systems are independent: criteria determine the project score, weighting determines its share in the course grade.",
+            "modes_info_title": "Input modes",
+            "modes_info_subtitle": "Each section can have a different input mode depending on the type of content expected.",
+            "modes_info_exemple_texte": "Example: \"General introduction\" — the group writes a single shared text.",
+            "modes_info_exemple_paragraphes": "Example: \"Arguments\" — the group can add as many paragraphs as needed.",
+            "modes_info_exemple_individuel": "Example: \"Personal reflection\" — each member has their own input area.",
+            "modes_info_exemple_entrevue": "Example: \"Interview guide\" — the teacher fills in responses during the oral meeting."
         }
     },
     "criteres": {
@@ -1011,12 +1020,22 @@
         "btn_supprimer": "Delete",
         "btn_visible_positifs": "Make all positive visible",
         "btn_visible_negatifs": "Make all negative visible",
-        "pointage_section": "Section max. points",
-        "pointage_section_placeholder": "e.g.: 20",
         "aucun_critere": "No criteria. Click « Add » to get started.",
         "sans_description": "No description",
         "cocher_indicateur": "Mark as seen (personal indicator)",
-        "pts_obtenus": "pts obtained"
+        "pts_obtenus": "pts obtained",
+        "trigger_hint": "click to view and manage",
+        "tooltip_global_vs_section": "Global criteria apply to the entire project regardless of section. Section criteria evaluate only the content of that specific section.",
+        "tooltip_positif_negatif": "Positive: adds points to the final score (reward). Negative: deducts points (penalty for a mistake or omission).",
+        "tooltip_texte_echelle": "Text: binary criterion, the teacher checks it if met. Scale: multiple success levels with distinct points (e.g. Excellent 4 pts, Good 3 pts, Insufficient 1 pt).",
+        "tooltip_visible": "If checked, students can see this criterion before submitting their project, helping them verify their work.",
+        "vue_liste": "List view",
+        "vue_tableau": "Table view",
+        "col_type": "Type",
+        "col_description": "Description",
+        "col_pts": "Pts",
+        "col_mode": "Mode",
+        "col_visible": "Visible"
     },
     "apercu": {
         "back_to_editor": "Back to editor",
