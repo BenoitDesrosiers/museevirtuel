@@ -88,16 +88,54 @@ const editor = useEditor({
 
 onBeforeUnmount(() => editor.value?.destroy());
 
+// ─── Préservation des renvois ──────────────────────────────────────────────────
+
+/**
+ * Remplace les éléments `<sup data-renvoi-id>` par des marqueurs textuels
+ * `⟦renvoi:ID:NUMERO⟧` afin qu'Antidote ne les modifie pas.
+ *
+ * Ces caractères Unicode non-standard (⟦⟧) sont ignorés par Antidote,
+ * ce qui évite que les renvois (notes de bas de page) soient supprimés
+ * lorsque le DOM est re-parsé après correction.
+ */
+function pretraiterHtml(html: string): string {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const sups = doc.querySelectorAll('sup[data-renvoi-id]');
+
+    for (const sup of sups) {
+        const id = sup.getAttribute('data-renvoi-id')!;
+        const numero = sup.getAttribute('data-renvoi-numero')!;
+        sup.replaceWith(doc.createTextNode(`⟦renvoi:${id}:${numero}⟧`));
+    }
+
+    return doc.body.innerHTML;
+}
+
+/**
+ * Remplace les marqueurs `⟦renvoi:ID:NUMERO⟧` par les éléments
+ * `<sup data-renvoi-id>` d'origine, reconnus par l'extension RenvoiMark.
+ */
+function restaurerRenvois(html: string): string {
+    return html.replace(
+        /⟦renvoi:(\d+):(\d+)⟧/g,
+        (_, id, numero) =>
+            `<sup data-renvoi-id="${id}" data-renvoi-numero="${numero}">${numero}</sup>`,
+    );
+}
+
 // ─── Ouverture : construction du contenu combiné ───────────────────────────────
 
 /**
  * Construit une chaîne HTML combinant le contenu de toutes les sections,
  * chaque section étant suivie d'un nœud séparateur non-éditable.
+ * Les renvois sont remplacés par des marqueurs textuels pour survivre
+ * à la correction Antidote.
  */
 function buildCombinedHtml(sections: GlobalSection[]): string {
     return sections
         .map((s) => {
-            const content = s.html?.trim() || '<p></p>';
+            const content = pretraiterHtml(s.html?.trim() || '<p></p>');
             const sep = `<div data-type="section-separator" data-section-id="${s.id}" data-section-label="${s.label}"></div>`;
 
             return content + sep;
@@ -161,7 +199,10 @@ function parseCorrigee(): GlobalSection[] {
             const source = props.sections[sectionIndex];
 
             if (source) {
-                result.push({ ...source, html: currentHtml.trim() });
+                result.push({
+                    ...source,
+                    html: restaurerRenvois(currentHtml.trim()),
+                });
             }
 
             currentHtml = '';

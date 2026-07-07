@@ -41,6 +41,7 @@ import type { GlobalSection } from '@/components/AntidoteGlobalModal.vue';
 import CommentaireEnseignant from '@/components/CommentaireEnseignant.vue';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
 import ConsentementVideo from '@/components/ConsentementVideo.vue';
+import { useConfirmDelete } from '@/composables/useConfirmDelete';
 import CritereCorrection from '@/components/CritereCorrection.vue';
 import type {
     Critere as TypeProjetCritere,
@@ -2310,6 +2311,11 @@ function onModalRenvoisUpdateOpen(ouvert: boolean): void {
     }
 }
 
+// ─── Confirmation suppression générique ──────────────────────────────────────
+
+const { pendingDelete, pendingDeleteEnCours, demanderSupprimer, confirmerSupprimer } =
+    useConfirmDelete();
+
 /**
  * Décrémente le numéro de tous les renvois dont le numéro dépasse celui du renvoi supprimé,
  * met à jour renvoisLocaux réactivement (ce qui déclenche le watcher dans RichEditor),
@@ -3126,10 +3132,11 @@ async function supprimerCommentaireRenvoi(
                                                 ]
                                             "
                                             @click="
-                                                supprimerSectionParagraphe(
-                                                    para.id,
-                                                    section.id,
-                                                )
+                                                demanderSupprimer({
+                                                    titre: 'Supprimer ce paragraphe ?',
+                                                    description: 'Le contenu de ce paragraphe sera supprimé définitivement.',
+                                                    action: () => supprimerSectionParagraphe(para.id, section.id),
+                                                })
                                             "
                                         >
                                             <Trash2 class="h-4 w-4" />
@@ -3524,10 +3531,11 @@ async function supprimerCommentaireRenvoi(
                                         class="size-7 shrink-0 text-destructive opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
                                         :disabled="!!conceptEnCours[section.id]"
                                         @click="
-                                            supprimerConcept(
-                                                concept.id,
-                                                section.id,
-                                            )
+                                            demanderSupprimer({
+                                                titre: 'Supprimer ce concept ?',
+                                                description: 'La question principale et toutes ses dimensions seront supprimées définitivement.',
+                                                action: () => supprimerConcept(concept.id, section.id),
+                                            })
                                         "
                                     >
                                         <Trash2 class="h-3.5 w-3.5" />
@@ -3577,7 +3585,7 @@ async function supprimerCommentaireRenvoi(
                                                             ''
                                                         "
                                                         rows="2"
-                                                        class="w-full resize-none rounded border border-input bg-transparent p-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+                                                        class="w-full resize-y rounded border border-input bg-transparent p-1 text-sm outline-none focus:ring-1 focus:ring-ring"
                                                         placeholder="Dimension…"
                                                         @input="
                                                             (e) => {
@@ -3610,7 +3618,7 @@ async function supprimerCommentaireRenvoi(
                                                             ''
                                                         "
                                                         rows="2"
-                                                        class="w-full resize-none rounded border border-input bg-transparent p-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+                                                        class="w-full resize-y rounded border border-input bg-transparent p-1 text-sm outline-none focus:ring-1 focus:ring-ring"
                                                         placeholder="Indicateur…"
                                                         @input="
                                                             (e) => {
@@ -3650,19 +3658,20 @@ async function supprimerCommentaireRenvoi(
                                                                     qi + 1
                                                                 }}.</span
                                                             >
-                                                            <input
+                                                            <textarea
                                                                 v-if="
                                                                     peutEditer
                                                                 "
                                                                 :value="q"
-                                                                class="flex-1 rounded border border-input bg-transparent p-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+                                                                rows="2"
+                                                                class="flex-1 resize-y rounded border border-input bg-transparent p-1 text-sm outline-none focus:ring-1 focus:ring-ring"
                                                                 placeholder="Question…"
                                                                 @input="
                                                                     (e) => {
                                                                         ligne.questions[
                                                                             qi
                                                                         ] = (
-                                                                            e.target as HTMLInputElement
+                                                                            e.target as HTMLTextAreaElement
                                                                         ).value;
                                                                         scheduleLigneSave(
                                                                             ligne.id,
@@ -3684,12 +3693,11 @@ async function supprimerCommentaireRenvoi(
                                                                 texte="Supprimer cette question"
                                                                 class="size-6 shrink-0 text-destructive opacity-0 transition-opacity group-focus-within/q:opacity-100 group-hover/q:opacity-100"
                                                                 @click="
-                                                                    supprimerQuestion(
-                                                                        ligne,
-                                                                        qi,
-                                                                        concept.id,
-                                                                        section.id,
-                                                                    )
+                                                                    demanderSupprimer({
+                                                                        titre: 'Supprimer cette question ?',
+                                                                        description: 'Cette question spécifique sera supprimée définitivement.',
+                                                                        action: () => supprimerQuestion(ligne, qi, concept.id, section.id),
+                                                                    })
                                                                 "
                                                             >
                                                                 <Trash2
@@ -3732,14 +3740,14 @@ async function supprimerCommentaireRenvoi(
                                                     class="py-1 pl-1 align-top"
                                                 >
                                                     <BoutonTooltip
-                                                        texte="Supprimer cette ligne"
+                                                        texte="Supprimer cette dimension"
                                                         class="size-7 text-muted-foreground opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:text-destructive"
                                                         @click="
-                                                            supprimerLigne(
-                                                                ligne.id,
-                                                                concept.id,
-                                                                section.id,
-                                                            )
+                                                            demanderSupprimer({
+                                                                titre: 'Supprimer cette dimension ?',
+                                                                description: 'La dimension et toutes ses questions spécifiques seront supprimées définitivement.',
+                                                                action: () => supprimerLigne(ligne.id, concept.id, section.id),
+                                                            })
                                                         "
                                                     >
                                                         <Trash2
@@ -3762,7 +3770,7 @@ async function supprimerCommentaireRenvoi(
                                         "
                                     >
                                         <Plus class="h-3 w-3" />
-                                        Ajouter une ligne
+                                        Ajouter une dimension
                                     </Button>
                                 </CardContent>
                             </Card>
@@ -4366,7 +4374,13 @@ async function supprimerCommentaireRenvoi(
                                     size="icon-sm"
                                     class="text-destructive"
                                     :disabled="devEnCours"
-                                    @click="supprimerDev(dev.id)"
+                                    @click="
+                                        demanderSupprimer({
+                                            titre: t('projets.show.delete_paragraph'),
+                                            description: 'Ce paragraphe de développement et tout son contenu seront supprimés définitivement.',
+                                            action: () => supprimerDev(dev.id),
+                                        })
+                                    "
                                 >
                                     <Trash2 class="h-4 w-4" />
                                 </BoutonTooltip>
@@ -4728,10 +4742,11 @@ async function supprimerCommentaireRenvoi(
                                                 class="text-destructive hover:text-destructive/70"
                                                 title="Supprimer ce commentaire"
                                                 @click="
-                                                    supprimerCommentaireRenvoi(
-                                                        renvoi.id,
-                                                        commentaire.id,
-                                                    )
+                                                    demanderSupprimer({
+                                                        titre: 'Supprimer ce commentaire ?',
+                                                        description: 'Ce commentaire sera supprimé définitivement.',
+                                                        action: () => supprimerCommentaireRenvoi(renvoi.id, commentaire.id),
+                                                    })
                                                 "
                                             >
                                                 <Trash2 class="h-3 w-3" />
@@ -5014,20 +5029,6 @@ async function supprimerCommentaireRenvoi(
                     </CardContent>
                 </Card>
 
-                <!-- Bouton sauvegarder manuel -->
-                <div v-if="peutEditer" class="flex justify-end gap-3 pb-4">
-                    <Button :disabled="saveStatus === 'saving'" @click="save">
-                        <Loader2
-                            v-if="saveStatus === 'saving'"
-                            class="mr-2 h-4 w-4 animate-spin"
-                        />
-                        <CheckCircle2
-                            v-else-if="saveStatus === 'saved'"
-                            class="mr-2 h-4 w-4"
-                        />
-                        {{ t('common.save') }}
-                    </Button>
-                </div>
             </div>
 
             <!-- ─── Panneau droit sticky — notes en temps réel ─────────────── -->
@@ -5109,6 +5110,17 @@ async function supprimerCommentaireRenvoi(
             :sections="buildSectionsForAntidote()"
             @update:open="showAntidoteGlobal = $event"
             @corrected="onSectionsCorrigees"
+        />
+
+        <!-- ─── Modal confirmation suppression générique ────────────────────── -->
+        <ConfirmationModal
+            :open="!!pendingDelete"
+            :title="pendingDelete?.titre ?? ''"
+            :description="pendingDelete?.description ?? ''"
+            confirm-label="Oui, supprimer"
+            :loading="pendingDeleteEnCours"
+            @update:open="(v) => { if (!v) pendingDelete = null; }"
+            @confirm="confirmerSupprimer"
         />
 
         <!-- ─── Modal confirmation suppression de référence ─────────────────── -->

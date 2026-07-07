@@ -5,6 +5,7 @@ import {
     GitFork,
     Loader2,
     MessageSquare,
+    TriangleAlert,
     Trash2,
 } from 'lucide-vue-next';
 import { computed, reactive, ref, watch } from 'vue';
@@ -125,6 +126,14 @@ function correctionPourMembre(userId: number): CorrectionLocale | null {
     return correctionsLocales.value.find((c) => c.user_id === userId) ?? null;
 }
 
+/**
+ * Indique si au moins un membre a une correction individuelle (override).
+ * Utilisé pour avertir l'enseignant que modifier la note groupe réinitialisera ces overrides.
+ */
+const hasOverrides = computed(() =>
+    correctionsLocales.value.some((c) => c.user_id !== null),
+);
+
 const routeArgs = computed(() => ({
     cours: props.coursId,
     classe: props.classeId,
@@ -136,8 +145,24 @@ const routeArgs = computed(() => ({
 
 /**
  * Met à jour la liste locale et émet l'événement `updated`.
+ *
+ * @param clearedUserIds  IDs des membres dont l'override individuel a été supprimé
+ *                        côté serveur (suite à une correction groupe).
  */
-function appliquerMaj(updated: CorrectionLocale) {
+function appliquerMaj(updated: CorrectionLocale, clearedUserIds: number[] = []) {
+    // Purger les overrides individuels supprimés par le serveur
+    if (clearedUserIds.length > 0) {
+        correctionsLocales.value = correctionsLocales.value.filter(
+            (c) => c.user_id === null || !clearedUserIds.includes(c.user_id),
+        );
+        for (const uid of clearedUserIds) {
+            const key = String(uid);
+            delete pointsDraft[key];
+            delete commentaireDraft[key];
+            delete showCommentaire[key];
+        }
+    }
+
     const idx = correctionsLocales.value.findIndex(
         (c) => c.user_id === updated.user_id,
     );
@@ -185,7 +210,7 @@ async function sauvegarderPoints(userId: number | null) {
             }),
             payload,
         );
-        appliquerMaj(data.correction as CorrectionLocale);
+        appliquerMaj(data.correction as CorrectionLocale, data.cleared_user_ids ?? []);
     } finally {
         saving[key] = false;
     }
@@ -219,7 +244,7 @@ async function sauvegarderCommentaire(userId: number | null) {
             }),
             payload,
         );
-        appliquerMaj(data.correction as CorrectionLocale);
+        appliquerMaj(data.correction as CorrectionLocale, data.cleared_user_ids ?? []);
     } finally {
         saving[key] = false;
     }
@@ -252,7 +277,7 @@ async function toggleVerifie() {
                 commentaire: current?.commentaire ?? null,
             },
         );
-        appliquerMaj(data.correction as CorrectionLocale);
+        appliquerMaj(data.correction as CorrectionLocale, data.cleared_user_ids ?? []);
         pointsDraft['groupe'] = pts?.toString() ?? '';
     } finally {
         saving['groupe'] = false;
@@ -281,7 +306,7 @@ async function choisirNiveauEchelle(niveauPts: number) {
                 commentaire: current?.commentaire ?? null,
             },
         );
-        appliquerMaj(data.correction as CorrectionLocale);
+        appliquerMaj(data.correction as CorrectionLocale, data.cleared_user_ids ?? []);
         pointsDraft['groupe'] = niveauPts.toString();
     } finally {
         saving['groupe'] = false;
@@ -466,6 +491,15 @@ async function supprimerCorrection(
             >
                 <MessageSquare class="h-3.5 w-3.5" />
             </button>
+
+            <!-- Avertissement overrides individuels existants -->
+            <span
+                v-if="hasOverrides"
+                class="shrink-0 text-amber-500"
+                title="Des notes individuelles existent — elles seront réinitialisées si vous modifiez la note groupe"
+            >
+                <TriangleAlert class="h-3 w-3" />
+            </span>
 
             <!-- Toggle valeurs différentes par étudiant -->
             <button

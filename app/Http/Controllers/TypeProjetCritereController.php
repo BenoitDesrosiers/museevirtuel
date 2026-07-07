@@ -48,6 +48,7 @@ class TypeProjetCritereController extends Controller
             'contenu_type' => $data['contenu_type'],
             'pointage' => $data['pointage'],
             'contenu' => $data['contenu'] ?? null,
+            'note' => $data['note'] ?? null,
             'echelle' => $data['echelle'] ?? null,
             'visible' => $request->boolean('visible', true),
             'ordre' => $ordre,
@@ -78,6 +79,7 @@ class TypeProjetCritereController extends Controller
             'contenu_type' => $data['contenu_type'],
             'pointage' => $data['pointage'],
             'contenu' => $data['contenu'] ?? null,
+            'note' => $data['note'] ?? null,
             'echelle' => $data['echelle'] ?? null,
             'visible' => $request->boolean('visible', $critere->visible),
         ]);

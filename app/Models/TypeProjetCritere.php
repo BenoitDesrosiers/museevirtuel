@@ -17,6 +17,7 @@ class TypeProjetCritere extends Model
         'contenu_type',
         'pointage',
         'contenu',
+        'note',
         'echelle',
         'visible',
         'ordre',

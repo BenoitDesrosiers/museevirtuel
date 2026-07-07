@@ -15,6 +15,8 @@ import { computed, ref } from 'vue';
 import { VueDraggable } from 'vue-draggable-plus';
 import { useI18n } from 'vue-i18n';
 import critereRoutes from '@/actions/App/Http/Controllers/TypeProjetCritereController';
+import ConfirmationModal from '@/components/ConfirmationModal.vue';
+import { useConfirmDelete } from '@/composables/useConfirmDelete';
 import CritereForm from '@/components/CritereForm.vue';
 import type { Critere } from '@/components/CritereForm.vue';
 import CritereTable from '@/components/CritereTable.vue';
@@ -170,11 +172,20 @@ function ajouterSection() {
     });
 }
 
+// ─── Confirmation avant suppression ───────────────────────────────────────────
+
+const { pendingDelete, pendingDeleteEnCours, demanderSupprimer, confirmerSupprimer } =
+    useConfirmDelete();
+
 /**
- * Supprime la section à l'index donné.
+ * Supprime la section à l'index donné (après confirmation).
  */
 function supprimerSection(idx: number) {
-    form.sections.splice(idx, 1);
+    demanderSupprimer({
+        titre: t('types_projet.edit.confirm_delete_section_titre'),
+        description: t('types_projet.edit.confirm_delete_section_desc'),
+        action: () => form.sections.splice(idx, 1),
+    });
 }
 
 /**
@@ -209,17 +220,22 @@ const formOuvertePour = ref<'global' | number | null>(null);
 const critereEnEdition = ref<number | null>(null);
 
 /**
- * Supprime un critère via Inertia DELETE.
+ * Supprime un critère via Inertia DELETE (après confirmation).
  */
 function supprimerCritere(critereId: number) {
-    router.delete(
-        critereRoutes.destroy.url({
-            cours: props.cours.id,
-            typeProjet: props.typeProjet.id,
-            critere: critereId,
-        }),
-        { preserveScroll: true },
-    );
+    demanderSupprimer({
+        titre: t('types_projet.edit.confirm_delete_critere_titre'),
+        description: t('types_projet.edit.confirm_delete_critere_desc'),
+        action: () =>
+            router.delete(
+                critereRoutes.destroy.url({
+                    cours: props.cours.id,
+                    typeProjet: props.typeProjet.id,
+                    critere: critereId,
+                }),
+                { preserveScroll: true },
+            ),
+    });
 }
 
 /**
@@ -992,6 +1008,17 @@ const totalPointsGlobal = computed(() => {
                 </Button>
             </div>
         </div>
+        <!-- ─── Dialog : confirmation de suppression ────────────────────── -->
+        <ConfirmationModal
+            :open="!!pendingDelete"
+            :title="pendingDelete?.titre ?? ''"
+            :description="pendingDelete?.description ?? ''"
+            confirm-label="Oui, supprimer"
+            :loading="pendingDeleteEnCours"
+            @update:open="(v) => { if (!v) pendingDelete = null; }"
+            @confirm="confirmerSupprimer"
+        />
+
         <!-- ─── Dialog : aide sur les modes de saisie ────────────────────── -->
         <Dialog v-model:open="modesInfoOuvert">
             <DialogContent class="max-w-lg">

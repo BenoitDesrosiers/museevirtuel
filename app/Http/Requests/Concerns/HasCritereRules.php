@@ -36,6 +36,7 @@ trait HasCritereRules
             ],
             'echelle.*.description' => ['nullable', 'string', 'max:1000'],
             'visible' => ['boolean'],
+            'note' => ['nullable', 'string', 'max:5000'],
         ];
     }
 

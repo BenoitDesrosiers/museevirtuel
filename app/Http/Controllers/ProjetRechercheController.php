@@ -1068,6 +1068,24 @@ class ProjetRechercheController extends Controller
             'type_projet_id' => $typeProjet->id,
         ]);
 
+        // Quand on met à jour la correction groupe (user_id = null), supprimer les
+        // overrides individuels afin que "attribuer à tous" s'applique réellement à tous.
+        $clearedUserIds = [];
+        if (! isset($validated['user_id'])) {
+            $clearedUserIds = ProjetCritereCorrection::where('projet_id', $projet->id)
+                ->where('critere_id', $critere->id)
+                ->whereNotNull('user_id')
+                ->pluck('user_id')
+                ->all();
+
+            if (! empty($clearedUserIds)) {
+                ProjetCritereCorrection::where('projet_id', $projet->id)
+                    ->where('critere_id', $critere->id)
+                    ->whereNotNull('user_id')
+                    ->delete();
+            }
+        }
+
         $correction = ProjetCritereCorrection::updateOrCreate(
             [
                 'projet_id' => $projet->id,
@@ -1084,6 +1102,7 @@ class ProjetRechercheController extends Controller
         return response()->json([
             'message' => 'saved',
             'correction' => $correction->only('id', 'projet_id', 'critere_id', 'user_id', 'points', 'commentaire', 'verifie', 'source_id'),
+            'cleared_user_ids' => $clearedUserIds,
         ]);
     }
 
@@ -1329,6 +1348,8 @@ class ProjetRechercheController extends Controller
 
             return [
                 'da' => preg_replace('/\D/', '', (string) $membre->no_da),
+                'prenom' => $membre->prenom,
+                'nom' => $membre->nom,
                 'note' => round(($obtenu - $malus) * 100) / 100,
             ];
         })->values();

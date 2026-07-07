@@ -19,6 +19,7 @@ export type Critere = {
     contenu_type: 'texte' | 'echelle';
     pointage: number;
     contenu: string | null;
+    note: string | null;
     echelle: EchelleNiveau[] | null;
     visible: boolean;
     ordre: number;
@@ -67,6 +68,7 @@ const form = useForm({
         | 'echelle',
     pointage: props.critere?.pointage ?? 1,
     contenu: props.critere?.contenu ?? '',
+    note: props.critere?.note ?? '',
     echelle: (props.critere?.echelle ?? defaultEchelle) as EchelleNiveau[],
     visible: props.critere?.visible ?? true,
 });
@@ -100,6 +102,7 @@ function submit() {
     const transformed = form.transform((data) => ({
         ...data,
         echelle: data.contenu_type === 'echelle' ? data.echelle : null,
+        note: data.note?.trim() || null,
     }));
 
     if (props.critere) {
@@ -125,7 +128,7 @@ function submit() {
 
 <template>
     <div class="space-y-3 rounded-md border bg-muted/30 p-3">
-        <!-- ─── Toggle positif / négatif ────────────────────────────────── -->
+        <!-- ─── Toggle positive / négative ──────────────────────────────── -->
         <div class="flex items-center gap-1.5">
             <button
                 type="button"
@@ -201,6 +204,24 @@ function submit() {
             </div>
         </div>
 
+        <!-- ─── Visible (commun texte et échelle) ──────────────────────────── -->
+        <div class="flex items-center gap-2">
+            <Checkbox id="critere-visible" v-model:checked="form.visible" />
+            <label
+                for="critere-visible"
+                class="cursor-pointer text-xs text-muted-foreground"
+            >
+                <span
+                    v-if="form.visible"
+                    class="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                >
+                    {{ t('criteres.label_visible_etudiants_badge') }}
+                </span>
+                <span v-else class="opacity-60">{{ t('criteres.label_visible') }}</span>
+            </label>
+            <InfoTooltip :texte="t('criteres.tooltip_visible')" />
+        </div>
+
         <!-- ─── Contenu texte ────────────────────────────────────────────── -->
         <div v-if="!montrerEchelle" class="grid gap-1">
             <Label class="text-xs">{{ t('criteres.label_contenu') }}</Label>
@@ -217,13 +238,18 @@ function submit() {
             <InputError :message="echelleErreur ?? undefined" />
         </div>
 
-        <!-- ─── Visible ──────────────────────────────────────────────────── -->
-        <div class="flex items-center gap-2">
-            <Checkbox id="critere-visible" v-model:checked="form.visible" />
-            <Label for="critere-visible" class="cursor-pointer text-xs">
-                {{ t('criteres.label_visible') }}
+        <!-- ─── Note enseignant ──────────────────────────────────────────── -->
+        <div class="grid gap-1">
+            <Label class="text-xs text-muted-foreground">
+                {{ t('criteres.label_note') }}
             </Label>
-            <InfoTooltip :texte="t('criteres.tooltip_visible')" />
+            <Textarea
+                v-model="form.note"
+                rows="2"
+                class="text-sm"
+                :placeholder="t('criteres.label_note')"
+            />
+            <InputError :message="form.errors.note" />
         </div>
 
         <!-- ─── Actions ──────────────────────────────────────────────────── -->

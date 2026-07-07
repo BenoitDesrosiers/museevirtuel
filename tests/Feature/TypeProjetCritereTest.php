@@ -52,6 +52,7 @@ test("l'enseignant peut créer un critère positif dans une section", function (
             'contenu_type' => 'texte',
             'pointage' => 5.0,
             'contenu' => 'Qualité de l\'argumentation',
+            'note' => 'Rappel : insister sur la structure du paragraphe.',
             'visible' => true,
         ])
         ->assertRedirect();
@@ -61,6 +62,26 @@ test("l'enseignant peut créer un critère positif dans une section", function (
         'section_id' => $section->id,
         'type' => 'positif',
         'pointage' => 5.0,
+        'note' => 'Rappel : insister sur la structure du paragraphe.',
+    ]);
+});
+
+test("l'enseignant peut créer un critère avec une note enseignant", function () {
+    ['enseignant' => $enseignant, 'cours' => $cours, 'typeProjet' => $tp] = creerContexteCritere();
+
+    $this->actingAs($enseignant)
+        ->postJson("/cours/{$cours->id}/types-projets/{$tp->id}/criteres", [
+            'type' => 'negatif',
+            'contenu_type' => 'texte',
+            'pointage' => 2.0,
+            'contenu' => 'Mauvaise référence',
+            'note' => 'Vérifier les normes APA',
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('type_projet_criteres', [
+        'type' => 'negatif',
+        'note' => 'Vérifier les normes APA',
     ]);
 });
 
@@ -168,6 +189,7 @@ test("l'enseignant peut modifier le contenu et le pointage d'un critère", funct
             'contenu_type' => 'texte',
             'pointage' => 8.0,
             'contenu' => 'Contenu mis à jour',
+            'note' => 'Note de l\'enseignant mise à jour',
             'visible' => true,
         ])
         ->assertRedirect();
@@ -176,6 +198,7 @@ test("l'enseignant peut modifier le contenu et le pointage d'un critère", funct
         'id' => $critere->id,
         'pointage' => 8.0,
         'contenu' => 'Contenu mis à jour',
+        'note' => 'Note de l\'enseignant mise à jour',
     ]);
 });
 

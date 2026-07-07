@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $contenu_type 'texte' | 'echelle'
  * @property float $pointage
  * @property string|null $contenu HTML libre
+ * @property string|null $note Note interne, visible uniquement par l'enseignant
  * @property array|null $echelle [{label, points, description?}, ...]
  * @property bool $visible
  * @property int $ordre
@@ -32,6 +33,7 @@ class GabaritTypeProjetCritere extends Model
         'contenu_type',
         'pointage',
         'contenu',
+        'note',
         'echelle',
         'visible',
         'ordre',
