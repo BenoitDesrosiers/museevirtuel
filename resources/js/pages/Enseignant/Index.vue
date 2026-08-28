@@ -132,6 +132,7 @@ const coursForm = useForm({
 
 function onTypeCoursCree(val: string) {
     coursForm.type_cours = val as typeof coursForm.type_cours;
+    coursForm.clearErrors('type_cours');
 
     if (val !== 'cours_complet') {
         coursForm.utiliser_gabarit = false;
@@ -154,6 +155,15 @@ function openCreateCours() {
 }
 
 function submitCreateCours() {
+    if (!coursForm.type_cours) {
+        coursForm.setError(
+            'type_cours',
+            t('enseignant.index.error_course_level_required'),
+        );
+
+        return;
+    }
+
     coursForm.post('/cours', {
         onSuccess: () => {
             showCreateCoursDialog.value = false;

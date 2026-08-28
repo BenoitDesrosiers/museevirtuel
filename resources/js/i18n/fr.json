@@ -255,6 +255,7 @@
             "modal_hours_placeholder": "3",
             "modal_description": "Description",
             "modal_description_placeholder": "Description (optionnel)",
+            "error_course_level_required": "Veuillez sélectionner un niveau de cours.",
             "modal_edit_cours": "Modifier le cours",
             "modal_create_thematic": "Créer une thématique",
             "modal_thematic_name": "Nom",

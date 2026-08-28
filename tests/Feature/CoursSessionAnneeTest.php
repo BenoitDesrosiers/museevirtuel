@@ -59,6 +59,16 @@ test('store rejette un cours sans session', function () {
         ->assertSessionHasErrors('session');
 });
 
+test('store rejette un cours sans niveau', function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $payload = payloadCoursValide();
+    unset($payload['type_cours']);
+
+    $this->actingAs($enseignant)
+        ->post('/cours', $payload)
+        ->assertSessionHasErrors('type_cours');
+});
+
 test('store rejette une session invalide', function (string $sessionInvalide) {
     $enseignant = User::factory()->create(['role' => 'enseignant']);
 

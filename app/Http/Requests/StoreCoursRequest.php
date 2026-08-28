@@ -32,10 +32,22 @@ class StoreCoursRequest extends FormRequest
             'groupe' => ['required', 'string', 'max:20'],
             'annee' => ['required', 'integer', 'min:2000', 'max:2100'],
             'session' => ['required', Rule::enum(SessionCours::class)],
-            'type_cours' => ['nullable', Rule::enum(TypeCours::class)],
+            'type_cours' => ['required', Rule::enum(TypeCours::class)],
             'taille_equipe_min' => ['nullable', 'integer', 'min:1', 'max:20'],
             'taille_equipe_max' => ['nullable', 'integer', 'min:1', 'max:20', 'gte:taille_equipe_min'],
             'utiliser_gabarit' => ['nullable', 'boolean'],
+        ];
+    }
+
+    /**
+     * Retourne les messages d'erreur de validation en français.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'type_cours.required' => 'Le niveau du cours est obligatoire.',
         ];
     }
 }
