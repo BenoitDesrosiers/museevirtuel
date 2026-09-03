@@ -159,19 +159,34 @@ const ouvert = ref({
 
 // ─── Créer une classe ─────────────────────────────────────────────────────────
 const showCreateClasseDialog = ref(false);
-const createClasseForm = useForm({
-    numero: '',
-    nom: '',
-    jour_semaine: '',
-    plage_horaire: '',
-});
+
+function getCreateClasseFormDefaults() {
+    return {
+        numero: '',
+        nom: '',
+        jour_semaine: '',
+        plage_horaire: '',
+    };
+}
+
+const createClasseForm = useForm(getCreateClasseFormDefaults());
+
+function resetCreateClasseForm(): void {
+    createClasseForm.defaults(getCreateClasseFormDefaults());
+    createClasseForm.resetAndClearErrors();
+}
+
+function openCreateClasseDialog(): void {
+    resetCreateClasseForm();
+    showCreateClasseDialog.value = true;
+}
 
 function submitCreateClasse() {
     createClasseForm.post(`/cours/${props.cours.id}/classes`, {
         preserveScroll: true,
         onSuccess: () => {
             showCreateClasseDialog.value = false;
-            createClasseForm.reset();
+            resetCreateClasseForm();
         },
     });
 }
@@ -495,7 +510,7 @@ function submitTransfert() {
                             :class="{ '-rotate-180': ouvert.classes }"
                         />
                     </button>
-                    <Button size="sm" @click="showCreateClasseDialog = true">
+                    <Button size="sm" @click="openCreateClasseDialog">
                         <Plus class="mr-2 h-4 w-4" />
                         Classe
                     </Button>

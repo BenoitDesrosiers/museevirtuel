@@ -18,8 +18,8 @@ RUN composer install \
 # Copier tout le code source (nécessaire pour php artisan wayfinder:generate)
 COPY . .
 
-# .env minimal pour bootstrapper Laravel sans base de données
-RUN printf "APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\nAPP_ENV=production\nDB_CONNECTION=sqlite\nDB_DATABASE=/tmp/dummy.db\n" > .env \
+# ..env minimal pour bootstrapper Laravel sans base de données
+RUN printf "APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\nAPP_ENV=production\nDB_CONNECTION=sqlite\nDB_DATABASE=/tmp/dummy.db\n" > ..env \
     && touch /tmp/dummy.db \
     && php artisan wayfinder:generate --no-interaction
 

@@ -119,3 +119,40 @@ test('update met a jour annee et session', function () {
         'session' => 'automne',
     ]);
 });
+
+test('store retourne des messages de validation en français', function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+
+    $this->actingAs($enseignant)
+        ->from('/enseignant')
+        ->post('/cours', [])
+        ->assertSessionHasErrors([
+            'groupe' => 'Le groupe est obligatoire.',
+            'code' => 'Le code de cours est obligatoire.',
+        ]);
+});
+
+test('update retourne des messages de validation en français', function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+
+    $cours = Cours::create([
+        'nom_cours' => 'Cours original',
+        'code' => '330-UPD',
+        'groupe' => '01',
+        'enseignant_id' => $enseignant->id,
+    ]);
+
+    $this->actingAs($enseignant)
+        ->from('/enseignant')
+        ->put("/cours/{$cours->id}", [
+            'nom_cours' => '',
+            'code' => '',
+            'groupe' => '',
+            'annee' => null,
+            'session' => '',
+        ])
+        ->assertSessionHasErrors([
+            'groupe' => 'Le groupe est obligatoire.',
+            'code' => 'Le code de cours est obligatoire.',
+        ]);
+});

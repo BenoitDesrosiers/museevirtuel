@@ -4,12 +4,15 @@ namespace App\Http\Requests;
 
 use App\Enums\SessionCours;
 use App\Enums\TypeCours;
+use App\Http\Requests\Concerns\CoursValidationMessages;
 use App\Models\Cours;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateCoursRequest extends FormRequest
 {
+    use CoursValidationMessages;
+
     /**
      * Détermine si l'utilisateur est autorisé à modifier ce cours.
      * Délègue à CoursPolicy::update().
