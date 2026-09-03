@@ -198,7 +198,7 @@ php artisan config:clear
 php artisan migrate
 ```
 
-> **Remarque :** En production Docker, les variables de base de données sont injectées directement via `docker-compose.prod.yml` → section `environment`. Le `.env` sert de source de vérité mais les valeurs sont passées au conteneur au démarrage.
+> **Remarque :** En production Docker, les conteneurs chargent les variables depuis `.env` via `env_file` dans `docker-compose.prod.yml`. `APP_ENV=production` et `DB_HOST=mysql` sont forcés dans le compose pour le runtime conteneurisé.
 
 ---
 

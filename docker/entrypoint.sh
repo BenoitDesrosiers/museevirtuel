@@ -23,5 +23,10 @@ php artisan view:cache
 echo "==> Exécution des migrations..."
 php artisan migrate --force
 
-echo "==> Démarrage de PHP-FPM..."
-exec php-fpm
+if [ "$#" -gt 0 ]; then
+    echo "==> Exécution de la commande: $*"
+    exec "$@"
+fi
+
+echo "==> Démarrage de nginx + PHP-FPM (supervisord)..."
+exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
