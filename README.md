@@ -15,7 +15,6 @@ Application web Laravel/Vue pour la gestion de cours, projets de recherche et mu
 | Laravel Fortify | 1.30+ |
 | Inertia.js (serveur) | 3.x |
 | Laravel Wayfinder | 0.1.x |
-| Laravel Sail (dev Docker) | 1.x |
 | Pest | 4.4+ |
 | Laravel Pint | 1.24+ |
 
@@ -37,8 +36,7 @@ Application web Laravel/Vue pour la gestion de cours, projets de recherche et mu
 | Environnement | Moteur | Version |
 |---------------|--------|---------|
 | Développement local | SQLite | — |
-| Docker dev (Sail) | MySQL | 8.4 |
-| Production (Docker) | MySQL | 8.4 |
+| Production | MySQL | 8.x |
 
 ---
 
@@ -81,89 +79,7 @@ L'application est accessible sur `http://muse.test` via Herd (ou `http://localho
 
 ---
 
-## Installation — Docker développement (Laravel Sail)
-
-### Prérequis
-
-- Docker Desktop
-
-### Étapes
-
-```bash
-# 1. Cloner le dépôt
-git clone <url-du-repo> muse
-cd muse
-
-# 2. Copier l'environnement et configurer pour MySQL (Sail)
-cp .env.example .env
-```
-
-Modifier `.env` pour utiliser MySQL au lieu de SQLite :
-
-```dotenv
-DB_CONNECTION=mysql
-DB_HOST=mysql
-DB_PORT=3306
-DB_DATABASE=muse
-DB_USERNAME=sail
-DB_PASSWORD=password
-```
-
-```bash
-# 3. Démarrer les conteneurs
-./vendor/bin/sail up -d
-
-# 4. Générer la clé d'application
-./vendor/bin/sail artisan key:generate
-
-# 5. Lancer les migrations
-./vendor/bin/sail artisan migrate
-
-# 6. Installer les dépendances Node et compiler les assets
-./vendor/bin/sail npm install
-./vendor/bin/sail npm run dev
-```
-
-L'application est accessible sur `http://localhost`.
-
----
-
-## Installation — Docker production
-
-### Prérequis
-
-- Docker et Docker Compose sur le serveur
-
-### Étapes
-
-```bash
-# 1. Cloner le dépôt sur le serveur
-git clone <url-du-repo> muse
-cd muse
-
-# 2. Copier le fichier d'environnement Docker
-cp .env.docker.example .env
-
-# 3. Remplir les valeurs obligatoires dans .env
-#    APP_KEY=   → générer avec : php -r "echo 'base64:'.base64_encode(random_bytes(32));"
-#    APP_URL=   → ex: https://muse.exemple.com
-#    DB_PASSWORD=  → mot de passe fort
-
-# 4. Construire et démarrer les conteneurs
-docker compose -f docker-compose.prod.yml up -d --build
-
-# 5. Lancer les migrations (première fois seulement)
-docker compose -f docker-compose.prod.yml exec app php artisan migrate --force
-
-# 6. Lier le stockage public
-docker compose -f docker-compose.prod.yml exec app php artisan storage:link
-```
-
-L'application est accessible sur le port 80 (ou le port configuré dans `APP_PORT`).
-
----
-
-## Switch entre la base de données de développement et de production
+## Switch entre SQLite et MySQL
 
 Le seul endroit à changer est le fichier **`.env`** à la racine du projet.
 
@@ -181,15 +97,15 @@ touch database/database.sqlite
 php artisan migrate
 ```
 
-### Développement Docker (Sail) ou production → MySQL
+### Production → MySQL
 
 ```dotenv
 DB_CONNECTION=mysql
-DB_HOST=mysql        # nom du service Docker, ou IP/hostname du serveur MySQL
+DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=muse
-DB_USERNAME=sail     # ou muse_user en production
-DB_PASSWORD=password # mot de passe fort en production
+DB_USERNAME=root
+DB_PASSWORD=password
 ```
 
 ```bash
@@ -197,8 +113,6 @@ DB_PASSWORD=password # mot de passe fort en production
 php artisan config:clear
 php artisan migrate
 ```
-
-> **Remarque :** En production Docker, les conteneurs chargent les variables depuis `.env` via `env_file` dans `docker-compose.prod.yml`. `APP_ENV=production` et `DB_HOST=mysql` sont forcés dans le compose pour le runtime conteneurisé.
 
 ---
 
@@ -227,8 +141,4 @@ php artisan route:list
 
 | Fichier | Usage |
 |---------|-------|
-| `.env.example` | Modèle pour développement local (SQLite) |
-| `.env.docker.example` | Modèle pour production Docker (MySQL) |
-| `docker-compose.yml` | Dev Docker via Laravel Sail (MySQL 8.4) |
-| `docker-compose.prod.yml` | Production Docker (app + queue + MySQL) |
-| `Dockerfile` | Image multi-stage : composer → node → php-fpm |
+| `.env.example` | Modèle pour le développement local |
