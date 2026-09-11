@@ -22,6 +22,8 @@ return [
         'numeric' => 'Le champ :attribute doit être supérieur ou égal à :value.',
     ],
     'enum' => 'La valeur sélectionnée pour :attribute est invalide.',
+    'digits' => 'Le champ :attribute doit contenir :digits chiffres.',
+    'unique' => 'Cette valeur de :attribute est déjà utilisée.',
 
     'confirmed' => 'La confirmation du :attribute ne correspond pas.',
     'current_password' => 'Le mot de passe actuel est incorrect.',
@@ -44,5 +46,9 @@ return [
         'password' => 'mot de passe',
         'current_password' => 'mot de passe actuel',
         'password_confirmation' => 'confirmation du mot de passe',
+        'numero' => 'numéro de classe',
+        'nom' => 'nom',
+        'jour_semaine' => 'jour',
+        'plage_horaire' => 'plage horaire',
     ],
 ];

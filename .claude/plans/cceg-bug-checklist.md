@@ -9,16 +9,16 @@ Checklist pour suivre l'avancement des correctifs. Cocher `- [x]` quand c'est co
 
 ## Page accueil cours
 
-- [ ] **Création de classe** — Rétroaction manquante pour le numéro de la classe ; le bouton « Créer » est caché s'il n'y a pas une longueur minimale requise
-- [ ] **Ajout de document** — Message de rétroaction en anglais : *The document field must be a file of type: pdf, doc, docx.*
-- [ ] **Section documents** — Le nom du document téléchargé n'est pas le même que le nom du document original
-- [ ] **Suppression d'un document** — Devrait être un modal plutôt qu'un `alert`
+- [x] **Création de classe** — Rétroaction manquante pour le numéro de la classe ; le bouton « Créer » est caché s'il n'y a pas une longueur minimale requise *(corrigé : validation client FR, hint, bouton toujours actif)*
+- [x] **Ajout de document** — Message de rétroaction en anglais : *The document field must be a file of type: pdf, doc, docx.* *(corrigé : messages FR via __() dans CoursDocumentController)*
+- [x] **Section documents** — Le nom du document téléchargé n'est pas le même que le nom du document original *(corrigé : route download avec nom_original, UUID conservé sur disque)*
+- [x] **Suppression d'un document** — Devrait être un modal plutôt qu'un `alert` *(corrigé : ConfirmationModal comme pour la suppression de classe)*
 - [ ] **Suppression objectif** — Modal au lieu de `alert`
 - [ ] **Ajout de référence biblio** — Doit-on suivre l'APA ? Si oui, le mentionner ou mettre les champs en conséquence
 - [ ] **Suppression de référence** — Modal pls
 - [ ] **Échéancier** — Possibilité de changer la semaine ?
 - [ ] **Planifier / modifier une visioconférence** — Pas de petit calendrier ; difficile d'ajouter une date
-- [ ] **Suppression de visioconférence** — Modal pls
+- [x] **Suppression de visioconférence** — Modal pls *(corrigé : ConfirmationModal dans VisioSession.vue)*
 - [ ] **Nom de classe** — Le nom d'une classe n'est pas le même que dans la barre verticale à gauche
 - [ ] **Création de cours / groupes** — Le nombre minimal ne devrait pas bloquer la création d'un groupe si le nombre de personnes restantes est plus petit que le minimum
 
@@ -107,7 +107,7 @@ Checklist pour suivre l'avancement des correctifs. Cocher `- [x]` quand c'est co
 
 | Section | Total | Fait |
 |---------|------:|-----:|
-| Page accueil cours | 12 | 0 |
+| Page accueil cours | 12 | 5 |
 | Nouveau type de projet | 8 | 0 |
 | Page type de projet | 1 | 0 |
 | Barre verticale | 1 | 0 |
@@ -117,6 +117,6 @@ Checklist pour suivre l'avancement des correctifs. Cocher `- [x]` quand c'est co
 | Création étudiant | 1 | 0 |
 | Création groupe | 1 | 0 |
 | Template musée | 1 | 0 |
-| **Total** | **37** | **2** |
+| **Total** | **37** | **7** |
 
 > Mettre à jour le tableau au fur et à mesure des correctifs.

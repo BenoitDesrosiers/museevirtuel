@@ -126,7 +126,8 @@
             "modal_csv_file": "Fichier CSV",
             "modal_import": "Importer",
             "confirm_remove_student": "Retirer {prenom} {nom} de la classe ?",
-            "confirm_delete_document": "Supprimer \"{nom}\" ?",
+            "confirm_delete_document_title": "Supprimer ?",
+            "confirm_delete_document_description": "Cette action est irréversible.",
             "back_to_cours": "Retour au cours"
         },
         "groupes": {
@@ -160,7 +161,14 @@
         "show": {
             "classes_title": "Classes",
             "no_classes": "Aucune classe pour l'instant.",
-            "classes_see": "Voir"
+            "classes_see": "Voir",
+            "modal_create_class_title": "Nouvelle classe",
+            "modal_class_number_label": "Numéro (obligatoire)",
+            "modal_class_number_hint": "Les 5 chiffres du groupe doivent être présents (ex. 10001).",
+            "error_class_number_required": "Le numéro de classe est obligatoire.",
+            "error_class_number_digits": "Les 5 chiffres du groupe doivent être présents.",
+            "confirm_delete_visio_title": "Supprimer ?",
+            "confirm_delete_visio_description": "Cette action est irréversible."
         },
         "classes": {
             "page_title": "Mes sections",

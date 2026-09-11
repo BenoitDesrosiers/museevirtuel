@@ -125,7 +125,8 @@
             "modal_csv_file": "CSV file",
             "modal_import": "Import",
             "confirm_remove_student": "Remove {prenom} {nom} from the class?",
-            "confirm_delete_document": "Delete \"{nom}\"?",
+            "confirm_delete_document_title": "Delete?",
+            "confirm_delete_document_description": "This action cannot be undone.",
             "back_to_cours": "Back to course"
         },
         "groupes": {
@@ -161,7 +162,14 @@
         "show": {
             "classes_title": "Classes",
             "no_classes": "No classes yet.",
-            "classes_see": "View"
+            "classes_see": "View",
+            "modal_create_class_title": "New class",
+            "modal_class_number_label": "Number (required)",
+            "modal_class_number_hint": "The group's 5 digits must be present (e.g. 10001).",
+            "error_class_number_required": "The class number is required.",
+            "error_class_number_digits": "The group's 5 digits must be present.",
+            "confirm_delete_visio_title": "Delete?",
+            "confirm_delete_visio_description": "This action cannot be undone."
         },
         "classes": {
             "page_title": "My sections",

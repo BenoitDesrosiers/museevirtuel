@@ -181,7 +181,37 @@ function openCreateClasseDialog(): void {
     showCreateClasseDialog.value = true;
 }
 
+function validateCreateClasse(): boolean {
+    const numero = String(createClasseForm.numero).trim();
+
+    if (!numero) {
+        createClasseForm.setError(
+            'numero',
+            t('cours.show.error_class_number_required'),
+        );
+
+        return false;
+    }
+
+    if (!/^\d{5}$/.test(numero)) {
+        createClasseForm.setError(
+            'numero',
+            t('cours.show.error_class_number_digits'),
+        );
+
+        return false;
+    }
+
+    return true;
+}
+
 function submitCreateClasse() {
+    createClasseForm.clearErrors();
+
+    if (!validateCreateClasse()) {
+        return;
+    }
+
     createClasseForm.post(`/cours/${props.cours.id}/classes`, {
         preserveScroll: true,
         onSuccess: () => {
@@ -339,20 +369,37 @@ function handleDocChange(e: Event) {
     }
 }
 
+const documentASupprimer = ref<Document | null>(null);
 const deleteDocForm = useForm({});
 
-function removeDocument(doc: Document) {
-    if (
-        !confirm(
-            t('classes.show.confirm_delete_document', {
-                nom: doc.nom_original,
-            }),
-        )
-    ) {
+function handleDocumentDialogUpdate(isOpen: boolean) {
+    if (!isOpen) {
+        documentASupprimer.value = null;
+    }
+}
+
+function confirmDeleteDocument(doc: Document) {
+    documentASupprimer.value = doc;
+}
+
+function executeDeleteDocument() {
+    if (!documentASupprimer.value) {
         return;
     }
 
-    deleteDocForm.delete(`/cours/${props.cours.id}/documents/${doc.id}`);
+    deleteDocForm.delete(
+        `/cours/${props.cours.id}/documents/${documentASupprimer.value.id}`,
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                documentASupprimer.value = null;
+            },
+        },
+    );
+}
+
+function documentDownloadUrl(doc: Document): string {
+    return `/cours/${props.cours.id}/documents/${doc.id}/download`;
 }
 
 function formatSize(bytes: number): string {
@@ -687,7 +734,7 @@ function submitTransfert() {
                                     variant="outline"
                                     as-child
                                 >
-                                    <a :href="doc.url" target="_blank" download>
+                                    <a :href="documentDownloadUrl(doc)">
                                         <Download class="h-4 w-4" />
                                     </a>
                                 </BoutonTooltip>
@@ -695,7 +742,7 @@ function submitTransfert() {
                                     texte="Supprimer ce document"
                                     size="sm"
                                     variant="destructive"
-                                    @click="removeDocument(doc)"
+                                    @click="confirmDeleteDocument(doc)"
                                 >
                                     <Trash2 class="h-4 w-4" />
                                 </BoutonTooltip>
@@ -1231,19 +1278,27 @@ function submitTransfert() {
         <Dialog v-model:open="showCreateClasseDialog">
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Nouvelle classe</DialogTitle>
+                    <DialogTitle>{{
+                        $t('cours.show.modal_create_class_title')
+                    }}</DialogTitle>
                 </DialogHeader>
                 <form class="space-y-4" @submit.prevent="submitCreateClasse">
                     <div class="grid gap-2">
-                        <Label for="classe-numero">Numero (obligatoire)</Label>
+                        <Label for="classe-numero">{{
+                            $t('cours.show.modal_class_number_label')
+                        }}</Label>
                         <Input
                             id="classe-numero"
                             v-model="createClasseForm.numero"
-                            type="number"
-                            :min="10000"
-                            :max="99999"
+                            type="text"
+                            inputmode="numeric"
+                            maxlength="5"
                             placeholder="Ex. 10001"
+                            @input="createClasseForm.clearErrors('numero')"
                         />
+                        <p class="text-xs text-muted-foreground">
+                            {{ $t('cours.show.modal_class_number_hint') }}
+                        </p>
                         <InputError :message="createClasseForm.errors.numero" />
                     </div>
                     <div class="grid gap-2">
@@ -1291,10 +1346,7 @@ function submitTransfert() {
                         </Button>
                         <Button
                             type="submit"
-                            :disabled="
-                                createClasseForm.processing ||
-                                String(createClasseForm.numero).length !== 5
-                            "
+                            :disabled="createClasseForm.processing"
                         >
                             Créer
                         </Button>
@@ -1312,6 +1364,19 @@ function submitTransfert() {
             :loading="destroyAllForm.processing"
             @update:open="showViderEcheancierModal = $event"
             @confirm="destroyAllEtapes"
+        />
+
+        <!-- Modal : Confirmer suppression document -->
+        <ConfirmationModal
+            :open="documentASupprimer !== null"
+            :title="$t('classes.show.confirm_delete_document_title')"
+            :emphasis="documentASupprimer?.nom_original ?? ''"
+            :description="
+                $t('classes.show.confirm_delete_document_description')
+            "
+            :loading="deleteDocForm.processing"
+            @update:open="handleDocumentDialogUpdate"
+            @confirm="executeDeleteDocument"
         />
 
         <!-- Modal : Confirmer suppression classe -->
