@@ -35,104 +35,107 @@ Application web Laravel/Vue pour la gestion de cours, projets de recherche et mu
 
 | Environnement | Moteur | Version |
 |---------------|--------|---------|
-| Développement local | SQLite | — |
-| Production | MySQL | 8.x |
+| Développement / production | MySQL | 8.4 |
 
 ---
 
-## Installation — Développement local (Laravel Herd)
+## Installation — Podman Compose (recommandé)
 
 ### Prérequis
 
-- [Laravel Herd](https://herd.laravel.com/) installé (fournit PHP 8.4 + serveur local)
-- Node.js 22+ et npm
-- Composer 2
+- [Podman](https://podman.io/) avec support Compose (`podman compose`)
+- Ou Docker Compose v2
 
-### Étapes
+### Démarrage développement
 
 ```bash
 # 1. Cloner le dépôt
 git clone <url-du-repo> muse
 cd muse
 
-# 2. Installer les dépendances PHP
-composer install
+# 2. Copier l'environnement conteneurisé
+cp .env.docker.example .env
 
-# 3. Copier le fichier d'environnement
-cp .env.example .env
-
-# 4. Générer la clé d'application
+# 3. Générer la clé (sur l'hôte ou dans le conteneur après premier build)
 php artisan key:generate
+# ou : podman compose --profile dev run --rm app php artisan key:generate
 
-# 5. Créer la base de données SQLite
-touch database/database.sqlite
+# 4. Démarrer MySQL, l'app, la queue et Vite
+podman compose --profile dev up --build
+```
 
-# 6. Lancer les migrations
+- Application : http://localhost:8080
+- Vite (HMR) : http://localhost:5173
+- MySQL (depuis l'hôte) : `127.0.0.1:3306`
+
+### Démarrage production
+
+```bash
+cp .env.docker.example .env
+# Remplir APP_KEY, APP_URL, DB_PASSWORD (mot de passe fort)
+
+podman compose --profile prod up --build -d
+```
+
+### Commandes utiles
+
+```bash
+# Migrations
+podman compose --profile dev exec app php artisan migrate
+
+# Tests dans le conteneur
+podman compose --profile dev exec app php artisan test --compact
+
+# Logs
+podman compose --profile dev logs -f app
+
+# Arrêter
+podman compose --profile dev down
+```
+
+> **SELinux (Linux)** : si les permissions de volume échouent, ajouter `:Z` aux montages dans `compose.yaml` (ex. `.:/var/www/html:Z`).
+
+---
+
+## Installation — Laravel Herd (sans conteneur)
+
+### Prérequis
+
+- [Laravel Herd](https://herd.laravel.com/) (PHP 8.4)
+- MySQL 8.x local
+- Node.js 22+ et npm
+- Composer 2
+
+### Étapes
+
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+# Configurer .env avec MySQL local (DB_HOST=127.0.0.1)
 php artisan migrate
-
-# 7. Installer les dépendances Node et compiler les assets
 npm install
 npm run dev
 ```
 
-L'application est accessible sur `http://muse.test` via Herd (ou `http://localhost:8000` avec `php artisan serve`).
-
----
-
-## Switch entre SQLite et MySQL
-
-Le seul endroit à changer est le fichier **`.env`** à la racine du projet.
-
-### Développement local → SQLite
-
-```dotenv
-DB_CONNECTION=sqlite
-# DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD ne sont pas nécessaires
-# Le fichier SQLite est database/database.sqlite
-```
-
-```bash
-# Si le fichier n'existe pas encore
-touch database/database.sqlite
-php artisan migrate
-```
-
-### Production → MySQL
-
-```dotenv
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=muse
-DB_USERNAME=root
-DB_PASSWORD=password
-```
-
-```bash
-# Après avoir changé .env, vider le cache de config
-php artisan config:clear
-php artisan migrate
-```
+L'application est accessible sur `http://muse.test` via Herd.
 
 ---
 
 ## Commandes utiles
 
 ```bash
-# Lancer les tests
+# Tests (MySQL requis — CI ou conteneur mysql sur :3306)
 php artisan test --compact
 
-# Vérifier et corriger le style PHP
+# Style PHP
 ./vendor/bin/pint
 
-# Générer les routes Wayfinder (TypeScript)
+# Routes Wayfinder
 php artisan wayfinder:generate --no-interaction
 
-# Lancer le worker de queue
+# Worker de queue
 php artisan queue:work --tries=3
-
-# Voir toutes les routes
-php artisan route:list
 ```
 
 ---
@@ -141,4 +144,7 @@ php artisan route:list
 
 | Fichier | Usage |
 |---------|-------|
-| `.env.example` | Modèle pour le développement local |
+| `.env.example` | Modèle Herd / MySQL local |
+| `.env.docker.example` | Modèle Podman Compose (DB_HOST=mysql) |
+| [`compose.yaml`](compose.yaml) | Stack dev (profil `dev`) et prod (profil `prod`) |
+| [`Dockerfile`](Dockerfile) | Image multi-stage : composer → node → PHP/nginx |

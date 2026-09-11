@@ -23,7 +23,7 @@
 | Frontend | Vue 3 + Inertia.js v2 + Tailwind CSS v4 |
 | Routes typées | Wayfinder v0 |
 | Auth | Laravel Fortify v1 |
-| Serveur local | Laravel Herd (`.test`) |
+| Serveur local | Podman Compose (ou Laravel Herd + MySQL) |
 
 ---
 
