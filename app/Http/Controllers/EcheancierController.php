@@ -44,7 +44,7 @@ class EcheancierController extends Controller
     }
 
     /**
-     * Met à jour le texte d'une étape de l'échéancier.
+     * Met à jour les informations d'une étape de l'échéancier.
      *
      * Réservé à l'enseignant du cours et aux admins.
      */
@@ -54,6 +54,7 @@ class EcheancierController extends Controller
         Gate::authorize('update', $cours);
 
         $validated = $request->validate([
+            'semaine' => ['required', 'integer', 'min:1', 'max:15'],
             'etape' => ['required', 'string', 'max:500'],
             'periode' => ['nullable', 'integer', 'in:1,2'],
         ]);

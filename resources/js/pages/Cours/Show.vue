@@ -40,6 +40,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NumberInput } from '@/components/ui/number-input';
 import {
     Select,
     SelectContent,
@@ -274,10 +275,15 @@ function submitAddEtape() {
 }
 
 const editingEtape = ref<EcheancierEtape | null>(null);
-const editEtapeForm = useForm({ etape: '', periode: null as number | null });
+const editEtapeForm = useForm({
+    semaine: 1,
+    etape: '',
+    periode: null as number | null,
+});
 
 function openEditEtape(etape: EcheancierEtape) {
     editingEtape.value = etape;
+    editEtapeForm.semaine = etape.semaine;
     editEtapeForm.etape = etape.etape;
     editEtapeForm.periode = etape.periode ?? null;
 }
@@ -1011,6 +1017,22 @@ function submitTransfert() {
                                                     editingEtape = null
                                                 "
                                             />
+                                            <div class="w-20 shrink-0">
+                                                <Label
+                                                    class="sr-only"
+                                                    for="edit-etape-semaine"
+                                                    >Semaine</Label
+                                                >
+                                                <NumberInput
+                                                    id="edit-etape-semaine"
+                                                    v-model="
+                                                        editEtapeForm.semaine
+                                                    "
+                                                    class="h-7 text-sm"
+                                                    :min="1"
+                                                    :max="15"
+                                                />
+                                            </div>
                                             <select
                                                 v-model="editEtapeForm.periode"
                                                 class="h-7 rounded-md border border-input bg-background px-2 text-xs focus:outline-none"
