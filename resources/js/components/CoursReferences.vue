@@ -2,6 +2,7 @@
 import { useForm } from '@inertiajs/vue3';
 import { Check, ExternalLink, Pencil, Plus, Trash2, X } from 'lucide-vue-next';
 import { ref } from 'vue';
+import ConfirmationModal from '@/components/ConfirmationModal.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -79,24 +80,42 @@ function submitEdit(reference: Reference) {
 
 // ─── Supprimer une référence ──────────────────────────────────────────────────
 const deleteForm = useForm({});
+const referenceASupprimer = ref<Reference | null>(null);
 
 /**
- * Supprime une référence après confirmation.
+ * Ouvre le modal de confirmation de suppression.
  */
-function supprimerReference(reference: Reference) {
-    if (
-        !confirm(`Supprimer la référence « ${reference.nom.slice(0, 60)} » ?`)
-    ) {
+function confirmSupprimerReference(reference: Reference) {
+    referenceASupprimer.value = reference;
+}
+
+/**
+ * Ferme le modal lorsque l'utilisateur annule.
+ */
+function handleDeleteDialogUpdate(isOpen: boolean) {
+    if (!isOpen) {
+        referenceASupprimer.value = null;
+    }
+}
+
+/**
+ * Supprime la référence sélectionnée après confirmation dans le modal.
+ */
+function executeSupprimerReference() {
+    if (!referenceASupprimer.value) {
         return;
     }
 
     deleteForm.delete(
         referencesRoutes.destroy.url({
             cours: props.coursId,
-            reference: reference.id,
+            reference: referenceASupprimer.value.id,
         }),
         {
             preserveScroll: true,
+            onSuccess: () => {
+                referenceASupprimer.value = null;
+            },
         },
     );
 }
@@ -210,7 +229,7 @@ function supprimerReference(reference: Reference) {
                         variant="ghost"
                         class="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                         :disabled="deleteForm.processing"
-                        @click="supprimerReference(reference)"
+                        @click="confirmSupprimerReference(reference)"
                     >
                         <Trash2 class="h-3.5 w-3.5" />
                     </Button>
@@ -284,5 +303,15 @@ function supprimerReference(reference: Reference) {
             <Plus class="mr-2 h-4 w-4" />
             Ajouter une référence
         </Button>
+
+        <ConfirmationModal
+            :open="referenceASupprimer !== null"
+            title="Supprimer la référence ?"
+            :emphasis="referenceASupprimer?.nom ?? ''"
+            description="Cette action ne peut pas être annulée."
+            :loading="deleteForm.processing"
+            @update:open="handleDeleteDialogUpdate"
+            @confirm="executeSupprimerReference"
+        />
     </div>
 </template>

@@ -15,7 +15,7 @@ Checklist pour suivre l'avancement des correctifs. Cocher `- [x]` quand c'est co
 - [x] **Suppression d'un document** — Devrait être un modal plutôt qu'un `alert` *(corrigé : ConfirmationModal comme pour la suppression de classe)*
 - [ ] **Suppression objectif** — Modal au lieu de `alert`
 - [ ] **Ajout de référence biblio** — Doit-on suivre l'APA ? Si oui, le mentionner ou mettre les champs en conséquence
-- [ ] **Suppression de référence** — Modal pls
+- [x] **Suppression de référence** — Modal de confirmation
 - [ ] **Échéancier** — Possibilité de changer la semaine ?
 - [ ] **Planifier / modifier une visioconférence** — Pas de petit calendrier ; difficile d'ajouter une date
 - [x] **Suppression de visioconférence** — Modal pls *(corrigé : ConfirmationModal dans VisioSession.vue)*
