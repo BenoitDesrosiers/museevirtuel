@@ -24,8 +24,13 @@ class EtablissementSeeder extends Seeder
             ]
         );
 
-        // Assigner l'enseignant démo existant au cégep
-        User::where('email', 'prof@demo.com')
+        // Assigner les enseignants démo existants au cégep
+        User::whereIn('email', [
+            'prof@demo.com',
+            'maryse.perron@demo.com',
+            'michel.landry@demo.com',
+            'pierre-olivier.fontaine@demo.com',
+        ])
             ->update(['etablissement_id' => $cegep->id]);
 
         // Créer prof2 s'il n'existe pas encore
