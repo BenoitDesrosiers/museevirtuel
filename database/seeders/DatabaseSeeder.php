@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
         $this->call(MuseeDemoSeeder::class);
         $this->call(DepDemoSeeder::class);
         $this->call(CoursComplementaireDemoSeeder::class);
+        $this->call(EnseignantsTestSeeder::class);
         $this->call(EcheancierEtapesSeeder::class);
         $this->call(EtablissementSeeder::class);
         $this->call(TemoinSeeder::class);
