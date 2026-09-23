@@ -103,6 +103,10 @@ Checklist pour suivre l'avancement des correctifs. Cocher `- [x]` quand c'est co
 
 ---
 
+## Messages de validation dans les critères globaux d'un type de projet
+
+La traduction des messages d'erreur n'est pas implémenté.
+
 ## Statistiques
 
 | Section | Total | Fait |

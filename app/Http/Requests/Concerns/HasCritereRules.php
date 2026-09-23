@@ -19,7 +19,7 @@ trait HasCritereRules
             'type' => ['required', 'string', 'in:positif,negatif'],
             'contenu_type' => ['required', 'string', 'in:texte,echelle'],
             'pointage' => ['required', 'numeric', 'min:0.01', 'max:999.99'],
-            'contenu' => ['nullable', 'string', 'max:10000'],
+            'contenu' => ['required', 'string', 'max:10000'],
             'echelle' => ['nullable', 'array'],
             'echelle.*.label' => ['required_if:contenu_type,echelle', 'string', 'max:255'],
             'echelle.*.points' => [
@@ -56,6 +56,7 @@ trait HasCritereRules
             'pointage.numeric' => 'Le pointage doit être un nombre valide.',
             'pointage.min' => 'Le pointage doit être supérieur à 0.',
             'pointage.max' => 'Le pointage ne peut pas dépasser 999,99.',
+            'contenu.required' => 'La description du critère est obligatoire.',
             'contenu.max' => 'La description ne peut pas dépasser 10 000 caractères.',
             'echelle.array' => "L'échelle doit être une liste de niveaux.",
             'echelle.*.label.required_if' => "L'étiquette de chaque niveau de l'échelle est obligatoire.",

@@ -17,9 +17,9 @@ import { VueDraggable } from 'vue-draggable-plus';
 import { useI18n } from 'vue-i18n';
 import critereRoutes from '@/actions/App/Http/Controllers/TypeProjetCritereController';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
-import { useConfirmDelete } from '@/composables/useConfirmDelete';
 import CritereForm from '@/components/CritereForm.vue';
 import type { Critere } from '@/components/CritereForm.vue';
+import CritereItem from '@/components/CritereItem.vue';
 import CritereTable from '@/components/CritereTable.vue';
 import Heading from '@/components/Heading.vue';
 import InfoTooltip from '@/components/InfoTooltip.vue';
@@ -42,9 +42,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useConfirmDelete } from '@/composables/useConfirmDelete';
 import AppLayout from '@/layouts/AppLayout.vue';
-import museeTemplate from '@/routes/types-projets/musee-template';
 import typesProjets from '@/routes/types-projets';
+import museeTemplate from '@/routes/types-projets/musee-template';
 
 const { t } = useI18n();
 
@@ -130,7 +131,31 @@ let _uidCounter = 0;
 const modesInfoOuvert = ref(false);
 
 /** Bascule l'affichage des critères entre liste et tableau. */
-const vueModeCriteres = ref<'liste' | 'tableau'>('liste');
+function getCookie(name: string): string | null {
+    const cookie = document.cookie
+        .split('; ')
+        .find((value) => value.startsWith(`${name}=`));
+
+    return cookie ? decodeURIComponent(cookie.split('=').slice(1).join('=')) : null;
+}
+
+/** Mode d'affichage préféré des critères, mémorisé dans le navigateur. */
+const vueModeCriteres = ref<'liste' | 'tableau'>(
+    getCookie('type-projet-vue-mode') === 'tableau' ? 'tableau' : 'liste',
+);
+
+/** Filtre local des critères affichés. Tous les critères sont visibles par défaut. */
+const filtreTypeCritere = ref<'tous' | 'positif' | 'negatif'>('tous');
+
+const nombreCriteresParType = computed(() => ({
+    tous: props.criteresGlobaux.length,
+    positif: props.criteresGlobaux.filter(
+        (critere) => critere.type === 'positif',
+    ).length,
+    negatif: props.criteresGlobaux.filter(
+        (critere) => critere.type === 'negatif',
+    ).length,
+}));
 
 /**
  * Convertit une date ISO en format attendu par datetime-local (YYYY-MM-DDTHH:mm).
@@ -244,16 +269,38 @@ function supprimerCritere(critereId: number) {
 }
 
 /**
- * Rend tous les critères d'un type (positif|négatif) visibles d'un seul coup.
+ * Active ou désactive le filtre local des critères.
  */
 function rendreVisibles(type: 'positif' | 'negatif') {
-    router.patch(
-        critereRoutes.toggleVisibleGroupe.url({
-            cours: props.cours.id,
-            typeProjet: props.typeProjet.id,
-        }),
-        { type, visible: true },
-        { preserveScroll: true },
+    filtreTypeCritere.value =
+        filtreTypeCritere.value === type ? 'tous' : type;
+}
+
+/**
+ * Réinitialise le filtre pour afficher tous les critères.
+ */
+function afficherTousLesCriteres() {
+    filtreTypeCritere.value = 'tous';
+}
+
+/**
+ * Change le mode d'affichage et le mémorise pour la prochaine visite.
+ */
+function changerVueMode(mode: 'liste' | 'tableau') {
+    vueModeCriteres.value = mode;
+    document.cookie = `type-projet-vue-mode=${mode}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+}
+
+/**
+ * Retourne les critères correspondant au filtre sélectionné.
+ */
+function criteresFiltres(criteres: Critere[]): Critere[] {
+    if (filtreTypeCritere.value === 'tous') {
+        return criteres;
+    }
+
+    return criteres.filter(
+        (critere) => critere.type === filtreTypeCritere.value,
     );
 }
 
@@ -623,7 +670,7 @@ const totalPointsGlobal = computed(() => {
                                         : 'border-border text-muted-foreground hover:border-muted-foreground/40',
                                 ]"
                                 :title="$t('criteres.vue_liste')"
-                                @click="vueModeCriteres = 'liste'"
+                                @click="changerVueMode('liste')"
                             >
                                 <List class="h-3.5 w-3.5" />
                             </button>
@@ -636,7 +683,7 @@ const totalPointsGlobal = computed(() => {
                                         : 'border-border text-muted-foreground hover:border-muted-foreground/40',
                                 ]"
                                 :title="$t('criteres.vue_tableau')"
-                                @click="vueModeCriteres = 'tableau'"
+                                @click="changerVueMode('tableau')"
                             >
                                 <Table2 class="h-3.5 w-3.5" />
                             </button>
@@ -644,80 +691,74 @@ const totalPointsGlobal = computed(() => {
                                 type="button"
                                 size="sm"
                                 variant="ghost"
-                                class="h-7 px-2 text-xs text-emerald-600 hover:text-emerald-700"
+                                :class="[
+                                    'h-7 px-2 text-xs text-emerald-600 hover:text-emerald-700',
+                                    filtreTypeCritere === 'positif'
+                                        ? 'bg-emerald-100 dark:bg-emerald-950'
+                                        : '',
+                                ]"
                                 @click="rendreVisibles('positif')"
                             >
                                 {{ $t('criteres.btn_visible_positifs') }}
+                                <span class="ml-1 text-[10px] opacity-70">
+                                    ({{ nombreCriteresParType.positif }})
+                                </span>
                             </Button>
                             <Button
                                 type="button"
                                 size="sm"
                                 variant="ghost"
-                                class="h-7 px-2 text-xs text-rose-600 hover:text-rose-700"
+                                :class="[
+                                    'h-7 px-2 text-xs text-rose-600 hover:text-rose-700',
+                                    filtreTypeCritere === 'negatif'
+                                        ? 'bg-rose-100 dark:bg-rose-950'
+                                        : '',
+                                ]"
                                 @click="rendreVisibles('negatif')"
                             >
                                 {{ $t('criteres.btn_visible_negatifs') }}
+                                <span class="ml-1 text-[10px] opacity-70">
+                                    ({{ nombreCriteresParType.negatif }})
+                                </span>
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                :class="[
+                                    'h-7 px-2 text-xs text-muted-foreground hover:text-foreground',
+                                    filtreTypeCritere === 'tous'
+                                        ? 'bg-muted text-foreground'
+                                        : '',
+                                ]"
+                                @click="afficherTousLesCriteres"
+                            >
+                                {{ $t('criteres.btn_visible_tous') }}
+                                <span class="ml-1 text-[10px] opacity-70">
+                                    ({{ nombreCriteresParType.tous }})
+                                </span>
                             </Button>
                         </div>
                     </div>
 
                     <!-- Liste des critères globaux existants (mode liste) -->
                     <div
-                        v-if="criteresGlobaux.length > 0 && vueModeCriteres === 'liste'"
+                        v-if="
+                            criteresFiltres(criteresGlobaux).length > 0 &&
+                            vueModeCriteres === 'liste'
+                        "
                         class="space-y-1.5"
                     >
                         <div
-                            v-for="critere in criteresGlobaux"
+                            v-for="critere in criteresFiltres(criteresGlobaux)"
                             :key="critere.id"
                             class="space-y-1"
                         >
-                            <div
-                                class="flex items-start gap-2 rounded-md border px-3 py-2 text-sm"
-                            >
-                                <span
-                                    :class="[
-                                        'mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-xs font-medium',
-                                        critere.type === 'positif'
-                                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                                            : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300',
-                                    ]"
-                                >
-                                    {{
-                                        critere.type === 'positif'
-                                            ? '+' + critere.pointage
-                                            : '-' + critere.pointage
-                                    }}
-                                </span>
-                                <span class="min-w-0 flex-1 text-xs">
-                                    {{ critere.contenu }}
-                                    <span
-                                        v-if="critere.contenu_type === 'echelle'"
-                                        class="ml-1 text-muted-foreground"
-                                        >(échelle)</span
-                                    >
-                                </span>
-                                <span
-                                    v-if="!critere.visible"
-                                    class="shrink-0 text-xs text-muted-foreground"
-                                    >masqué</span
-                                >
-                                <div class="flex shrink-0 gap-1">
-                                    <button
-                                        type="button"
-                                        class="text-muted-foreground hover:text-foreground"
-                                        @click="ouvrirFormEdition(critere.id)"
-                                    >
-                                        <span class="text-xs">{{ $t('criteres.btn_modifier') }}</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="text-muted-foreground hover:text-destructive"
-                                        @click="supprimerCritere(critere.id)"
-                                    >
-                                        <Trash2 class="h-3.5 w-3.5" />
-                                    </button>
-                                </div>
-                            </div>
+                            <CritereItem
+                                :critere="critere"
+                                @edit="ouvrirFormEdition"
+                                @delete="supprimerCritere"
+                            />
                             <CritereForm
                                 v-if="critereEnEdition === critere.id"
                                 :cours-id="cours.id"
@@ -732,8 +773,11 @@ const totalPointsGlobal = computed(() => {
 
                     <!-- Critères globaux (mode tableau) -->
                     <CritereTable
-                        v-else-if="criteresGlobaux.length > 0 && vueModeCriteres === 'tableau'"
-                        :criteres="criteresGlobaux"
+                        v-else-if="
+                            criteresFiltres(criteresGlobaux).length > 0 &&
+                            vueModeCriteres === 'tableau'
+                        "
+                        :criteres="criteresFiltres(criteresGlobaux)"
                         :cours-id="cours.id"
                         :type-projet-id="typeProjet.id"
                         :section-id="null"
@@ -931,40 +975,20 @@ const totalPointsGlobal = computed(() => {
                                         <!-- Critères existants (mode liste) -->
                                         <div
                                             v-if="
-                                                typeProjet.sections.find((s) => s.id === section.id)?.criteres?.length &&
+                                                criteresFiltres(typeProjet.sections.find((s) => s.id === section.id)?.criteres ?? []).length &&
                                                 vueModeCriteres === 'liste'
                                             "
                                             class="space-y-1"
                                         >
                                             <template
-                                                v-for="critere in typeProjet.sections.find((s) => s.id === section.id)?.criteres"
+                                                v-for="critere in criteresFiltres(typeProjet.sections.find((s) => s.id === section.id)?.criteres ?? [])"
                                                 :key="critere.id"
                                             >
-                                                <div class="flex items-start gap-2 rounded-md border px-3 py-2 text-sm">
-                                                    <span
-                                                        :class="[
-                                                            'mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-xs font-medium',
-                                                            critere.type === 'positif'
-                                                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                                                                : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300',
-                                                        ]"
-                                                    >
-                                                        {{ critere.type === 'positif' ? '+' + critere.pointage : '-' + critere.pointage }}
-                                                    </span>
-                                                    <span class="min-w-0 flex-1 text-xs">
-                                                        {{ critere.contenu }}
-                                                        <span v-if="critere.contenu_type === 'echelle'" class="ml-1 text-muted-foreground">(échelle)</span>
-                                                    </span>
-                                                    <span v-if="!critere.visible" class="shrink-0 text-xs text-muted-foreground">masqué</span>
-                                                    <div class="flex shrink-0 gap-1">
-                                                        <button type="button" class="text-muted-foreground hover:text-foreground" @click="ouvrirFormEdition(critere.id)">
-                                                            <span class="text-xs">{{ $t('criteres.btn_modifier') }}</span>
-                                                        </button>
-                                                        <button type="button" class="text-muted-foreground hover:text-destructive" @click="supprimerCritere(critere.id)">
-                                                            <Trash2 class="h-3.5 w-3.5" />
-                                                        </button>
-                                                    </div>
-                                                </div>
+                                                <CritereItem
+                                                    :critere="critere"
+                                                    @edit="ouvrirFormEdition"
+                                                    @delete="supprimerCritere"
+                                                />
                                                 <CritereForm
                                                     v-if="critereEnEdition === critere.id"
                                                     :cours-id="cours.id"
@@ -980,10 +1004,10 @@ const totalPointsGlobal = computed(() => {
                                         <!-- Critères existants (mode tableau) -->
                                         <CritereTable
                                             v-else-if="
-                                                typeProjet.sections.find((s) => s.id === section.id)?.criteres?.length &&
+                                                criteresFiltres(typeProjet.sections.find((s) => s.id === section.id)?.criteres ?? []).length &&
                                                 vueModeCriteres === 'tableau'
                                             "
-                                            :criteres="typeProjet.sections.find((s) => s.id === section.id)?.criteres ?? []"
+                                            :criteres="criteresFiltres(typeProjet.sections.find((s) => s.id === section.id)?.criteres ?? [])"
                                             :cours-id="cours.id"
                                             :type-projet-id="typeProjet.id"
                                             :section-id="section.id ?? null"
