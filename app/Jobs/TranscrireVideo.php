@@ -83,7 +83,7 @@ class TranscrireVideo implements ShouldQueue
             if (! $whisperDispo) {
                 $this->video->update(['transcription_statut' => GroupeVideo::TRANSCRIPTION_ERREUR]);
                 $this->fail(new RuntimeException(
-                    "Whisper CLI introuvable : {$binary}. Vérifiez WHISPER_BINARY dans .env ou lancez `php artisan whisper:check`."
+                    "Whisper CLI introuvable : {$binary}. Vérifiez WHISPER_BINARY dans ..env ou lancez `php artisan whisper:check`."
                 ));
 
                 return;

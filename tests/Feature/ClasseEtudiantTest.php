@@ -105,7 +105,7 @@ test('destroy retire etudiant de la section', function () {
 test('import ajoute des etudiants depuis csv', function () {
     ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe] = creerContexteClasseEtudiant();
 
-    $csv = "no_da;nom;prenom;statut_cours\n123001;Bouchard;Lea;actif\n123002;Gagne;Noah;inactif\n";
+    $csv = "No de DA;Nom de l'étudiant;Prénom de l'étudiant;Statut du cours\n123001;Bouchard;Lea;actif\n123002;Gagne;Noah;inactif\n";
     $file = UploadedFile::fake()->createWithContent('etudiants.csv', $csv);
 
     $this->actingAs($enseignant)
@@ -116,6 +116,46 @@ test('import ajoute des etudiants depuis csv', function () {
 
     $this->assertDatabaseHas('users', ['no_da' => '123001']);
     $this->assertDatabaseHas('users', ['no_da' => '123002']);
+    $this->assertDatabaseMissing('users', ['no_da' => 'No de DA']);
+});
+
+test('import ajoute dans une classe les etudiants deja inscrits ailleurs depuis un csv sans entete', function () {
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe] = creerContexteClasseEtudiant();
+    $autreClasse = Classe::forceCreate([
+        'cours_id' => $cours->id,
+        'numero' => '00002',
+        'code' => $cours->code,
+        'nom' => 'Classe 00002',
+        'jour_semaine' => 'Mardi',
+        'plage_horaire' => '08:30 - 11:30',
+    ]);
+    $etudiant = User::factory()->create([
+        'role' => 'etudiant',
+        'no_da' => '240101',
+    ]);
+    $autreClasse->etudiants()->attach($etudiant->id);
+
+    $csv = "240101;Tremblay;Alexis;Actif\n240102;Gagnon;Camille;Actif\n";
+    $file = UploadedFile::fake()->createWithContent('etudiants.csv', $csv);
+
+    $this->actingAs($enseignant)
+        ->post("/cours/{$cours->id}/classes/{$classe->id}/etudiants/import", [
+            'csv' => $file,
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('classe_etudiant', [
+        'classe_id' => $classe->id,
+        'user_id' => $etudiant->id,
+        'no_da' => '240101',
+        'statut_cours' => 'Actif',
+    ]);
+    $this->assertDatabaseHas('classe_etudiant', [
+        'classe_id' => $classe->id,
+        'user_id' => User::query()->where('no_da', '240102')->sole()->id,
+        'no_da' => '240102',
+        'statut_cours' => 'Actif',
+    ]);
 });
 
 test('store retourne 403 pour un utilisateur non autorise', function () {

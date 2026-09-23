@@ -52,6 +52,34 @@ test('store cree une section pour le cours', function () {
     ]);
 });
 
+test('store refuse un numero manquant avec message en francais', function () {
+    ['enseignant' => $enseignant, 'cours' => $cours] = creerCoursAvecEnseignant();
+
+    $this->actingAs($enseignant)
+        ->from("/cours/{$cours->id}")
+        ->post("/cours/{$cours->id}/classes", [
+            'nom' => 'Classe sans numéro',
+        ])
+        ->assertSessionHasErrors(['numero'])
+        ->assertSessionHasErrors([
+            'numero' => 'Le numéro de classe est obligatoire.',
+        ]);
+});
+
+test('store refuse un numero qui n a pas 5 chiffres', function () {
+    ['enseignant' => $enseignant, 'cours' => $cours] = creerCoursAvecEnseignant();
+
+    $this->actingAs($enseignant)
+        ->from("/cours/{$cours->id}")
+        ->post("/cours/{$cours->id}/classes", [
+            'numero' => '123',
+        ])
+        ->assertSessionHasErrors(['numero'])
+        ->assertSessionHasErrors([
+            'numero' => 'Les 5 chiffres du groupe doivent être présents.',
+        ]);
+});
+
 test('store refuse un etudiant non autorise', function () {
     ['cours' => $cours] = creerCoursAvecEnseignant();
     $etudiant = User::factory()->create(['role' => 'etudiant']);

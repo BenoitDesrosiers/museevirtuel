@@ -10,6 +10,8 @@ import {
     Video,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import ConfirmationModal from '@/components/ConfirmationModal.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,6 +46,8 @@ const props = defineProps<{
     canStart: boolean;
     estTemoin: boolean;
 }>();
+
+const { t } = useI18n();
 
 const statut = computed(() => {
     if (props.visio.ended_at) {
@@ -157,15 +161,23 @@ function submitEdit() {
 
 // ─── Supprimer ────────────────────────────────────────────────────────────────
 const deleteForm = useForm({});
+const showDeleteModal = ref(false);
 
-function supprimerVisio() {
-    if (!confirm(`Supprimer « ${props.visio.titre} » ?`)) {
-        return;
+function handleDeleteDialogUpdate(isOpen: boolean) {
+    if (!isOpen) {
+        showDeleteModal.value = false;
     }
+}
 
+function executeDeleteVisio() {
     deleteForm.delete(
         `/cours/${props.visio.cours_id}/visio/${props.visio.id}`,
-        { preserveScroll: true },
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                showDeleteModal.value = false;
+            },
+        },
     );
 }
 
@@ -355,7 +367,7 @@ function submitUpload() {
                         variant="ghost"
                         class="h-8 w-8 p-0 text-destructive hover:text-destructive"
                         :disabled="deleteForm.processing"
-                        @click="supprimerVisio"
+                        @click="showDeleteModal = true"
                     >
                         <Trash2 class="h-3.5 w-3.5" />
                     </Button>
@@ -443,6 +455,17 @@ function submitUpload() {
             </form>
         </DialogContent>
     </Dialog>
+
+    <!-- Modal : Confirmer suppression visioconférence -->
+    <ConfirmationModal
+        :open="showDeleteModal"
+        :title="t('cours.show.confirm_delete_visio_title')"
+        :emphasis="visio.titre"
+        :description="t('cours.show.confirm_delete_visio_description')"
+        :loading="deleteForm.processing"
+        @update:open="handleDeleteDialogUpdate"
+        @confirm="executeDeleteVisio"
+    />
 
     <!-- Dialog : Upload enregistrement -->
     <Dialog v-model:open="showUploadDialog">

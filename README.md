@@ -61,7 +61,7 @@ cd muse
 composer install
 
 # 3. Copier le fichier d'environnement
-cp .env.example .env
+cp ..env.example ..env
 
 # 4. Générer la clé d'application
 php artisan key:generate
@@ -95,7 +95,7 @@ git clone <url-du-repo> muse
 cd muse
 
 # 2. Copier l'environnement et configurer pour MySQL (Sail)
-cp .env.example .env
+cp ..env.example ..env
 ```
 
 Modifier `.env` pour utiliser MySQL au lieu de SQLite :
@@ -142,9 +142,9 @@ git clone <url-du-repo> muse
 cd muse
 
 # 2. Copier le fichier d'environnement Docker
-cp .env.docker.example .env
+cp ..env.docker.example ..env
 
-# 3. Remplir les valeurs obligatoires dans .env
+# 3. Remplir les valeurs obligatoires dans ..env
 #    APP_KEY=   → générer avec : php -r "echo 'base64:'.base64_encode(random_bytes(32));"
 #    APP_URL=   → ex: https://muse.exemple.com
 #    DB_PASSWORD=  → mot de passe fort
@@ -193,7 +193,7 @@ DB_PASSWORD=password # mot de passe fort en production
 ```
 
 ```bash
-# Après avoir changé .env, vider le cache de config
+# Après avoir changé ..env, vider le cache de config
 php artisan config:clear
 php artisan migrate
 ```

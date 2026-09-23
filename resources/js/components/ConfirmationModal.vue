@@ -13,7 +13,9 @@ import {
 defineProps<{
     open: boolean;
     title: string;
-    description: string;
+    description?: string;
+    /** Texte mis en avant entre le titre et la description (ex. nom de fichier). */
+    emphasis?: string;
     confirmLabel?: string;
     loading?: boolean;
 }>();
@@ -32,7 +34,16 @@ const emit = defineEmits<{
                     <AlertTriangle class="h-5 w-5 shrink-0 text-destructive" />
                     {{ title }}
                 </DialogTitle>
-                <DialogDescription>
+                <p
+                    v-if="emphasis"
+                    class="break-all text-base font-semibold text-foreground"
+                >
+                    {{ emphasis }}
+                </p>
+                <DialogDescription
+                    v-if="description"
+                    class="whitespace-pre-line"
+                >
                     {{ description }}
                 </DialogDescription>
             </DialogHeader>

@@ -300,12 +300,10 @@ class ClasseController extends Controller
     {
         $this->authorize('update', $cours);
 
-        $validated = $request->validate([
-            'numero' => ['required', 'digits:5', Rule::unique('classes')->where(fn ($q) => $q->where('cours_id', $cours->id))],
-            'nom' => ['nullable', 'string', 'max:100'],
-            'jour_semaine' => ['nullable', 'string', 'max:20'],
-            'plage_horaire' => ['nullable', 'string', 'max:50'],
-        ]);
+        $validated = $request->validate(
+            $this->reglesValidationClasse($cours),
+            $this->messagesValidationClasse(),
+        );
 
         Classe::create(array_merge(
             ['cours_id' => $cours->id, 'code' => $cours->code],
@@ -328,12 +326,10 @@ class ClasseController extends Controller
         abort_if($classe->cours_id !== $cours->id, 404);
         $this->authorize('update', $classe);
 
-        $validated = $request->validate([
-            'numero' => ['required', 'digits:5', Rule::unique('classes')->where(fn ($q) => $q->where('cours_id', $cours->id))->ignore($classe->id)],
-            'nom' => ['nullable', 'string', 'max:100'],
-            'jour_semaine' => ['nullable', 'string', 'max:20'],
-            'plage_horaire' => ['nullable', 'string', 'max:50'],
-        ]);
+        $validated = $request->validate(
+            $this->reglesValidationClasse($cours, $classe),
+            $this->messagesValidationClasse(),
+        );
 
         $classe->update(array_merge($validated, ['code' => $cours->code]));
 
@@ -362,6 +358,41 @@ class ClasseController extends Controller
             $user->role === 'admin' || $cours->enseignant_id === $user->id,
             403,
         );
+    }
+
+    /**
+     * Retourne les règles de validation pour la création ou la mise à jour d'une classe.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function reglesValidationClasse(Cours $cours, ?Classe $classe = null): array
+    {
+        $regleNumero = Rule::unique('classes')->where(fn ($q) => $q->where('cours_id', $cours->id));
+
+        if ($classe !== null) {
+            $regleNumero = $regleNumero->ignore($classe->id);
+        }
+
+        return [
+            'numero' => ['required', 'digits:5', $regleNumero],
+            'nom' => ['nullable', 'string', 'max:100'],
+            'jour_semaine' => ['nullable', 'string', 'max:20'],
+            'plage_horaire' => ['nullable', 'string', 'max:50'],
+        ];
+    }
+
+    /**
+     * Retourne les messages d'erreur de validation en français pour une classe.
+     *
+     * @return array<string, string>
+     */
+    private function messagesValidationClasse(): array
+    {
+        return [
+            'numero.required' => 'Le numéro de classe est obligatoire.',
+            'numero.digits' => 'Les 5 chiffres du groupe doivent être présents.',
+            'numero.unique' => 'Ce numéro de classe est déjà utilisé pour ce cours.',
+        ];
     }
 
     /**

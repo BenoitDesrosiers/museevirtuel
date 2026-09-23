@@ -53,7 +53,7 @@ class WhisperCheck extends Command
             $this->newLine();
             $this->line('Solutions :');
             $this->line('  1. pip install openai-whisper');
-            $this->line('  2. Ajouter WHISPER_BINARY=<chemin complet> dans .env');
+            $this->line('  2. Ajouter WHISPER_BINARY=<chemin complet> dans ..env');
 
             return self::FAILURE;
         }

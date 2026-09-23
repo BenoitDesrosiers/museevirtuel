@@ -4,11 +4,14 @@ namespace App\Http\Requests;
 
 use App\Enums\SessionCours;
 use App\Enums\TypeCours;
+use App\Http\Requests\Concerns\CoursValidationMessages;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreCoursRequest extends FormRequest
 {
+    use CoursValidationMessages;
+
     /**
      * Détermine si l'utilisateur est autorisé à faire cette requête.
      * La vérification de rôle est déjà assurée par le middleware de route.
@@ -36,18 +39,6 @@ class StoreCoursRequest extends FormRequest
             'taille_equipe_min' => ['nullable', 'integer', 'min:1', 'max:20'],
             'taille_equipe_max' => ['nullable', 'integer', 'min:1', 'max:20', 'gte:taille_equipe_min'],
             'utiliser_gabarit' => ['nullable', 'boolean'],
-        ];
-    }
-
-    /**
-     * Retourne les messages d'erreur de validation en français.
-     *
-     * @return array<string, string>
-     */
-    public function messages(): array
-    {
-        return [
-            'type_cours.required' => 'Le niveau du cours est obligatoire.',
         ];
     }
 }
