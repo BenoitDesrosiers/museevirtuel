@@ -4,6 +4,7 @@ namespace App\Actions;
 
 use App\Models\Classe;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ImportEtudiantsAction
 {
@@ -36,8 +37,8 @@ class ImportEtudiantsAction
             foreach ($rows as ['noDa' => $noDa, 'prenom' => $prenom, 'nom' => $nom, 'statut' => $statut]) {
                 $etudiant = $this->createEtudiant->execute($noDa, $prenom, $nom);
 
-                // Ignorer si déjà inscrit dans cette classe ou dans une autre (contrainte unicité)
-                if (! isset($existingUserIds[$etudiant->id]) && ! $etudiant->classesInscrites()->exists()) {
+                // Un étudiant peut être inscrit à plusieurs classes, mais une seule fois dans celle-ci.
+                if (! isset($existingUserIds[$etudiant->id])) {
                     $classe->etudiants()->attach($etudiant->id, [
                         'no_da' => $noDa,
                         'statut_cours' => $statut ?: null,
@@ -77,8 +78,6 @@ class ImportEtudiantsAction
         fwrite($tmp, $content);
         rewind($tmp);
 
-        fgetcsv($tmp, 0, ';'); // ignorer l'entête
-
         $rows = [];
 
         while (($row = fgetcsv($tmp, 0, ';')) !== false) {
@@ -90,6 +89,11 @@ class ImportEtudiantsAction
 
             // Retirer le BOM UTF-8 éventuel sur le premier champ
             $noDa = ltrim(trim($noDa), "\xEF\xBB\xBF");
+
+            if ($this->isHeaderRow($noDa, $nom, $prenom)) {
+                continue;
+            }
+
             $nom = trim($nom);
             $prenom = trim($prenom);
             $statut = trim($statut);
@@ -104,5 +108,26 @@ class ImportEtudiantsAction
         fclose($tmp);
 
         return $rows;
+    }
+
+    /**
+     * Détermine si une ligne contient les intitulés de colonnes plutôt qu'un étudiant.
+     */
+    private function isHeaderRow(string $noDa, string $nom, string $prenom): bool
+    {
+        $normalize = fn (string $value): string => preg_replace(
+            '/[^a-z0-9]/',
+            '',
+            mb_strtolower(Str::ascii($value)),
+        ) ?? '';
+
+        $noDa = $normalize($noDa);
+        $nom = $normalize($nom);
+        $prenom = $normalize($prenom);
+
+        return str_contains($noDa, 'no')
+            && str_contains($noDa, 'da')
+            && str_contains($nom, 'nom')
+            && str_contains($prenom, 'prenom');
     }
 }

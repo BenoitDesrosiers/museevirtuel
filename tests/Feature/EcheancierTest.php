@@ -36,6 +36,26 @@ function creerContexteEcheancier(): array
     return compact('enseignant', 'cours', 'etudiant', 'etape');
 }
 
+// ─── update() ─────────────────────────────────────────────────────────────────
+
+test("l'enseignant peut modifier la semaine d'une étape", function () {
+    $ctx = creerContexteEcheancier();
+
+    $this->actingAs($ctx['enseignant'])
+        ->put("/cours/{$ctx['cours']->id}/echeancier/{$ctx['etape']->id}", [
+            'semaine' => 3,
+            'etape' => 'Lire le chapitre 1',
+            'periode' => 2,
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('echeancier_etapes', [
+        'id' => $ctx['etape']->id,
+        'semaine' => 3,
+        'periode' => 2,
+    ]);
+});
+
 // ─── destroyAll() ─────────────────────────────────────────────────────────────
 
 test('destroyAll() supprime toutes les étapes de la classe', function () {

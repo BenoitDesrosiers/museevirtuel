@@ -2,8 +2,8 @@
 # Usage : docker compose -f docker-compose.prod.yml up -d
 #
 # Avant le premier lancement :
-#   cp .env.docker.example .env
-#   # Remplir APP_KEY, DB_PASSWORD, APP_URL dans .env
+#   cp ..env.docker.example ..env
+#   # Remplir APP_KEY, DB_PASSWORD, APP_URL dans ..env
 #   docker compose -f docker-compose.prod.yml up -d --build
 
 services:

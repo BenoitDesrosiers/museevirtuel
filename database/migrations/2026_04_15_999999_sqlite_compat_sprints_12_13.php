@@ -101,6 +101,12 @@ return new class extends Migration
                 DB::table('classe_etudiant')->where('id', $pivot->id)->update(['classe_id' => $classe->id]);
             }
         });
+
+        // SQLite conserve la référence vers cours après le renommage de la table pivot.
+        Schema::table('classe_etudiant', function (Blueprint $table) {
+            $table->dropForeign(['classe_id']);
+            $table->foreign('classe_id')->references('id')->on('classes')->cascadeOnDelete();
+        });
     }
 
     public function down(): void

@@ -24,6 +24,7 @@ import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { NumberInput } from '@/components/ui/number-input';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -117,18 +118,28 @@ const showCreateCoursDialog = ref(false);
 const showEditCoursDialog = ref(false);
 const editingCoursId = ref<number | null>(null);
 
-const coursForm = useForm({
-    nom_cours: '',
-    description: '',
-    code: '',
-    groupe: '',
-    annee: new Date().getFullYear() as number,
-    session: 'hiver' as 'hiver' | 'ete' | 'automne',
-    type_cours: '' as '' | 'dep' | 'cours_complementaire' | 'cours_complet',
-    taille_equipe_min: null as number | null,
-    taille_equipe_max: null as number | null,
-    utiliser_gabarit: false,
-});
+function getCoursFormDefaults() {
+    return {
+        nom_cours: '',
+        description: '',
+        code: '',
+        groupe: '',
+        annee: new Date().getFullYear() as number,
+        session: 'hiver' as 'hiver' | 'ete' | 'automne',
+        type_cours: '' as '' | 'dep' | 'cours_complementaire' | 'cours_complet',
+        taille_equipe_min: 1 as number,
+        taille_equipe_max: null as number | null,
+        utiliser_gabarit: false,
+    };
+}
+
+const coursForm = useForm(getCoursFormDefaults());
+
+function resetCoursFormForCreate(): void {
+    editingCoursId.value = null;
+    coursForm.defaults(getCoursFormDefaults());
+    coursForm.resetAndClearErrors();
+}
 
 function onTypeCoursCree(val: string) {
     coursForm.type_cours = val as typeof coursForm.type_cours;
@@ -150,30 +161,113 @@ function sessionLabel(session: string): string {
 }
 
 function openCreateCours() {
-    coursForm.reset();
+    showEditCoursDialog.value = false;
+    resetCoursFormForCreate();
     showCreateCoursDialog.value = true;
 }
 
+function validateTailleEquipe(): boolean {
+    const min = coursForm.taille_equipe_min;
+    const max = coursForm.taille_equipe_max;
+
+    if (
+        max === null ||
+        max === undefined ||
+        Number.isNaN(Number(max)) ||
+        min === null ||
+        min === undefined ||
+        Number.isNaN(Number(min))
+    ) {
+        return true;
+    }
+
+    if (max < min) {
+        coursForm.setError(
+            'taille_equipe_max',
+            t('enseignant.index.error_course_team_size_invalid'),
+        );
+
+        return false;
+    }
+
+    return true;
+}
+
 function submitCreateCours() {
+    coursForm.clearErrors();
+    let isValid = true;
+
+    if (!coursForm.code.trim()) {
+        coursForm.setError(
+            'code',
+            t('enseignant.index.error_course_code_required'),
+        );
+        isValid = false;
+    }
+
+    if (!coursForm.groupe.trim()) {
+        coursForm.setError(
+            'groupe',
+            t('enseignant.index.error_course_group_required'),
+        );
+        isValid = false;
+    }
+
+    if (!coursForm.nom_cours.trim()) {
+        coursForm.setError(
+            'nom_cours',
+            t('enseignant.index.error_course_name_required'),
+        );
+        isValid = false;
+    }
+
     if (!coursForm.type_cours) {
         coursForm.setError(
             'type_cours',
             t('enseignant.index.error_course_level_required'),
         );
+        isValid = false;
+    }
 
+    const annee = coursForm.annee;
+    if (
+        annee === null ||
+        annee === undefined ||
+        Number.isNaN(Number(annee))
+    ) {
+        coursForm.setError(
+            'annee',
+            t('enseignant.index.error_course_year_required'),
+        );
+        isValid = false;
+    } else if (annee < 2000 || annee > 2100) {
+        coursForm.setError(
+            'annee',
+            t('enseignant.index.error_course_year_invalid'),
+        );
+        isValid = false;
+    }
+
+    if (!validateTailleEquipe()) {
+        isValid = false;
+    }
+
+    if (!isValid) {
         return;
     }
 
     coursForm.post('/cours', {
         onSuccess: () => {
             showCreateCoursDialog.value = false;
-            coursForm.reset();
+            resetCoursFormForCreate();
         },
     });
 }
 
 function openEditCours(unCours: Cours) {
+    showCreateCoursDialog.value = false;
     editingCoursId.value = unCours.id;
+    coursForm.clearErrors();
     coursForm.nom_cours = unCours.nom_cours;
     coursForm.description = unCours.description ?? '';
     coursForm.code = unCours.code;
@@ -191,9 +285,16 @@ function submitEditCours() {
         return;
     }
 
+    coursForm.clearErrors();
+
+    if (!validateTailleEquipe()) {
+        return;
+    }
+
     coursForm.put(`/cours/${editingCoursId.value}`, {
         onSuccess: () => {
             showEditCoursDialog.value = false;
+            resetCoursFormForCreate();
         },
     });
 }
@@ -964,7 +1065,7 @@ function rejoindreVisio(jitsiRoom: string) {
                                                 .join(', ')
                                         }}
                                     </td>
-                                    <td class="py-3 pr-4 tabular-nums">
+                                    <td class="py-3 pr-4 tabular-nums">+
                                         {{
                                             new Date(
                                                 travail.remis_le,
@@ -1105,7 +1206,7 @@ function rejoindreVisio(jitsiRoom: string) {
             :submit-label="$t('common.add')"
             @submit="submitCreateCours"
         >
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 items-start gap-4">
                 <div class="grid gap-2">
                     <Label for="code">{{
                         $t('enseignant.index.modal_course_code')
@@ -1114,7 +1215,9 @@ function rejoindreVisio(jitsiRoom: string) {
                         id="code"
                         v-model="coursForm.code"
                         :placeholder="
-                            $t('enseignant.index.modal_course_code_placeholder')
+                            $t(
+                                'enseignant.index.modal_course_code_placeholder',
+                            )
                         "
                     />
                     <InputError :message="coursForm.errors.code" />
@@ -1133,7 +1236,7 @@ function rejoindreVisio(jitsiRoom: string) {
                     <InputError :message="coursForm.errors.groupe" />
                 </div>
             </div>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 items-start gap-4">
                 <div class="grid gap-2">
                     <Label>Session</Label>
                     <Select v-model="coursForm.session">
@@ -1150,11 +1253,10 @@ function rejoindreVisio(jitsiRoom: string) {
                 </div>
                 <div class="grid gap-2">
                     <Label>Année</Label>
-                    <Input
-                        v-model.number="coursForm.annee"
-                        type="number"
-                        min="2000"
-                        max="2100"
+                    <NumberInput
+                        v-model="coursForm.annee"
+                        :min="2000"
+                        :max="2100"
                         placeholder="2026"
                     />
                     <InputError :message="coursForm.errors.annee" />
@@ -1260,25 +1362,23 @@ function rejoindreVisio(jitsiRoom: string) {
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 items-start gap-4">
                 <div class="grid gap-2">
                     <Label>Taille équipe min.</Label>
-                    <Input
-                        v-model.number="coursForm.taille_equipe_min"
-                        type="number"
-                        min="1"
-                        max="20"
+                    <NumberInput
+                        v-model="coursForm.taille_equipe_min"
+                        :min="1"
+                        :max="20"
                         placeholder="—"
                     />
                     <InputError :message="coursForm.errors.taille_equipe_min" />
                 </div>
                 <div class="grid gap-2">
                     <Label>Taille équipe max.</Label>
-                    <Input
-                        v-model.number="coursForm.taille_equipe_max"
-                        type="number"
-                        min="1"
-                        max="20"
+                    <NumberInput
+                        v-model="coursForm.taille_equipe_max"
+                        :min="1"
+                        :max="20"
                         placeholder="—"
                     />
                     <InputError :message="coursForm.errors.taille_equipe_max" />
@@ -1293,7 +1393,7 @@ function rejoindreVisio(jitsiRoom: string) {
             :is-loading="coursForm.processing"
             @submit="submitEditCours"
         >
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 items-start gap-4">
                 <div class="grid gap-2">
                     <Label>{{
                         $t('enseignant.index.modal_course_code')
@@ -1301,7 +1401,9 @@ function rejoindreVisio(jitsiRoom: string) {
                     <Input
                         v-model="coursForm.code"
                         :placeholder="
-                            $t('enseignant.index.modal_course_code_placeholder')
+                            $t(
+                                'enseignant.index.modal_course_code_placeholder',
+                            )
                         "
                     />
                     <InputError :message="coursForm.errors.code" />
@@ -1317,7 +1419,7 @@ function rejoindreVisio(jitsiRoom: string) {
                     <InputError :message="coursForm.errors.groupe" />
                 </div>
             </div>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 items-start gap-4">
                 <div class="grid gap-2">
                     <Label>Session</Label>
                     <Select v-model="coursForm.session">
@@ -1334,11 +1436,10 @@ function rejoindreVisio(jitsiRoom: string) {
                 </div>
                 <div class="grid gap-2">
                     <Label>Année</Label>
-                    <Input
-                        v-model.number="coursForm.annee"
-                        type="number"
-                        min="2000"
-                        max="2100"
+                    <NumberInput
+                        v-model="coursForm.annee"
+                        :min="2000"
+                        :max="2100"
                         placeholder="2026"
                     />
                     <InputError :message="coursForm.errors.annee" />
@@ -1382,25 +1483,23 @@ function rejoindreVisio(jitsiRoom: string) {
                 </Select>
                 <InputError :message="coursForm.errors.type_cours" />
             </div>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 items-start gap-4">
                 <div class="grid gap-2">
                     <Label>Taille équipe min.</Label>
-                    <Input
-                        v-model.number="coursForm.taille_equipe_min"
-                        type="number"
-                        min="1"
-                        max="20"
+                    <NumberInput
+                        v-model="coursForm.taille_equipe_min"
+                        :min="1"
+                        :max="20"
                         placeholder="—"
                     />
                     <InputError :message="coursForm.errors.taille_equipe_min" />
                 </div>
                 <div class="grid gap-2">
                     <Label>Taille équipe max.</Label>
-                    <Input
-                        v-model.number="coursForm.taille_equipe_max"
-                        type="number"
-                        min="1"
-                        max="20"
+                    <NumberInput
+                        v-model="coursForm.taille_equipe_max"
+                        :min="1"
+                        :max="20"
                         placeholder="—"
                     />
                     <InputError :message="coursForm.errors.taille_equipe_max" />

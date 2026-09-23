@@ -162,6 +162,9 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
     Route::post('/cours/{cours}/documents', [CoursDocumentController::class, 'store'])
         ->name('cours.documents.store');
 
+    Route::get('/cours/{cours}/documents/{document}/download', [CoursDocumentController::class, 'download'])
+        ->name('cours.documents.download');
+
     Route::delete('/cours/{cours}/documents/{document}', [CoursDocumentController::class, 'destroy'])
         ->name('cours.documents.destroy');
 

@@ -98,6 +98,7 @@ export const vTooltip: Directive<HTMLElement, string> = {
             show(text, e as unknown as MouseEvent),
         );
         target.addEventListener('blur', hide);
+        target.addEventListener('click', hide);
     },
 
     updated(target: HTMLElement, binding: DirectiveBinding<string>) {

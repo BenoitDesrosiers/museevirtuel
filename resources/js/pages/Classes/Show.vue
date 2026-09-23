@@ -18,7 +18,6 @@ import {
     Users,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 import { apercuNotesAccumulees } from '@/actions/App/Http/Controllers/ClasseController';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
 import Heading from '@/components/Heading.vue';
@@ -143,7 +142,6 @@ type Props = {
 };
 
 const props = defineProps<Props>();
-const { t } = useI18n();
 
 const page = usePage();
 
@@ -204,6 +202,7 @@ const showAddEtudiantDialog = ref(false);
 const showEditEtudiantDialog = ref(false);
 const showImportDialog = ref(false);
 const editingEtudiantId = ref<number | null>(null);
+const etudiantASupprimer = ref<Etudiant | null>(null);
 
 const addEtudiantForm = useForm({
     prenom: '',
@@ -269,20 +268,22 @@ function submitEditEtudiant(): void {
     );
 }
 
-function removeEtudiant(etudiant: Etudiant): void {
-    if (
-        !confirm(
-            t('classes.show.confirm_remove_student', {
-                prenom: etudiant.prenom,
-                nom: etudiant.nom,
-            }),
-        )
-    ) {
+function confirmRemoveEtudiant(etudiant: Etudiant): void {
+    etudiantASupprimer.value = etudiant;
+}
+
+function executeRemoveEtudiant(): void {
+    if (!etudiantASupprimer.value) {
         return;
     }
 
     deleteEtudiantForm.delete(
-        `/cours/${props.cours.id}/classes/${props.classe.id}/etudiants/${etudiant.id}`,
+        `/cours/${props.cours.id}/classes/${props.classe.id}/etudiants/${etudiantASupprimer.value.id}`,
+        {
+            onSuccess: () => {
+                etudiantASupprimer.value = null;
+            },
+        },
     );
 }
 
@@ -304,6 +305,10 @@ function submitImportEtudiant(): void {
             },
         },
     );
+}
+
+function preventImportTriggerFocus(event: Event): void {
+    event.preventDefault();
 }
 
 // ─── Supprimer un groupe ───────────────────────────────────────────────────────
@@ -481,7 +486,9 @@ function executeDeleteGroupe() {
 
             <!-- Pas encore de groupe — étudiant seulement -->
             <Card v-if="!estEnseignant && !monGroupe">
-                <CardContent class="flex flex-col items-center gap-3 py-8 text-center">
+                <CardContent
+                    class="flex flex-col items-center gap-3 py-8 text-center"
+                >
                     <p class="text-sm text-muted-foreground">
                         {{ $t('classes.show.no_group_yet') }}
                     </p>
@@ -787,7 +794,9 @@ function executeDeleteGroupe() {
                                                 size="sm"
                                                 variant="destructive"
                                                 @click="
-                                                    removeEtudiant(etudiant)
+                                                    confirmRemoveEtudiant(
+                                                        etudiant,
+                                                    )
                                                 "
                                             >
                                                 <Trash2 class="h-4 w-4" />
@@ -1051,6 +1060,23 @@ function executeDeleteGroupe() {
             @confirm="executeDeleteGroupe"
         />
 
+        <ConfirmationModal
+            :open="etudiantASupprimer !== null"
+            :title="
+                $t('classes.show.confirm_remove_student', {
+                    prenom: etudiantASupprimer?.prenom ?? '',
+                    nom: etudiantASupprimer?.nom ?? '',
+                })
+            "
+            :loading="deleteEtudiantForm.processing"
+            @update:open="
+                (v) => {
+                    if (!v) etudiantASupprimer = null;
+                }
+            "
+            @confirm="executeRemoveEtudiant"
+        />
+
         <Dialog v-model:open="showAddEtudiantDialog">
             <DialogContent>
                 <DialogHeader>
@@ -1194,7 +1220,7 @@ function executeDeleteGroupe() {
         </Dialog>
 
         <Dialog v-model:open="showImportDialog">
-            <DialogContent>
+            <DialogContent @close-auto-focus="preventImportTriggerFocus">
                 <DialogHeader>
                     <DialogTitle>{{
                         $t('classes.show.modal_import_csv')
