@@ -13,10 +13,10 @@ Checklist pour suivre l'avancement des correctifs. Cocher `- [x]` quand c'est co
 - [x] **Ajout de document** — Message de rétroaction en anglais : *The document field must be a file of type: pdf, doc, docx.* *(corrigé : messages FR via __() dans CoursDocumentController)*
 - [x] **Section documents** — Le nom du document téléchargé n'est pas le même que le nom du document original *(corrigé : route download avec nom_original, UUID conservé sur disque)*
 - [x] **Suppression d'un document** — Devrait être un modal plutôt qu'un `alert` *(corrigé : ConfirmationModal comme pour la suppression de classe)*
-- [ ] **Suppression objectif** — Modal au lieu de `alert`
+- [x] **Suppression objectif** — Modal au lieu de `alert`
 - [ ] **Ajout de référence biblio** — Doit-on suivre l'APA ? Si oui, le mentionner ou mettre les champs en conséquence
 - [x] **Suppression de référence** — Modal de confirmation
-- [ ] **Échéancier** — Possibilité de changer la semaine ?
+- [x] **Échéancier** — Possibilité de changer la semaine ?
 - [ ] **Planifier / modifier une visioconférence** — Pas de petit calendrier ; difficile d'ajouter une date
 - [x] **Suppression de visioconférence** — Modal pls *(corrigé : ConfirmationModal dans VisioSession.vue)*
 - [ ] **Nom de classe** — Le nom d'une classe n'est pas le même que dans la barre verticale à gauche
@@ -102,6 +102,10 @@ Checklist pour suivre l'avancement des correctifs. Cocher `- [x]` quand c'est co
 - [ ] **Terminologie** — Changer le terme « template » pour « gabarit »
 
 ---
+
+## Messages de validation dans les critères globaux d'un type de projet
+
+La traduction des messages d'erreur n'est pas implémenté.
 
 ## Statistiques
 
