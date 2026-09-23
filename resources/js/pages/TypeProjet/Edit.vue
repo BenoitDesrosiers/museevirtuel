@@ -17,7 +17,6 @@ import { VueDraggable } from 'vue-draggable-plus';
 import { useI18n } from 'vue-i18n';
 import critereRoutes from '@/actions/App/Http/Controllers/TypeProjetCritereController';
 import ConfirmationModal from '@/components/ConfirmationModal.vue';
-import { useConfirmDelete } from '@/composables/useConfirmDelete';
 import CritereForm from '@/components/CritereForm.vue';
 import type { Critere } from '@/components/CritereForm.vue';
 import CritereTable from '@/components/CritereTable.vue';
@@ -42,9 +41,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useConfirmDelete } from '@/composables/useConfirmDelete';
 import AppLayout from '@/layouts/AppLayout.vue';
-import museeTemplate from '@/routes/types-projets/musee-template';
 import typesProjets from '@/routes/types-projets';
+import museeTemplate from '@/routes/types-projets/musee-template';
 
 const { t } = useI18n();
 
@@ -81,6 +81,8 @@ type TypeProjet = {
     aide_reference: boolean;
     ponderation: number | null;
     is_sommatif: boolean;
+    has_introduction: boolean | null;
+    has_conclusion_individuelle: boolean | null;
     sections: Section[];
 };
 
@@ -137,25 +139,39 @@ const vueModeCriteres = ref<'liste' | 'tableau'>('liste');
  */
 function toDatetimeLocal(iso: string | null | undefined): string {
     if (!iso) {
-        return '';
+        return defaultDateRemise();
     }
 
     return iso.slice(0, 16);
+}
+
+/**
+ * Retourne une échéance locale par défaut à demain pour le champ datetime-local.
+ */
+function defaultDateRemise(): string {
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+
+    const pad = (value: number): string => String(value).padStart(2, '0');
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 const form = useForm({
     nom: props.typeProjet.nom,
     description: props.typeProjet.description ?? '',
     date_remise: toDatetimeLocal(props.typeProjet.date_remise),
-    remises_multiples: props.typeProjet.remises_multiples,
-    retard_permis: props.typeProjet.retard_permis,
-    generer_page_titre: props.typeProjet.generer_page_titre,
-    generer_table_matieres: props.typeProjet.generer_table_matieres,
-    aide_reference: props.typeProjet.aide_reference,
-    has_introduction: props.typeProjet.has_introduction,
-    has_conclusion_individuelle: props.typeProjet.has_conclusion_individuelle,
+    remises_multiples: Boolean(props.typeProjet.remises_multiples),
+    retard_permis: Boolean(props.typeProjet.retard_permis),
+    generer_page_titre: Boolean(props.typeProjet.generer_page_titre),
+    generer_table_matieres: Boolean(props.typeProjet.generer_table_matieres),
+    aide_reference: Boolean(props.typeProjet.aide_reference),
+    has_introduction: Boolean(props.typeProjet.has_introduction),
+    has_conclusion_individuelle: Boolean(
+        props.typeProjet.has_conclusion_individuelle,
+    ),
     ponderation: props.typeProjet.ponderation,
-    is_sommatif: props.typeProjet.is_sommatif,
+    is_sommatif: Boolean(props.typeProjet.is_sommatif),
     sections: props.typeProjet.sections.map<SectionFormItem>((s) => ({
         _uid: ++_uidCounter,
         id: s.id,
@@ -179,8 +195,12 @@ function ajouterSection() {
 
 // ─── Confirmation avant suppression ───────────────────────────────────────────
 
-const { pendingDelete, pendingDeleteEnCours, demanderSupprimer, confirmerSupprimer } =
-    useConfirmDelete();
+const {
+    pendingDelete,
+    pendingDeleteEnCours,
+    demanderSupprimer,
+    confirmerSupprimer,
+} = useConfirmDelete();
 
 /**
  * Supprime la section à l'index donné (après confirmation).
@@ -203,6 +223,28 @@ function sauvegarder() {
             typeProjet: props.typeProjet.id,
         }),
         {
+            transform: (data: {
+                remises_multiples: boolean;
+                retard_permis: boolean;
+                generer_page_titre: boolean;
+                generer_table_matieres: boolean;
+                aide_reference: boolean;
+                has_introduction: boolean;
+                has_conclusion_individuelle: boolean;
+                is_sommatif: boolean;
+            }) => ({
+                ...data,
+                remises_multiples: Boolean(data.remises_multiples),
+                retard_permis: Boolean(data.retard_permis),
+                generer_page_titre: Boolean(data.generer_page_titre),
+                generer_table_matieres: Boolean(data.generer_table_matieres),
+                aide_reference: Boolean(data.aide_reference),
+                has_introduction: Boolean(data.has_introduction),
+                has_conclusion_individuelle: Boolean(
+                    data.has_conclusion_individuelle,
+                ),
+                is_sommatif: Boolean(data.is_sommatif),
+            }),
             onSuccess: () => {
                 // Reste sur la page — le flash success s'affiche via Inertia
             },
@@ -324,7 +366,12 @@ const totalPointsGlobal = computed(() => {
                     <Heading :title="$t('types_projet.edit.heading_title')" />
                     <Link
                         v-if="typeProjet.type === 'musee'"
-                        :href="museeTemplate.edit.url({ cours: cours.id, typeProjet: typeProjet.id })"
+                        :href="
+                            museeTemplate.edit.url({
+                                cours: cours.id,
+                                typeProjet: typeProjet.id,
+                            })
+                        "
                         class="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-muted-foreground/40 hover:text-foreground"
                     >
                         <Palette class="h-3.5 w-3.5" />
@@ -381,7 +428,7 @@ const totalPointsGlobal = computed(() => {
                     <div class="flex items-center gap-3">
                         <Checkbox
                             id="remises_multiples"
-                            v-model:checked="form.remises_multiples"
+                            v-model="form.remises_multiples"
                         />
                         <div class="grid gap-0.5">
                             <Label
@@ -406,7 +453,7 @@ const totalPointsGlobal = computed(() => {
                     <div class="flex items-center gap-3">
                         <Checkbox
                             id="retard_permis"
-                            v-model:checked="form.retard_permis"
+                            v-model="form.retard_permis"
                         />
                         <div class="grid gap-0.5">
                             <Label for="retard_permis" class="cursor-pointer">{{
@@ -427,7 +474,7 @@ const totalPointsGlobal = computed(() => {
                     <div class="flex items-start gap-3">
                         <Checkbox
                             id="generer_page_titre"
-                            v-model:checked="form.generer_page_titre"
+                            v-model="form.generer_page_titre"
                         />
                         <div class="grid gap-0.5">
                             <Label
@@ -452,7 +499,7 @@ const totalPointsGlobal = computed(() => {
                     <div class="flex items-start gap-3">
                         <Checkbox
                             id="generer_table_matieres"
-                            v-model:checked="form.generer_table_matieres"
+                            v-model="form.generer_table_matieres"
                         />
                         <div class="grid gap-0.5">
                             <Label
@@ -477,7 +524,7 @@ const totalPointsGlobal = computed(() => {
                     <div class="flex items-start gap-3">
                         <Checkbox
                             id="aide_reference"
-                            v-model:checked="form.aide_reference"
+                            v-model="form.aide_reference"
                         />
                         <div class="grid gap-0.5">
                             <Label
@@ -506,7 +553,7 @@ const totalPointsGlobal = computed(() => {
                     <div class="flex items-start gap-3">
                         <Checkbox
                             id="has_introduction"
-                            v-model:checked="form.has_introduction"
+                            v-model="form.has_introduction"
                         />
                         <div class="grid gap-0.5">
                             <Label
@@ -531,7 +578,7 @@ const totalPointsGlobal = computed(() => {
                     <div class="flex items-start gap-3">
                         <Checkbox
                             id="has_conclusion_individuelle"
-                            v-model:checked="form.has_conclusion_individuelle"
+                            v-model="form.has_conclusion_individuelle"
                         />
                         <div class="grid gap-0.5">
                             <Label
@@ -562,12 +609,19 @@ const totalPointsGlobal = computed(() => {
 
                     <div class="grid gap-2">
                         <div class="flex items-center gap-1">
-                            <Label for="ponderation">{{ $t('types_projet.edit.label_ponderation') }}</Label>
-                            <InfoTooltip :texte="$t('types_projet.edit.tooltip_ponderation')" content-class="max-w-72" />
+                            <Label for="ponderation">{{
+                                $t('types_projet.edit.label_ponderation')
+                            }}</Label>
+                            <InfoTooltip
+                                :texte="
+                                    $t('types_projet.edit.tooltip_ponderation')
+                                "
+                                content-class="max-w-72"
+                            />
                         </div>
                         <Input
                             id="ponderation"
-                            v-model.number="form.ponderation"
+                            v-model.number=form.ponderation
                             type="number"
                             min="0"
                             max="100"
@@ -583,7 +637,7 @@ const totalPointsGlobal = computed(() => {
                     <div class="flex items-center gap-3">
                         <Checkbox
                             id="is_sommatif"
-                            v-model:checked="form.is_sommatif"
+                            v-model="form.is_sommatif"
                         />
                         <div class="grid gap-0.5">
                             <Label for="is_sommatif" class="cursor-pointer"
@@ -608,7 +662,9 @@ const totalPointsGlobal = computed(() => {
                                 {{ $t('criteres.titre_global') }}
                             </h2>
                             <InfoTooltip
-                                :texte="$t('criteres.tooltip_global_vs_section')"
+                                :texte="
+                                    $t('criteres.tooltip_global_vs_section')
+                                "
                                 content-class="max-w-72"
                                 icon-class="h-3.5 w-3.5"
                             />
@@ -663,7 +719,10 @@ const totalPointsGlobal = computed(() => {
 
                     <!-- Liste des critères globaux existants (mode liste) -->
                     <div
-                        v-if="criteresGlobaux.length > 0 && vueModeCriteres === 'liste'"
+                        v-if="
+                            criteresGlobaux.length > 0 &&
+                            vueModeCriteres === 'liste'
+                        "
                         class="space-y-1.5"
                     >
                         <div
@@ -691,7 +750,9 @@ const totalPointsGlobal = computed(() => {
                                 <span class="min-w-0 flex-1 text-xs">
                                     {{ critere.contenu }}
                                     <span
-                                        v-if="critere.contenu_type === 'echelle'"
+                                        v-if="
+                                            critere.contenu_type === 'echelle'
+                                        "
                                         class="ml-1 text-muted-foreground"
                                         >(échelle)</span
                                     >
@@ -707,7 +768,9 @@ const totalPointsGlobal = computed(() => {
                                         class="text-muted-foreground hover:text-foreground"
                                         @click="ouvrirFormEdition(critere.id)"
                                     >
-                                        <span class="text-xs">{{ $t('criteres.btn_modifier') }}</span>
+                                        <span class="text-xs">{{
+                                            $t('criteres.btn_modifier')
+                                        }}</span>
                                     </button>
                                     <button
                                         type="button"
@@ -732,7 +795,10 @@ const totalPointsGlobal = computed(() => {
 
                     <!-- Critères globaux (mode tableau) -->
                     <CritereTable
-                        v-else-if="criteresGlobaux.length > 0 && vueModeCriteres === 'tableau'"
+                        v-else-if="
+                            criteresGlobaux.length > 0 &&
+                            vueModeCriteres === 'tableau'
+                        "
                         :criteres="criteresGlobaux"
                         :cours-id="cours.id"
                         :type-projet-id="typeProjet.id"
@@ -854,8 +920,14 @@ const totalPointsGlobal = computed(() => {
                             <!-- Sélecteur de type -->
                             <div class="ml-11">
                                 <div class="mb-2 flex items-center gap-1">
-                                    <p class="text-xs font-medium text-muted-foreground">
-                                        {{ $t('types_projet.edit.input_mode_label') }}
+                                    <p
+                                        class="text-xs font-medium text-muted-foreground"
+                                    >
+                                        {{
+                                            $t(
+                                                'types_projet.edit.input_mode_label',
+                                            )
+                                        }}
                                     </p>
                                     <button
                                         type="button"
@@ -918,8 +990,13 @@ const totalPointsGlobal = computed(() => {
                                                     )?.criteres?.length
                                                 }}
                                             </span>
-                                            <span class="text-[10px] font-normal text-muted-foreground group-hover:text-primary/70">
-                                                — {{ $t('criteres.trigger_hint') }}
+                                            <span
+                                                class="text-[10px] font-normal text-muted-foreground group-hover:text-primary/70"
+                                            >
+                                                —
+                                                {{
+                                                    $t('criteres.trigger_hint')
+                                                }}
                                             </span>
                                         </span>
                                         <ChevronDown
@@ -931,45 +1008,106 @@ const totalPointsGlobal = computed(() => {
                                         <!-- Critères existants (mode liste) -->
                                         <div
                                             v-if="
-                                                typeProjet.sections.find((s) => s.id === section.id)?.criteres?.length &&
+                                                typeProjet.sections.find(
+                                                    (s) => s.id === section.id,
+                                                )?.criteres?.length &&
                                                 vueModeCriteres === 'liste'
                                             "
                                             class="space-y-1"
                                         >
                                             <template
-                                                v-for="critere in typeProjet.sections.find((s) => s.id === section.id)?.criteres"
+                                                v-for="critere in typeProjet.sections.find(
+                                                    (s) => s.id === section.id,
+                                                )?.criteres"
                                                 :key="critere.id"
                                             >
-                                                <div class="flex items-start gap-2 rounded-md border px-3 py-2 text-sm">
+                                                <div
+                                                    class="flex items-start gap-2 rounded-md border px-3 py-2 text-sm"
+                                                >
                                                     <span
                                                         :class="[
                                                             'mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-xs font-medium',
-                                                            critere.type === 'positif'
+                                                            critere.type ===
+                                                            'positif'
                                                                 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
                                                                 : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300',
                                                         ]"
                                                     >
-                                                        {{ critere.type === 'positif' ? '+' + critere.pointage : '-' + critere.pointage }}
+                                                        {{
+                                                            critere.type ===
+                                                            'positif'
+                                                                ? '+' +
+                                                                  critere.pointage
+                                                                : '-' +
+                                                                  critere.pointage
+                                                        }}
                                                     </span>
-                                                    <span class="min-w-0 flex-1 text-xs">
+                                                    <span
+                                                        class="min-w-0 flex-1 text-xs"
+                                                    >
                                                         {{ critere.contenu }}
-                                                        <span v-if="critere.contenu_type === 'echelle'" class="ml-1 text-muted-foreground">(échelle)</span>
+                                                        <span
+                                                            v-if="
+                                                                critere.contenu_type ===
+                                                                'echelle'
+                                                            "
+                                                            class="ml-1 text-muted-foreground"
+                                                            >(échelle)</span
+                                                        >
                                                     </span>
-                                                    <span v-if="!critere.visible" class="shrink-0 text-xs text-muted-foreground">masqué</span>
-                                                    <div class="flex shrink-0 gap-1">
-                                                        <button type="button" class="text-muted-foreground hover:text-foreground" @click="ouvrirFormEdition(critere.id)">
-                                                            <span class="text-xs">{{ $t('criteres.btn_modifier') }}</span>
+                                                    <span
+                                                        v-if="!critere.visible"
+                                                        class="shrink-0 text-xs text-muted-foreground"
+                                                        >masqué</span
+                                                    >
+                                                    <div
+                                                        class="flex shrink-0 gap-1"
+                                                    >
+                                                        <button
+                                                            type="button"
+                                                            class="text-muted-foreground hover:text-foreground"
+                                                            @click="
+                                                                ouvrirFormEdition(
+                                                                    critere.id,
+                                                                )
+                                                            "
+                                                        >
+                                                            <span
+                                                                class="text-xs"
+                                                                >{{
+                                                                    $t(
+                                                                        'criteres.btn_modifier',
+                                                                    )
+                                                                }}</span
+                                                            >
                                                         </button>
-                                                        <button type="button" class="text-muted-foreground hover:text-destructive" @click="supprimerCritere(critere.id)">
-                                                            <Trash2 class="h-3.5 w-3.5" />
+                                                        <button
+                                                            type="button"
+                                                            class="text-muted-foreground hover:text-destructive"
+                                                            @click="
+                                                                supprimerCritere(
+                                                                    critere.id,
+                                                                )
+                                                            "
+                                                        >
+                                                            <Trash2
+                                                                class="h-3.5 w-3.5"
+                                                            />
                                                         </button>
                                                     </div>
                                                 </div>
                                                 <CritereForm
-                                                    v-if="critereEnEdition === critere.id"
+                                                    v-if="
+                                                        critereEnEdition ===
+                                                        critere.id
+                                                    "
                                                     :cours-id="cours.id"
-                                                    :type-projet-id="typeProjet.id"
-                                                    :section-id="section.id ?? null"
+                                                    :type-projet-id="
+                                                        typeProjet.id
+                                                    "
+                                                    :section-id="
+                                                        section.id ?? null
+                                                    "
                                                     :critere="critere"
                                                     @saved="fermerForms"
                                                     @cancelled="fermerForms"
@@ -980,14 +1118,22 @@ const totalPointsGlobal = computed(() => {
                                         <!-- Critères existants (mode tableau) -->
                                         <CritereTable
                                             v-else-if="
-                                                typeProjet.sections.find((s) => s.id === section.id)?.criteres?.length &&
+                                                typeProjet.sections.find(
+                                                    (s) => s.id === section.id,
+                                                )?.criteres?.length &&
                                                 vueModeCriteres === 'tableau'
                                             "
-                                            :criteres="typeProjet.sections.find((s) => s.id === section.id)?.criteres ?? []"
+                                            :criteres="
+                                                typeProjet.sections.find(
+                                                    (s) => s.id === section.id,
+                                                )?.criteres ?? []
+                                            "
                                             :cours-id="cours.id"
                                             :type-projet-id="typeProjet.id"
                                             :section-id="section.id ?? null"
-                                            :critere-en-edition="critereEnEdition"
+                                            :critere-en-edition="
+                                                critereEnEdition
+                                            "
                                             @edit="ouvrirFormEdition"
                                             @delete="supprimerCritere"
                                             @close="fermerForms"
@@ -1048,12 +1194,13 @@ const totalPointsGlobal = computed(() => {
                     {{ $t('types_projet.edit.add_section') }}
                 </Button>
             </div>
-
         </div>
 
         <!-- Barre fixe : total des critères + bouton Enregistrer -->
         <div class="sticky bottom-0 z-10 border-t bg-background">
-            <div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-3">
+            <div
+                class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-3"
+            >
                 <p
                     :class="[
                         'text-sm font-medium tabular-nums',
@@ -1084,7 +1231,11 @@ const totalPointsGlobal = computed(() => {
             :description="pendingDelete?.description ?? ''"
             confirm-label="Oui, supprimer"
             :loading="pendingDeleteEnCours"
-            @update:open="(v) => { if (!v) pendingDelete = null; }"
+            @update:open="
+                (v) => {
+                    if (!v) pendingDelete = null;
+                }
+            "
             @confirm="confirmerSupprimer"
         />
 
@@ -1092,19 +1243,37 @@ const totalPointsGlobal = computed(() => {
         <Dialog v-model:open="modesInfoOuvert">
             <DialogContent class="max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>{{ $t('types_projet.edit.modes_info_title') }}</DialogTitle>
-                    <DialogDescription>{{ $t('types_projet.edit.modes_info_subtitle') }}</DialogDescription>
+                    <DialogTitle>{{
+                        $t('types_projet.edit.modes_info_title')
+                    }}</DialogTitle>
+                    <DialogDescription>{{
+                        $t('types_projet.edit.modes_info_subtitle')
+                    }}</DialogDescription>
                 </DialogHeader>
                 <div class="space-y-4 pt-2 text-sm">
-                    <div v-for="mode in sectionTypes" :key="mode.value" class="flex gap-3">
-                        <span class="mt-0.5 shrink-0 rounded border px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                    <div
+                        v-for="mode in sectionTypes"
+                        :key="mode.value"
+                        class="flex gap-3"
+                    >
+                        <span
+                            class="mt-0.5 shrink-0 rounded border px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                        >
                             {{ mode.label }}
                         </span>
                         <div>
                             <p class="font-medium">{{ mode.label }}</p>
-                            <p class="text-muted-foreground">{{ mode.description }}</p>
-                            <p class="mt-0.5 text-xs text-muted-foreground/70 italic">
-                                {{ $t(`types_projet.edit.modes_info_exemple_${mode.value}`) }}
+                            <p class="text-muted-foreground">
+                                {{ mode.description }}
+                            </p>
+                            <p
+                                class="mt-0.5 text-xs text-muted-foreground/70 italic"
+                            >
+                                {{
+                                    $t(
+                                        `types_projet.edit.modes_info_exemple_${mode.value}`,
+                                    )
+                                }}
                             </p>
                         </div>
                     </div>
