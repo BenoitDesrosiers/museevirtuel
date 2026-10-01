@@ -78,9 +78,9 @@ class TypeProjetController extends Controller
 
         $data = $request->validate([
             'nom' => ['required', 'string', 'max:150'],
-            'type' => ['nullable', 'string', 'in:standard,musee'],
+            'type' => ['required', 'string', 'in:standard,musee'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'date_remise' => ['nullable', 'date'],
+            'date_remise' => ['nullable', 'date_format:Y-m-d\TH:i'],
             'remises_multiples' => ['boolean'],
             'retard_permis' => ['boolean'],
             'generer_page_titre' => ['boolean'],
@@ -170,7 +170,7 @@ class TypeProjetController extends Controller
         $data = $request->validate([
             'nom' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'date_remise' => ['nullable', 'date'],
+            'date_remise' => ['nullable', 'date_format:Y-m-d\TH:i'],
             'remises_multiples' => ['boolean'],
             'retard_permis' => ['boolean'],
             'generer_page_titre' => ['boolean'],
@@ -242,7 +242,8 @@ class TypeProjetController extends Controller
             }
         }
 
-        return back()->with('success', 'Type de projet mis à jour.');
+        return redirect()->route('types-projets.index', $cours)
+            ->with('success', 'Type de projet mis à jour.');
     }
 
     /**
