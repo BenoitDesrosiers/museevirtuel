@@ -199,7 +199,7 @@ function supprimer(tp: TypeProjet) {
                                                   typeProjet: tp.id,
                                               })
                                     "
-                                    target="_blank"
+                                    target="_self"
                                     rel="noopener noreferrer"
                                 >
                                     <Pencil class="h-4 w-4" />
