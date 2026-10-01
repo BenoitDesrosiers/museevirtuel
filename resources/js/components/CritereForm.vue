@@ -13,12 +13,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
+
 export type Critere = {
     id: number;
     type: 'positif' | 'negatif';
     contenu_type: 'texte' | 'echelle';
     pointage: number;
-    contenu: string | null;
+    contenu: string;
     note: string | null;
     echelle: EchelleNiveau[] | null;
     visible: boolean;
@@ -223,10 +224,13 @@ function submit() {
             <InfoTooltip :texte="t('criteres.tooltip_visible')" />
         </div>
 
-        <!-- ─── Contenu texte ────────────────────────────────────────────── -->
-        <div v-if="!montrerEchelle" class="grid gap-1">
-            <Label class="text-xs">{{ t('criteres.label_contenu') }}</Label>
-            <Textarea v-model="form.contenu" rows="2" class="text-sm" />
+        <!-- ─── Description du critère ──────────────────────────────────── -->
+        <div class="grid gap-1">
+            <Label class="text-xs">
+                {{ t('criteres.label_contenu') }}
+                <span class="text-destructive">*</span>
+            </Label>
+            <Textarea v-model="form.contenu" rows="2" class="text-sm"/>
             <InputError :message="form.errors.contenu" />
         </div>
 
