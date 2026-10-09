@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Classe;
 
 use App\Actions\CreateEtudiantAction;
 use App\Actions\ImportEtudiantsAction;
 use App\Enums\StatutEtudiantCours;
+use App\Http\Controllers\Controller;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\User;

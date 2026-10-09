@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Groupe;
 
 use App\Concerns\ValidatesGroupeChain;
+use App\Http\Controllers\Controller;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;

@@ -4,11 +4,14 @@ import { ArrowLeft, Copy } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import Heading from '@/components/shared/Heading.vue';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 type Ligne = {
     da: string;
-    note: string | null;
+    nom: string;
+    prenom: string;
+    note: number | string | null;
 };
 
 type Props = {
@@ -42,32 +45,79 @@ async function copierTexte(): Promise<void> {
         copie.value = false;
     }, 2000);
 }
+
+/**
+ * Formate une note pour garder un affichage numérique uniforme dans le tableau.
+ */
+function formaterNote(note: number | string | null): string {
+    if (note === null || note === '') {
+        return '—';
+    }
+
+    const valeur = Number(note);
+
+    return Number.isFinite(valeur) ? valeur.toFixed(2) : String(note);
+}
 </script>
 
 <template>
     <AppLayout>
         <Head :title="`Aperçu notes — ${typeProjet.nom}`" />
 
-        <div class="mx-auto max-w-xl space-y-6 px-4 py-8">
-            <div class="flex items-center gap-3">
-                <Button variant="ghost" size="icon" as-child>
-                    <Link :href="retourUrl">
-                        <ArrowLeft class="h-4 w-4" />
-                    </Link>
-                </Button>
-                <Heading
-                    :title="`Aperçu notes — ${typeProjet.nom}`"
-                    :description="`${titreClasse} · ${cours.nom_cours} · ${lignes.length} étudiant(s)`"
-                />
-            </div>
+        <div class="flex gap-3 mt-2 space-y-2 px-2">
+            <Button variant="ghost" size="icon" as-child>
+                <Link :href="retourUrl">
+                    <ArrowLeft class="h-4 w-4"/>
+                </Link>
+            </Button>
+            <Heading
+                :title="`Aperçu notes — ${typeProjet.nom}`"
+                :description="`${titreClasse} · ${cours.nom_cours} · ${lignes.length} étudiant(s)`"
+            />
+        </div>
+        <div class="mx-50 max-w-7xl space-y-4 mb-2">
 
-            <!-- Zone texte copiable -->
-            <div class="rounded-md border bg-muted p-4">
-                <pre
-                    class="font-mono text-sm leading-relaxed whitespace-pre-wrap"
-                    >{{ texte || '(Aucune note saisie)' }}</pre
-                >
-            </div>
+            <!-- Tableau des notes -->
+            <Card>
+                <CardContent class="overflow-x-auto p-0">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b bg-muted/50 text-left">
+                                <th class="px-4 py-3 font-medium">DA</th>
+                                <th class="px-4 py-3 font-medium">Nom</th>
+                                <th class="px-4 py-3 text-right font-medium">
+                                    Note
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="(ligne, i) in lignes"
+                                :key="`${ligne.da}-${i}`"
+                                class="border-b last:border-0 hover:bg-muted/30"
+                            >
+                                <td class="px-4 py-3 font-mono text-xs">
+                                    {{ ligne.da || '—' }}
+                                </td>
+                                <td class="px-4 py-3">
+                                    {{ ligne.prenom }} {{ ligne.nom }}
+                                </td>
+                                <td class="px-4 py-3 text-right tabular-nums">
+                                    {{ formaterNote(ligne.note) }}
+                                </td>
+                            </tr>
+                            <tr v-if="lignes.length === 0">
+                                <td
+                                    colspan="3"
+                                    class="px-4 py-8 text-center text-muted-foreground"
+                                >
+                                    Aucun étudiant dans cette classe.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </CardContent>
+            </Card>
 
             <!-- Bouton copier -->
             <div class="flex gap-3">

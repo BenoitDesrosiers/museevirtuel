@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Groupe;
 
 use App\Actions\StoreUploadedFile;
 use App\Concerns\ValidatesGroupeChain;
+use App\Http\Controllers\Controller;
 use App\Jobs\TranscrireGroupeMedia;
 use App\Models\Classe;
 use App\Models\Cours;

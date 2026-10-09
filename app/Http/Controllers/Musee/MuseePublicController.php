@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Musee;
 
+use App\Http\Controllers\Controller;
 use App\Http\Requests\ExplorerMuseeRequest;
 use App\Models\EpoqueHistorique;
 use App\Models\GroupeMedia;

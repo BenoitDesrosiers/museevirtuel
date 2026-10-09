@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Classe;
 
+use App\Http\Controllers\Controller;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\EcheancierEtudiantProgress;
@@ -176,6 +177,8 @@ class ClasseController extends Controller
 
                 $lignes->push([
                     'da' => preg_replace('/\D/', '', (string) $membre->no_da),
+                    'nom' => $membre->nom,
+                    'prenom' => $membre->prenom,
                     'note' => $note,
                 ]);
             }

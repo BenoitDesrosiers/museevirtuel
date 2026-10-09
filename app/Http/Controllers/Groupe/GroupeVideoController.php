@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Groupe;
 
 use App\Concerns\ValidatesGroupeChain;
+use App\Http\Controllers\Controller;
 use App\Jobs\ProcessVideoEdit;
 use App\Jobs\ProcessVideoMerge;
 use App\Jobs\TranscrireVideo;

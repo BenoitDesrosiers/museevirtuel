@@ -20,9 +20,9 @@ import {
     X,
 } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import * as GroupeController from '@/actions/App/Http/Controllers/GroupeController';
-import * as ChapitreRoutes from '@/actions/App/Http/Controllers/GroupeVideoChapitreController';
-import * as GroupeVideoController from '@/actions/App/Http/Controllers/GroupeVideoController';
+import * as GroupeController from '@/actions/App/Http/Controllers/Groupe/GroupeController';
+import * as ChapitreRoutes from '@/actions/App/Http/Controllers/Groupe/GroupeVideoChapitreController';
+import * as GroupeVideoController from '@/actions/App/Http/Controllers/Groupe/GroupeVideoController';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Classe;
 
 use App\Actions\StoreUploadedFile;
+use App\Http\Controllers\Controller;
 use App\Models\Classe;
 use App\Models\ClasseMedia;
 use App\Models\Cours;
