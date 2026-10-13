@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Cours;
 
+use App\Http\Controllers\Controller;
 use App\Models\Cours;
 use App\Models\CoursReference;
 use Illuminate\Http\RedirectResponse;

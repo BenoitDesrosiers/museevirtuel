@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cours;
 use App\Models\ProjetRecherche;
 use App\Models\Thematique;
 use App\Models\User;
@@ -25,8 +26,18 @@ class EnseignantController extends Controller
 
         $cours = $user->cours()
             ->withCount('classes')
+            ->with('classes.etudiants:id')
             ->orderBy('nom_cours')
             ->get();
+
+        $cours->each(function (Cours $cours): void {
+            $etudiantsIds = $cours->classes
+                ->flatMap(fn ($classe) => $classe->etudiants->pluck('id'))
+                ->unique();
+
+            $cours->setAttribute('etudiants_count', $etudiantsIds->count());
+            $cours->unsetRelation('classes');
+        });
 
         $thematiques = $this->thematiquesVisibles($user)
             ->with('enseignant:id,prenom,nom')

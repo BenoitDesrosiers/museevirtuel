@@ -406,11 +406,16 @@ function filtrerTemoins(liste: TemoinEnAttente[]): TemoinEnAttente[] {
     });
 }
 
-const temoinsEnAttenteFiltrés = computed(() =>
+const temoinsEnAttenteFiltres = computed(() =>
     filtrerTemoins(props.temoinsEnAttente),
 );
-const temoinsApprouvésFiltres = computed(() =>
+const temoinsApprouvesFiltres = computed(() =>
     filtrerTemoins(props.temoinsApprouves),
+);
+const nombreTemoinsAffiches = computed(() =>
+    afficherApprouves.value
+        ? temoinsApprouvesFiltres.value.length
+        : temoinsEnAttenteFiltres.value.length,
 );
 
 function voirTemoin(temoin: TemoinEnAttente) {
@@ -454,6 +459,9 @@ function rejoindreVisio(jitsiRoom: string) {
                         <CardTitle>{{
                             $t('enseignant.index.my_courses')
                         }}</CardTitle>
+                        <span class="text-sm font-normal text-muted-foreground">
+                            ({{cours.length}})
+                        </span>
                         <ChevronDown
                             class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.cours }"
@@ -621,6 +629,9 @@ function rejoindreVisio(jitsiRoom: string) {
                         <CardTitle>{{
                             $t('enseignant.index.my_thematic')
                         }}</CardTitle>
+                        <span class="text-sm font-normal text-muted-foreground">
+                            ({{thematiques.length}})
+                        </span>
                         <ChevronDown
                             class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.thematiques }"
@@ -737,6 +748,9 @@ function rejoindreVisio(jitsiRoom: string) {
                         <CardTitle>{{
                             $t('administration.index.temoins_table')
                         }}</CardTitle>
+                        <span class="text-sm font-normal text-muted-foreground">
+                            ({{ nombreTemoinsAffiches }})
+                        </span>
                         <ChevronDown
                             class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.temoins }"
@@ -756,7 +770,7 @@ function rejoindreVisio(jitsiRoom: string) {
                             :aria-checked="afficherApprouves"
                             class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                             :class="
-                                afficherApprouves ? 'bg-primary' : 'bg-input'
+                                afficherApprouves ? 'bg-green-500' : 'bg-input'
                             "
                             @click.stop="afficherApprouves = !afficherApprouves"
                         >
@@ -790,7 +804,8 @@ function rejoindreVisio(jitsiRoom: string) {
                         </div>
                         <select
                             v-model="filtreThematiqueId"
-                            class="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none"
+                            class="h-10 rounded-md border border-input bg-background
+                            px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none"
                         >
                             <option :value="null">
                                 {{
@@ -846,7 +861,7 @@ function rejoindreVisio(jitsiRoom: string) {
                             </thead>
                             <tbody>
                                 <tr
-                                    v-for="temoin in temoinsEnAttenteFiltrés"
+                                    v-for="temoin in temoinsEnAttenteFiltres"
                                     :key="temoin.id"
                                     class="cursor-pointer border-b last:border-0 hover:bg-muted/50"
                                     @click="voirTemoin(temoin)"
@@ -878,7 +893,7 @@ function rejoindreVisio(jitsiRoom: string) {
                                         >
                                     </td>
                                 </tr>
-                                <tr v-if="temoinsEnAttenteFiltrés.length === 0">
+                                <tr v-if="temoinsEnAttenteFiltres.length === 0">
                                     <td
                                         colspan="4"
                                         class="py-6 text-center text-muted-foreground"
@@ -929,7 +944,7 @@ function rejoindreVisio(jitsiRoom: string) {
                             </thead>
                             <tbody>
                                 <tr
-                                    v-for="temoin in temoinsApprouvésFiltres"
+                                    v-for="temoin in temoinsApprouvesFiltres"
                                     :key="temoin.id"
                                     class="cursor-pointer border-b last:border-0 hover:bg-muted/50"
                                     @click="voirTemoin(temoin)"
@@ -961,7 +976,7 @@ function rejoindreVisio(jitsiRoom: string) {
                                         >
                                     </td>
                                 </tr>
-                                <tr v-if="temoinsApprouvésFiltres.length === 0">
+                                <tr v-if="temoinsApprouvesFiltres.length === 0">
                                     <td
                                         colspan="4"
                                         class="py-6 text-center text-muted-foreground"

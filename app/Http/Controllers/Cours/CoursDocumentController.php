@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Cours;
 
+use App\Http\Controllers\Controller;
 use App\Actions\StoreUploadedFile;
 use App\Models\Cours;
 use App\Models\CoursDocument;

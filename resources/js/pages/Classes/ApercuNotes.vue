@@ -56,7 +56,7 @@ function formaterNote(note: number | string | null): string {
 
     const valeur = Number(note);
 
-    return Number.isFinite(valeur) ? valeur.toFixed(2) : String(note);
+    return valeur.toFixed(2);
 }
 </script>
 
@@ -124,12 +124,6 @@ function formaterNote(note: number | string | null): string {
                 <Button variant="outline" @click="copierTexte">
                     <Copy class="mr-2 h-4 w-4" />
                     {{ copie ? 'Copié !' : 'Copier' }}
-                </Button>
-                <Button variant="ghost" as-child>
-                    <Link :href="retourUrl">
-                        <ArrowLeft class="mr-2 h-4 w-4" />
-                        Retour à la classe
-                    </Link>
                 </Button>
             </div>
         </div>

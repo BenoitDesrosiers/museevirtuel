@@ -43,6 +43,16 @@ async function copierTexte(): Promise<void> {
         copie.value = false;
     }, 2000);
 }
+
+function formaterNote(note: number | string | null): string {
+    if (note === null || note === '') {
+        return '—';
+    }
+
+    const valeur = Number(note);
+
+    return valeur.toFixed(2);
+}
 </script>
 
 <template>
@@ -89,7 +99,7 @@ async function copierTexte(): Promise<void> {
                                 {{ ligne.prenom }} {{ ligne.nom }}
                             </td>
                             <td class="px-3 py-2 text-right tabular-nums">
-                                {{ ligne.note ?? '—' }}
+                                {{ formaterNote(ligne.note) }}
                             </td>
                         </tr>
                         <tr v-if="lignes.length === 0">
