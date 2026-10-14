@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\TypeProjet;
 
+use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCritereRequest;
 use App\Http\Requests\UpdateCritereRequest;
 use App\Models\Cours;

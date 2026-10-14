@@ -79,6 +79,22 @@ const statutVariant = computed(
     },
 );
 
+const statutClass = computed(() => {
+    if (props.visio.ended_at) {
+        return 'border-yellow-300 bg-yellow-100 text-yellow-700 dark:border-slate-700 dark:bg-yellow-500 dark:text-yellow-200';
+    }
+
+    if (props.visio.started_at) {
+        return 'border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300';
+    }
+
+    if (props.visio.scheduled_at) {
+        return 'border-blue-300 bg-blue-100 text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300';
+    }
+
+    return 'border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300';
+});
+
 function formatDate(iso: string | null): string {
     if (!iso) {
         return '';
@@ -242,7 +258,13 @@ function submitUpload() {
             <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="font-medium">{{ visio.titre }}</span>
-                    <Badge :variant="statutVariant">{{ statut }}</Badge>
+                    <Badge
+                        :variant="statutVariant"
+                        :class="statutClass"
+                        class="font-semibold capitalize"
+                    >
+                        {{ statut }}
+                    </Badge>
                     <Badge
                         v-if="visio.groupe_id"
                         variant="outline"
