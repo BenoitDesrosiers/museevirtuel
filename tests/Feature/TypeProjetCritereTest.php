@@ -66,6 +66,20 @@ test("l'enseignant peut créer un critère positif dans une section", function (
     ]);
 });
 
+test("la description est obligatoire lors de la création d'un critère", function () {
+    ['enseignant' => $enseignant, 'cours' => $cours, 'typeProjet' => $tp] = creerContexteCritere();
+
+    $this->actingAs($enseignant)
+        ->postJson("/cours/{$cours->id}/types-projets/{$tp->id}/criteres", [
+            'type' => 'positif',
+            'contenu_type' => 'texte',
+            'pointage' => 5.0,
+            'contenu' => '',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['contenu']);
+});
+
 test("l'enseignant peut créer un critère avec une note enseignant", function () {
     ['enseignant' => $enseignant, 'cours' => $cours, 'typeProjet' => $tp] = creerContexteCritere();
 
@@ -200,6 +214,30 @@ test("l'enseignant peut modifier le contenu et le pointage d'un critère", funct
         'contenu' => 'Contenu mis à jour',
         'note' => 'Note de l\'enseignant mise à jour',
     ]);
+});
+
+test("la description est obligatoire lors de la modification d'un critère", function () {
+    ['enseignant' => $enseignant, 'cours' => $cours, 'typeProjet' => $tp] = creerContexteCritere();
+
+    $critere = TypeProjetCritere::create([
+        'type_projet_id' => $tp->id,
+        'type' => 'positif',
+        'contenu_type' => 'texte',
+        'pointage' => 5.0,
+        'contenu' => 'Description existante',
+        'visible' => true,
+        'ordre' => 1,
+    ]);
+
+    $this->actingAs($enseignant)
+        ->putJson("/cours/{$cours->id}/types-projets/{$tp->id}/criteres/{$critere->id}", [
+            'type' => 'positif',
+            'contenu_type' => 'texte',
+            'pointage' => 5.0,
+            'contenu' => '',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['contenu']);
 });
 
 test("la section d'un critère ne peut pas être changée lors d'une mise à jour", function () {
