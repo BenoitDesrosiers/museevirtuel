@@ -23,12 +23,12 @@ import {
 } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import * as GroupeMediaController from '@/actions/App/Http/Controllers/GroupeMediaController';
-import * as GroupeVideoController from '@/actions/App/Http/Controllers/GroupeVideoController';
-import FormDialog from '@/components/FormDialog.vue';
-import Heading from '@/components/Heading.vue';
-import NoteAvecCorrections from '@/components/NoteAvecCorrections.vue';
-import PhotoEditor from '@/components/PhotoEditor.vue';
+import * as GroupeMediaController from '@/actions/App/Http/Controllers/Groupe/GroupeMediaController';
+import * as GroupeVideoController from '@/actions/App/Http/Controllers/Groupe/GroupeVideoController';
+import FormDialog from '@/components/shared/FormDialog.vue';
+import Heading from '@/components/shared/Heading.vue';
+import NoteAvecCorrections from '@/components/classes/NoteAvecCorrections.vue';
+import PhotoEditor from '@/components/editors/PhotoEditor.vue';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,9 +47,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import VideoCard from '@/components/VideoCard.vue';
-import VideoUploadForm from '@/components/VideoUploadForm.vue';
-import VisioSession from '@/components/VisioSession.vue';
+import VideoCard from '@/components/medias/VideoCard.vue';
+import VideoUploadForm from '@/components/medias/VideoUploadForm.vue';
+import VisioSession from '@/components/classes/VisioSession.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { Auth } from '@/types/auth';
 

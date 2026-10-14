@@ -21,15 +21,16 @@ import {
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import ConfirmationModal from '@/components/ConfirmationModal.vue';
-import CoursObjectifs from '@/components/CoursObjectifs.vue';
-import CoursReferences from '@/components/CoursReferences.vue';
-import Heading from '@/components/Heading.vue';
-import InputError from '@/components/InputError.vue';
+import VisioSession from '@/components/classes/VisioSession.vue';
+import CoursObjectifs from '@/components/cours/CoursObjectifs.vue';
+import CoursReferences from '@/components/cours/CoursReferences.vue';
+import ConfirmationModal from '@/components/shared/ConfirmationModal.vue';
+import Heading from '@/components/shared/Heading.vue';
+import InputError from '@/components/shared/InputError.vue';
+import SectionCard from '@/components/shared/SectionCard.vue';
 import { Badge } from '@/components/ui/badge';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
@@ -48,7 +49,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import VisioSession from '@/components/VisioSession.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import typesProjetsRoutes from '@/routes/types-projets';
 
@@ -313,15 +313,42 @@ function handleClasseDialogUpdate(isOpen: boolean) {
 
 const deleteEtapeForm = useForm({});
 
-function deleteEtape(etape: EcheancierEtape) {
-    deleteEtapeForm.delete(`/cours/${props.cours.id}/echeancier/${etape.id}`, {
-        preserveScroll: true,
-    });
-}
+const etapeEchancierASupprimer = ref<EcheancierEtape | null>(null);
 
+const showModalSupprimerEtape = ref(false);
 const showViderEcheancierModal = ref(false);
 const destroyAllForm = useForm({});
 
+function confirmDeleteEtape(etape: EcheancierEtape): void {
+    etapeEchancierASupprimer.value = etape;
+    showModalSupprimerEtape.value = true;
+}
+
+function handleDeleteEtapeDialogUpdate(isOpen: boolean): void {
+    showModalSupprimerEtape.value = isOpen;
+
+    if (!isOpen) {
+        etapeEchancierASupprimer.value = null;
+    }
+}
+
+function executeDeleteEtape(): void {
+    const etape = etapeEchancierASupprimer.value;
+
+    if (!etape) {
+        return;
+    }
+
+    deleteEtapeForm.delete(
+        `/cours/${props.cours.id}/echeancier/${etape.id}`,
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                handleDeleteEtapeDialogUpdate(false);
+            },
+        },
+    );
+}
 function destroyAllEtapes() {
     destroyAllForm.delete(`/cours/${props.cours.id}/echeancier`, {
         preserveScroll: true,
@@ -544,31 +571,18 @@ function submitTransfert() {
             </div>
 
             <!-- Classes du cours -->
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <button
-                        type="button"
-                        class="flex cursor-pointer items-center gap-2 text-left select-none"
-                        @click="ouvert.classes = !ouvert.classes"
-                    >
-                        <Users class="h-5 w-5" />
-                        <CardTitle>{{
-                            $t('cours.show.classes_title')
-                        }}</CardTitle>
-                        <span class="text-sm font-normal text-muted-foreground"
-                            >({{ classes.length }})</span
-                        >
-                        <ChevronDown
-                            class="h-4 w-4 text-muted-foreground transition-transform"
-                            :class="{ '-rotate-180': ouvert.classes }"
-                        />
-                    </button>
+            <SectionCard
+                v-model:open="ouvert.classes"
+                :title="$t('cours.show.classes_title')"
+                :icon="Users"
+                :count="classes.length"
+            >
+                <template #actions>
                     <Button size="sm" @click="openCreateClasseDialog">
                         <Plus class="mr-2 h-4 w-4" />
                         Classe
                     </Button>
-                </CardHeader>
-                <CardContent v-show="ouvert.classes">
+                </template>
                     <div
                         v-if="classes.length === 0"
                         class="py-4 text-center text-sm text-muted-foreground"
@@ -655,29 +669,16 @@ function submitTransfert() {
                             </div>
                         </div>
                     </div>
-                </CardContent>
-            </Card>
+            </SectionCard>
 
             <!-- Documents du cours -->
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <button
-                        type="button"
-                        class="flex cursor-pointer items-center gap-2 text-left select-none"
-                        @click="ouvert.documents = !ouvert.documents"
-                    >
-                        <FileText class="h-5 w-5" />
-                        <CardTitle>{{
-                            $t('classes.show.documents_title')
-                        }}</CardTitle>
-                        <span class="text-sm font-normal text-muted-foreground"
-                            >({{ documents.length }})</span
-                        >
-                        <ChevronDown
-                            class="h-4 w-4 text-muted-foreground transition-transform"
-                            :class="{ '-rotate-180': ouvert.documents }"
-                        />
-                    </button>
+            <SectionCard
+                v-model:open="ouvert.documents"
+                :title="$t('classes.show.documents_title')"
+                :icon="FileText"
+                :count="documents.length"
+            >
+                <template #actions>
                     <div>
                         <input
                             ref="docFileInput"
@@ -695,8 +696,7 @@ function submitTransfert() {
                             {{ $t('classes.show.add_document') }}
                         </Button>
                     </div>
-                </CardHeader>
-                <CardContent v-show="ouvert.documents">
+                </template>
                     <p
                         v-if="docForm.errors.document"
                         class="mb-3 text-sm text-destructive"
@@ -755,89 +755,49 @@ function submitTransfert() {
                             </div>
                         </div>
                     </div>
-                </CardContent>
-            </Card>
+            </SectionCard>
 
             <!-- Objectifs pédagogiques -->
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <button
-                        type="button"
-                        class="flex cursor-pointer items-center gap-2 text-left select-none"
-                        @click="ouvert.objectifs = !ouvert.objectifs"
-                    >
-                        <BookOpen class="h-5 w-5" />
-                        <CardTitle>Objectifs pédagogiques</CardTitle>
-                        <span class="text-sm font-normal text-muted-foreground"
-                            >({{ objectifs.length }})</span
-                        >
-                        <ChevronDown
-                            class="h-4 w-4 text-muted-foreground transition-transform"
-                            :class="{ '-rotate-180': ouvert.objectifs }"
-                        />
-                    </button>
-                </CardHeader>
-                <CardContent v-show="ouvert.objectifs">
+            <SectionCard
+                v-model:open="ouvert.objectifs"
+                title="Objectifs pédagogiques"
+                :icon="BookOpen"
+                :count="objectifs.length"
+            >
                     <CoursObjectifs
                         :cours-id="cours.id"
                         :objectifs="objectifs"
                     />
-                </CardContent>
-            </Card>
+            </SectionCard>
 
             <!-- Références bibliographiques -->
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <button
-                        type="button"
-                        class="flex cursor-pointer items-center gap-2 text-left select-none"
-                        @click="ouvert.references = !ouvert.references"
-                    >
-                        <BookMarked class="h-5 w-5" />
-                        <CardTitle>Références bibliographiques</CardTitle>
-                        <span class="text-sm font-normal text-muted-foreground"
-                            >({{ references.length }})</span
-                        >
-                        <ChevronDown
-                            class="h-4 w-4 text-muted-foreground transition-transform"
-                            :class="{ '-rotate-180': ouvert.references }"
-                        />
-                    </button>
-                </CardHeader>
-                <CardContent v-show="ouvert.references">
+            <SectionCard
+                v-model:open="ouvert.references"
+                title="Références bibliographiques"
+                :icon="BookMarked"
+                :count="references.length"
+            >
                     <CoursReferences
                         :cours-id="cours.id"
                         :references="references"
                     />
-                </CardContent>
-            </Card>
+            </SectionCard>
 
             <!-- Types de projet -->
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <button
-                        type="button"
-                        class="flex cursor-pointer items-center gap-2 text-left select-none"
-                        @click="ouvert.typesProjets = !ouvert.typesProjets"
-                    >
-                        <ClipboardList class="h-5 w-5" />
-                        <CardTitle>Types de projet</CardTitle>
-                        <span class="text-sm font-normal text-muted-foreground"
-                            >({{ typesProjets.length }})</span
-                        >
-                        <ChevronDown
-                            class="h-4 w-4 text-muted-foreground transition-transform"
-                            :class="{ '-rotate-180': ouvert.typesProjets }"
-                        />
-                    </button>
+            <SectionCard
+                v-model:open="ouvert.typesProjets"
+                title="Types de projet"
+                :icon="ClipboardList"
+                :count="typesProjets.length"
+            >
+                <template #actions>
                     <Button size="sm" as-child>
                         <Link :href="typesProjetsRoutes.create.url(cours.id)">
                             <Plus class="mr-2 h-4 w-4" />
                             Nouveau type
                         </Link>
                     </Button>
-                </CardHeader>
-                <CardContent v-show="ouvert.typesProjets">
+                </template>
                     <div
                         v-if="typesProjets.length === 0"
                         class="py-4 text-center text-sm text-muted-foreground"
@@ -934,27 +894,16 @@ function submitTransfert() {
                             </div>
                         </div>
                     </div>
-                </CardContent>
-            </Card>
+            </SectionCard>
 
             <!-- Échéancier -->
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <button
-                        type="button"
-                        class="flex cursor-pointer items-center gap-2 text-left select-none"
-                        @click="ouvert.echeancier = !ouvert.echeancier"
-                    >
-                        <Calendar class="h-5 w-5" />
-                        <CardTitle>Échéancier</CardTitle>
-                        <span class="text-sm font-normal text-muted-foreground"
-                            >({{ echeancierEtapes.length }} étapes)</span
-                        >
-                        <ChevronDown
-                            class="h-4 w-4 text-muted-foreground transition-transform"
-                            :class="{ '-rotate-180': ouvert.echeancier }"
-                        />
-                    </button>
+            <SectionCard
+                v-model:open="ouvert.echeancier"
+                title="Échéancier"
+                :icon="Calendar"
+                :count="`${echeancierEtapes.length} étapes`"
+            >
+                <template #actions>
                     <div class="flex gap-2">
                         <Button
                             v-if="echeancierEtapes.length > 0"
@@ -971,8 +920,7 @@ function submitTransfert() {
                             Ajouter une étape
                         </Button>
                     </div>
-                </CardHeader>
-                <CardContent v-show="ouvert.echeancier">
+                </template>
                     <div
                         v-if="echeancierEtapes.length === 0"
                         class="py-4 text-center text-sm text-muted-foreground"
@@ -1091,7 +1039,7 @@ function submitTransfert() {
                                                 :disabled="
                                                     deleteEtapeForm.processing
                                                 "
-                                                @click="deleteEtape(etape)"
+                                                @click="confirmDeleteEtape(etape)"
                                             >
                                                 <Trash2 class="h-3.5 w-3.5" />
                                             </BoutonTooltip>
@@ -1101,30 +1049,20 @@ function submitTransfert() {
                             </ul>
                         </div>
                     </div>
-                </CardContent>
-            </Card>
+            </SectionCard>
 
             <!-- Visioconférences -->
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <button
-                        type="button"
-                        class="flex cursor-pointer items-center gap-2 text-left select-none"
-                        @click="ouvert.visios = !ouvert.visios"
-                    >
-                        <Video class="h-5 w-5" />
-                        <CardTitle>Visioconférences</CardTitle>
-                        <ChevronDown
-                            class="h-4 w-4 text-muted-foreground transition-transform"
-                            :class="{ '-rotate-180': ouvert.visios }"
-                        />
-                    </button>
+            <SectionCard
+                v-model:open="ouvert.visios"
+                title="Visioconférences"
+                :icon="Video"
+            >
+                <template #actions>
                     <Button size="sm" @click="showVisioDialog = true">
                         <Plus class="mr-1.5 h-4 w-4" />
                         Planifier
                     </Button>
-                </CardHeader>
-                <CardContent v-show="ouvert.visios">
+                </template>
                     <div
                         v-if="visioConferences.length === 0"
                         class="text-sm text-muted-foreground"
@@ -1139,8 +1077,7 @@ function submitTransfert() {
                             :can-manage="true"
                         />
                     </div>
-                </CardContent>
-            </Card>
+            </SectionCard>
         </div>
 
         <!-- Modal : Planifier une visioconférence -->
@@ -1376,6 +1313,18 @@ function submitTransfert() {
                 </form>
             </DialogContent>
         </Dialog>
+
+        <!-- Modal : supprimer une étape de échéancier -->
+        <ConfirmationModal
+            :open="showModalSupprimerEtape"
+            title="Supprimer une étape"
+            :emphasis="etapeEchancierASupprimer?.etape ?? ''"
+            description="Cette action supprimera cette étape de l'échéancier pour ce cours. Cette opération ne peut pas être annulée."
+            confirm-label="Oui, supprimer"
+            :loading="deleteEtapeForm.processing"
+            @update:open="handleDeleteEtapeDialogUpdate"
+            @confirm="executeDeleteEtape"
+        />
 
         <!-- Modal : Vider l'échéancier -->
         <ConfirmationModal

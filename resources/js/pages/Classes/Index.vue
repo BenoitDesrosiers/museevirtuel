@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { BookOpen, Users } from 'lucide-vue-next';
-import Heading from '@/components/Heading.vue';
+import Heading from '@/components/shared/Heading.vue';
 import { Button } from '@/components/ui/button';
 import {
     Card,

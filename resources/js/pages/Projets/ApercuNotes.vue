@@ -2,7 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft, Copy } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
-import Heading from '@/components/Heading.vue';
+import Heading from '@/components/shared/Heading.vue';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -42,6 +42,16 @@ async function copierTexte(): Promise<void> {
     setTimeout(() => {
         copie.value = false;
     }, 2000);
+}
+
+function formaterNote(note: number | string | null): string {
+    if (note === null || note === '') {
+        return '—';
+    }
+
+    const valeur = Number(note);
+
+    return valeur.toFixed(2);
 }
 </script>
 
@@ -89,7 +99,7 @@ async function copierTexte(): Promise<void> {
                                 {{ ligne.prenom }} {{ ligne.nom }}
                             </td>
                             <td class="px-3 py-2 text-right tabular-nums">
-                                {{ ligne.note ?? '—' }}
+                                {{ formaterNote(ligne.note) }}
                             </td>
                         </tr>
                         <tr v-if="lignes.length === 0">

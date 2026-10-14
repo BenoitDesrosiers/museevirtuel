@@ -2,7 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import Heading from '@/components/Heading.vue';
+import Heading from '@/components/shared/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';

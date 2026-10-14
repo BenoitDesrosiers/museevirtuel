@@ -2,7 +2,7 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, CheckCircle, XCircle } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
-import Heading from '@/components/Heading.vue';
+import Heading from '@/components/shared/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

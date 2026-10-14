@@ -2,7 +2,7 @@
 import { Head, Link, router } from '@inertiajs/vue3'
 import { BookOpen, Clock, Compass } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
-import MuseePublicNav from '@/components/MuseePublicNav.vue'
+import MuseePublicNav from '@/components/musee/MuseePublicNav.vue'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

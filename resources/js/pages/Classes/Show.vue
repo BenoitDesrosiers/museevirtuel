@@ -18,10 +18,10 @@ import {
     Users,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
-import { apercuNotesAccumulees } from '@/actions/App/Http/Controllers/ClasseController';
-import ConfirmationModal from '@/components/ConfirmationModal.vue';
-import Heading from '@/components/Heading.vue';
-import InputError from '@/components/InputError.vue';
+import { apercuNotesAccumulees } from '@/actions/App/Http/Controllers/Classe/ClasseController';
+import ConfirmationModal from '@/components/shared/ConfirmationModal.vue';
+import Heading from '@/components/shared/Heading.vue';
+import InputError from '@/components/shared/InputError.vue';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

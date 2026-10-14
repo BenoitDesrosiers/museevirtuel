@@ -9,7 +9,7 @@ import {
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import Heading from '@/components/Heading.vue';
+import Heading from '@/components/shared/Heading.vue';
 import { Badge } from '@/components/ui/badge';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';

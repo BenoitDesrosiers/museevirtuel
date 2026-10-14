@@ -10,9 +10,9 @@ import {
 } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import FormDialog from '@/components/FormDialog.vue';
-import Heading from '@/components/Heading.vue';
-import InputError from '@/components/InputError.vue';
+import FormDialog from '@/components/shared/FormDialog.vue';
+import Heading from '@/components/shared/Heading.vue';
+import InputError from '@/components/shared/InputError.vue';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

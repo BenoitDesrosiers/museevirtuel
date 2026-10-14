@@ -8,10 +8,6 @@ import {
     CheckCircle2,
     ChevronDown,
     ChevronUp,
-    Download,
-    Eye,
-    FileBarChart,
-    FileText,
     Loader2,
     Lock,
     Maximize2,
@@ -20,7 +16,6 @@ import {
     Plus,
     Send,
     Settings2,
-    SpellCheck,
     Square,
     Trash2,
     Users,
@@ -36,26 +31,30 @@ import {
     watch,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
-import AntidoteGlobalModal from '@/components/AntidoteGlobalModal.vue';
-import type { GlobalSection } from '@/components/AntidoteGlobalModal.vue';
-import CommentaireEnseignant from '@/components/CommentaireEnseignant.vue';
-import ConfirmationModal from '@/components/ConfirmationModal.vue';
-import ConsentementVideo from '@/components/ConsentementVideo.vue';
-import CritereCorrection from '@/components/CritereCorrection.vue';
+import AntidoteGlobalModal from '@/components/projets/AntidoteGlobalModal.vue';
+import type { GlobalSection } from '@/components/projets/AntidoteGlobalModal.vue';
+import CommentaireEnseignant from '@/components/projets/CommentaireEnseignant.vue';
+import ConfirmationModal from '@/components/shared/ConfirmationModal.vue';
+import CritereCorrection from '@/components/projets/CritereCorrection.vue';
 import type {
     Critere as TypeProjetCritere,
     CorrectionLocale,
-} from '@/components/CritereCorrection.vue';
-import CritereEtudiant from '@/components/CritereEtudiant.vue';
-import Heading from '@/components/Heading.vue';
-import ReferenceApaModal from '@/components/ReferenceApaModal.vue';
-import RichEditor from '@/components/RichEditor.vue';
-import SectionAudio from '@/components/SectionAudio.vue';
-import SectionChoixQuestions from '@/components/SectionChoixQuestions.vue';
-import SectionEntrevueCC from '@/components/SectionEntrevueCC.vue';
-import SectionSchemaVisuel from '@/components/SectionSchemaVisuel.vue';
-import SectionTache from '@/components/SectionTache.vue';
-import SectionVideo from '@/components/SectionVideo.vue';
+} from '@/components/projets/CritereCorrection.vue';
+import CritereEtudiant from '@/components/projets/CritereEtudiant.vue';
+import Heading from '@/components/shared/Heading.vue';
+import ProjetActionsEnseignant from '@/components/projets/ProjetActionsEnseignant.vue';
+import ProjetCollapsibleCard from '@/components/projets/ProjetCollapsibleCard.vue';
+import ProjetConsultationExports from '@/components/projets/ProjetConsultationExports.vue';
+import ProjetOutilsActions from '@/components/projets/ProjetOutilsActions.vue';
+import ProjetSauvegardeIndicateur from '@/components/projets/ProjetSauvegardeIndicateur.vue';
+import ReferenceApaModal from '@/components/projets/ReferenceApaModal.vue';
+import RichEditor from '@/components/projets/RichEditor.vue';
+import SectionAudio from '@/components/projets/SectionAudio.vue';
+import SectionChoixQuestions from '@/components/projets/SectionChoixQuestions.vue';
+import SectionEntrevueCC from '@/components/projets/SectionEntrevueCC.vue';
+import SectionSchemaVisuel from '@/components/projets/SectionSchemaVisuel.vue';
+import SectionTache from '@/components/projets/SectionTache.vue';
+import SectionVideo from '@/components/projets/SectionVideo.vue';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -2587,39 +2586,11 @@ async function supprimerCommentaireRenvoi(
                         </Link>
                     </Button>
 
-                    <!-- Indicateur de sauvegarde -->
-                    <div
-                        v-if="peutEditer"
-                        class="flex items-center gap-2 text-sm text-muted-foreground"
-                    >
-                        <Loader2
-                            v-if="saveStatus === 'saving'"
-                            class="h-4 w-4 animate-spin"
-                        />
-                        <CheckCircle2
-                            v-else-if="saveStatus === 'saved'"
-                            class="h-4 w-4 text-green-500"
-                        />
-
-                        <span v-if="saveStatus === 'saving'">{{
-                            t('projets.show.saving')
-                        }}</span>
-                        <span
-                            v-else-if="saveStatus === 'saved'"
-                            class="text-green-600"
-                            >{{ t('projets.show.saved') }}</span
-                        >
-                        <span
-                            v-else-if="saveStatus === 'error'"
-                            class="text-destructive"
-                            >{{ t('projets.show.save_error') }}</span
-                        >
-                        <span
-                            v-if="annotationDeleteError"
-                            class="text-destructive"
-                            >{{ annotationDeleteError }}</span
-                        >
-                    </div>
+                    <ProjetSauvegardeIndicateur
+                        :visible="peutEditer"
+                        :status="saveStatus"
+                        :annotation-delete-error="annotationDeleteError"
+                    />
                 </div>
 
                 <Heading
@@ -2646,200 +2617,69 @@ async function supprimerCommentaireRenvoi(
                         class="flex flex-wrap items-center justify-between gap-2"
                     >
                         <div class="flex flex-wrap items-center gap-1">
-                            <!-- ── Groupe 1 : Consultation & exports ─────────────── -->
-                            <BoutonTooltip
-                                texte="Voir le rendu final du projet"
-                                variant="ghost"
-                                size="sm"
-                                as-child
-                            >
-                                <Link :href="`${baseUrl}/apercu`">
-                                    <Eye class="h-4 w-4" />
-                                    Aperçu
-                                </Link>
-                            </BoutonTooltip>
-                            <BoutonTooltip
-                                texte="Télécharger une version PDF (s'ouvre dans un nouvel onglet)"
-                                variant="ghost"
-                                size="sm"
-                                as-child
-                            >
-                                <a :href="`${baseUrl}/pdf`" target="_blank">
-                                    <FileText class="h-4 w-4" />
-                                    PDF
-                                </a>
-                            </BoutonTooltip>
-                            <BoutonTooltip
-                                texte="Télécharger une version Word (.docx)"
-                                variant="ghost"
-                                size="sm"
-                                as-child
-                            >
-                                <a :href="`${baseUrl}/word`">
-                                    <Download class="h-4 w-4" />
-                                    Word
-                                </a>
-                            </BoutonTooltip>
-                            <BoutonTooltip
-                                v-if="estEnseignant"
-                                texte="Voir les notes de tous les étudiants du groupe"
-                                variant="ghost"
-                                size="sm"
-                                as-child
-                            >
-                                <Link :href="`${baseUrl}/apercu-notes`">
-                                    <FileBarChart class="h-4 w-4" />
-                                    Notes
-                                </Link>
-                            </BoutonTooltip>
+                            <ProjetConsultationExports
+                                :base-url="baseUrl"
+                                :est-enseignant="estEnseignant"
+                            />
 
-                            <!-- ── Séparateur ─────────────────────────────────────── -->
                             <Separator
                                 orientation="vertical"
                                 class="mx-1 h-5"
                             />
 
-                            <!-- ── Groupe 2 : Outils ──────────────────────────────── -->
-                            <BoutonTooltip
-                                v-if="peutEditer && !verrouille"
-                                texte="Lancer la correction orthographique globale avec Antidote"
-                                variant="ghost"
-                                size="sm"
-                                class="text-green-700 hover:bg-green-50 hover:text-green-700"
-                                @click="showAntidoteGlobal = true"
-                            >
-                                <SpellCheck class="h-4 w-4" />
-                                Antidote
-                            </BoutonTooltip>
-                            <!-- Consentement vidéo — affiché si au moins une section vidéo/audio existe -->
-                            <ConsentementVideo
-                                v-if="hasVideoOrAudioSection && !estEnseignant"
-                                :params="{
-                                    cours: classe.cours_id,
-                                    groupe: groupe.id,
-                                    typeProjet: typeProjet.id,
-                                }"
-                                :consentement="consentement"
-                            />
-                            <BoutonTooltip
-                                v-if="estEnseignant"
-                                texte="Gérer les sections disponibles pour ce type de projet"
-                                variant="ghost"
-                                size="sm"
-                                as-child
-                            >
-                                <Link
-                                    :href="
-                                        editTypeProjet.url({
-                                            cours: classe.cours_id,
-                                            typeProjet: typeProjet.id,
-                                        })
-                                    "
-                                >
-                                    <Settings2 class="h-4 w-4" />
-                                    Sections
-                                </Link>
-                            </BoutonTooltip>
-                            <BoutonTooltip
-                                v-if="champsVisibles.length > 0"
-                                :texte="
-                                    tousCommentairesReduits
-                                        ? 'Développer tous les commentaires enseignant'
-                                        : 'Réduire tous les commentaires enseignant'
+                            <ProjetOutilsActions
+                                :peut-editer="peutEditer"
+                                :verrouille="verrouille"
+                                :has-video-or-audio-section="
+                                    hasVideoOrAudioSection
                                 "
-                                variant="ghost"
-                                size="sm"
-                                @click="toggleTousCommentaires"
-                            >
-                                <MessageSquare class="h-4 w-4" />
-                                Commentaires
-                            </BoutonTooltip>
+                                :est-enseignant="estEnseignant"
+                                :consentement="consentement"
+                                :cours-id="classe.cours_id"
+                                :groupe-id="groupe.id"
+                                :type-projet-id="typeProjet.id"
+                                :champs-visibles-count="champsVisibles.length"
+                                :tous-commentaires-reduits="
+                                    tousCommentairesReduits
+                                "
+                                @antidote="showAntidoteGlobal = true"
+                                @toggle-commentaires="
+                                    toggleTousCommentaires
+                                "
+                            />
 
-                            <!-- ── Groupe 3 : Actions enseignant ──────────────────── -->
                             <template v-if="estEnseignant">
                                 <Separator
                                     orientation="vertical"
                                     class="mx-1 h-5"
                                 />
-                                <Button
-                                    :variant="
+                                <ProjetActionsEnseignant
+                                    :mode-edition-enseignant="
                                         modeEditionEnseignant
-                                            ? 'default'
-                                            : 'outline'
                                     "
-                                    size="sm"
-                                    @click="toggleModeEditionEnseignant"
-                                >
-                                    <Settings2 class="mr-2 h-4 w-4" />
-                                    {{
-                                        modeEditionEnseignant
-                                            ? 'Mode édition actif'
-                                            : 'Activer mode édition'
-                                    }}
-                                </Button>
-                                <BoutonTooltip
-                                    :texte="
-                                        correctionVisible
-                                            ? 'Masquer les corrections aux étudiants'
-                                            : 'Publier les corrections pour que les étudiants puissent les consulter'
+                                    :correction-visible="correctionVisible"
+                                    :verrouille="verrouille"
+                                    @toggle-mode-edition="
+                                        toggleModeEditionEnseignant
                                     "
-                                    :variant="
-                                        correctionVisible ? 'default' : 'ghost'
+                                    @toggle-correction="
+                                        toggleCorrectionVisible
                                     "
-                                    size="sm"
-                                    @click="toggleCorrectionVisible"
-                                >
-                                    <CheckCircle2
-                                        v-if="correctionVisible"
-                                        class="h-4 w-4"
-                                    />
-                                    <Send v-else class="h-4 w-4" />
-                                    Correction
-                                </BoutonTooltip>
-                                <BoutonTooltip
-                                    :texte="
-                                        verrouille
-                                            ? 'Déverrouiller le document pour permettre les modifications'
-                                            : 'Verrouiller le document pour empêcher toute modification'
-                                    "
-                                    :variant="
-                                        verrouille ? 'destructive' : 'ghost'
-                                    "
-                                    size="sm"
-                                    @click="toggleVerrouille"
-                                >
-                                    <Lock class="h-4 w-4" />
-                                    Verrouiller
-                                </BoutonTooltip>
+                                    @toggle-verrouille="toggleVerrouille"
+                                />
                             </template>
                         </div>
                     </div>
                 </div>
 
                 <!-- ─── Page titre ────────────────────────────────────────────── -->
-                <Card v-if="genererPageTitre">
-                    <CardHeader
-                        class="flex flex-row items-center justify-between"
-                    >
-                        <CardTitle
-                            class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
-                        >
-                            {{ t('projets.show.page_title_card') }}
-                        </CardTitle>
-                        <BoutonTooltip
-                            :texte="
-                                collapsed.pageTitre ? 'Développer' : 'Réduire'
-                            "
-                            @click="toggleSection('pageTitre')"
-                        >
-                            <ChevronUp
-                                v-if="!collapsed.pageTitre"
-                                class="h-4 w-4"
-                            />
-                            <ChevronDown v-else class="h-4 w-4" />
-                        </BoutonTooltip>
-                    </CardHeader>
-                    <CardContent v-show="!collapsed.pageTitre">
+                <ProjetCollapsibleCard
+                    v-if="genererPageTitre"
+                    :title="t('projets.show.page_title_card')"
+                    :collapsed="!!collapsed.pageTitre"
+                    @toggle="toggleSection('pageTitre')"
+                >
+                    <template #default>
                         <RichEditor
                             v-model="form.page_titre_contenu"
                             :placeholder="
@@ -2896,32 +2736,15 @@ async function supprimerCommentaireRenvoi(
                                 (v) => setBrouillon('normes_presentation', v)
                             "
                         />
-                    </CardContent>
-                </Card>
-                <Card v-else>
+                    </template>
+                </ProjetCollapsibleCard>
+                <ProjetCollapsibleCard
+                    v-else
+                    :title="t('projets.show.page_titre_manuel_card')"
+                    :collapsed="!!collapsed.pageTitre"
+                    @toggle="toggleSection('pageTitre')"
+                >
                     <!-- ─── Page titre (mode manuel) ──────────────────────────────── -->
-                    <CardHeader
-                        class="flex flex-row items-center justify-between"
-                    >
-                        <CardTitle
-                            class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
-                        >
-                            {{ t('projets.show.page_titre_manuel_card') }}
-                        </CardTitle>
-                        <BoutonTooltip
-                            :texte="
-                                collapsed.pageTitre ? 'Développer' : 'Réduire'
-                            "
-                            @click="toggleSection('pageTitre')"
-                        >
-                            <ChevronUp
-                                v-if="!collapsed.pageTitre"
-                                class="h-4 w-4"
-                            />
-                            <ChevronDown v-else class="h-4 w-4" />
-                        </BoutonTooltip>
-                    </CardHeader>
-                    <CardContent v-show="!collapsed.pageTitre">
                         <p class="mb-3 text-xs text-muted-foreground">
                             {{ t('projets.show.page_titre_manuel_hint') }}
                         </p>
@@ -2981,32 +2804,18 @@ async function supprimerCommentaireRenvoi(
                                 (v) => setBrouillon('normes_presentation', v)
                             "
                         />
-                    </CardContent>
-                </Card>
+                </ProjetCollapsibleCard>
 
                 <!-- ─── Table des matières ─────────────────────────────────────── -->
-                <Card>
-                    <CardHeader
-                        class="flex flex-row items-center justify-between"
-                    >
-                        <CardTitle
-                            class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
-                        >
-                            {{
-                                genererTableMatieres
-                                    ? t('projets.show.toc_card')
-                                    : t('projets.show.toc_manuel_card')
-                            }}
-                        </CardTitle>
-                        <BoutonTooltip
-                            :texte="collapsed.tdm ? 'Développer' : 'Réduire'"
-                            @click="toggleSection('tdm')"
-                        >
-                            <ChevronUp v-if="!collapsed.tdm" class="h-4 w-4" />
-                            <ChevronDown v-else class="h-4 w-4" />
-                        </BoutonTooltip>
-                    </CardHeader>
-                    <CardContent v-show="!collapsed.tdm">
+                <ProjetCollapsibleCard
+                    :title="
+                        genererTableMatieres
+                            ? t('projets.show.toc_card')
+                            : t('projets.show.toc_manuel_card')
+                    "
+                    :collapsed="!!collapsed.tdm"
+                    @toggle="toggleSection('tdm')"
+                >
                         <!-- Mode automatique : notice informative, pas d'éditeur -->
                         <p
                             v-if="genererTableMatieres"
@@ -3052,38 +2861,16 @@ async function supprimerCommentaireRenvoi(
                                 @renvois-utilises="handleRenvoisUtilises"
                             />
                         </template>
-                    </CardContent>
-                </Card>
+                </ProjetCollapsibleCard>
 
                 <!-- ─── Critères globaux (hors section) ───────────────────────── -->
-                <Card v-if="criteresGlobaux.length > 0">
-                    <CardHeader
-                        class="flex flex-row items-center justify-between"
-                    >
-                        <CardTitle
-                            class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
-                        >
-                            {{ t('criteres.titre_global') }}
-                        </CardTitle>
-                        <BoutonTooltip
-                            :texte="
-                                collapsed.criteres_global
-                                    ? 'Développer'
-                                    : 'Réduire'
-                            "
-                            @click="toggleSection('criteres_global')"
-                        >
-                            <ChevronUp
-                                v-if="!collapsed.criteres_global"
-                                class="h-4 w-4"
-                            />
-                            <ChevronDown v-else class="h-4 w-4" />
-                        </BoutonTooltip>
-                    </CardHeader>
-                    <CardContent
-                        v-show="!collapsed.criteres_global"
-                        class="space-y-1.5 pt-0 pb-4"
-                    >
+                <ProjetCollapsibleCard
+                    v-if="criteresGlobaux.length > 0"
+                    :title="t('criteres.titre_global')"
+                    :collapsed="!!collapsed.criteres_global"
+                    content-class="space-y-1.5 pt-0 pb-4"
+                    @toggle="toggleSection('criteres_global')"
+                >
                         <template
                             v-for="critere in criteresGlobaux"
                             :key="critere.id"
@@ -3121,8 +2908,7 @@ async function supprimerCommentaireRenvoi(
                                 "
                             />
                         </template>
-                    </CardContent>
-                </Card>
+                </ProjetCollapsibleCard>
 
                 <!-- ─── Sections dynamiques (définies par le professeur) ─────── -->
                 <template v-if="props.sections.length > 0">
@@ -4138,42 +3924,19 @@ async function supprimerCommentaireRenvoi(
                         </Card>
 
                         <!-- ── Critères de correction de cette section ──────────── -->
-                        <Card v-if="section.criteres?.length">
-                            <CardHeader
-                                class="flex flex-row items-center justify-between"
-                            >
-                                <CardTitle
-                                    class="text-sm font-medium tracking-wide text-muted-foreground uppercase"
-                                >
-                                    {{ t('criteres.titre_section') }}
-                                </CardTitle>
-                                <BoutonTooltip
-                                    :texte="
-                                        isCriteresSectionCollapsed(section.id)
-                                            ? 'Développer'
-                                            : 'Réduire'
-                                    "
-                                    @click="
-                                        toggleSection(
-                                            `criteres_section_${section.id}`,
-                                        )
-                                    "
-                                >
-                                    <ChevronUp
-                                        v-if="
-                                            !isCriteresSectionCollapsed(
-                                                section.id,
-                                            )
-                                        "
-                                        class="h-4 w-4"
-                                    />
-                                    <ChevronDown v-else class="h-4 w-4" />
-                                </BoutonTooltip>
-                            </CardHeader>
-                            <CardContent
-                                v-show="!isCriteresSectionCollapsed(section.id)"
-                                class="space-y-1.5 pt-0 pb-4"
-                            >
+                        <ProjetCollapsibleCard
+                            v-if="section.criteres?.length"
+                            :title="t('criteres.titre_section')"
+                            :collapsed="
+                                isCriteresSectionCollapsed(section.id)
+                            "
+                            content-class="space-y-1.5 pt-0 pb-4"
+                            @toggle="
+                                toggleSection(
+                                    `criteres_section_${section.id}`,
+                                )
+                            "
+                        >
                                 <template
                                     v-for="critere in section.criteres ?? []"
                                     :key="critere.id"
@@ -4218,8 +3981,7 @@ async function supprimerCommentaireRenvoi(
                                         "
                                     />
                                 </template>
-                            </CardContent>
-                        </Card>
+                        </ProjetCollapsibleCard>
                     </template>
                 </template>
 

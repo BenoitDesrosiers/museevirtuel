@@ -2,7 +2,7 @@
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, Plus, X } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
-import Heading from '@/components/Heading.vue';
+import Heading from '@/components/shared/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {

@@ -2,7 +2,7 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { ArrowLeft, Send } from 'lucide-vue-next';
 import { computed, nextTick, onMounted, ref } from 'vue';
-import Heading from '@/components/Heading.vue';
+import Heading from '@/components/shared/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';

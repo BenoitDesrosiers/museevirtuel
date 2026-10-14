@@ -103,7 +103,7 @@ test('le slug généré automatiquement est unique', function () {
     expect(MuseeMeta::where('slug', $meta->slug)->count())->toBe(1);
 });
 
-// ─── ProjetRechercheController::show — rendu Musee/Show ──────────────────────
+// ─── Projet\ProjetRechercheController::show — rendu Musee/Show ──────────────────────
 
 test("l'accès au projet musée rend la page Musee/Show", function () {
     [$cours, $classe, $groupe, $typeProjet, $enseignant, $etudiant] = creerContexteMusee();

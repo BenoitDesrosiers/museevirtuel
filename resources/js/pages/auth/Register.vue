@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import TextLink from '@/components/TextLink.vue';
+import TextLink from '@/components/auth/TextLink.vue';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { login } from '@/routes';
 </script>
