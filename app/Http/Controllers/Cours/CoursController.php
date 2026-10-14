@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Cours;
 
-use App\Http\Controllers\Controller;
 use App\Enums\TypeCours;
+use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCoursRequest;
 use App\Http\Requests\UpdateCoursRequest;
 use App\Models\Cours;
@@ -245,7 +245,7 @@ class CoursController extends Controller
             $gabaritService->appliquer($cours, 'cours_complet');
         }
 
-        return back()->with('success', __('cours.created'));
+        return to_route('enseignant.index')->with('success', __('cours.created'));
     }
 
     /**
@@ -257,7 +257,7 @@ class CoursController extends Controller
     {
         $cours->update($request->validated());
 
-        return back()->with('success', __('cours.updated'));
+        return to_route('enseignant.index')->with('success', __('cours.updated'));
     }
 
     /**
@@ -276,7 +276,7 @@ class CoursController extends Controller
 
         $message = $verrouille ? __('cours.verrouille') : __('cours.deverrouille');
 
-        return back()->with('success', $message);
+        return to_route('enseignant.index')->with('success', $message);
     }
 
     /**

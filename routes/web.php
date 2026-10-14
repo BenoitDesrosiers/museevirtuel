@@ -158,6 +158,18 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
     Route::get('/enseignant', [EnseignantController::class, 'index'])
         ->name('enseignant.index');
 
+    Route::get('/enseignant/cours/create', [EnseignantController::class, 'createCours'])
+        ->name('enseignant.cours.create');
+
+    Route::get('/enseignant/cours/{cours}/edit', [EnseignantController::class, 'editCours'])
+        ->name('enseignant.cours.edit');
+
+    Route::get('/enseignant/thematiques/create', [ThematiqueController::class, 'create'])
+        ->name('enseignant.thematiques.create');
+
+    Route::get('/enseignant/thematiques/{thematique}/edit', [ThematiqueController::class, 'edit'])
+        ->name('enseignant.thematiques.edit');
+
     // Gestion des cours
     Route::post('/cours', [CoursController::class, 'store'])
         ->name('cours.store');
