@@ -63,11 +63,23 @@ const sectionTypes = computed<
 
 type TypeProjetType = 'standard' | 'musee';
 
+/**
+ * Retourne une échéance locale par défaut à demain pour le champ datetime-local.
+ */
+function defaultDateRemise(): string {
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+
+    const pad = (value: number): string => String(value).padStart(2, '0');
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 const form = useForm({
     nom: '',
     type: 'standard' as TypeProjetType,
     description: '',
-    date_remise: '',
+    date_remise: defaultDateRemise(),
     remises_multiples: false,
     retard_permis: false,
     generer_page_titre: true,
@@ -155,7 +167,7 @@ function creer() {
                         <Textarea
                             id="description"
                             v-model="form.description"
-                            rows="2"
+                            rows = 2
                         />
                         <InputError :message="form.errors.description" />
                     </div>
@@ -177,9 +189,14 @@ function creer() {
                             ]"
                             @click="form.type = 'standard'"
                         >
-                            <span class="font-semibold">Projet de recherche</span>
-                            <span class="mt-0.5 text-xs leading-snug text-muted-foreground">
-                                Rapport structuré par sections texte, paragraphes ou entrevues.
+                            <span class="font-semibold"
+                                >Projet de recherche</span
+                            >
+                            <span
+                                class="mt-0.5 text-xs leading-snug text-muted-foreground"
+                            >
+                                Rapport structuré par sections texte,
+                                paragraphes ou entrevues.
                             </span>
                         </button>
                         <button
@@ -193,8 +210,11 @@ function creer() {
                             @click="form.type = 'musee'"
                         >
                             <span class="font-semibold">Musée virtuel</span>
-                            <span class="mt-0.5 text-xs leading-snug text-muted-foreground">
-                                Site web pédagogique avec blocs riches, images et vidéos.
+                            <span
+                                class="mt-0.5 text-xs leading-snug text-muted-foreground"
+                            >
+                                Site web pédagogique avec blocs riches, images
+                                et vidéos.
                             </span>
                         </button>
                     </div>
@@ -217,6 +237,7 @@ function creer() {
                             id="date_remise"
                             v-model="form.date_remise"
                             type="datetime-local"
+                            required
                         />
                         <InputError :message="form.errors.date_remise" />
                     </div>
@@ -328,7 +349,9 @@ function creer() {
                                     for="aide_reference"
                                     class="cursor-pointer"
                                     >{{
-                                        $t('types_projet.edit.label_aide_reference')
+                                        $t(
+                                            'types_projet.edit.label_aide_reference',
+                                        )
                                     }}</Label
                                 >
                                 <p class="text-xs text-muted-foreground">
@@ -375,7 +398,9 @@ function creer() {
                         <div class="flex items-start gap-3">
                             <Checkbox
                                 id="has_conclusion_individuelle"
-                                v-model:checked="form.has_conclusion_individuelle"
+                                v-model:checked="
+                                    form.has_conclusion_individuelle
+                                "
                             />
                             <div class="grid gap-0.5">
                                 <Label

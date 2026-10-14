@@ -159,6 +159,7 @@ test("l'enseignant peut créer un type de projet avec des paramètres de remise"
     $this->actingAs($enseignant)
         ->post("/cours/{$cours->id}/types-projets", [
             'nom' => 'Projet avec remise',
+            'type' => 'standard',
             'date_remise' => '2026-05-01T23:59',
             'remises_multiples' => true,
             'retard_permis' => false,
@@ -168,9 +169,24 @@ test("l'enseignant peut créer un type de projet avec des paramètres de remise"
     $this->assertDatabaseHas('types_projets', [
         'enseignant_id' => $enseignant->id,
         'nom' => 'Projet avec remise',
+        'date_remise' => '2026-05-01 23:59:00',
         'remises_multiples' => true,
         'retard_permis' => false,
     ]);
+});
+
+test('la date de remise doit inclure une heure lors de la création', function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignant);
+
+    $this->actingAs($enseignant)
+        ->postJson("/cours/{$cours->id}/types-projets", [
+            'nom' => 'Projet avec date invalide',
+            'type' => 'standard',
+            'date_remise' => '2026-05-01',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['date_remise']);
 });
 
 // ─── Store — flags de génération ─────────────────────────────────────────────
@@ -267,7 +283,7 @@ test("l'enseignant peut modifier son type de projet", function () {
             'nom' => 'Nouveau nom',
             'description' => 'Nouvelle description',
         ])
-        ->assertRedirect();
+        ->assertRedirect(route('types-projets.index', $cours));
 
     $this->assertDatabaseHas('types_projets', [
         'id' => $typeProjet->id,
@@ -287,12 +303,94 @@ test("l'enseignant peut configurer les paramètres de remise via update", functi
             'remises_multiples' => true,
             'retard_permis' => true,
         ])
-        ->assertRedirect();
+        ->assertRedirect(route('types-projets.index', $cours));
 
     $this->assertDatabaseHas('types_projets', [
         'id' => $typeProjet->id,
+        'date_remise' => '2026-06-15 23:59:00',
         'remises_multiples' => true,
         'retard_permis' => true,
+    ]);
+});
+
+test('les booléens du formulaire d’édition persistent dans les deux directions', function () {
+    $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $cours = creerCours($enseignant);
+    $typeProjet = TypeProjet::create([
+        'enseignant_id' => $enseignant->id,
+        'cours_id' => $cours->id,
+        'nom' => 'Projet booléens',
+        'accessible' => false,
+        'remises_multiples' => false,
+        'retard_permis' => false,
+        'generer_page_titre' => false,
+        'generer_table_matieres' => false,
+        'aide_reference' => false,
+        'has_introduction' => false,
+        'has_conclusion_individuelle' => false,
+        'is_sommatif' => false,
+    ]);
+
+    $booléens = [
+        'remises_multiples' => true,
+        'retard_permis' => true,
+        'generer_page_titre' => true,
+        'generer_table_matieres' => true,
+        'aide_reference' => true,
+        'has_introduction' => true,
+        'has_conclusion_individuelle' => true,
+        'is_sommatif' => true,
+    ];
+
+    $this->actingAs($enseignant)
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
+            'nom' => 'Projet booléens',
+            ...$booléens,
+        ])
+        ->assertRedirect(route('types-projets.index', $cours));
+
+    $this->assertDatabaseHas('types_projets', [
+        'id' => $typeProjet->id,
+        ...$booléens,
+    ]);
+
+    $this->actingAs($enseignant)
+        ->get("/cours/{$cours->id}/types-projets/{$typeProjet->id}/edit")
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('typeProjet.remises_multiples', true)
+            ->where('typeProjet.retard_permis', true)
+            ->where('typeProjet.generer_page_titre', true)
+            ->where('typeProjet.generer_table_matieres', true)
+            ->where('typeProjet.aide_reference', true)
+            ->where('typeProjet.has_introduction', true)
+            ->where('typeProjet.has_conclusion_individuelle', true)
+            ->where('typeProjet.is_sommatif', true)
+        );
+
+    $this->actingAs($enseignant)
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
+            'nom' => 'Projet booléens',
+            'remises_multiples' => false,
+            'retard_permis' => false,
+            'generer_page_titre' => false,
+            'generer_table_matieres' => false,
+            'aide_reference' => false,
+            'has_introduction' => false,
+            'has_conclusion_individuelle' => false,
+            'is_sommatif' => false,
+        ])
+        ->assertRedirect(route('types-projets.index', $cours));
+
+    $this->assertDatabaseHas('types_projets', [
+        'id' => $typeProjet->id,
+        'remises_multiples' => false,
+        'retard_permis' => false,
+        'generer_page_titre' => false,
+        'generer_table_matieres' => false,
+        'aide_reference' => false,
+        'has_introduction' => false,
+        'has_conclusion_individuelle' => false,
+        'is_sommatif' => false,
     ]);
 });
 
