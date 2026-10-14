@@ -14,7 +14,7 @@ class GroupePolicy
      */
     public function view(User $user, Groupe $groupe): bool
     {
-        if ($user->isAdmin() || $groupe->classe->cours->enseignant_id === $user->id) {
+        if ($user->isAdmin() || ($user->isEnseignant() && $groupe->classe->cours->enseignant_id === $user->id)) {
             return true;
         }
 
@@ -42,7 +42,7 @@ class GroupePolicy
      */
     public function echanges(User $user, Groupe $groupe): bool
     {
-        if ($user->isAdmin() || $groupe->classe->cours->enseignant_id === $user->id) {
+        if ($user->isAdmin() || ($user->isEnseignant() && $groupe->classe->cours->enseignant_id === $user->id)) {
             return true;
         }
 
@@ -133,7 +133,11 @@ class GroupePolicy
      */
     public function deleteMedia(User $user, Groupe $groupe): bool
     {
-        return $user->isAdmin() || $groupe->classe->cours->enseignant_id === $user->id;
+        /**
+         * Il faudra retirer la portion $user->isEnseignant()
+         * && en production.
+         */
+        return $user->isAdmin() || ($user->isEnseignant() && $groupe->classe->cours->enseignant_id === $user->id);
     }
 
     /**
@@ -153,7 +157,7 @@ class GroupePolicy
      */
     private function estMembreOuEnseignantOuAdmin(User $user, Groupe $groupe): bool
     {
-        if ($user->isAdmin() || $groupe->classe->cours->enseignant_id === $user->id) {
+        if ($user->isAdmin() || ($user->isEnseignant() && $groupe->classe->cours->enseignant_id === $user->id)) {
             return true;
         }
 

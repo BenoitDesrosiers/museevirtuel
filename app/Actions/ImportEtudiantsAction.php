@@ -2,6 +2,7 @@
 
 namespace App\Actions;
 
+use App\Enums\StatutEtudiantCours;
 use App\Models\Classe;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -41,7 +42,8 @@ class ImportEtudiantsAction
                 if (! isset($existingUserIds[$etudiant->id])) {
                     $classe->etudiants()->attach($etudiant->id, [
                         'no_da' => $noDa,
-                        'statut_cours' => $statut ?: null,
+                        'statut_cours' => StatutEtudiantCours::tryFrom(Str::lower($statut))?->value
+                            ?? StatutEtudiantCours::Actif->value,
                     ]);
                     // Marquer comme inscrit pour éviter un double attach si le DA apparaît deux fois dans le CSV
                     $existingUserIds[$etudiant->id] = true;

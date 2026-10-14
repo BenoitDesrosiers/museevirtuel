@@ -12,7 +12,7 @@ import {
     Video,
 } from 'lucide-vue-next';
 import { ref } from 'vue';
-import EtudiantReferences from '@/components/EtudiantReferences.vue';
+import EtudiantReferences from '@/components/cours/EtudiantReferences.vue';
 import { Badge } from '@/components/ui/badge';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

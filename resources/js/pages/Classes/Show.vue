@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     ArrowLeft,
     BookMarked,
@@ -18,10 +18,10 @@ import {
     Users,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
-import { apercuNotesAccumulees } from '@/actions/App/Http/Controllers/ClasseController';
-import ConfirmationModal from '@/components/ConfirmationModal.vue';
-import Heading from '@/components/Heading.vue';
-import InputError from '@/components/InputError.vue';
+import { apercuNotesAccumulees } from '@/actions/App/Http/Controllers/Classe/ClasseController';
+import ConfirmationModal from '@/components/shared/ConfirmationModal.vue';
+import Heading from '@/components/shared/Heading.vue';
+import InputError from '@/components/shared/InputError.vue';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +34,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 type Membre = {
@@ -133,6 +140,7 @@ type Reference = {
 type Props = {
     cours: Cours;
     classe: Classe;
+    utilisateurConnecteId: number;
     estEnseignant: boolean;
     typesProjets: TypeProjet[];
     echeancierEtapes: EcheancierEtape[];
@@ -143,13 +151,17 @@ type Props = {
 
 const props = defineProps<Props>();
 
-const page = usePage();
+const statutsEtudiant = [
+    { value: 'actif', label: 'Actif' },
+    { value: 'inactif', label: 'Inactif' },
+    { value: 'suspendu', label: 'Suspendu' },
+] as const;
 
 /** Groupe auquel appartient l'étudiant authentifié (null si non trouvé). */
 const monGroupe = computed(
     () =>
         props.classe.groupes.find((g) =>
-            g.membres.some((m) => m.id === (page.props.auth as any).user.id),
+            g.membres.some((m) => m.id === props.utilisateurConnecteId),
         ) ?? null,
 );
 
@@ -208,7 +220,7 @@ const addEtudiantForm = useForm({
     prenom: '',
     nom: '',
     no_da: '',
-    statut_cours: '',
+    statut_cours: 'actif',
     email: '',
 });
 
@@ -217,7 +229,7 @@ const editEtudiantForm = useForm({
     nom: '',
     email: '',
     no_da: '',
-    statut_cours: '',
+    statut_cours: 'actif',
 });
 
 const importEtudiantForm = useForm({
@@ -249,7 +261,8 @@ function openEditEtudiant(etudiant: Etudiant): void {
     editEtudiantForm.nom = etudiant.nom;
     editEtudiantForm.email = etudiant.email;
     editEtudiantForm.no_da = etudiant.no_da ?? '';
-    editEtudiantForm.statut_cours = etudiant.pivot?.statut_cours ?? '';
+    editEtudiantForm.statut_cours =
+        etudiant.pivot?.statut_cours ?? 'actif';
     showEditEtudiantDialog.value = true;
 }
 
@@ -751,7 +764,7 @@ function executeDeleteGroupe() {
                                     class="border-b last:border-0"
                                 >
                                     <td class="py-3 pr-4 font-mono text-xs">
-                                        {{ etudiant.no_da ?? '—' }}
+                                        {{ etudiant.no_da }}
                                     </td>
                                     <td class="py-3 pr-4 font-medium">
                                         {{ etudiant.nom }}
@@ -1117,10 +1130,20 @@ function executeDeleteGroupe() {
                         <Label for="add-statut">{{
                             $t('classes.show.modal_course_status')
                         }}</Label>
-                        <Input
-                            id="add-statut"
-                            v-model="addEtudiantForm.statut_cours"
-                        />
+                        <Select v-model="addEtudiantForm.statut_cours">
+                            <SelectTrigger id="add-statut">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem
+                                    v-for="statut in statutsEtudiant"
+                                    :key="statut.value"
+                                    :value="statut.value"
+                                >
+                                    {{ statut.label }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
                         <InputError
                             :message="addEtudiantForm.errors.statut_cours"
                         />
@@ -1195,7 +1218,20 @@ function executeDeleteGroupe() {
                         <Label>{{
                             $t('classes.show.modal_course_status')
                         }}</Label>
-                        <Input v-model="editEtudiantForm.statut_cours" />
+                        <Select v-model="editEtudiantForm.statut_cours">
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem
+                                    v-for="statut in statutsEtudiant"
+                                    :key="statut.value"
+                                    :value="statut.value"
+                                >
+                                    {{ statut.label }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
                         <InputError
                             :message="editEtudiantForm.errors.statut_cours"
                         />

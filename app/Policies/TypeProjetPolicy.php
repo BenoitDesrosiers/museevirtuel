@@ -14,7 +14,7 @@ class TypeProjetPolicy
      */
     public function update(User $user, TypeProjet $typeProjet): bool
     {
-        return $user->isAdmin() || $typeProjet->enseignant_id === $user->id;
+        return $user->isAdmin() || ($user->isEnseignant() && $typeProjet->enseignant_id === $user->id);
     }
 
     /**
@@ -24,6 +24,6 @@ class TypeProjetPolicy
      */
     public function delete(User $user, TypeProjet $typeProjet): bool
     {
-        return $user->isAdmin() || $typeProjet->enseignant_id === $user->id;
+        return $user->isAdmin() || ($user->isEnseignant() && $typeProjet->enseignant_id === $user->id);
     }
 }

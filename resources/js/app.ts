@@ -16,7 +16,10 @@ createInertiaApp({
     resolve: (name) =>
         resolvePageComponent(
             `./pages/${name}.vue`,
-            import.meta.glob<DefineComponent>('./pages/**/*.vue'),
+            import.meta.glob<DefineComponent>([
+                './pages/**/*.vue',
+                '!./pages/Musee/**/*.vue',
+            ]),
         ),
     setup({ el, App, props, plugin }) {
         const initialLocale =

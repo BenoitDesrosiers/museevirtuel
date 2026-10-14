@@ -109,7 +109,11 @@ test('show est accessible a un etudiant inscrit dans la section', function () {
 
     $this->actingAs($etudiant)
         ->get("/cours/{$cours->id}/classes/{$classe->id}")
-        ->assertOk();
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Classes/Show')
+            ->where('utilisateurConnecteId', $etudiant->id)
+        );
 });
 
 test('destroy supprime la section pour l enseignant du cours', function () {

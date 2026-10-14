@@ -33,7 +33,7 @@ class GroupeVideoPolicy
     {
         $groupe = $video->groupe;
 
-        if ($user->isAdmin() || $groupe->classe->cours->enseignant_id === $user->id) {
+        if ($user->isAdmin() || ($user->isEnseignant() && $groupe->classe->cours->enseignant_id === $user->id)) {
             return true;
         }
 
@@ -88,7 +88,7 @@ class GroupeVideoPolicy
 
         $groupe = $video->groupe;
 
-        if ($user->isAdmin() || $groupe->classe->cours->enseignant_id === $user->id) {
+        if ($user->isAdmin() || ($user->isEnseignant() && $groupe->classe->cours->enseignant_id === $user->id)) {
             return true;
         }
 
@@ -105,7 +105,7 @@ class GroupeVideoPolicy
         $groupe = $video->groupe;
 
         return $user->isAdmin()
-            || $groupe->classe->cours->enseignant_id === $user->id
+            || ($user->isEnseignant() && $groupe->classe->cours->enseignant_id === $user->id)
             || $video->user_id === $user->id;
     }
 
@@ -140,7 +140,7 @@ class GroupeVideoPolicy
     {
         $groupe = $video->groupe;
 
-        if ($user->isAdmin() || $groupe->classe->cours->enseignant_id === $user->id) {
+        if ($user->isAdmin() || ($user->isEnseignant() && $groupe->classe->cours->enseignant_id === $user->id)) {
             return true;
         }
 
@@ -161,7 +161,7 @@ class GroupeVideoPolicy
 
         $groupe = $video->groupe;
 
-        if ($user->isAdmin() || $groupe->classe->cours->enseignant_id === $user->id) {
+        if ($user->isAdmin() || ($user->isEnseignant() && $groupe->classe->cours->enseignant_id === $user->id)) {
             return true;
         }
 

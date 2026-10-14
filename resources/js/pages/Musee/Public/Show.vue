@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import MuseePublicNav from '@/components/MuseePublicNav.vue'
+import MuseePublicNav from '@/components/musee/MuseePublicNav.vue'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

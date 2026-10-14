@@ -7,9 +7,29 @@ use App\Http\Requests\UpdateThematiqueRequest;
 use App\Models\Thematique;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class ThematiqueController extends Controller
 {
+    /**
+     * Affiche le formulaire de création d'une thématique.
+     */
+    public function create(): Response
+    {
+        return Inertia::render('Enseignant/ThematiqueEdition/Create');
+    }
+
+    /**
+     * Affiche le formulaire de modification d'une thématique autorisée.
+     */
+    public function edit(Thematique $thematique): Response
+    {
+        $this->authorize('update', $thematique);
+
+        return Inertia::render('Enseignant/ThematiqueEdition/Edit', ['thematique' => $thematique]);
+    }
+
     /**
      * Enregistre une nouvelle thématique pour l'enseignant authentifié.
      */
@@ -35,7 +55,7 @@ class ThematiqueController extends Controller
             ),
         );
 
-        return back()->with('success', __('thematique.created'));
+        return to_route('enseignant.index')->with('success', __('thematique.created'));
     }
 
     /**
@@ -47,7 +67,7 @@ class ThematiqueController extends Controller
     {
         $thematique->update($request->validated());
 
-        return back()->with('success', __('thematique.updated'));
+        return to_route('enseignant.index')->with('success', __('thematique.updated'));
     }
 
     /**
