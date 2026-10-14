@@ -7,6 +7,10 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
     server: {
+        host: '127.0.0.1',
+        hmr: {
+            host: '127.0.0.1',
+        },
         watch: {
             // Wayfinder supprime et recrée ces dossiers à chaque changement PHP,
             // ce qui provoque des erreurs HMR transitoires. On les exclut du watcher ;

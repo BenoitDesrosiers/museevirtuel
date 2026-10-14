@@ -14,7 +14,7 @@ class ClassePolicy
      */
     public function view(User $user, Classe $classe): bool
     {
-        if ($user->isAdmin() || $classe->cours->enseignant_id === $user->id) {
+        if ($user->isAdmin() || ($user->isEnseignant() && $classe->cours->enseignant_id === $user->id)) {
             return true;
         }
 
@@ -28,7 +28,7 @@ class ClassePolicy
      */
     public function update(User $user, Classe $classe): bool
     {
-        return $user->isAdmin() || $classe->cours->enseignant_id === $user->id;
+        return $user->isAdmin() || ($user->isEnseignant() && $classe->cours->enseignant_id === $user->id);
     }
 
     /**
@@ -38,6 +38,6 @@ class ClassePolicy
      */
     public function delete(User $user, Classe $classe): bool
     {
-        return $user->isAdmin() || $classe->cours->enseignant_id === $user->id;
+        return $user->isAdmin() || ($user->isEnseignant() && $classe->cours->enseignant_id === $user->id);
     }
 }

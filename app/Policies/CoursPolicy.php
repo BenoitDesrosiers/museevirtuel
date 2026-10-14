@@ -12,7 +12,7 @@ class CoursPolicy
      */
     public function view(User $user, Cours $cours): bool
     {
-        return $user->isAdmin() || $cours->enseignant_id === $user->id;
+        return $user->isAdmin() || ($user->isEnseignant() && $cours->enseignant_id === $user->id);
     }
 
     /**
@@ -20,7 +20,7 @@ class CoursPolicy
      */
     public function update(User $user, Cours $cours): bool
     {
-        return $user->isAdmin() || $cours->enseignant_id === $user->id;
+        return $user->isAdmin() || ($user->isEnseignant() && $cours->enseignant_id === $user->id);
     }
 
     /**
@@ -28,6 +28,6 @@ class CoursPolicy
      */
     public function delete(User $user, Cours $cours): bool
     {
-        return $user->isAdmin() || $cours->enseignant_id === $user->id;
+        return $user->isAdmin() || ($user->isEnseignant() && $cours->enseignant_id === $user->id);
     }
 }

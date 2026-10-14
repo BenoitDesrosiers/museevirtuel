@@ -2,7 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3'
 import { BookOpen, Handshake, Mic, Search } from 'lucide-vue-next'
 import { ref } from 'vue'
-import MuseePublicNav from '@/components/MuseePublicNav.vue'
+import MuseePublicNav from '@/components/musee/MuseePublicNav.vue'
 
 // ─── FAQ accordéon ────────────────────────────────────────────────────────────
 

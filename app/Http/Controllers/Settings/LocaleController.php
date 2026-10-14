@@ -19,6 +19,6 @@ class LocaleController extends Controller
 
         $request->user()->update(['locale' => $validated['locale']]);
 
-        return back();
+        return redirect()->back();
     }
 }

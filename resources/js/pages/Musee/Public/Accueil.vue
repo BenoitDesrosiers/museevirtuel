@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3'
 import { ArrowRight } from 'lucide-vue-next'
-import MuseePublicNav from '@/components/MuseePublicNav.vue'
+import MuseePublicNav from '@/components/musee/MuseePublicNav.vue'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

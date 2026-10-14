@@ -54,6 +54,42 @@ test('store ajoute un etudiant a une section', function () {
     ]);
 });
 
+test('store utilise actif comme statut par défaut', function () {
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe] = creerContexteClasseEtudiant();
+
+    $this->actingAs($enseignant)
+        ->post("/cours/{$cours->id}/classes/{$classe->id}/etudiants", [
+            'prenom' => 'Claire',
+            'nom' => 'Roy',
+            'email' => 'claire.roy@example.com',
+            'no_da' => '1234568',
+        ])
+        ->assertRedirect();
+
+    $etudiant = User::where('no_da', '1234568')->firstOrFail();
+
+    $this->assertDatabaseHas('classe_etudiant', [
+        'classe_id' => $classe->id,
+        'user_id' => $etudiant->id,
+        'statut_cours' => 'actif',
+    ]);
+});
+
+test('store refuse un statut de cours qui ne fait pas partie de enum', function () {
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe] = creerContexteClasseEtudiant();
+
+    $this->actingAs($enseignant)
+        ->postJson("/cours/{$cours->id}/classes/{$classe->id}/etudiants", [
+            'prenom' => 'Claire',
+            'nom' => 'Roy',
+            'email' => 'claire.roy@example.com',
+            'no_da' => '1234568',
+            'statut_cours' => 'ancien',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['statut_cours']);
+});
+
 test('update modifie etudiant et statut dans la section', function () {
     ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe] = creerContexteClasseEtudiant();
     $etudiant = User::factory()->create([
@@ -85,6 +121,26 @@ test('update modifie etudiant et statut dans la section', function () {
         'user_id' => $etudiant->id,
         'statut_cours' => 'actif',
     ]);
+});
+
+test('update refuse un statut de cours invalide', function () {
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe] = creerContexteClasseEtudiant();
+    $etudiant = User::factory()->create([
+        'role' => 'etudiant',
+        'no_da' => '7654322',
+    ]);
+    $classe->etudiants()->attach($etudiant->id, ['statut_cours' => 'actif']);
+
+    $this->actingAs($enseignant)
+        ->putJson("/cours/{$cours->id}/classes/{$classe->id}/etudiants/{$etudiant->id}", [
+            'prenom' => $etudiant->prenom,
+            'nom' => $etudiant->nom,
+            'email' => $etudiant->email,
+            'no_da' => $etudiant->no_da,
+            'statut_cours' => 'ancien',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['statut_cours']);
 });
 
 test('destroy retire etudiant de la section', function () {

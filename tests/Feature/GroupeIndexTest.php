@@ -3,6 +3,7 @@
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
+use App\Models\Thematique;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -30,9 +31,9 @@ function creerScenarioGroupeIndex(): array
     return compact('enseignant', 'cours', 'etudiant', 'classe');
 }
 
-// ─── index() — étudiant avec groupe ───────────────────────────────────────────
+// ─── create() — étudiant avec groupe ──────────────────────────────────────────
 
-test('étudiant avec groupe est redirigé vers groupes show', function () {
+test('étudiant avec groupe est redirigé vers groupes show depuis create', function () {
     $ctx = creerScenarioGroupeIndex();
 
     $groupe = Groupe::create([
@@ -42,26 +43,50 @@ test('étudiant avec groupe est redirigé vers groupes show', function () {
     $groupe->membres()->attach($ctx['etudiant']->id);
 
     $this->actingAs($ctx['etudiant'])
-        ->get(route('groupes.index', [$ctx['cours'], $ctx['classe']]))
+        ->get(route('groupes.create', [$ctx['cours'], $ctx['classe']]))
         ->assertRedirect(route('groupes.show', [$ctx['cours'], $ctx['classe'], $groupe]));
 });
 
-// ─── index() — étudiant sans groupe ───────────────────────────────────────────
+// ─── create() — étudiant sans groupe ──────────────────────────────────────────
 
-test('étudiant sans groupe voit la page de création', function () {
+test('étudiant sans groupe voit la nouvelle page de création', function () {
     $ctx = creerScenarioGroupeIndex();
 
     $this->actingAs($ctx['etudiant'])
-        ->get(route('groupes.index', [$ctx['cours'], $ctx['classe']]))
+        ->get(route('groupes.create', [$ctx['cours'], $ctx['classe']]))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('Classes/Groupes')
+            ->component('Groupes/Create')
             ->has('autresEtudiants')
             ->has('thematiques')
             ->missing('documents')
             ->missing('echeancierEtapes')
             ->missing('monGroupe')
         );
+});
+
+test('index redirige vers la page de création', function () {
+    $ctx = creerScenarioGroupeIndex();
+
+    $this->actingAs($ctx['etudiant'])
+        ->get(route('groupes.index', [$ctx['cours'], $ctx['classe']]))
+        ->assertRedirect(route('groupes.create', [$ctx['cours'], $ctx['classe']]));
+});
+
+test('un enseignant ne peut pas accéder aux routes de création de groupe', function () {
+    $ctx = creerScenarioGroupeIndex();
+
+    $this->actingAs($ctx['enseignant'])
+        ->get(route('groupes.index', [$ctx['cours'], $ctx['classe']]))
+        ->assertRedirect(route('dashboard'));
+
+    $this->actingAs($ctx['enseignant'])
+        ->get(route('groupes.create', [$ctx['cours'], $ctx['classe']]))
+        ->assertRedirect(route('dashboard'));
+
+    $this->actingAs($ctx['enseignant'])
+        ->post(route('groupes.store', [$ctx['cours'], $ctx['classe']]))
+        ->assertRedirect(route('dashboard'));
 });
 
 // ─── index() — accès refusé ────────────────────────────────────────────────────
@@ -71,7 +96,7 @@ test('étudiant non inscrit ne peut pas accéder à groupes index', function () 
     $autre = User::factory()->create(['role' => 'etudiant']);
 
     $this->actingAs($autre)
-        ->get(route('groupes.index', [$ctx['cours'], $ctx['classe']]))
+        ->get(route('groupes.create', [$ctx['cours'], $ctx['classe']]))
         ->assertForbidden();
 });
 
@@ -87,7 +112,7 @@ test('cours et classe incompatibles renvoient 404', function () {
     ]);
 
     $this->actingAs($ctx['etudiant'])
-        ->get(route('groupes.index', [$autreCours, $ctx['classe']]))
+        ->get(route('groupes.create', [$autreCours, $ctx['classe']]))
         ->assertNotFound();
 });
 
@@ -121,10 +146,10 @@ test('index exclut les étudiants déjà dans un groupe de autresEtudiants', fun
     $ctx['classe']->etudiants()->attach($etudiantLibre->id);
 
     $this->actingAs($ctx['etudiant'])
-        ->get(route('groupes.index', [$ctx['cours'], $ctx['classe']]))
+        ->get(route('groupes.create', [$ctx['cours'], $ctx['classe']]))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('Classes/Groupes')
+            ->component('Groupes/Create')
             ->where('autresEtudiants', fn ($list) => collect($list)->pluck('id')->doesntContain($etudiantGroupe->id)
                 && collect($list)->pluck('id')->contains($etudiantLibre->id)
             )
@@ -149,17 +174,41 @@ test('store ignore les membres déjà dans un autre groupe', function () {
     $this->actingAs($ctx['etudiant'])
         ->post(route('groupes.store', [$ctx['cours'], $ctx['classe']]), [
             'membres' => [$etudiantPris->id],
-            'thematiques' => [],
+            'thematiques' => [Thematique::factory()->create([
+                'enseignant_id' => $ctx['enseignant']->id,
+            ])->id],
         ]);
 
-    // Le groupe créé ne doit contenir que le créateur
-    $nouveauGroupe = Groupe::where('classe_id', $ctx['classe']->id)
+    expect(Groupe::where('classe_id', $ctx['classe']->id)
         ->where('created_by', $ctx['etudiant']->id)
-        ->first();
+        ->exists())->toBeFalse();
+});
 
-    expect($nouveauGroupe)->not->toBeNull()
-        ->and($nouveauGroupe->membres()->pluck('users.id')->map(fn ($id) => (int) $id)->toArray())
-        ->not->toContain((int) $etudiantPris->id);
+test('store refuse un groupe avec moins de deux membres', function () {
+    $ctx = creerScenarioGroupeIndex();
+    $thematique = Thematique::factory()->create([
+        'enseignant_id' => $ctx['enseignant']->id,
+    ]);
+
+    $this->actingAs($ctx['etudiant'])
+        ->post(route('groupes.store', [$ctx['cours'], $ctx['classe']]), [
+            'membres' => [],
+            'thematiques' => [$thematique->id],
+        ])
+        ->assertSessionHasErrors('membres');
+});
+
+test('store refuse un groupe sans thematique', function () {
+    $ctx = creerScenarioGroupeIndex();
+    $etudiant = User::factory()->create(['role' => 'etudiant']);
+    $ctx['classe']->etudiants()->attach($etudiant->id);
+
+    $this->actingAs($ctx['etudiant'])
+        ->post(route('groupes.store', [$ctx['cours'], $ctx['classe']]), [
+            'membres' => [$etudiant->id],
+            'thematiques' => [],
+        ])
+        ->assertSessionHasErrors('thematiques');
 });
 
 // ─── show() — filtrage etudiantsDispo déjà dans un groupe ────────────────────
@@ -229,4 +278,45 @@ test('updateMembres ignore les étudiants déjà dans un autre groupe', function
 
     expect($groupe->membres()->pluck('users.id')->map(fn ($id) => (int) $id)->toArray())
         ->not->toContain((int) $etudiantPris->id);
+});
+
+test('updateMembres refuse de réduire un groupe à un seul membre', function () {
+    $ctx = creerScenarioGroupeIndex();
+    $secondEtudiant = User::factory()->create(['role' => 'etudiant']);
+    $ctx['classe']->etudiants()->attach($secondEtudiant->id);
+
+    $groupe = Groupe::create([
+        'classe_id' => $ctx['classe']->id,
+        'created_by' => $ctx['etudiant']->id,
+    ]);
+    $groupe->membres()->attach([$ctx['etudiant']->id, $secondEtudiant->id]);
+
+    $this->actingAs($ctx['etudiant'])
+        ->put(route('groupes.membres.update', [$ctx['cours'], $ctx['classe'], $groupe]), [
+            'ajouter' => [],
+            'retirer' => [$secondEtudiant->id],
+        ])
+        ->assertSessionHasErrors('membres');
+});
+
+test('updateThematiques refuse de supprimer la dernière thematique', function () {
+    $ctx = creerScenarioGroupeIndex();
+    $secondEtudiant = User::factory()->create(['role' => 'etudiant']);
+    $ctx['classe']->etudiants()->attach($secondEtudiant->id);
+    $thematique = Thematique::factory()->create([
+        'enseignant_id' => $ctx['enseignant']->id,
+    ]);
+
+    $groupe = Groupe::create([
+        'classe_id' => $ctx['classe']->id,
+        'created_by' => $ctx['etudiant']->id,
+    ]);
+    $groupe->membres()->attach([$ctx['etudiant']->id, $secondEtudiant->id]);
+    $groupe->thematiques()->attach($thematique->id);
+
+    $this->actingAs($ctx['etudiant'])
+        ->put(route('groupes.thematiques.update', [$ctx['cours'], $ctx['classe'], $groupe]), [
+            'thematiques' => [],
+        ])
+        ->assertSessionHasErrors('thematiques');
 });

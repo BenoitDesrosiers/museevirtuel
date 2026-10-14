@@ -2,7 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { AlertTriangle, ArrowLeft, Copy } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
-import Heading from '@/components/Heading.vue';
+import Heading from '@/components/shared/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';

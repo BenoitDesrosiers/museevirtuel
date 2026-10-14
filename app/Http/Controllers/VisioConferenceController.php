@@ -27,7 +27,7 @@ class VisioConferenceController extends Controller
     public function store(Request $request, Cours $cours): RedirectResponse
     {
         $user = $request->user();
-        $estEnseignant = $cours->enseignant_id === $user->id || $user->isAdmin();
+        $estEnseignant = ($user->isEnseignant() && $cours->enseignant_id === $user->id) || $user->isAdmin();
 
         $data = $request->validate([
             'titre' => ['required', 'string', 'max:255'],
@@ -112,7 +112,7 @@ class VisioConferenceController extends Controller
 
         $user = auth()->user();
 
-        $estAutorise = $cours->enseignant_id === $user->id
+        $estAutorise = ($user->isEnseignant() && $cours->enseignant_id === $user->id)
             || $user->isAdmin()
             || Classe::where('cours_id', $cours->id)
                 ->whereHas('groupes', fn ($q) => $q
@@ -141,7 +141,7 @@ class VisioConferenceController extends Controller
 
         $user = auth()->user();
 
-        $estAutorise = $cours->enseignant_id === $user->id
+        $estAutorise = ($user->isEnseignant() && $cours->enseignant_id === $user->id)
             || $user->isAdmin()
             || Classe::where('cours_id', $cours->id)
                 ->whereHas('groupes', fn ($q) => $q
@@ -205,7 +205,11 @@ class VisioConferenceController extends Controller
         $user = auth()->user();
 
         // Autoriser l'enseignant, les admins, et les membres de n'importe quel groupe du cours
-        $estAutorise = $cours->enseignant_id === $user->id
+        /**
+         * Il faudra retirer la portion $user->isEnseignant()
+         * && en production.
+         */
+        $estAutorise = ($user->isEnseignant() && $cours->enseignant_id === $user->id)
             || $user->isAdmin()
             || Classe::where('cours_id', $cours->id)
                 ->whereHas('groupes', fn ($q) => $q

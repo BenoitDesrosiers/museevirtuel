@@ -3,7 +3,7 @@ import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { Check } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import InputError from '@/components/InputError.vue';
+import InputError from '@/components/shared/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft, Download, Eye } from 'lucide-vue-next';
-import Heading from '@/components/Heading.vue';
+import Heading from '@/components/shared/Heading.vue';
+import ApercuSection from '@/components/projets/ApercuSection.vue';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -32,18 +33,6 @@ type Classe = {
 type Projet = {
     id: number;
     titre_projet: string | null;
-};
-
-type Paragraphe = {
-    id: number;
-    ordre: number;
-    titre: string | null;
-    contenu: string | null;
-};
-
-type ConclusionMembre = {
-    userId: number;
-    contenu: string;
 };
 
 type Section = {
@@ -78,12 +67,6 @@ const props = defineProps<{
 /** Construit l'URL de base pour les routes du projet de ce groupe. */
 const baseUrl = `/cours/${props.classe.cours_id}/classes/${props.groupe.classe_id}/groupes/${props.groupe.id}/projets/${props.typeProjet.id}`;
 
-/** Retrouve le nom d'un membre par son userId. */
-function nomMembre(userId: number): string {
-    const m = props.membres.find((m) => m.id === userId);
-
-    return m ? `${m.prenom} ${m.nom}` : '—';
-}
 </script>
 
 <template>
@@ -174,93 +157,12 @@ function nomMembre(userId: number): string {
                     {{ $t('apercu.no_sections') }}
                 </p>
 
-                <section
+                <ApercuSection
                     v-for="section in sections"
                     :key="section.id"
-                    class="space-y-3"
-                >
-                    <h2 class="border-b pb-2 text-xl font-semibold">
-                        {{ section.label }}
-                    </h2>
-                    <p
-                        v-if="section.description"
-                        class="text-xs text-muted-foreground italic"
-                    >
-                        {{ section.description }}
-                    </p>
-
-                    <!-- Type texte -->
-                    <template v-if="section.type === 'texte'">
-                        <div
-                            v-if="section.contenu && section.contenu.trim()"
-                            class="prose prose-sm dark:prose-invert max-w-none"
-                            v-html="section.contenu"
-                        />
-                        <p v-else class="text-sm text-muted-foreground italic">
-                            {{ $t('apercu.section_not_written') }}
-                        </p>
-                    </template>
-
-                    <!-- Type paragraphes -->
-                    <template v-else-if="section.type === 'paragraphes'">
-                        <template
-                            v-if="
-                                section.paragraphes &&
-                                section.paragraphes.length > 0
-                            "
-                        >
-                            <article
-                                v-for="p in section.paragraphes"
-                                :key="p.id"
-                                class="space-y-2"
-                            >
-                                <h3
-                                    v-if="p.titre"
-                                    class="text-base font-semibold"
-                                >
-                                    {{ p.titre }}
-                                </h3>
-                                <div
-                                    v-if="p.contenu && p.contenu.trim()"
-                                    class="prose prose-sm dark:prose-invert max-w-none"
-                                    v-html="p.contenu"
-                                />
-                            </article>
-                        </template>
-                        <p v-else class="text-sm text-muted-foreground italic">
-                            {{ $t('apercu.no_paragraphs') }}
-                        </p>
-                    </template>
-
-                    <!-- Type individuel -->
-                    <template v-else-if="section.type === 'individuel'">
-                        <template
-                            v-if="
-                                section.conclusionsParMembre &&
-                                section.conclusionsParMembre.length > 0
-                            "
-                        >
-                            <article
-                                v-for="c in section.conclusionsParMembre"
-                                :key="c.userId"
-                                class="space-y-2"
-                            >
-                                <h3
-                                    class="text-sm font-semibold text-muted-foreground"
-                                >
-                                    {{ nomMembre(c.userId) }}
-                                </h3>
-                                <div
-                                    class="prose prose-sm dark:prose-invert max-w-none"
-                                    v-html="c.contenu"
-                                />
-                            </article>
-                        </template>
-                        <p v-else class="text-sm text-muted-foreground italic">
-                            {{ $t('apercu.no_conclusions') }}
-                        </p>
-                    </template>
-                </section>
+                    :section="section"
+                    :membres="membres"
+                />
             </template>
 
             <!-- ─── Références (renvois / endnotes) ──────────────────────── -->

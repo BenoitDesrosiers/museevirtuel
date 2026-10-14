@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\StatutProjetRecherche;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -23,6 +25,7 @@ class ProjetRecherche extends Model
         'mode_edition_enseignant',
         'date_remise',
         'remis_le',
+        'statut',
         'remises_multiples',
         'retard_permis',
     ];
@@ -42,7 +45,33 @@ class ProjetRecherche extends Model
             'retard_permis' => 'boolean',
             'date_remise' => 'datetime',
             'remis_le' => 'datetime',
+            'statut' => StatutProjetRecherche::class,
         ];
+    }
+
+    /**
+     * Retourne le statut actuel selon la date limite effective et la remise.
+     */
+    public function statutActuel(?CarbonInterface $maintenant = null): StatutProjetRecherche
+    {
+        $typeProjet = $this->relationLoaded('typeProjet') ? $this->typeProjet : null;
+        $dateRemise = $typeProjet?->date_remise ?? $this->date_remise;
+
+        return StatutProjetRecherche::fromDates($dateRemise, $this->remis_le, $maintenant);
+    }
+
+    /**
+     * Synchronise le statut persistant avec les dates actuelles.
+     */
+    public function synchroniserStatut(?CarbonInterface $maintenant = null): StatutProjetRecherche
+    {
+        $statut = $this->statutActuel($maintenant);
+
+        if ($this->statut !== $statut) {
+            $this->forceFill(['statut' => $statut])->saveQuietly();
+        }
+
+        return $statut;
     }
 
     /**

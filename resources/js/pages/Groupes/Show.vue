@@ -23,16 +23,15 @@ import {
 } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import * as GroupeMediaController from '@/actions/App/Http/Controllers/GroupeMediaController';
-import * as GroupeVideoController from '@/actions/App/Http/Controllers/GroupeVideoController';
-import FormDialog from '@/components/FormDialog.vue';
-import Heading from '@/components/Heading.vue';
-import NoteAvecCorrections from '@/components/NoteAvecCorrections.vue';
-import PhotoEditor from '@/components/PhotoEditor.vue';
+import * as GroupeMediaController from '@/actions/App/Http/Controllers/Groupe/GroupeMediaController';
+import * as GroupeVideoController from '@/actions/App/Http/Controllers/Groupe/GroupeVideoController';
+import FormDialog from '@/components/shared/FormDialog.vue';
+import Heading from '@/components/shared/Heading.vue';
+import NoteAvecCorrections from '@/components/classes/NoteAvecCorrections.vue';
+import PhotoEditor from '@/components/editors/PhotoEditor.vue';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogContent,
@@ -48,9 +47,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import VideoCard from '@/components/VideoCard.vue';
-import VideoUploadForm from '@/components/VideoUploadForm.vue';
-import VisioSession from '@/components/VisioSession.vue';
+import VideoCard from '@/components/medias/VideoCard.vue';
+import VideoUploadForm from '@/components/medias/VideoUploadForm.vue';
+import VisioSession from '@/components/classes/VisioSession.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { Auth } from '@/types/auth';
 
@@ -200,35 +199,41 @@ const membresForm = useForm({
     retirer: [] as number[],
 });
 
-// Refs découplés de useForm pour tracker les cases à cocher de façon fiable
+// Refs découplés de useForm pour tracker les sélections avant soumission
 const membresAjouter = ref<number[]>([]);
 const membresRetirer = ref<number[]>([]);
+const membreAjouterSelectionne = ref<number | null>(null);
+const membreRetirerSelectionne = ref<number | null>(null);
 
 function openMembres() {
     membresAjouter.value = [];
     membresRetirer.value = [];
+    membreAjouterSelectionne.value = null;
+    membreRetirerSelectionne.value = null;
     membresError.value = '';
     showMembresDialog.value = true;
 }
 
-function toggleAjouter(id: number) {
-    const idx = membresAjouter.value.indexOf(id);
-
-    if (idx > -1) {
-        membresAjouter.value.splice(idx, 1);
-    } else {
-        membresAjouter.value.push(id);
+function ajouterMembreSelectionne(): void {
+    if (
+        membreAjouterSelectionne.value !== null &&
+        !membresAjouter.value.includes(membreAjouterSelectionne.value)
+    ) {
+        membresAjouter.value.push(membreAjouterSelectionne.value);
     }
+
+    membreAjouterSelectionne.value = null;
 }
 
-function toggleRetirer(id: number) {
-    const idx = membresRetirer.value.indexOf(id);
-
-    if (idx > -1) {
-        membresRetirer.value.splice(idx, 1);
-    } else {
-        membresRetirer.value.push(id);
+function retirerMembreSelectionne(): void {
+    if (
+        membreRetirerSelectionne.value !== null &&
+        !membresRetirer.value.includes(membreRetirerSelectionne.value)
+    ) {
+        membresRetirer.value.push(membreRetirerSelectionne.value);
     }
+
+    membreRetirerSelectionne.value = null;
 }
 
 function submitMembres() {
@@ -263,9 +268,11 @@ const thematiquesForm = useForm({
 
 // Ref découplé de useForm pour tracker les cases à cocher de façon fiable
 const thematiquesSelectionnees = ref<number[]>([]);
+const thematiqueSelectionnee = ref<number | null>(null);
 
 function openThematiques() {
     thematiquesSelectionnees.value = props.groupe.thematiques.map((t) => t.id);
+    thematiqueSelectionnee.value = null;
     thematiquesError.value = '';
     showThematiquesDialog.value = true;
 }
@@ -274,14 +281,22 @@ const thematiquesMax = computed(
     () => thematiquesSelectionnees.value.length >= 3,
 );
 
-function toggleThematique(id: number) {
-    const idx = thematiquesSelectionnees.value.indexOf(id);
-
-    if (idx > -1) {
-        thematiquesSelectionnees.value.splice(idx, 1);
-    } else if (thematiquesSelectionnees.value.length < 3) {
-        thematiquesSelectionnees.value.push(id);
+function ajouterThematiqueSelectionnee(): void {
+    if (
+        thematiqueSelectionnee.value !== null &&
+        thematiquesSelectionnees.value.length < 3 &&
+        !thematiquesSelectionnees.value.includes(thematiqueSelectionnee.value)
+    ) {
+        thematiquesSelectionnees.value.push(thematiqueSelectionnee.value);
     }
+
+    thematiqueSelectionnee.value = null;
+}
+
+function retirerThematiqueSelectionnee(id: number): void {
+    thematiquesSelectionnees.value = thematiquesSelectionnees.value.filter(
+        (thematiqueId) => thematiqueId !== id,
+    );
 }
 
 function submitThematiques() {
@@ -662,10 +677,10 @@ function formatSize(bytes: number): string {
             <div>
                 <Button variant="ghost" size="sm" as-child>
                     <Link
-                        :href="`/cours/${cours.id}/classes/${groupe.classe_id}/groupes`"
+                        :href="`/cours/${cours.id}/classes/${groupe.classe_id}`"
                     >
                         <ArrowLeft class="mr-2 h-4 w-4" />
-                        {{ $t('groupes.show.back') }}
+                        Retour aux détails du cours
                     </Link>
                 </Button>
             </div>
@@ -1864,28 +1879,63 @@ function formatSize(bytes: number): string {
                         >
                             {{ $t('groupes.show.modal_all_members') }}
                         </div>
-                        <div v-else class="space-y-2">
-                            <div
-                                v-for="etudiant in etudiantsDispo"
-                                :key="etudiant.id"
-                                class="flex items-center gap-3"
+                        <div v-else class="flex items-center gap-2">
+                            <Select v-model="membreAjouterSelectionne">
+                                <SelectTrigger class="flex-1">
+                                    <SelectValue
+                                        :placeholder="
+                                            $t(
+                                                'groupes.show.modal_invite_students',
+                                            )
+                                        "
+                                    />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem
+                                        v-for="etudiant in etudiantsDispo.filter(
+                                            (etudiant) =>
+                                                !membresAjouter.includes(
+                                                    etudiant.id,
+                                                ),
+                                        )"
+                                        :key="etudiant.id"
+                                        :value="etudiant.id"
+                                    >
+                                        {{ etudiant.prenom }}
+                                        {{ etudiant.nom }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                :disabled="membreAjouterSelectionne === null"
+                                @click="ajouterMembreSelectionne"
                             >
-                                <Checkbox
-                                    :id="`ajouter-${etudiant.id}`"
-                                    :checked="
-                                        membresAjouter.includes(etudiant.id)
-                                    "
-                                    @click.prevent="
-                                        () => toggleAjouter(etudiant.id)
-                                    "
-                                />
-                                <Label
-                                    :for="`ajouter-${etudiant.id}`"
-                                    class="cursor-pointer font-normal"
-                                >
-                                    {{ etudiant.prenom }} {{ etudiant.nom }}
-                                </Label>
-                            </div>
+                                <Plus class="mr-2 size-4" />
+                                {{ $t('common.add') }}
+                            </Button>
+                        </div>
+                        <div
+                            v-if="membresAjouter.length > 0"
+                            class="flex flex-wrap gap-2"
+                        >
+                            <span
+                                v-for="id in membresAjouter"
+                                :key="id"
+                                class="rounded-full bg-muted px-3 py-1 text-sm"
+                            >
+                                {{
+                                    etudiantsDispo.find(
+                                        (etudiant) => etudiant.id === id,
+                                    )?.prenom
+                                }}
+                                {{
+                                    etudiantsDispo.find(
+                                        (etudiant) => etudiant.id === id,
+                                    )?.nom
+                                }}
+                            </span>
                         </div>
                     </div>
 
@@ -1894,30 +1944,73 @@ function formatSize(bytes: number): string {
                         <p class="mb-2 text-sm font-medium">
                             {{ $t('groupes.show.modal_remove_members') }}
                         </p>
-                        <div class="space-y-2">
-                            <div
-                                v-for="membre in groupe.membres.filter(
-                                    (m) => m.id !== userId,
-                                )"
-                                :key="membre.id"
-                                class="flex items-center gap-3"
+                        <div
+                            v-if="
+                                groupe.membres.filter(
+                                    (membre) => membre.id !== userId,
+                                ).length === 0
+                            "
+                            class="text-sm text-muted-foreground"
+                        >
+                            Aucun autre membre ne peut être retiré.
+                        </div>
+                        <div v-else class="flex items-center gap-2">
+                            <Select v-model="membreRetirerSelectionne">
+                                <SelectTrigger class="flex-1">
+                                    <SelectValue
+                                        :placeholder="
+                                            $t(
+                                                'groupes.show.modal_remove_members',
+                                            )
+                                        "
+                                    />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem
+                                        v-for="membre in groupe.membres.filter(
+                                            (membre) =>
+                                                membre.id !== userId &&
+                                                !membresRetirer.includes(
+                                                    membre.id,
+                                                ),
+                                        )"
+                                        :key="membre.id"
+                                        :value="membre.id"
+                                    >
+                                        {{ membre.prenom }} {{ membre.nom }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                :disabled="membreRetirerSelectionne === null"
+                                @click="retirerMembreSelectionne"
                             >
-                                <Checkbox
-                                    :id="`retirer-${membre.id}`"
-                                    :checked="
-                                        membresRetirer.includes(membre.id)
-                                    "
-                                    @click.prevent="
-                                        () => toggleRetirer(membre.id)
-                                    "
-                                />
-                                <Label
-                                    :for="`retirer-${membre.id}`"
-                                    class="cursor-pointer font-normal"
-                                >
-                                    {{ membre.prenom }} {{ membre.nom }}
-                                </Label>
-                            </div>
+                                <Trash2 class="mr-2 size-4" />
+                                Retirer
+                            </Button>
+                        </div>
+                        <div
+                            v-if="membresRetirer.length > 0"
+                            class="flex flex-wrap gap-2 mt-1"
+                        >
+                            <span
+                                v-for="id in membresRetirer"
+                                :key="id"
+                                class="rounded-full bg-destructive/10 px-3 py-1 text-sm text-destructive"
+                            >
+                                {{
+                                    groupe.membres.find(
+                                        (membre) => membre.id === id,
+                                    )?.prenom
+                                }}
+                                {{
+                                    groupe.membres.find(
+                                        (membre) => membre.id === id,
+                                    )?.nom
+                                }}
+                            </span>
                         </div>
                     </div>
 
@@ -2036,42 +2129,65 @@ function formatSize(bytes: number): string {
                 {{ $t('groupes.show.modal_no_thematic_available') }}
             </div>
 
-            <div v-else class="space-y-3">
-                <div
-                    v-for="thematique in thematiquesDispo"
-                    :key="thematique.id"
-                    class="flex items-start gap-3"
-                >
-                    <Checkbox
-                        :id="`t-${thematique.id}`"
-                        :checked="
-                            thematiquesSelectionnees.includes(thematique.id)
-                        "
+            <div v-else class="grid gap-3">
+                <div class="flex items-center gap-2">
+                    <Select v-model="thematiqueSelectionnee">
+                        <SelectTrigger class="flex-1">
+                            <SelectValue
+                                :placeholder="
+                                    $t('groupes.show.modal_edit_thematic')
+                                "
+                            />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem
+                                v-for="thematique in thematiquesDispo.filter(
+                                    (thematique) =>
+                                        !thematiquesSelectionnees.includes(
+                                            thematique.id,
+                                        ),
+                                )"
+                                :key="thematique.id"
+                                :value="thematique.id"
+                            >
+                                {{ thematique.nom }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Button
+                        type="button"
+                        variant="outline"
                         :disabled="
-                            thematiquesMax &&
-                            !thematiquesSelectionnees.includes(thematique.id)
+                            thematiqueSelectionnee === null || thematiquesMax
                         "
-                        @click.prevent="() => toggleThematique(thematique.id)"
-                    />
-                    <Label
-                        :for="`t-${thematique.id}`"
-                        class="cursor-pointer leading-snug font-normal"
-                        :class="{
-                            'text-muted-foreground':
-                                thematiquesMax &&
-                                !thematiquesSelectionnees.includes(
-                                    thematique.id,
-                                ),
-                        }"
+                        @click="ajouterThematiqueSelectionnee"
                     >
-                        {{ thematique.nom }}
-                        <span
-                            v-if="thematique.periode_historique"
-                            class="ml-1 text-xs text-muted-foreground"
+                        <Plus class="mr-2 size-4" />
+                        {{ $t('common.add') }}
+                    </Button>
+                </div>
+                <div
+                    v-if="thematiquesSelectionnees.length > 0"
+                    class="flex flex-wrap gap-2"
+                >
+                    <span
+                        v-for="id in thematiquesSelectionnees"
+                        :key="id"
+                        class="flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm"
+                    >
+                        {{
+                            thematiquesDispo.find(
+                                (thematique) => thematique.id === id,
+                            )?.nom
+                        }}
+                        <button
+                            type="button"
+                            class="text-muted-foreground hover:text-foreground"
+                            @click="retirerThematiqueSelectionnee(id)"
                         >
-                            — {{ thematique.periode_historique }}
-                        </span>
-                    </Label>
+                            ×
+                        </button>
+                    </span>
                 </div>
             </div>
 
