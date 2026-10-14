@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cours;
 use App\Models\ProjetRecherche;
 use App\Models\Thematique;
 use App\Models\User;
@@ -16,6 +17,24 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class EnseignantController extends Controller
 {
     /**
+     * Affiche le formulaire de création d'un cours.
+     */
+    public function createCours(): Response
+    {
+        return Inertia::render('Enseignant/CoursEdition/Create');
+    }
+
+    /**
+     * Affiche le formulaire de modification d'un cours appartenant à l'enseignant.
+     */
+    public function editCours(Cours $cours): Response
+    {
+        abort_unless($cours->enseignant_id === auth()->id(), 403);
+
+        return Inertia::render('Enseignant/CoursEdition/Edit', ['cours' => $cours]);
+    }
+
+    /**
      * Affiche le tableau de bord de l'enseignant avec ses classes, thématiques,
      * les travaux récemment remis et les témoins en attente liés à ses thématiques.
      */
@@ -25,8 +44,18 @@ class EnseignantController extends Controller
 
         $cours = $user->cours()
             ->withCount('classes')
+            ->with('classes.etudiants:id')
             ->orderBy('nom_cours')
             ->get();
+
+        $cours->each(function (Cours $cours): void {
+            $etudiantsIds = $cours->classes
+                ->flatMap(fn ($classe) => $classe->etudiants->pluck('id'))
+                ->unique();
+
+            $cours->setAttribute('etudiants_count', $etudiantsIds->count());
+            $cours->unsetRelation('classes');
+        });
 
         $thematiques = $this->thematiquesVisibles($user)
             ->with('enseignant:id,prenom,nom')

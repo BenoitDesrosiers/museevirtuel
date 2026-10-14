@@ -1,33 +1,34 @@
 <?php
 
 use App\Http\Controllers\AdministrationController;
-use App\Http\Controllers\ClasseController;
-use App\Http\Controllers\ClasseEtudiantController;
-use App\Http\Controllers\CoursController;
-use App\Http\Controllers\CoursDocumentController;
-use App\Http\Controllers\CoursLienEntrevueController;
-use App\Http\Controllers\CoursObjectifController;
-use App\Http\Controllers\CoursReferenceController;
-use App\Http\Controllers\EcheancierController;
+use App\Http\Controllers\Classe\ClasseController;
+use App\Http\Controllers\Classe\ClasseEtudiantController;
+use App\Http\Controllers\Cours\CoursController;
+use App\Http\Controllers\Cours\CoursDocumentController;
+use App\Http\Controllers\Cours\CoursLienEntrevueController;
+use App\Http\Controllers\Cours\CoursObjectifController;
+use App\Http\Controllers\Cours\CoursReferenceController;
+use App\Http\Controllers\Cours\EcheancierController;
+use App\Http\Controllers\Cours\TransfererCoursController;
 use App\Http\Controllers\EnseignantController;
 use App\Http\Controllers\EtablissementController;
 use App\Http\Controllers\EtudiantController;
 use App\Http\Controllers\EtudiantReferenceController;
-use App\Http\Controllers\GroupeController;
-use App\Http\Controllers\GroupeEchangeController;
-use App\Http\Controllers\GroupeMediaController;
-use App\Http\Controllers\GroupeTacheController;
-use App\Http\Controllers\GroupeVideoChapitreController;
-use App\Http\Controllers\GroupeVideoController;
+use App\Http\Controllers\Groupe\GroupeController;
+use App\Http\Controllers\Groupe\GroupeEchangeController;
+use App\Http\Controllers\Groupe\GroupeMediaController;
+use App\Http\Controllers\Groupe\GroupeTacheController;
+use App\Http\Controllers\Groupe\GroupeVideoChapitreController;
+use App\Http\Controllers\Groupe\GroupeVideoController;
 use App\Http\Controllers\InscriptionTemoinController;
-use App\Http\Controllers\MuseeBlocController;
-use App\Http\Controllers\MuseeImageController;
-use App\Http\Controllers\MuseeMetaController;
+use App\Http\Controllers\Musee\MuseeBlocController;
+use App\Http\Controllers\Musee\MuseeImageController;
+use App\Http\Controllers\Musee\MuseeMetaController;
+use App\Http\Controllers\Musee\MuseePublicationController;
+use App\Http\Controllers\Musee\MuseePublicController;
+use App\Http\Controllers\Musee\MuseeTemplateController;
+use App\Http\Controllers\Musee\MuseeVideoSegmentController;
 use App\Http\Controllers\MuseePageController;
-use App\Http\Controllers\MuseePublicationController;
-use App\Http\Controllers\MuseePublicController;
-use App\Http\Controllers\MuseeTemplateController;
-use App\Http\Controllers\MuseeVideoSegmentController;
 use App\Http\Controllers\PersonneAgeeController;
 use App\Http\Controllers\Projet\ConsentementVideoController;
 use App\Http\Controllers\Projet\EntrevueConceptController;
@@ -49,11 +50,10 @@ use App\Http\Controllers\Projet\ProjetSectionParagrapheController;
 use App\Http\Controllers\QuestionBanqueController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\ThematiqueController;
-use App\Http\Controllers\TransfererCoursController;
 use App\Http\Controllers\TypeProjet\SectionController;
 use App\Http\Controllers\TypeProjet\TypeProjetController;
-use App\Http\Controllers\TypeProjetCritereController;
-use App\Http\Controllers\TypeProjetTacheController;
+use App\Http\Controllers\TypeProjet\TypeProjetCritereController;
+use App\Http\Controllers\TypeProjet\TypeProjetTacheController;
 use App\Http\Controllers\VisioConferenceController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -157,6 +157,18 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
     Route::get('/enseignant', [EnseignantController::class, 'index'])
         ->name('enseignant.index');
+
+    Route::get('/enseignant/cours/create', [EnseignantController::class, 'createCours'])
+        ->name('enseignant.cours.create');
+
+    Route::get('/enseignant/cours/{cours}/edit', [EnseignantController::class, 'editCours'])
+        ->name('enseignant.cours.edit');
+
+    Route::get('/enseignant/thematiques/create', [ThematiqueController::class, 'create'])
+        ->name('enseignant.thematiques.create');
+
+    Route::get('/enseignant/thematiques/{thematique}/edit', [ThematiqueController::class, 'edit'])
+        ->name('enseignant.thematiques.edit');
 
     // Gestion des cours
     Route::post('/cours', [CoursController::class, 'store'])

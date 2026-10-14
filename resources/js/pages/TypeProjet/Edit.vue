@@ -12,7 +12,7 @@ import {
 import { computed, ref } from 'vue';
 import { VueDraggable } from 'vue-draggable-plus';
 import { useI18n } from 'vue-i18n';
-import critereRoutes from '@/actions/App/Http/Controllers/TypeProjetCritereController';
+import critereRoutes from '@/routes/types-projets/criteres';
 import ConfirmationModal from '@/components/shared/ConfirmationModal.vue';
 import CritereForm from '@/components/type-projet/EditProjetComponents/CritereForm.vue';
 import type { Critere } from '@/components/type-projet/EditProjetComponents/CritereForm.vue';

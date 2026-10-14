@@ -2,7 +2,7 @@
 import { useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import critereRoutes from '@/actions/App/Http/Controllers/TypeProjetCritereController';
+import critereRoutes from '@/routes/types-projets/criteres';
 import EchelleBuilder from '@/components/type-projet/EchelleBuilder.vue';
 import type { EchelleNiveau } from '@/components/type-projet/EchelleBuilder.vue';
 import InfoTooltip from '@/components/shared/InfoTooltip.vue';

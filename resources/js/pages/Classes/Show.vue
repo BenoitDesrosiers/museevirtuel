@@ -18,7 +18,7 @@ import {
     Users,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
-import { apercuNotesAccumulees } from '@/actions/App/Http/Controllers/ClasseController';
+import { apercuNotesAccumulees } from '@/actions/App/Http/Controllers/Classe/ClasseController';
 import ConfirmationModal from '@/components/shared/ConfirmationModal.vue';
 import Heading from '@/components/shared/Heading.vue';
 import InputError from '@/components/shared/InputError.vue';

@@ -17,22 +17,10 @@ import {
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import FormDialog from '@/components/shared/FormDialog.vue';
 import Heading from '@/components/shared/Heading.vue';
-import InputError from '@/components/shared/InputError.vue';
 import BoutonTooltip from '@/components/ui/BoutonTooltip.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { NumberInput } from '@/components/ui/number-input';
-import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { show as showTemoin } from '@/routes/enseignant/temoins';
 
@@ -113,42 +101,11 @@ const ouvert = ref({
     travaux: true,
 });
 
-// ─── Cours ────────────────────────────────────────────────────────────────────
-const showCreateCoursDialog = ref(false);
-const showEditCoursDialog = ref(false);
-const editingCoursId = ref<number | null>(null);
+const afficherApprouves = ref(false);
+const rechercheTexte = ref('');
+const filtreThematiqueId = ref<number | null>(null);
 
-function getCoursFormDefaults() {
-    return {
-        nom_cours: '',
-        description: '',
-        code: '',
-        groupe: '',
-        annee: new Date().getFullYear() as number,
-        session: 'hiver' as 'hiver' | 'ete' | 'automne',
-        type_cours: '' as '' | 'dep' | 'cours_complementaire' | 'cours_complet',
-        taille_equipe_min: 1 as number,
-        taille_equipe_max: null as number | null,
-        utiliser_gabarit: false,
-    };
-}
-
-const coursForm = useForm(getCoursFormDefaults());
-
-function resetCoursFormForCreate(): void {
-    editingCoursId.value = null;
-    coursForm.defaults(getCoursFormDefaults());
-    coursForm.resetAndClearErrors();
-}
-
-function onTypeCoursCree(val: string) {
-    coursForm.type_cours = val as typeof coursForm.type_cours;
-    coursForm.clearErrors('type_cours');
-
-    if (val !== 'cours_complet') {
-        coursForm.utiliser_gabarit = false;
-    }
-}
+const props = defineProps<Props>();
 
 function sessionLabel(session: string): string {
     const labels: Record<string, string> = {
@@ -160,148 +117,9 @@ function sessionLabel(session: string): string {
     return labels[session] ?? session;
 }
 
-function openCreateCours() {
-    showEditCoursDialog.value = false;
-    resetCoursFormForCreate();
-    showCreateCoursDialog.value = true;
-}
-
-function validateTailleEquipe(): boolean {
-    const min = coursForm.taille_equipe_min;
-    const max = coursForm.taille_equipe_max;
-
-    if (
-        max === null ||
-        max === undefined ||
-        Number.isNaN(Number(max)) ||
-        min === null ||
-        min === undefined ||
-        Number.isNaN(Number(min))
-    ) {
-        return true;
-    }
-
-    if (max < min) {
-        coursForm.setError(
-            'taille_equipe_max',
-            t('enseignant.index.error_course_team_size_invalid'),
-        );
-
-        return false;
-    }
-
-    return true;
-}
-
-function submitCreateCours() {
-    coursForm.clearErrors();
-    let isValid = true;
-
-    if (!coursForm.code.trim()) {
-        coursForm.setError(
-            'code',
-            t('enseignant.index.error_course_code_required'),
-        );
-        isValid = false;
-    }
-
-    if (!coursForm.groupe.trim()) {
-        coursForm.setError(
-            'groupe',
-            t('enseignant.index.error_course_group_required'),
-        );
-        isValid = false;
-    }
-
-    if (!coursForm.nom_cours.trim()) {
-        coursForm.setError(
-            'nom_cours',
-            t('enseignant.index.error_course_name_required'),
-        );
-        isValid = false;
-    }
-
-    if (!coursForm.type_cours) {
-        coursForm.setError(
-            'type_cours',
-            t('enseignant.index.error_course_level_required'),
-        );
-        isValid = false;
-    }
-
-    const annee = coursForm.annee;
-    if (
-        annee === null ||
-        annee === undefined ||
-        Number.isNaN(Number(annee))
-    ) {
-        coursForm.setError(
-            'annee',
-            t('enseignant.index.error_course_year_required'),
-        );
-        isValid = false;
-    } else if (annee < 2000 || annee > 2100) {
-        coursForm.setError(
-            'annee',
-            t('enseignant.index.error_course_year_invalid'),
-        );
-        isValid = false;
-    }
-
-    if (!validateTailleEquipe()) {
-        isValid = false;
-    }
-
-    if (!isValid) {
-        return;
-    }
-
-    coursForm.post('/cours', {
-        onSuccess: () => {
-            showCreateCoursDialog.value = false;
-            resetCoursFormForCreate();
-        },
-    });
-}
-
-function openEditCours(unCours: Cours) {
-    showCreateCoursDialog.value = false;
-    editingCoursId.value = unCours.id;
-    coursForm.clearErrors();
-    coursForm.nom_cours = unCours.nom_cours;
-    coursForm.description = unCours.description ?? '';
-    coursForm.code = unCours.code;
-    coursForm.groupe = unCours.groupe;
-    coursForm.annee = unCours.annee;
-    coursForm.session = unCours.session;
-    coursForm.type_cours = unCours.type_cours ?? '';
-    coursForm.taille_equipe_min = unCours.taille_equipe_min;
-    coursForm.taille_equipe_max = unCours.taille_equipe_max;
-    showEditCoursDialog.value = true;
-}
-
-function submitEditCours() {
-    if (!editingCoursId.value) {
-        return;
-    }
-
-    coursForm.clearErrors();
-
-    if (!validateTailleEquipe()) {
-        return;
-    }
-
-    coursForm.put(`/cours/${editingCoursId.value}`, {
-        onSuccess: () => {
-            showEditCoursDialog.value = false;
-            resetCoursFormForCreate();
-        },
-    });
-}
-
 const deleteCoursForm = useForm({});
 
-function deleteCours(unCours: Cours) {
+function deleteCours(unCours: Cours): void {
     if (
         !confirm(
             t('enseignant.index.confirm_delete_course', {
@@ -317,58 +135,13 @@ function deleteCours(unCours: Cours) {
 
 const verrouillageForm = useForm({});
 
-function toggleVerrouillage(unCours: Cours) {
+function toggleVerrouillage(unCours: Cours): void {
     verrouillageForm.patch(`/cours/${unCours.id}/verrouillage`);
-}
-
-// ─── Thématiques ──────────────────────────────────────────────────────────────
-const showCreateThematiqueDialog = ref(false);
-const showEditThematiqueDialog = ref(false);
-const editingThematiqueId = ref<number | null>(null);
-
-const thematiqueForm = useForm({
-    nom: '',
-    description: '',
-    periode_historique: '',
-});
-
-function openCreateThematique() {
-    thematiqueForm.reset();
-    showCreateThematiqueDialog.value = true;
-}
-
-function submitCreateThematique() {
-    thematiqueForm.post('/thematiques', {
-        onSuccess: () => {
-            showCreateThematiqueDialog.value = false;
-            thematiqueForm.reset();
-        },
-    });
-}
-
-function openEditThematique(thematique: Thematique) {
-    editingThematiqueId.value = thematique.id;
-    thematiqueForm.nom = thematique.nom;
-    thematiqueForm.description = thematique.description ?? '';
-    thematiqueForm.periode_historique = thematique.periode_historique ?? '';
-    showEditThematiqueDialog.value = true;
-}
-
-function submitEditThematique() {
-    if (!editingThematiqueId.value) {
-        return;
-    }
-
-    thematiqueForm.put(`/thematiques/${editingThematiqueId.value}`, {
-        onSuccess: () => {
-            showEditThematiqueDialog.value = false;
-        },
-    });
 }
 
 const deleteThematiqueForm = useForm({});
 
-function deleteThematique(thematique: Thematique) {
+function deleteThematique(thematique: Thematique): void {
     if (
         !confirm(
             t('enseignant.index.confirm_delete_thematic', {
@@ -381,13 +154,6 @@ function deleteThematique(thematique: Thematique) {
 
     deleteThematiqueForm.delete(`/thematiques/${thematique.id}`);
 }
-
-// ─── Témoins ──────────────────────────────────────────────────────────────────
-const afficherApprouves = ref(false);
-const rechercheTexte = ref('');
-const filtreThematiqueId = ref<number | null>(null);
-
-const props = defineProps<Props>();
 
 function filtrerTemoins(liste: TemoinEnAttente[]): TemoinEnAttente[] {
     const texte = rechercheTexte.value.trim().toLowerCase();
@@ -406,11 +172,16 @@ function filtrerTemoins(liste: TemoinEnAttente[]): TemoinEnAttente[] {
     });
 }
 
-const temoinsEnAttenteFiltrés = computed(() =>
+const temoinsEnAttenteFiltres = computed(() =>
     filtrerTemoins(props.temoinsEnAttente),
 );
-const temoinsApprouvésFiltres = computed(() =>
+const temoinsApprouvesFiltres = computed(() =>
     filtrerTemoins(props.temoinsApprouves),
+);
+const nombreTemoinsAffiches = computed(() =>
+    afficherApprouves.value
+        ? temoinsApprouvesFiltres.value.length
+        : temoinsEnAttenteFiltres.value.length,
 );
 
 function voirTemoin(temoin: TemoinEnAttente) {
@@ -454,14 +225,19 @@ function rejoindreVisio(jitsiRoom: string) {
                         <CardTitle>{{
                             $t('enseignant.index.my_courses')
                         }}</CardTitle>
+                        <span class="text-sm font-normal text-muted-foreground">
+                            ({{ cours.length }})
+                        </span>
                         <ChevronDown
                             class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.cours }"
                         />
                     </button>
-                    <Button size="sm" @click="openCreateCours">
-                        <Plus class="mr-2 h-4 w-4" />
-                        {{ $t('enseignant.index.new_course') }}
+                    <Button size="sm" as-child>
+                        <Link href="/enseignant/cours/create">
+                            <Plus class="mr-2 h-4 w-4" />
+                            {{ $t('enseignant.index.new_course') }}
+                        </Link>
                     </Button>
                 </CardHeader>
                 <CardContent v-show="ouvert.cours">
@@ -555,9 +331,13 @@ function rejoindreVisio(jitsiRoom: string) {
                                                 texte="Modifier les informations de ce cours"
                                                 size="sm"
                                                 variant="outline"
-                                                @click="openEditCours(unCours)"
+                                                as-child
                                             >
-                                                <Pencil class="h-4 w-4" />
+                                                <Link
+                                                    :href="`/enseignant/cours/${unCours.id}/edit`"
+                                                >
+                                                    <Pencil class="h-4 w-4" />
+                                                </Link>
                                             </BoutonTooltip>
                                             <BoutonTooltip
                                                 :texte="
@@ -621,14 +401,19 @@ function rejoindreVisio(jitsiRoom: string) {
                         <CardTitle>{{
                             $t('enseignant.index.my_thematic')
                         }}</CardTitle>
+                        <span class="text-sm font-normal text-muted-foreground">
+                            ({{ thematiques.length }})
+                        </span>
                         <ChevronDown
                             class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.thematiques }"
                         />
                     </button>
-                    <Button size="sm" @click="openCreateThematique">
-                        <Plus class="mr-2 h-4 w-4" />
-                        {{ $t('enseignant.index.new_thematic') }}
+                    <Button size="sm" as-child>
+                        <Link href="/enseignant/thematiques/create">
+                            <Plus class="mr-2 h-4 w-4" />
+                            {{ $t('enseignant.index.new_thematic') }}
+                        </Link>
                     </Button>
                 </CardHeader>
                 <CardContent v-show="ouvert.thematiques">
@@ -691,13 +476,13 @@ function rejoindreVisio(jitsiRoom: string) {
                                                 texte="Modifier cette thématique"
                                                 size="sm"
                                                 variant="outline"
-                                                @click="
-                                                    openEditThematique(
-                                                        thematique,
-                                                    )
-                                                "
+                                                as-child
                                             >
-                                                <Pencil class="h-4 w-4" />
+                                                <Link
+                                                    :href="`/enseignant/thematiques/${thematique.id}/edit`"
+                                                >
+                                                    <Pencil class="h-4 w-4" />
+                                                </Link>
                                             </BoutonTooltip>
                                             <BoutonTooltip
                                                 texte="Supprimer cette thématique"
@@ -737,6 +522,9 @@ function rejoindreVisio(jitsiRoom: string) {
                         <CardTitle>{{
                             $t('administration.index.temoins_table')
                         }}</CardTitle>
+                        <span class="text-sm font-normal text-muted-foreground">
+                            ({{ nombreTemoinsAffiches }})
+                        </span>
                         <ChevronDown
                             class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.temoins }"
@@ -756,7 +544,7 @@ function rejoindreVisio(jitsiRoom: string) {
                             :aria-checked="afficherApprouves"
                             class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                             :class="
-                                afficherApprouves ? 'bg-primary' : 'bg-input'
+                                afficherApprouves ? 'bg-green-500' : 'bg-input'
                             "
                             @click.stop="afficherApprouves = !afficherApprouves"
                         >
@@ -846,7 +634,7 @@ function rejoindreVisio(jitsiRoom: string) {
                             </thead>
                             <tbody>
                                 <tr
-                                    v-for="temoin in temoinsEnAttenteFiltrés"
+                                    v-for="temoin in temoinsEnAttenteFiltres"
                                     :key="temoin.id"
                                     class="cursor-pointer border-b last:border-0 hover:bg-muted/50"
                                     @click="voirTemoin(temoin)"
@@ -878,7 +666,7 @@ function rejoindreVisio(jitsiRoom: string) {
                                         >
                                     </td>
                                 </tr>
-                                <tr v-if="temoinsEnAttenteFiltrés.length === 0">
+                                <tr v-if="temoinsEnAttenteFiltres.length === 0">
                                     <td
                                         colspan="4"
                                         class="py-6 text-center text-muted-foreground"
@@ -929,7 +717,7 @@ function rejoindreVisio(jitsiRoom: string) {
                             </thead>
                             <tbody>
                                 <tr
-                                    v-for="temoin in temoinsApprouvésFiltres"
+                                    v-for="temoin in temoinsApprouvesFiltres"
                                     :key="temoin.id"
                                     class="cursor-pointer border-b last:border-0 hover:bg-muted/50"
                                     @click="voirTemoin(temoin)"
@@ -961,7 +749,7 @@ function rejoindreVisio(jitsiRoom: string) {
                                         >
                                     </td>
                                 </tr>
-                                <tr v-if="temoinsApprouvésFiltres.length === 0">
+                                <tr v-if="temoinsApprouvesFiltres.length === 0">
                                     <td
                                         colspan="4"
                                         class="py-6 text-center text-muted-foreground"
@@ -991,6 +779,9 @@ function rejoindreVisio(jitsiRoom: string) {
                         <CardTitle>{{
                             $t('enseignant.index.recent_submissions')
                         }}</CardTitle>
+                        <span class="text-sm font-normal text-muted-foreground">
+                            ({{ travauxRemis.length }})
+                        </span>
                         <ChevronDown
                             class="h-4 w-4 text-muted-foreground transition-transform"
                             :class="{ '-rotate-180': ouvert.travaux }"
@@ -1065,7 +856,8 @@ function rejoindreVisio(jitsiRoom: string) {
                                                 .join(', ')
                                         }}
                                     </td>
-                                    <td class="py-3 pr-4 tabular-nums">+
+                                    <td class="py-3 pr-4 tabular-nums">
+                                        +
                                         {{
                                             new Date(
                                                 travail.remis_le,
@@ -1197,418 +989,5 @@ function rejoindreVisio(jitsiRoom: string) {
                 </CardContent>
             </Card>
         </div>
-
-        <!-- Modal : Créer cours -->
-        <FormDialog
-            v-model:open="showCreateCoursDialog"
-            :title="$t('enseignant.index.modal_create_cours')"
-            :is-loading="coursForm.processing"
-            :submit-label="$t('common.add')"
-            @submit="submitCreateCours"
-        >
-            <div class="grid grid-cols-2 items-start gap-4">
-                <div class="grid gap-2">
-                    <Label for="code">{{
-                        $t('enseignant.index.modal_course_code')
-                    }}</Label>
-                    <Input
-                        id="code"
-                        v-model="coursForm.code"
-                        :placeholder="
-                            $t(
-                                'enseignant.index.modal_course_code_placeholder',
-                            )
-                        "
-                    />
-                    <InputError :message="coursForm.errors.code" />
-                </div>
-                <div class="grid gap-2">
-                    <Label for="groupe">{{
-                        $t('enseignant.index.modal_group')
-                    }}</Label>
-                    <Input
-                        id="groupe"
-                        v-model="coursForm.groupe"
-                        :placeholder="
-                            $t('enseignant.index.modal_group_placeholder')
-                        "
-                    />
-                    <InputError :message="coursForm.errors.groupe" />
-                </div>
-            </div>
-            <div class="grid grid-cols-2 items-start gap-4">
-                <div class="grid gap-2">
-                    <Label>Session</Label>
-                    <Select v-model="coursForm.session">
-                        <SelectTrigger>
-                            <SelectValue placeholder="Session…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="hiver">Hiver</SelectItem>
-                            <SelectItem value="ete">Été</SelectItem>
-                            <SelectItem value="automne">Automne</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <InputError :message="coursForm.errors.session" />
-                </div>
-                <div class="grid gap-2">
-                    <Label>Année</Label>
-                    <NumberInput
-                        v-model="coursForm.annee"
-                        :min="2000"
-                        :max="2100"
-                        placeholder="2026"
-                    />
-                    <InputError :message="coursForm.errors.annee" />
-                </div>
-            </div>
-            <div class="grid gap-2">
-                <Label for="nom_cours">{{
-                    $t('enseignant.index.modal_course_name')
-                }}</Label>
-                <Input
-                    id="nom_cours"
-                    v-model="coursForm.nom_cours"
-                    :placeholder="
-                        $t('enseignant.index.modal_course_name_placeholder')
-                    "
-                />
-                <InputError :message="coursForm.errors.nom_cours" />
-            </div>
-            <div class="grid gap-2">
-                <Label for="description">{{
-                    $t('enseignant.index.modal_description')
-                }}</Label>
-                <Input
-                    id="description"
-                    v-model="coursForm.description"
-                    :placeholder="
-                        $t('enseignant.index.modal_description_placeholder')
-                    "
-                />
-                <InputError :message="coursForm.errors.description" />
-            </div>
-            <div class="grid gap-2">
-                <Label>Niveau du cours</Label>
-                <Select
-                    :model-value="coursForm.type_cours"
-                    @update:model-value="onTypeCoursCree"
-                >
-                    <SelectTrigger>
-                        <SelectValue placeholder="Choisir un niveau…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="dep">DEP</SelectItem>
-                        <SelectItem value="cours_complementaire"
-                            >Cours complémentaire</SelectItem
-                        >
-                        <SelectItem value="cours_complet"
-                            >Cours complet</SelectItem
-                        >
-                    </SelectContent>
-                </Select>
-                <InputError :message="coursForm.errors.type_cours" />
-            </div>
-
-            <!-- Gabarit — affiché uniquement pour cours complet -->
-            <div
-                v-if="coursForm.type_cours === 'cours_complet'"
-                class="cursor-pointer rounded-md border p-3"
-                :class="
-                    coursForm.utiliser_gabarit
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border'
-                "
-                @click="
-                    coursForm.utiliser_gabarit = !coursForm.utiliser_gabarit
-                "
-            >
-                <div class="flex items-start gap-3">
-                    <button
-                        type="button"
-                        role="switch"
-                        :aria-checked="coursForm.utiliser_gabarit"
-                        class="relative mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-                        :class="
-                            coursForm.utiliser_gabarit
-                                ? 'bg-primary'
-                                : 'bg-input'
-                        "
-                        @click.stop="
-                            coursForm.utiliser_gabarit =
-                                !coursForm.utiliser_gabarit
-                        "
-                    >
-                        <span
-                            class="inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform"
-                            :class="
-                                coursForm.utiliser_gabarit
-                                    ? 'translate-x-5'
-                                    : 'translate-x-1'
-                            "
-                        />
-                    </button>
-                    <div class="grid gap-0.5">
-                        <span class="text-sm leading-none font-medium"
-                            >Créer avec le gabarit</span
-                        >
-                        <span class="text-xs text-muted-foreground">
-                            Pré-remplit le cours avec les types de projets (plan
-                            de travail, schéma d'entrevue, projet de recherche),
-                            l'échéancier sur 13 semaines et les objectifs
-                            pédagogiques.
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 items-start gap-4">
-                <div class="grid gap-2">
-                    <Label>Taille équipe min.</Label>
-                    <NumberInput
-                        v-model="coursForm.taille_equipe_min"
-                        :min="1"
-                        :max="20"
-                        placeholder="—"
-                    />
-                    <InputError :message="coursForm.errors.taille_equipe_min" />
-                </div>
-                <div class="grid gap-2">
-                    <Label>Taille équipe max.</Label>
-                    <NumberInput
-                        v-model="coursForm.taille_equipe_max"
-                        :min="1"
-                        :max="20"
-                        placeholder="—"
-                    />
-                    <InputError :message="coursForm.errors.taille_equipe_max" />
-                </div>
-            </div>
-        </FormDialog>
-
-        <!-- Modal : Modifier cours -->
-        <FormDialog
-            v-model:open="showEditCoursDialog"
-            :title="$t('enseignant.index.modal_edit_cours')"
-            :is-loading="coursForm.processing"
-            @submit="submitEditCours"
-        >
-            <div class="grid grid-cols-2 items-start gap-4">
-                <div class="grid gap-2">
-                    <Label>{{
-                        $t('enseignant.index.modal_course_code')
-                    }}</Label>
-                    <Input
-                        v-model="coursForm.code"
-                        :placeholder="
-                            $t(
-                                'enseignant.index.modal_course_code_placeholder',
-                            )
-                        "
-                    />
-                    <InputError :message="coursForm.errors.code" />
-                </div>
-                <div class="grid gap-2">
-                    <Label>{{ $t('enseignant.index.modal_group') }}</Label>
-                    <Input
-                        v-model="coursForm.groupe"
-                        :placeholder="
-                            $t('enseignant.index.modal_group_placeholder')
-                        "
-                    />
-                    <InputError :message="coursForm.errors.groupe" />
-                </div>
-            </div>
-            <div class="grid grid-cols-2 items-start gap-4">
-                <div class="grid gap-2">
-                    <Label>Session</Label>
-                    <Select v-model="coursForm.session">
-                        <SelectTrigger>
-                            <SelectValue placeholder="Session…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="hiver">Hiver</SelectItem>
-                            <SelectItem value="ete">Été</SelectItem>
-                            <SelectItem value="automne">Automne</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <InputError :message="coursForm.errors.session" />
-                </div>
-                <div class="grid gap-2">
-                    <Label>Année</Label>
-                    <NumberInput
-                        v-model="coursForm.annee"
-                        :min="2000"
-                        :max="2100"
-                        placeholder="2026"
-                    />
-                    <InputError :message="coursForm.errors.annee" />
-                </div>
-            </div>
-            <div class="grid gap-2">
-                <Label>{{ $t('enseignant.index.modal_course_name') }}</Label>
-                <Input
-                    v-model="coursForm.nom_cours"
-                    :placeholder="
-                        $t('enseignant.index.modal_course_name_placeholder')
-                    "
-                />
-                <InputError :message="coursForm.errors.nom_cours" />
-            </div>
-            <div class="grid gap-2">
-                <Label>{{ $t('enseignant.index.modal_description') }}</Label>
-                <Input
-                    v-model="coursForm.description"
-                    :placeholder="
-                        $t('enseignant.index.modal_description_placeholder')
-                    "
-                />
-                <InputError :message="coursForm.errors.description" />
-            </div>
-            <div class="grid gap-2">
-                <Label>Niveau du cours</Label>
-                <Select v-model="coursForm.type_cours">
-                    <SelectTrigger>
-                        <SelectValue placeholder="Choisir un niveau…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="dep">DEP</SelectItem>
-                        <SelectItem value="cours_complementaire"
-                            >Cours complémentaire</SelectItem
-                        >
-                        <SelectItem value="cours_complet"
-                            >Cours complet</SelectItem
-                        >
-                    </SelectContent>
-                </Select>
-                <InputError :message="coursForm.errors.type_cours" />
-            </div>
-            <div class="grid grid-cols-2 items-start gap-4">
-                <div class="grid gap-2">
-                    <Label>Taille équipe min.</Label>
-                    <NumberInput
-                        v-model="coursForm.taille_equipe_min"
-                        :min="1"
-                        :max="20"
-                        placeholder="—"
-                    />
-                    <InputError :message="coursForm.errors.taille_equipe_min" />
-                </div>
-                <div class="grid gap-2">
-                    <Label>Taille équipe max.</Label>
-                    <NumberInput
-                        v-model="coursForm.taille_equipe_max"
-                        :min="1"
-                        :max="20"
-                        placeholder="—"
-                    />
-                    <InputError :message="coursForm.errors.taille_equipe_max" />
-                </div>
-            </div>
-        </FormDialog>
-
-        <!-- Modal : Créer thématique -->
-        <FormDialog
-            v-model:open="showCreateThematiqueDialog"
-            :title="$t('enseignant.index.modal_create_thematic')"
-            :is-loading="thematiqueForm.processing"
-            :submit-label="$t('common.add')"
-            @submit="submitCreateThematique"
-        >
-            <div class="grid gap-2">
-                <Label for="nom-theme">{{
-                    $t('enseignant.index.modal_thematic_name')
-                }}</Label>
-                <Input
-                    id="nom-theme"
-                    v-model="thematiqueForm.nom"
-                    :placeholder="
-                        $t('enseignant.index.modal_thematic_name_placeholder')
-                    "
-                />
-                <InputError :message="thematiqueForm.errors.nom" />
-            </div>
-            <div class="grid gap-2">
-                <Label for="periode">{{
-                    $t('enseignant.index.modal_historical_period')
-                }}</Label>
-                <Input
-                    id="periode"
-                    v-model="thematiqueForm.periode_historique"
-                    :placeholder="
-                        $t(
-                            'enseignant.index.modal_historical_period_placeholder',
-                        )
-                    "
-                />
-                <InputError
-                    :message="thematiqueForm.errors.periode_historique"
-                />
-            </div>
-            <div class="grid gap-2">
-                <Label for="desc-theme">{{
-                    $t('enseignant.index.modal_thematic_description')
-                }}</Label>
-                <Input
-                    id="desc-theme"
-                    v-model="thematiqueForm.description"
-                    :placeholder="
-                        $t(
-                            'enseignant.index.modal_thematic_description_placeholder',
-                        )
-                    "
-                />
-                <InputError :message="thematiqueForm.errors.description" />
-            </div>
-        </FormDialog>
-
-        <!-- Modal : Modifier thématique -->
-        <FormDialog
-            v-model:open="showEditThematiqueDialog"
-            :title="$t('enseignant.index.modal_edit_thematic')"
-            :is-loading="thematiqueForm.processing"
-            @submit="submitEditThematique"
-        >
-            <div class="grid gap-2">
-                <Label>{{ $t('enseignant.index.modal_thematic_name') }}</Label>
-                <Input
-                    v-model="thematiqueForm.nom"
-                    :placeholder="
-                        $t('enseignant.index.modal_thematic_name_placeholder')
-                    "
-                />
-                <InputError :message="thematiqueForm.errors.nom" />
-            </div>
-            <div class="grid gap-2">
-                <Label>{{
-                    $t('enseignant.index.modal_historical_period')
-                }}</Label>
-                <Input
-                    v-model="thematiqueForm.periode_historique"
-                    :placeholder="
-                        $t(
-                            'enseignant.index.modal_historical_period_placeholder',
-                        )
-                    "
-                />
-                <InputError
-                    :message="thematiqueForm.errors.periode_historique"
-                />
-            </div>
-            <div class="grid gap-2">
-                <Label>{{
-                    $t('enseignant.index.modal_thematic_description')
-                }}</Label>
-                <Input
-                    v-model="thematiqueForm.description"
-                    :placeholder="
-                        $t(
-                            'enseignant.index.modal_thematic_description_placeholder',
-                        )
-                    "
-                />
-                <InputError :message="thematiqueForm.errors.description" />
-            </div>
-        </FormDialog>
     </AppLayout>
 </template>

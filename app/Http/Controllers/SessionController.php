@@ -11,6 +11,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Fonctionnalité à supprimer. Elle sert de test pour pouvoir passer du role
+ * Enseignant à Etudiant, vice versa
+ */
 class SessionController extends Controller
 {
     /**

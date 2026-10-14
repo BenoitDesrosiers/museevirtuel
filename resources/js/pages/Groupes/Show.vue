@@ -23,8 +23,8 @@ import {
 } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import * as GroupeMediaController from '@/actions/App/Http/Controllers/GroupeMediaController';
-import * as GroupeVideoController from '@/actions/App/Http/Controllers/GroupeVideoController';
+import * as GroupeMediaController from '@/actions/App/Http/Controllers/Groupe/GroupeMediaController';
+import * as GroupeVideoController from '@/actions/App/Http/Controllers/Groupe/GroupeVideoController';
 import FormDialog from '@/components/shared/FormDialog.vue';
 import Heading from '@/components/shared/Heading.vue';
 import NoteAvecCorrections from '@/components/classes/NoteAvecCorrections.vue';
