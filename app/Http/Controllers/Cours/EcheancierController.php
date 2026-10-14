@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Cours;
 
+use App\Http\Controllers\Controller;
 use App\Models\Cours;
 use App\Models\EcheancierEtape;
 use App\Models\EcheancierEtudiantProgress;
@@ -40,7 +41,7 @@ class EcheancierController extends Controller
             'ordre' => $ordre + 1,
         ]);
 
-        return back();
+        return back()->with('success', 'La nouvelle étape a été créée!');
     }
 
     /**
@@ -61,7 +62,7 @@ class EcheancierController extends Controller
 
         $etape->update($validated);
 
-        return back();
+        return back()->with('success', 'L\'étape a été modifiée avec succès!');
     }
 
     /**
@@ -90,7 +91,7 @@ class EcheancierController extends Controller
 
         $cours->echeancierEtapes()->delete();
 
-        return back();
+        return back()->with('success', 'L\'étape a été supprimée avec succès!');
     }
 
     /**

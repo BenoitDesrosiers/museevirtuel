@@ -313,15 +313,42 @@ function handleClasseDialogUpdate(isOpen: boolean) {
 
 const deleteEtapeForm = useForm({});
 
-function deleteEtape(etape: EcheancierEtape) {
-    deleteEtapeForm.delete(`/cours/${props.cours.id}/echeancier/${etape.id}`, {
-        preserveScroll: true,
-    });
-}
+const etapeEchancierASupprimer = ref<EcheancierEtape | null>(null);
 
+const showModalSupprimerEtape = ref(false);
 const showViderEcheancierModal = ref(false);
 const destroyAllForm = useForm({});
 
+function confirmDeleteEtape(etape: EcheancierEtape): void {
+    etapeEchancierASupprimer.value = etape;
+    showModalSupprimerEtape.value = true;
+}
+
+function handleDeleteEtapeDialogUpdate(isOpen: boolean): void {
+    showModalSupprimerEtape.value = isOpen;
+
+    if (!isOpen) {
+        etapeEchancierASupprimer.value = null;
+    }
+}
+
+function executeDeleteEtape(): void {
+    const etape = etapeEchancierASupprimer.value;
+
+    if (!etape) {
+        return;
+    }
+
+    deleteEtapeForm.delete(
+        `/cours/${props.cours.id}/echeancier/${etape.id}`,
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                handleDeleteEtapeDialogUpdate(false);
+            },
+        },
+    );
+}
 function destroyAllEtapes() {
     destroyAllForm.delete(`/cours/${props.cours.id}/echeancier`, {
         preserveScroll: true,
@@ -1012,7 +1039,7 @@ function submitTransfert() {
                                                 :disabled="
                                                     deleteEtapeForm.processing
                                                 "
-                                                @click="deleteEtape(etape)"
+                                                @click="confirmDeleteEtape(etape)"
                                             >
                                                 <Trash2 class="h-3.5 w-3.5" />
                                             </BoutonTooltip>
@@ -1286,6 +1313,18 @@ function submitTransfert() {
                 </form>
             </DialogContent>
         </Dialog>
+
+        <!-- Modal : supprimer une étape de échéancier -->
+        <ConfirmationModal
+            :open="showModalSupprimerEtape"
+            title="Supprimer une étape"
+            :emphasis="etapeEchancierASupprimer?.etape ?? ''"
+            description="Cette action supprimera cette étape de l'échéancier pour ce cours. Cette opération ne peut pas être annulée."
+            confirm-label="Oui, supprimer"
+            :loading="deleteEtapeForm.processing"
+            @update:open="handleDeleteEtapeDialogUpdate"
+            @confirm="executeDeleteEtape"
+        />
 
         <!-- Modal : Vider l'échéancier -->
         <ConfirmationModal

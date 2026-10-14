@@ -104,8 +104,6 @@ function submit(): void {
         return;
     }
 
-    //const options = { onSuccess: () => window.location.assign('/enseignant') };
-
     if (props.mode === 'create') {
         form.post('/cours');
     } else {
@@ -137,7 +135,7 @@ function submit(): void {
                 </div>
             </div>
             <form
-                class="space-y-6 rounded-xl border bg-card p-6"
+                class="rounded-xl border bg-card p-6"
                 @submit.prevent="submit"
             >
                 <div class="grid grid-cols-2 items-start gap-4">
