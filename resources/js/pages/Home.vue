@@ -10,7 +10,7 @@ const user = computed(() => (page.props.auth as any)?.user ?? null)
 
 /** Destination du CTA éducation — dashboard si déjà connecté, sinon login. */
 const lienEducation = computed(() => (user.value ? '/dashboard' : '/login'))
-const labelEducation = computed(() => (user.value ? 'Accéder au tableau de bord' : 'Se connecter'))
+const labelEducation = computed(() => (user.value ? 'Accéder au tableau de bord' : 'Connexion'))
 </script>
 
 <template>
