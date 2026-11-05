@@ -12,6 +12,7 @@ use App\Models\TypeProjet;
 use App\Models\TypeProjetCritere;
 use App\Models\TypeProjetSection;
 use App\Services\OrdreElements;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 
 class TypeProjetCritereController extends Controller
@@ -125,6 +126,8 @@ class TypeProjetCritereController extends Controller
      *
      * La renumération cible uniquement les critères partageant le même
      * (type_projet_id, section_id) que le critère supprimé.
+     *
+     * @throws AuthorizationException
      */
     public function destroy(
         Cours $cours,
@@ -132,8 +135,8 @@ class TypeProjetCritereController extends Controller
         TypeProjetCritere $critere,
         OrdreElements $ordres,
     ): RedirectResponse {
-        $this->authorize('update', $cours);
         abort_if($typeProjet->cours_id !== $cours->id, 404);
+        $this->authorize('update', $typeProjet);
         abort_if($critere->type_projet_id !== $typeProjet->id, 404);
 
         // Renuméroter seulement les critères du même groupe (global ou même section)

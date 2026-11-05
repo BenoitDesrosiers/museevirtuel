@@ -8,14 +8,21 @@ use App\Http\Requests\TypeProjet\UpdateTypeProjetRequest;
 use App\Models\Cours;
 use App\Models\TypeProjet;
 use App\Services\TypeProjetService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
+/**
+ * Types de projet d'un cours : liste, création, édition, accessibilité et suppression.
+ */
 class TypeProjetController extends Controller
 {
     /**
      * Affiche la liste des types de projet d'un cours.
+     *
+     * @throws AuthorizationException
      */
     public function index(Cours $cours): Response
     {
@@ -34,6 +41,8 @@ class TypeProjetController extends Controller
 
     /**
      * Affiche la page de création d'un type de projet pour un cours donné.
+     *
+     * @throws AuthorizationException
      */
     public function create(Cours $cours): Response
     {
@@ -49,11 +58,14 @@ class TypeProjetController extends Controller
      *
      * Charge les sections avec leurs questions et leurs critères, ainsi que
      * les critères globaux (sans section) pour les afficher en tête de page.
+     *
+     * @throws HttpException si le type de projet n'appartient pas au cours
+     * @throws AuthorizationException
      */
     public function edit(Cours $cours, TypeProjet $typeProjet): Response
     {
-        $this->authorize('update', $cours);
         abort_if($typeProjet->cours_id !== $cours->id, 404);
+        $this->authorize('update', $typeProjet);
 
         $typeProjet->load([
             'sections' => fn ($q) => $q->with(['questionsBanque', 'criteres'])->orderBy('ordre'),
@@ -107,11 +119,14 @@ class TypeProjetController extends Controller
      * Inverse le statut d'accessibilité du type de projet.
      *
      * Si `accessible = false`, les étudiants ne voient pas les projets associés.
+     *
+     * @throws HttpException si le type de projet n'appartient pas au cours
+     * @throws AuthorizationException
      */
     public function toggleAccessible(Cours $cours, TypeProjet $typeProjet): RedirectResponse
     {
-        $this->authorize('update', $cours);
         abort_if($typeProjet->cours_id !== $cours->id, 404);
+        $this->authorize('update', $typeProjet);
 
         $typeProjet->update(['accessible' => ! $typeProjet->accessible]);
 
@@ -120,11 +135,14 @@ class TypeProjetController extends Controller
 
     /**
      * Supprime un type de projet ainsi que sa grille en cascade.
+     *
+     * @throws HttpException si le type de projet n'appartient pas au cours
+     * @throws AuthorizationException
      */
     public function destroy(Cours $cours, TypeProjet $typeProjet): RedirectResponse
     {
-        $this->authorize('update', $cours);
         abort_if($typeProjet->cours_id !== $cours->id, 404);
+        $this->authorize('delete', $typeProjet);
 
         $typeProjet->delete();
 

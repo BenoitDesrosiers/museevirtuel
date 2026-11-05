@@ -8,7 +8,6 @@ use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Hash;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Gestion des comptes enseignants par l'administration.
@@ -48,12 +47,11 @@ class EnseignantController extends Controller
     /**
      * Supprime un compte enseignant.
      *
-     * @throws HttpException si la cible n'est pas un enseignant
+     * @throws AuthorizationException si la cible n'est pas un enseignant
      */
     public function destroy(User $enseignant): RedirectResponse
     {
-        // Protège contre la suppression accidentelle d'un admin ou étudiant via route binding
-        abort_if($enseignant->role !== 'enseignant', 403);
+        $this->authorize('gererEnseignant', $enseignant);
 
         $enseignant->delete();
 

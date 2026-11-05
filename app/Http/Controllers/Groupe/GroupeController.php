@@ -41,15 +41,15 @@ class GroupeController extends Controller
      * Affiche le formulaire de création d'un groupe ou redirige vers le groupe
      * existant de l'étudiant.
      *
-     * @throws HttpException si l'étudiant n'est pas inscrit à la classe
+     * @throws HttpException si la classe n'appartient pas au cours
+     * @throws AuthorizationException si l'étudiant n'est pas inscrit à la classe
      */
     public function create(Cours $cours, Classe $classe): Response|RedirectResponse
     {
         abort_if($classe->cours_id !== $cours->id, 404);
+        $this->authorize('create', [Groupe::class, $classe]);
 
         $user = auth()->user();
-
-        abort_if(! $classe->etudiants()->where('users.id', $user->id)->exists(), 403);
 
         $monGroupe = $classe->groupes()
             ->whereHas('membres', fn ($q) => $q->where('users.id', $user->id))

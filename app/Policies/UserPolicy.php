@@ -2,16 +2,46 @@
 
 namespace App\Policies;
 
+use App\Models\Groupe;
 use App\Models\Thematique;
 use App\Models\User;
+use Illuminate\Auth\Access\Response;
 
 /**
  * Règles d'accès d'un utilisateur sur un autre utilisateur.
  *
- * Couvre pour l'instant la gestion des témoins (personnes âgées).
+ * Couvre la suppression de son propre compte, la gestion des comptes enseignants
+ * par l'administration et la gestion des témoins (personnes âgées).
  */
 class UserPolicy
 {
+    /**
+     * Détermine si l'utilisateur peut supprimer ce compte (le sien uniquement).
+     */
+    public function delete(User $user, User $compte): Response
+    {
+        if ($user->id !== $compte->id || (! $user->isAdmin() && ! $user->isPersonneAgee())) {
+            return Response::deny();
+        }
+
+        if ($user->isPersonneAgee() && Groupe::where('personne_agee_id', $user->id)->exists()) {
+            return Response::deny(__('profile.suppression_temoin_lie_groupe'));
+        }
+
+        return Response::allow();
+    }
+
+    /**
+     * Détermine si l'utilisateur peut modifier ou supprimer ce compte enseignant.
+     *
+     * Réservé aux admins, et seulement sur un compte enseignant : empêche de viser
+     * un admin ou un étudiant en changeant l'identifiant dans l'URL.
+     */
+    public function gererEnseignant(User $user, User $enseignant): bool
+    {
+        return $user->isAdmin() && $enseignant->isEnseignant();
+    }
+
     /**
      * Détermine si l'utilisateur peut consulter la fiche du témoin.
      */

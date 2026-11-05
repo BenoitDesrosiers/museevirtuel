@@ -9,6 +9,7 @@ use App\Models\Cours;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetTache;
 use App\Services\OrdreElements;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 
 class TypeProjetTacheController extends Controller
@@ -74,6 +75,8 @@ class TypeProjetTacheController extends Controller
 
     /**
      * Supprime une tâche et renumérote les tâches restantes.
+     *
+     * @throws AuthorizationException
      */
     public function destroy(
         Cours $cours,
@@ -81,8 +84,8 @@ class TypeProjetTacheController extends Controller
         TypeProjetTache $tache,
         OrdreElements $ordres,
     ): RedirectResponse {
-        $this->authorize('update', $cours);
         abort_if($typeProjet->cours_id !== $cours->id, 404);
+        $this->authorize('update', $typeProjet);
         abort_if($tache->type_projet_id !== $typeProjet->id, 404);
 
         $ordres->supprimer($tache, $typeProjet->taches());

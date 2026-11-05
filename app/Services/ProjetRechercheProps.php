@@ -100,7 +100,7 @@ class ProjetRechercheProps
         $estMembre = ! $estEnseignant && $groupe->membres->contains('id', $user->id);
 
         // Références personnelles de l'étudiant — alimentent l'onglet "Ma bibliothèque" du modal APA
-        $mesReferences = (! $estEnseignant && $user->role !== 'admin')
+        $mesReferences = (! $estEnseignant && ! $user->isAdmin())
             ? $user->etudiantReferences()->get()->map(fn ($r) => [
                 'id' => $r->id,
                 'titre' => $r->titre,

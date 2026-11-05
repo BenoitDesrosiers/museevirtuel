@@ -14,6 +14,7 @@ use App\Models\QuestionBanque;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetSection;
 use App\Services\OrdreElements;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -86,6 +87,8 @@ class QuestionBanqueController extends Controller
      * Supprime une question de la banque.
      *
      * Les ProjetQuestionChoisie associées sont supprimées en cascade (DB).
+     *
+     * @throws AuthorizationException
      */
     public function destroy(
         Cours $cours,
@@ -94,8 +97,8 @@ class QuestionBanqueController extends Controller
         QuestionBanque $question,
         OrdreElements $ordres,
     ): RedirectResponse {
-        $this->authorize('update', $cours);
         abort_if($typeProjet->cours_id !== $cours->id, 404);
+        $this->authorize('update', $typeProjet);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
         abort_if($question->section_id !== $section->id, 404);
 

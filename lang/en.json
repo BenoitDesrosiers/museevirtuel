@@ -49,6 +49,7 @@
     "enseignant.updated": "Instructor updated successfully.",
     "enseignant.deleted": "Instructor deleted successfully.",
     "profile.updated": "Profile updated.",
+    "profile.suppression_temoin_lie_groupe": "Your account is linked to an active group. Please contact an administrator.",
     "password.updated": "Password updated.",
     "taches.added": "Task added.",
     "taches.updated": "Task updated.",

@@ -13,13 +13,13 @@ class SaveEnseignantRequest extends FormRequest
 {
     /**
      * Le rôle admin est vérifié par le middleware de route.
-     * En modification, protège contre l'édition d'un admin ou d'un étudiant via le route binding.
+     * En modification, la cible doit être un compte enseignant (UserPolicy::gererEnseignant).
      */
     public function authorize(): bool
     {
         $enseignant = $this->route('enseignant');
 
-        return $enseignant === null || $enseignant->role === 'enseignant';
+        return $enseignant === null || $this->user()->can('gererEnseignant', $enseignant);
     }
 
     /**

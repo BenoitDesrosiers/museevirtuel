@@ -35,7 +35,7 @@ class ConsentementVideoController extends Controller
 
         $validated = $request->validated();
 
-        $type = in_array($user->role, ['personne_agee']) ? 'personne_agee' : 'etudiant';
+        $type = $user->isPersonneAgee() ? 'personne_agee' : 'etudiant';
 
         ConsentementVideo::updateOrCreate(
             [

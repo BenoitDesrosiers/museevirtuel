@@ -49,6 +49,7 @@
     "enseignant.updated": "Enseignant mis à jour avec succès.",
     "enseignant.deleted": "Enseignant supprimé avec succès.",
     "profile.updated": "Profil mis à jour.",
+    "profile.suppression_temoin_lie_groupe": "Votre compte est lié à un groupe actif. Contactez un administrateur.",
     "password.updated": "Mot de passe mis à jour.",
     "taches.added": "Tâche ajoutée.",
     "taches.updated": "Tâche mise à jour.",

@@ -55,7 +55,7 @@ class ProjetRechercheController extends Controller
         $query = TypeProjet::where('cours_id', $cours->id);
 
         // Les étudiants ne voient que les types rendus accessibles par l'enseignant
-        if (! $estEnseignant && $user->role !== 'admin') {
+        if (! $estEnseignant && ! $user->isAdmin()) {
             $query->where('accessible', true);
         }
 
@@ -136,11 +136,13 @@ class ProjetRechercheController extends Controller
             && $cours->enseignant_id === $user->id;
 
         // Guard accessibilité : si le type de projet n'est pas accessible, les étudiants ne peuvent pas accéder
-        if (! $estEnseignant && $user->role !== 'admin') {
+        if (! $estEnseignant && ! $user->isAdmin()) {
             abort_if(! $typeProjet->accessible, 403, __('projet.type_inaccessible'));
         }
 
-        // Créer le projet partagé s'il n'existe pas encore (accès à l'éditeur implique volonté de créer)
+        // Exception assumée à pas d'écriture sur un GET : ouvrir l'éditeur
+        // crée le projet partagé s'il n'existe pas encore, car la page en a besoin pour
+        // s'afficher.
         $projet = ProjetRecherche::firstOrCreate([
             'groupe_id' => $groupe->id,
             'type_projet_id' => $typeProjet->id,

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Groupe;
 
+use App\Models\Groupe;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -17,7 +18,7 @@ class StoreGroupeRequest extends FormRequest
         $classe = $this->route('classe');
         abort_if($classe->cours_id !== $this->route('cours')->id, 404);
 
-        return $classe->etudiants()->where('users.id', $this->user()->id)->exists();
+        return $this->user()->can('create', [Groupe::class, $classe]);
     }
 
     /**

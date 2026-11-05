@@ -8,20 +8,14 @@ namespace App\Http\Requests\Concerns;
 trait AutoriseGestionTypeProjet
 {
     /**
-     * Vérifie que l'utilisateur peut modifier le cours et que le type de projet lui appartient.
-     *
-     * Le 403 est évalué avant le 404 pour conserver l'ordre des contrôles des contrôleurs.
+     * Vérifie que le type de projet appartient au cours de l'URL (404),
+     * puis que l'utilisateur peut le gérer (TypeProjetPolicy::update).
      */
     protected function peutGererTypeProjet(): bool
     {
-        $cours = $this->route('cours');
+        $typeProjet = $this->route('typeProjet');
+        abort_if($typeProjet->cours_id !== $this->route('cours')->id, 404);
 
-        if ($this->user()->cannot('update', $cours)) {
-            return false;
-        }
-
-        abort_if($this->route('typeProjet')->cours_id !== $cours->id, 404);
-
-        return true;
+        return $this->user()->can('update', $typeProjet);
     }
 }
