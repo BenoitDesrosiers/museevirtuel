@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Projet;
 
+use App\Concerns\ValidatesGroupeChain;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Projet\Concerns\AutoriseProjetRecherche;
 use App\Http\Requests\Projet\ClonerProjetCritereCorrectionRequest;
 use App\Http\Requests\Projet\UpsertProjetCritereCorrectionRequest;
 use App\Models\Classe;
@@ -13,6 +13,7 @@ use App\Models\ProjetCritereCorrection;
 use App\Models\ProjetRecherche;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetCritere;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -22,7 +23,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  */
 class ProjetCritereCorrectionController extends Controller
 {
-    use AutoriseProjetRecherche;
+    use ValidatesGroupeChain;
 
     /**
      * Crée ou met à jour la correction d'un critère pour ce projet.
@@ -32,6 +33,7 @@ class ProjetCritereCorrectionController extends Controller
      * automatiquement le pointage complet du critère.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function upsert(
         UpsertProjetCritereCorrectionRequest $request,
@@ -41,8 +43,8 @@ class ProjetCritereCorrectionController extends Controller
         TypeProjet $typeProjet,
         TypeProjetCritere $critere,
     ): JsonResponse {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserEnseignant($cours, $classe, $groupe);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
+        $this->authorize('corriger', [ProjetRecherche::class, $groupe]);
         abort_if($critere->type_projet_id !== $typeProjet->id, 404);
 
         $validated = $request->validated();
@@ -98,6 +100,7 @@ class ProjetCritereCorrectionController extends Controller
      * Supprime une correction de critère et tous ses clones.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function destroy(
         Cours $cours,
@@ -106,10 +109,10 @@ class ProjetCritereCorrectionController extends Controller
         TypeProjet $typeProjet,
         ProjetCritereCorrection $correction,
     ): JsonResponse {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserEnseignant($cours, $classe, $groupe);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
+        $this->authorize('corriger', [ProjetRecherche::class, $groupe]);
 
-        $projet = $this->trouverProjet($groupe, $typeProjet);
+        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
         abort_if($correction->projet_id !== $projet->id, 404);
 
         DB::transaction(function () use ($correction) {
@@ -128,6 +131,7 @@ class ProjetCritereCorrectionController extends Controller
      * le même (projet, critère, étudiant).
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function cloner(
         ClonerProjetCritereCorrectionRequest $request,
@@ -137,10 +141,10 @@ class ProjetCritereCorrectionController extends Controller
         TypeProjet $typeProjet,
         ProjetCritereCorrection $correction,
     ): JsonResponse {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserEnseignant($cours, $classe, $groupe);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
+        $this->authorize('corriger', [ProjetRecherche::class, $groupe]);
 
-        $projet = $this->trouverProjet($groupe, $typeProjet);
+        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
         abort_if($correction->projet_id !== $projet->id, 404);
 
         $validated = $request->validated();

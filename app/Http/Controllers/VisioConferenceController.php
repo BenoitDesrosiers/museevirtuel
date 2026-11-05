@@ -7,9 +7,14 @@ use App\Http\Requests\Visio\UpdateVisioConferenceRequest;
 use App\Models\Cours;
 use App\Models\Groupe;
 use App\Models\VisioConference;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
+/**
+ * Visioconférences d'un cours : création, modification et suppression.
+ */
 class VisioConferenceController extends Controller
 {
     /**
@@ -19,15 +24,16 @@ class VisioConferenceController extends Controller
      * Si groupe_id est fourni, la session est ciblée pour ce groupe seulement.
      *
      * Accessible à l'enseignant du cours (avec ou sans groupe_id) et aux membres
-     * d'un groupe spécifique lorsque groupe_id est fourni.
+     * d'un groupe spécifique lorsque groupe_id est fourni (VisioConferencePolicy::create).
      * Les données sont validées par StoreVisioConferenceRequest.
+     *
+     * @throws HttpException si le groupe ciblé n'appartient pas au cours
+     * @throws AuthorizationException
      */
     public function store(StoreVisioConferenceRequest $request, Cours $cours): RedirectResponse
     {
-        $user = $request->user();
-        $estEnseignant = ($user->isEnseignant() && $cours->enseignant_id === $user->id) || $user->isAdmin();
-
         $data = $request->validated();
+        $groupe = null;
 
         if (! empty($data['groupe_id'])) {
             // Vérifier que le groupe appartient bien à ce cours
@@ -35,14 +41,9 @@ class VisioConferenceController extends Controller
                 ->whereHas('classe', fn ($q) => $q->where('cours_id', $cours->id))
                 ->first();
             abort_if(! $groupe, 422, __('visio.groupe_invalid'));
-
-            // Autoriser l'enseignant du cours ou les membres du groupe ciblé
-            $estMembre = $groupe->membres()->where('users.id', $user->id)->exists();
-            abort_unless($estEnseignant || $estMembre, 403);
-        } else {
-            // Sans groupe_id : réservé à l'enseignant
-            $this->authorize('update', $cours);
         }
+
+        $this->authorize('create', [VisioConference::class, $cours, $groupe]);
 
         $room = str_pad((string) $cours->id, 4, '0', STR_PAD_LEFT).'-'.Str::random(8);
 
@@ -73,11 +74,14 @@ class VisioConferenceController extends Controller
 
     /**
      * Supprime une visioconférence.
+     *
+     * @throws HttpException si la visio n'appartient pas au cours
+     * @throws AuthorizationException
      */
     public function destroy(Cours $cours, VisioConference $visio): RedirectResponse
     {
-        $this->authorize('update', $cours);
         abort_if($visio->cours_id !== $cours->id, 404);
+        $this->authorize('delete', $visio);
 
         $visio->delete();
 

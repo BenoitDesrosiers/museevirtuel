@@ -14,15 +14,10 @@ class StoreVisioEnregistrementRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        $cours = $this->route('cours');
+        $visio = $this->route('visio');
+        abort_if($visio->cours_id !== $this->route('cours')->id, 404);
 
-        if ($this->user()->cannot('update', $cours)) {
-            return false;
-        }
-
-        abort_if($this->route('visio')->cours_id !== $cours->id, 404);
-
-        return true;
+        return $this->user()->can('update', $visio);
     }
 
     /**

@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Projet;
 
+use App\Concerns\ValidatesGroupeChain;
 use App\Enums\StatutProjetRecherche;
 use App\Helpers\HtmlHelper;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Projet\Concerns\AutoriseProjetRecherche;
 use App\Http\Controllers\Projet\Concerns\RendMuseeProjet;
 use App\Http\Requests\Projet\UpdateProjetRechercheRequest;
 use App\Models\Classe;
@@ -27,8 +27,8 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  */
 class ProjetRechercheController extends Controller
 {
-    use AutoriseProjetRecherche;
     use RendMuseeProjet;
+    use ValidatesGroupeChain;
 
     /**
      * Affiche toutes les cartes de projets disponibles pour ce groupe.
@@ -125,9 +125,7 @@ class ProjetRechercheController extends Controller
      */
     public function show(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetRechercheProps $props): Response
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
 
         $groupe->load(['membres', 'thematiques', 'classe.cours.enseignant']);
         $cours->loadMissing('enseignant');
@@ -167,9 +165,7 @@ class ProjetRechercheController extends Controller
      */
     public function apercu(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetRechercheProps $props): Response
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
 
         $groupe->load(['membres', 'thematiques', 'classe.cours']);
         $this->authorize('view', $groupe);
@@ -237,10 +233,11 @@ class ProjetRechercheController extends Controller
      * et de la table des matières (utilisés quand les flags de génération sont désactivés).
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function update(UpdateProjetRechercheRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
 
         $validated = $request->validated();
 
@@ -249,15 +246,12 @@ class ProjetRechercheController extends Controller
             ->first();
 
         if ($existant !== null) {
-            $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $existant);
+            $this->authorize('editerContenu', $existant);
             $existant->update($validated);
             $projet = $existant;
         } else {
             // Le projet n'existe pas encore — seul un membre du groupe peut le créer
-            abort_if($classe->cours_id !== $cours->id, 404);
-            abort_if($groupe->classe_id !== $classe->id, 404);
-            $groupe->loadMissing('classe.cours');
-            $this->authorize('manageThematiques', $groupe);
+            $this->authorize('contribuer', [ProjetRecherche::class, $groupe]);
             $projet = ProjetRecherche::create([
                 'groupe_id' => $groupe->id,
                 'type_projet_id' => $typeProjet->id,

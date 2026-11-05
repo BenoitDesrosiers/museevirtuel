@@ -158,6 +158,32 @@ test('signed_at est rempli quand accepte est vrai, null sinon', function () {
     expect($consentement->signed_at)->toBeNull();
 });
 
+test("un groupe d'un autre cours est refusé (404)", function () {
+    $s = creerScenarioConsentement();
+
+    // L'étudiant est aussi inscrit à un second cours, qui a son propre type de projet
+    $autreCours = Cours::create([
+        'nom_cours' => 'Autre cours',
+        'code' => '330-AUT',
+        'groupe' => '00002',
+        'enseignant_id' => $s['enseignant']->id,
+    ]);
+    Classe::create(['cours_id' => $autreCours->id])->etudiants()->attach($s['etudiant']->id);
+    $autreTypeProjet = TypeProjet::create([
+        'enseignant_id' => $s['enseignant']->id,
+        'cours_id' => $autreCours->id,
+        'nom' => 'Autre projet',
+        'accessible' => true,
+    ]);
+
+    // URL incohérente : cours B + groupe du cours A
+    $this->actingAs($s['etudiant'])
+        ->post(urlConsentement($autreCours, $s['groupe'], $autreTypeProjet), ['accepte' => true])
+        ->assertNotFound();
+
+    expect(ConsentementVideo::count())->toBe(0);
+});
+
 test("un TypeProjet d'un autre cours est refusé (404)", function () {
     $s = creerScenarioConsentement();
     $autreCours = Cours::create([

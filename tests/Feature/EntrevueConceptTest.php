@@ -108,6 +108,52 @@ test('un non-membre ne peut pas créer un concept (403)', function () {
         ->assertForbidden();
 });
 
+test('un non-membre refusé ne crée pas de projet au passage', function () {
+    ['cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
+    $projet->delete();
+
+    $this->actingAs(User::factory()->create(['role' => 'etudiant']))
+        ->postJson(urlConcepts($cours, $cs, $classe, $typeProjet, $section), ['label' => 'Tentative'])
+        ->assertForbidden();
+
+    expect(ProjetRecherche::count())->toBe(0);
+});
+
+test("l'enseignant du cours, même en mode édition, ne peut pas écrire dans la grille d'entrevue (403)", function () {
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
+    $projet->update(['mode_edition_enseignant' => true]);
+
+    $this->actingAs($enseignant)
+        ->postJson(urlConcepts($cours, $cs, $classe, $typeProjet, $section), ['label' => 'Tentative'])
+        ->assertForbidden();
+});
+
+test('un projet déjà remis refuse la création de concepts (422)', function () {
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
+    $typeProjet->update(['remises_multiples' => false]);
+    $projet->update(['remis_le' => now()]);
+
+    $this->actingAs($etudiant)
+        ->postJson(urlConcepts($cours, $cs, $classe, $typeProjet, $section), ['label' => 'Tentative'])
+        ->assertUnprocessable()
+        ->assertJsonPath('message', __('projet.deja_remis'));
+});
+
+test('un projet déjà remis refuse aussi la réorganisation des concepts (422)', function () {
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
+    $c1 = EntrevueConcept::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'label' => 'A', 'ordre' => 1]);
+    $c2 = EntrevueConcept::create(['projet_id' => $projet->id, 'section_id' => $section->id, 'label' => 'B', 'ordre' => 2]);
+    $typeProjet->update(['remises_multiples' => false]);
+    $projet->update(['remis_le' => now()]);
+
+    $this->actingAs($etudiant)
+        ->patchJson(urlConcepts($cours, $cs, $classe, $typeProjet, $section).'/reorder', ['ordre' => [$c2->id, $c1->id]])
+        ->assertUnprocessable()
+        ->assertJsonPath('message', __('projet.deja_remis'));
+
+    expect($c1->fresh()->ordre)->toBe(1);
+});
+
 test('une section de type texte refuse la création de concepts (422)', function () {
     ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenarioEntrevue();
 

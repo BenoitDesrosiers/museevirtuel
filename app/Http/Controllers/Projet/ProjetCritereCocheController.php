@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Projet;
 
+use App\Concerns\ValidatesGroupeChain;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Projet\Concerns\AutoriseProjetRecherche;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
@@ -11,6 +11,7 @@ use App\Models\ProjetCritereEtudiantCoche;
 use App\Models\ProjetRecherche;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetCritere;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -19,7 +20,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  */
 class ProjetCritereCocheController extends Controller
 {
-    use AutoriseProjetRecherche;
+    use ValidatesGroupeChain;
 
     /**
      * Bascule la coche personnelle d'un étudiant pour un critère visible.
@@ -28,6 +29,7 @@ class ProjetCritereCocheController extends Controller
      * pas la correction ni la note.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function toggle(
         Cours $cours,
@@ -36,13 +38,10 @@ class ProjetCritereCocheController extends Controller
         TypeProjet $typeProjet,
         TypeProjetCritere $critere,
     ): JsonResponse {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
         abort_if($critere->type_projet_id !== $typeProjet->id, 404);
 
-        $groupe->loadMissing('membres');
-        abort_unless($groupe->membres->contains('id', auth()->id()), 403);
+        $this->authorize('contribuer', [ProjetRecherche::class, $groupe]);
         abort_unless((bool) $critere->visible, 403);
 
         $projet = ProjetRecherche::firstOrCreate([

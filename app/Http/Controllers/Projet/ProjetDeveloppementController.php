@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers\Projet;
 
+use App\Actions\SupprimerAnnotationsOrphelines;
+use App\Concerns\ValidatesGroupeChain;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Projet\Concerns\AutoriseProjetRecherche;
 use App\Http\Requests\Commun\ReorderRequest;
 use App\Http\Requests\Projet\UpdateProjetDeveloppementRequest;
 use App\Models\Classe;
@@ -13,6 +14,7 @@ use App\Models\ProjetDeveloppement;
 use App\Models\ProjetRecherche;
 use App\Models\TypeProjet;
 use App\Services\OrdreElements;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -22,24 +24,25 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  */
 class ProjetDeveloppementController extends Controller
 {
-    use AutoriseProjetRecherche;
+    use ValidatesGroupeChain;
 
     /**
      * Ajoute un nouveau paragraphe de développement à la fin de la liste.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function store(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, OrdreElements $ordres): JsonResponse
     {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
 
-        $this->autoriserMembreOuEnseignant($cours, $classe, $groupe);
+        $this->authorize('acceder', [ProjetRecherche::class, $groupe]);
 
         $projet = ProjetRecherche::firstOrCreate([
             'groupe_id' => $groupe->id,
             'type_projet_id' => $typeProjet->id,
         ]);
-        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
+        $this->authorize('editerContenu', $projet);
 
         $ordre = $ordres->prochain($projet->developpements());
 
@@ -61,22 +64,23 @@ class ProjetDeveloppementController extends Controller
      * Met à jour le titre et/ou le contenu d'un paragraphe de développement.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
-    public function update(UpdateProjetDeveloppementRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetDeveloppement $developpement): JsonResponse
+    public function update(UpdateProjetDeveloppementRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetDeveloppement $developpement, SupprimerAnnotationsOrphelines $supprimerOrphelines): JsonResponse
     {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
 
-        $projet = $this->trouverProjet($groupe, $typeProjet);
+        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
 
         abort_if($developpement->projet_id !== $projet->id, 404);
-        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
+        $this->authorize('editerContenu', $projet);
 
         $validated = $request->validated();
 
         $developpement->update($validated);
 
         if (array_key_exists('contenu', $validated) && $validated['contenu'] !== null) {
-            $this->supprimerAnnotationsOrphelines(
+            $supprimerOrphelines->execute(
                 $projet,
                 'developpement_'.$developpement->id,
                 $validated['contenu']
@@ -95,15 +99,16 @@ class ProjetDeveloppementController extends Controller
      * Refuse la suppression si c'est le dernier paragraphe (minimum : 1).
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function destroy(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetDeveloppement $developpement, OrdreElements $ordres): JsonResponse
     {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
 
-        $projet = $this->trouverProjet($groupe, $typeProjet);
+        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
 
         abort_if($developpement->projet_id !== $projet->id, 404);
-        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
+        $this->authorize('editerContenu', $projet);
         abort_if($projet->developpements()->count() <= 1, 422, __('projet.developpement_minimum'));
 
         $ordres->supprimer($developpement, $projet->developpements());
@@ -118,14 +123,15 @@ class ProjetDeveloppementController extends Controller
      * Met à jour l'ordre de tous les paragraphes de développement d'un projet.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function reorder(ReorderRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, OrdreElements $ordres): JsonResponse
     {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
 
-        $projet = $this->trouverProjet($groupe, $typeProjet);
+        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
 
-        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
+        $this->authorize('editerContenu', $projet);
 
         $ordres->reordonner($projet->developpements(), $request->ids());
 

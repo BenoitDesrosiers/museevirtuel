@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Projet;
 
+use App\Concerns\ValidatesGroupeChain;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Projet\Concerns\AutoriseProjetRecherche;
 use App\Http\Requests\Projet\VoterProjetRemiseRequest;
 use App\Models\Classe;
 use App\Models\Cours;
@@ -11,6 +11,7 @@ use App\Models\Groupe;
 use App\Models\ProjetRecherche;
 use App\Models\TypeProjet;
 use App\Services\RemiseProjetService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -19,21 +20,20 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  */
 class ProjetRemiseController extends Controller
 {
-    use AutoriseProjetRecherche;
+    use ValidatesGroupeChain;
 
     /**
      * Enregistre la remise du travail par l'équipe d'étudiants.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function store(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, RemiseProjetService $remiseProjetService): JsonResponse
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
 
         $groupe->loadMissing('membres');
-        abort_unless($groupe->membres->contains('id', auth()->id()), 403);
+        $this->authorize('contribuer', [ProjetRecherche::class, $groupe]);
 
         $projet = ProjetRecherche::firstOrCreate([
             'groupe_id' => $groupe->id,
@@ -65,13 +65,14 @@ class ProjetRemiseController extends Controller
      * Annule la remise du travail (enseignant seulement).
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function destroy(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, RemiseProjetService $remiseProjetService): JsonResponse
     {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserEnseignant($cours, $classe, $groupe);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
+        $this->authorize('corriger', [ProjetRecherche::class, $groupe]);
 
-        $projet = $this->trouverProjet($groupe, $typeProjet);
+        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
         $projet->setRelation('typeProjet', $typeProjet);
 
         $remiseProjetService->annuler($projet);
@@ -85,17 +86,16 @@ class ProjetRemiseController extends Controller
      * Si tous les membres ont voté true, la remise est enregistrée de façon atomique.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function voter(VoterProjetRemiseRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, RemiseProjetService $remiseProjetService): JsonResponse
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
 
         $groupe->loadMissing('membres');
-        abort_unless($groupe->membres->contains('id', auth()->id()), 403);
+        $this->authorize('contribuer', [ProjetRecherche::class, $groupe]);
 
-        $projet = $this->trouverProjet($groupe, $typeProjet);
+        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
         $projet->setRelation('typeProjet', $typeProjet);
 
         abort_unless($projet->peutEtreRemis(), 422, __('projet.remise_impossible'));

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Projet;
 
+use App\Concerns\ValidatesGroupeChain;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Projet\Concerns\AutoriseEntrevue;
 use App\Http\Requests\Commun\ReorderRequest;
 use App\Http\Requests\Projet\SaveEntrevueConceptRequest;
 use App\Models\Classe;
@@ -14,31 +14,37 @@ use App\Models\ProjetRecherche;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetSection;
 use App\Services\OrdreElements;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
+/**
+ * Concepts de la grille d'entrevue d'un projet.
+ */
 class EntrevueConceptController extends Controller
 {
-    use AutoriseEntrevue;
+    use ValidatesGroupeChain;
 
     /**
      * Crée un nouveau concept dans une section de type 'entrevue'.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function store(SaveEntrevueConceptRequest $request, Cours $cours, Classe $classe,
         Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section,
         OrdreElements $ordres): JsonResponse
     {
-        $this->autoriserEtVerifier($cours, $classe, $groupe, $typeProjet, $section);
+        $this->verifierSectionEntrevue($cours, $classe, $groupe, $typeProjet, $section);
+
+        $this->authorize('contribuer', [ProjetRecherche::class, $groupe]);
 
         $projet = ProjetRecherche::firstOrCreate([
             'groupe_id' => $groupe->id,
             'type_projet_id' => $typeProjet->id,
         ]);
-
-        abort_if($projet->verrouille, 403, __('projet.verrouille'));
-        abort_if(! $projet->peutEtreRemis(), 422, __('projet.deja_remis'));
+        $this->authorize('create', [EntrevueConcept::class, $projet]);
 
         $validated = $request->validated();
 
@@ -61,20 +67,15 @@ class EntrevueConceptController extends Controller
      * Met à jour le label d'un concept existant.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function update(SaveEntrevueConceptRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, EntrevueConcept $concept): JsonResponse
     {
-        $this->autoriserEtVerifier($cours, $classe, $groupe, $typeProjet, $section);
+        $this->verifierSectionEntrevue($cours, $classe, $groupe, $typeProjet, $section);
+        $this->verifierConcept($groupe, $typeProjet, $section, $concept);
+        $this->authorize('update', $concept);
 
-        $projet = $this->trouverProjet($groupe, $typeProjet);
-
-        abort_if($concept->projet_id !== $projet->id || $concept->section_id !== $section->id, 404);
-        abort_if($projet->verrouille, 403, __('projet.verrouille'));
-        abort_if(! $projet->peutEtreRemis(), 422, __('projet.deja_remis'));
-
-        $validated = $request->validated();
-
-        $concept->update($validated);
+        $concept->update($request->validated());
 
         return response()->json(['message' => __('reponse.saved')]);
     }
@@ -83,16 +84,13 @@ class EntrevueConceptController extends Controller
      * Supprime un concept et réordonne les suivants.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function destroy(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, EntrevueConcept $concept, OrdreElements $ordres): JsonResponse
     {
-        $this->autoriserEtVerifier($cours, $classe, $groupe, $typeProjet, $section);
-
-        $projet = $this->trouverProjet($groupe, $typeProjet);
-
-        abort_if($concept->projet_id !== $projet->id || $concept->section_id !== $section->id, 404);
-        abort_if($projet->verrouille, 403, __('projet.verrouille'));
-        abort_if(! $projet->peutEtreRemis(), 422, __('projet.deja_remis'));
+        $this->verifierSectionEntrevue($cours, $classe, $groupe, $typeProjet, $section);
+        $projet = $this->verifierConcept($groupe, $typeProjet, $section, $concept);
+        $this->authorize('delete', $concept);
 
         $ordres->supprimer($concept, $this->portee($projet, $section));
 
@@ -103,21 +101,48 @@ class EntrevueConceptController extends Controller
      * Met à jour l'ordre de tous les concepts d'une section de type 'entrevue'.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function reorder(ReorderRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, OrdreElements $ordres): JsonResponse
     {
-        $this->autoriserEtVerifier($cours, $classe, $groupe, $typeProjet, $section);
+        $this->verifierSectionEntrevue($cours, $classe, $groupe, $typeProjet, $section);
 
-        $projet = $this->trouverProjet($groupe, $typeProjet);
-
-        abort_if($projet->verrouille, 403, __('projet.verrouille'));
+        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
+        $this->authorize('reorder', [EntrevueConcept::class, $projet]);
 
         $ordres->reordonner($this->portee($projet, $section), $request->ids());
 
         return response()->json(['message' => __('reponse.reordered')]);
     }
 
-    // ─── Méthodes privées ─────────────────────────────────────────────────────
+    //  Méthodes privées
+
+    /**
+     * Vérifie la chaîne d'URL jusqu'à la section et que celle-ci est bien une entrevue.
+     *
+     * @throws HttpException
+     */
+    private function verifierSectionEntrevue(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section): void
+    {
+        $this->verifierChaineSection($cours, $classe, $groupe, $typeProjet, $section);
+        abort_if($section->type !== 'entrevue', 422, __('entrevue.section_invalide'));
+    }
+
+    /**
+     * Vérifie que le concept appartient au projet du groupe et à la section, et retourne ce projet.
+     *
+     * @throws HttpException
+     */
+    private function verifierConcept(Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, EntrevueConcept $concept): ProjetRecherche
+    {
+        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
+        abort_if($concept->projet_id !== $projet->id || $concept->section_id !== $section->id, 404);
+
+        // La policy lit le projet via le concept : on lui passe celui déjà chargé
+        $concept->setRelation('projet', $projet);
+
+        return $projet;
+    }
 
     /**
      * Formate un concept avec ses lignes pour la réponse JSON.
@@ -136,8 +161,10 @@ class EntrevueConceptController extends Controller
 
     /**
      * Concepts d'une section donnée dans ce projet : la liste sur laquelle porte l'ordre.
+     *
+     * @return Builder<EntrevueConcept>
      */
-    private function portee(ProjetRecherche $projet, TypeProjetSection $section): EntrevueConcept
+    private function portee(ProjetRecherche $projet, TypeProjetSection $section): Builder
     {
         return EntrevueConcept::where('projet_id', $projet->id)
             ->where('section_id', $section->id);

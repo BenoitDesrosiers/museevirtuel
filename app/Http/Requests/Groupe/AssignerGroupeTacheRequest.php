@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Groupe;
 
+use App\Models\ProjetRecherche;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -24,7 +25,7 @@ class AssignerGroupeTacheRequest extends FormRequest
         abort_if($typeProjet->cours_id !== $cours->id, 404);
         abort_if($this->route('tache')->type_projet_id !== $typeProjet->id, 404);
 
-        return $groupe->membres()->where('user_id', $this->user()->id)->exists();
+        return $this->user()->can('contribuer', [ProjetRecherche::class, $groupe]);
     }
 
     /**

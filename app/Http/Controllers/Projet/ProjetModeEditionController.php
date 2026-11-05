@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers\Projet;
 
+use App\Concerns\ValidatesGroupeChain;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Projet\Concerns\AutoriseProjetRecherche;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
 use App\Models\ProjetRecherche;
 use App\Models\TypeProjet;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -17,7 +18,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  */
 class ProjetModeEditionController extends Controller
 {
-    use AutoriseProjetRecherche;
+    use ValidatesGroupeChain;
 
     /**
      * Active ou désactive le mode édition enseignant pour le projet d'une équipe.
@@ -26,11 +27,12 @@ class ProjetModeEditionController extends Controller
      * (titre, sections, développements, conclusions, renvois) sans être membre.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function __invoke(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserEnseignant($cours, $classe, $groupe);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
+        $this->authorize('corriger', [ProjetRecherche::class, $groupe]);
 
         $projet = ProjetRecherche::firstOrCreate([
             'groupe_id' => $groupe->id,

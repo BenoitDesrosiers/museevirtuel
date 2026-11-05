@@ -5,8 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Etudiant\StoreEtudiantReferenceRequest;
 use App\Models\EtudiantReference;
 use App\Services\OrdreElements;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 
+/**
+ * Liste de références bibliographiques personnelle d'un étudiant.
+ */
 class EtudiantReferenceController extends Controller
 {
     /**
@@ -36,10 +40,12 @@ class EtudiantReferenceController extends Controller
      * Supprime une référence personnelle de l'étudiant authentifié.
      *
      * Vérifie que la référence appartient bien à l'étudiant avant de supprimer.
+     *
+     * @throws AuthorizationException
      */
     public function destroy(EtudiantReference $reference): RedirectResponse
     {
-        abort_if($reference->user_id !== auth()->id(), 403);
+        $this->authorize('delete', $reference);
 
         $reference->delete();
 

@@ -47,12 +47,13 @@ class GroupeNoteController extends Controller
     /**
      * Supprime une note du groupe.
      *
-     * @throws HttpException si l'utilisateur n'est pas l'auteur
+     * @throws HttpException si la note n'appartient pas au groupe
+     * @throws AuthorizationException si l'utilisateur n'est pas l'auteur
      */
     public function destroy(Cours $cours, Classe $classe, Groupe $groupe, GroupeNote $note): RedirectResponse
     {
         $this->verifierChaine($cours, $classe, $groupe, $note);
-        abort_if($note->user_id !== auth()->id(), 403);
+        $this->authorize('delete', $note);
 
         $note->delete();
 

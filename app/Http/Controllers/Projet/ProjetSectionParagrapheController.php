@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers\Projet;
 
+use App\Actions\SupprimerAnnotationsOrphelines;
+use App\Concerns\ValidatesGroupeChain;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Projet\Concerns\AutoriseProjetRecherche;
 use App\Http\Requests\Commun\ReorderRequest;
 use App\Http\Requests\Projet\UpdateProjetSectionParagrapheRequest;
 use App\Models\Classe;
@@ -14,6 +15,7 @@ use App\Models\ProjetSectionParagraphe;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetSection;
 use App\Services\OrdreElements;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,25 +26,26 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  */
 class ProjetSectionParagrapheController extends Controller
 {
-    use AutoriseProjetRecherche;
+    use ValidatesGroupeChain;
 
     /**
      * Ajoute un nouveau paragraphe à la fin d'une section de type 'paragraphes'.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function store(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, OrdreElements $ordres): JsonResponse
     {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
 
-        $this->autoriserMembreOuEnseignant($cours, $classe, $groupe);
+        $this->authorize('acceder', [ProjetRecherche::class, $groupe]);
 
         $projet = ProjetRecherche::firstOrCreate([
             'groupe_id' => $groupe->id,
             'type_projet_id' => $typeProjet->id,
         ]);
-        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
+        $this->authorize('editerContenu', $projet);
 
         $ordre = $ordres->prochain($this->portee($projet, $section));
 
@@ -64,23 +67,24 @@ class ProjetSectionParagrapheController extends Controller
      * Met à jour le titre et/ou le contenu d'un paragraphe de section.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
-    public function update(UpdateProjetSectionParagrapheRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, ProjetSectionParagraphe $paragraphe): JsonResponse
+    public function update(UpdateProjetSectionParagrapheRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, ProjetSectionParagraphe $paragraphe, SupprimerAnnotationsOrphelines $supprimerOrphelines): JsonResponse
     {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
 
-        $projet = $this->trouverProjet($groupe, $typeProjet);
+        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
 
         abort_if($paragraphe->projet_id !== $projet->id || $paragraphe->section_id !== $section->id, 404);
-        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
+        $this->authorize('editerContenu', $projet);
 
         $validated = $request->validated();
 
         $paragraphe->update($validated);
 
         if (array_key_exists('contenu', $validated) && $validated['contenu'] !== null) {
-            $this->supprimerAnnotationsOrphelines(
+            $supprimerOrphelines->execute(
                 $projet,
                 'section_paragraphe_'.$paragraphe->id,
                 $validated['contenu']
@@ -96,16 +100,17 @@ class ProjetSectionParagrapheController extends Controller
      * Refuse la suppression si c'est le dernier paragraphe (minimum : 1).
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function destroy(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, ProjetSectionParagraphe $paragraphe, OrdreElements $ordres): JsonResponse
     {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
 
-        $projet = $this->trouverProjet($groupe, $typeProjet);
+        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
 
         abort_if($paragraphe->projet_id !== $projet->id || $paragraphe->section_id !== $section->id, 404);
-        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
+        $this->authorize('editerContenu', $projet);
 
         abort_if($this->portee($projet, $section)->count() <= 1, 422, __('projet.paragraphe_minimum'));
 
@@ -118,15 +123,16 @@ class ProjetSectionParagrapheController extends Controller
      * Met à jour l'ordre de tous les paragraphes d'une section de type 'paragraphes'.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function reorder(ReorderRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, OrdreElements $ordres): JsonResponse
     {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
 
-        $projet = $this->trouverProjet($groupe, $typeProjet);
+        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
 
-        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
+        $this->authorize('editerContenu', $projet);
 
         $ordres->reordonner($this->portee($projet, $section), $request->ids());
 

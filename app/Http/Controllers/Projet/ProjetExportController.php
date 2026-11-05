@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Projet;
 
 use App\Actions\ExportProjetPdf;
 use App\Actions\ExportProjetWord;
+use App\Concerns\ValidatesGroupeChain;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Projet\Concerns\AutoriseProjetRecherche;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
@@ -21,7 +21,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  */
 class ProjetExportController extends Controller
 {
-    use AutoriseProjetRecherche;
+    use ValidatesGroupeChain;
 
     /**
      * Génère et retourne le projet en PDF.
@@ -60,14 +60,12 @@ class ProjetExportController extends Controller
      */
     private function chargerProjetPourExport(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): ProjetRecherche
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
 
         $groupe->load(['membres', 'thematiques', 'classe.cours.enseignant']);
         $this->authorize('view', $groupe);
 
-        $projet = $this->trouverProjet($groupe, $typeProjet);
+        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
         $projet->load(['conclusions.etudiant', 'developpements', 'renvois']);
 
         return $projet;

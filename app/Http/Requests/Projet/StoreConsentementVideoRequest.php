@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Projet;
 
+use App\Models\ProjetRecherche;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -14,13 +15,13 @@ class StoreConsentementVideoRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        abort_if($this->route('typeProjet')->cours_id !== $this->route('cours')->id, 404);
-
+        $cours = $this->route('cours');
         $groupe = $this->route('groupe');
-        $user = $this->user();
 
-        return $groupe->personne_agee_id === $user->id
-            || $groupe->membres()->where('user_id', $user->id)->exists();
+        abort_if($groupe->classe->cours_id !== $cours->id, 404);
+        abort_if($this->route('typeProjet')->cours_id !== $cours->id, 404);
+
+        return $this->user()->can('consentir', [ProjetRecherche::class, $groupe]);
     }
 
     /**

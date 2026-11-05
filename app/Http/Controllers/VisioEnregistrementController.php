@@ -4,10 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Actions\StoreUploadedFile;
 use App\Http\Requests\Visio\StoreVisioEnregistrementRequest;
-use App\Models\Classe;
 use App\Models\Cours;
-use App\Models\Groupe;
 use App\Models\VisioConference;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -45,31 +44,17 @@ class VisioEnregistrementController extends Controller
      * Diffuse le fichier d'enregistrement en streaming sécurisé.
      *
      * Supporte les range requests pour permettre la navigation dans la vidéo.
-     * Accessible à l'enseignant du cours et aux membres de ses groupes.
+     * Accessible à l'enseignant du cours et aux étudiants concernés par la visio :
+     * les membres du groupe ciblé, ou de n'importe quel groupe si la visio est commune.
      *
-     * @throws HttpException si non autorisé ou fichier introuvable
+     * @throws HttpException si fichier introuvable
+     * @throws AuthorizationException
      */
     public function show(Cours $cours, VisioConference $visio): BinaryFileResponse
     {
         abort_if($visio->cours_id !== $cours->id, 404);
+        $this->authorize('participer', $visio);
         abort_if(! $visio->recording_path, 404);
-
-        $user = auth()->user();
-
-        // Autoriser l'enseignant, les admins, et les membres de n'importe quel groupe du cours
-        /**
-         * Il faudra retirer la portion $user->isEnseignant()
-         * && en production.
-         */
-        $estAutorise = ($user->isEnseignant() && $cours->enseignant_id === $user->id)
-            || $user->isAdmin()
-            || Classe::where('cours_id', $cours->id)
-                ->whereHas('groupes', fn ($q) => $q
-                    ->whereHas('membres', fn ($q2) => $q2->where('users.id', $user->id))
-                )
-                ->exists();
-
-        abort_unless($estAutorise, 403);
 
         $filePath = Storage::path($visio->recording_path);
         abort_if(! file_exists($filePath), 404);

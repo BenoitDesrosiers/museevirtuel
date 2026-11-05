@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Projet;
 
+use App\Concerns\ValidatesGroupeChain;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Projet\Concerns\AutoriseProjetRecherche;
 use App\Http\Requests\Projet\UpdateProjetConclusionRequest;
 use App\Models\Classe;
 use App\Models\Cours;
@@ -11,6 +11,7 @@ use App\Models\Groupe;
 use App\Models\ProjetConclusion;
 use App\Models\ProjetRecherche;
 use App\Models\TypeProjet;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -19,7 +20,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  */
 class ProjetConclusionController extends Controller
 {
-    use AutoriseProjetRecherche;
+    use ValidatesGroupeChain;
 
     /**
      * Sauvegarde la conclusion individuelle d'un membre du groupe.
@@ -28,17 +29,16 @@ class ProjetConclusionController extends Controller
      * Le user_id cible doit être validé comme membre du groupe pour éviter l'IDOR.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function update(UpdateProjetConclusionRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
 
         // Charger les membres pour valider le user_id cible (toujours nécessaire, même pour l'enseignant)
         $groupe->load(['classe.cours', 'membres']);
 
-        // Les utilisateurs qui ne font pas partie du groupe et ne sont pas l'enseignant reçoivent 403.
-        // NB : la FormRequest valide désormais avant ce point (422 possible pour un intrus avec données invalides).
-        $this->autoriserMembreOuEnseignant($cours, $classe, $groupe);
+        $this->authorize('acceder', [ProjetRecherche::class, $groupe]);
 
         $validated = $request->validated();
 
@@ -53,7 +53,7 @@ class ProjetConclusionController extends Controller
             'type_projet_id' => $typeProjet->id,
         ]);
 
-        $this->verifierEditionContenuAutorisee($cours, $classe, $groupe, $projet);
+        $this->authorize('editerContenu', $projet);
 
         $cle = ['projet_id' => $projet->id, 'user_id' => $validated['user_id']];
         if (isset($validated['section_id'])) {

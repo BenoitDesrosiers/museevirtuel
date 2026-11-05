@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers\Projet;
 
+use App\Actions\SupprimerAnnotationsOrphelines;
+use App\Concerns\ValidatesGroupeChain;
 use App\Helpers\HtmlHelper;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Projet\Concerns\AutoriseProjetRecherche;
 use App\Http\Requests\Projet\DestroyProjetAnnotationRequest;
 use App\Http\Requests\Projet\UpsertProjetAnnotationRequest;
 use App\Models\Classe;
@@ -17,6 +18,7 @@ use App\Models\ProjetRenvoi;
 use App\Models\ProjetSectionContenu;
 use App\Models\ProjetSectionParagraphe;
 use App\Models\TypeProjet;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -26,17 +28,18 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  */
 class ProjetAnnotationController extends Controller
 {
-    use AutoriseProjetRecherche;
+    use ValidatesGroupeChain;
 
     /**
      * Crée ou met à jour une annotation inline sur un champ du projet.
      *
      * @throws HttpException si l'utilisateur n'est pas l'enseignant du cours
+     * @throws AuthorizationException
      */
-    public function upsert(UpsertProjetAnnotationRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
+    public function upsert(UpsertProjetAnnotationRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, SupprimerAnnotationsOrphelines $supprimerOrphelines): JsonResponse
     {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserEnseignant($cours, $classe, $groupe);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
+        $this->authorize('corriger', [ProjetRecherche::class, $groupe]);
 
         $validated = $request->validated();
 
@@ -47,9 +50,9 @@ class ProjetAnnotationController extends Controller
 
         $estCorrection = $validated['annotation_type'] === 'correction';
 
-        $annotation = DB::transaction(function () use ($projet, $validated, $estCorrection) {
+        $annotation = DB::transaction(function () use ($projet, $validated, $estCorrection, $supprimerOrphelines) {
             $this->mettreAJourChampHtml($projet, $validated['champ'], $validated['html']);
-            $this->supprimerAnnotationsOrphelines($projet, $validated['champ'], $validated['html']);
+            $supprimerOrphelines->execute($projet, $validated['champ'], $validated['html']);
 
             return ProjetAnnotation::updateOrCreate(
                 ['projet_id' => $projet->id, 'commentaire_id' => $validated['commentaire_id']],
@@ -85,13 +88,14 @@ class ProjetAnnotationController extends Controller
      * Supprime une annotation inline et met à jour le HTML du champ pour retirer la marque.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function destroy(DestroyProjetAnnotationRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetAnnotation $annotation): JsonResponse
     {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserEnseignant($cours, $classe, $groupe);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
+        $this->authorize('corriger', [ProjetRecherche::class, $groupe]);
 
-        $projet = $this->trouverProjet($groupe, $typeProjet);
+        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
 
         abort_if($annotation->projet_id !== $projet->id, 404);
 

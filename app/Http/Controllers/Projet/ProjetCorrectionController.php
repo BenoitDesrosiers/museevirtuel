@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Projet;
 
+use App\Concerns\ValidatesGroupeChain;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Projet\Concerns\AutoriseProjetRecherche;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
@@ -21,17 +21,18 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  */
 class ProjetCorrectionController extends Controller
 {
-    use AutoriseProjetRecherche;
+    use ValidatesGroupeChain;
 
     /**
      * Active ou désactive la visibilité des corrections pour les étudiants.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function toggleVisible(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet): JsonResponse
     {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserEnseignant($cours, $classe, $groupe);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
+        $this->authorize('corriger', [ProjetRecherche::class, $groupe]);
 
         $projet = ProjetRecherche::firstOrCreate([
             'groupe_id' => $groupe->id,
@@ -58,9 +59,7 @@ class ProjetCorrectionController extends Controller
     public function apercuNotes(Cours $cours, Classe $classe, Groupe $groupe,
         TypeProjet $typeProjet, CalculNotesService $notes): Response
     {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
 
         $groupe->load(['membres', 'classe.cours']);
         $this->authorize('view', $groupe);
@@ -75,7 +74,7 @@ class ProjetCorrectionController extends Controller
             403,
         );
 
-        $projet = $this->trouverProjet($groupe, $typeProjet);
+        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
 
         $typeProjet->load('criteres');
         $projet->load(['critereCorrections', 'annotations']);

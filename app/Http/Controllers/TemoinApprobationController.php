@@ -2,27 +2,26 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Thematique;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
- * Fiche et approbation des témoins (personnes âgées) par un enseignant lié par ses thématiques, ou par un admin.
+ * Fiche et approbation des témoins (personnes âgées) par un enseignant
+ * lié par ses thématiques, ou par un admin.
  */
 class TemoinApprobationController extends Controller
 {
     /**
      * Affiche la fiche détaillée d'un témoin lié aux thématiques de l'enseignant connecté.
      *
-     * @throws HttpException si le témoin n'est pas une personne âgée ou n'est pas lié à cet enseignant
+     * @throws AuthorizationException si le témoin n'est pas une personne âgée ou n'est pas lié à cet enseignant
      */
     public function show(User $user): Response
     {
-        abort_if($user->role !== 'personne_agee', 403);
-        $this->verifierLienAvecTemoin($user);
+        $this->authorize('voirTemoin', $user);
 
         $user->load(['thematiquesChoisies:id,nom', 'etablissementsChoisis']);
 
@@ -50,11 +49,11 @@ class TemoinApprobationController extends Controller
      * Vérifie que le témoin est bien associé à une thématique de l'enseignant
      * avant d'activer le compte.
      *
-     * @throws HttpException si le témoin n'est pas lié à cet enseignant ou n'est pas en attente
+     * @throws AuthorizationException si le témoin n'est pas lié à cet enseignant ou n'est pas en attente
      */
     public function approuver(User $user): RedirectResponse
     {
-        $this->autoriserActionTemoin($user);
+        $this->authorize('approuverTemoin', $user);
 
         $user->statut = 'actif';
         $user->approuve_par_id = auth()->id();
@@ -67,11 +66,11 @@ class TemoinApprobationController extends Controller
     /**
      * Refuse l'inscription d'un témoin lié aux thématiques de l'enseignant connecté.
      *
-     * @throws HttpException si le témoin n'est pas lié à cet enseignant ou n'est pas en attente
+     * @throws AuthorizationException si le témoin n'est pas lié à cet enseignant ou n'est pas en attente
      */
     public function decliner(User $user): RedirectResponse
     {
-        $this->autoriserActionTemoin($user);
+        $this->authorize('declinerTemoin', $user);
 
         $user->statut = 'refuse';
         $user->save();
@@ -84,14 +83,11 @@ class TemoinApprobationController extends Controller
      *
      * Remet le statut à « en_attente » et retire la vérification de l'email.
      *
-     * @throws HttpException si le témoin n'est pas actif ou n'est pas lié à cet enseignant
+     * @throws AuthorizationException si le témoin n'est pas actif ou n'a pas été approuvé par l'utilisateur
      */
     public function desapprouver(User $user): RedirectResponse
     {
-        abort_if(
-            $user->role !== 'personne_agee' || $user->statut !== 'actif' || $user->approuve_par_id !== auth()->id(),
-            403
-        );
+        $this->authorize('desapprouverTemoin', $user);
 
         $user->statut = 'en_attente';
         $user->approuve_par_id = null;
@@ -99,36 +95,5 @@ class TemoinApprobationController extends Controller
         $user->save();
 
         return back()->with('success', __('temoin_approbation.remis_en_attente', ['nom' => $user->prenom.' '.$user->nom]));
-    }
-
-    /**
-     * Vérifie que l'utilisateur connecté peut approuver ou décliner ce témoin.
-     *
-     * @throws HttpException si le témoin n'est pas une PA en attente ou sans thématique commune
-     */
-    private function autoriserActionTemoin(User $user): void
-    {
-        abort_if($user->role !== 'personne_agee' || ! $user->estEnAttente(), 403);
-        $this->verifierLienAvecTemoin($user);
-    }
-
-    /**
-     * Un enseignant n'agit que sur les témoins qui ont choisi une de ses thématiques ;
-     * l'admin, lui, gère tous les témoins depuis son tableau de bord.
-     *
-     * @throws HttpException
-     */
-    private function verifierLienAvecTemoin(User $user): void
-    {
-        if (auth()->user()->isAdmin()) {
-            return;
-        }
-
-        $thematiqueIds = Thematique::visiblesPar(auth()->user())->pluck('id');
-
-        abort_if(
-            $user->thematiquesChoisies()->whereIn('thematiques.id', $thematiqueIds)->doesntExist(),
-            403
-        );
     }
 }
