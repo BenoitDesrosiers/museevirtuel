@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\TypeProjet;
 
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\TypeProjet\ReorderCritereRequest;
 use App\Http\Requests\TypeProjet\StoreCritereRequest;
@@ -95,7 +96,11 @@ class TypeProjetCritereController extends Controller
         TypeProjet $typeProjet,
         OrdreElements $ordres,
     ): RedirectResponse {
-        $ordres->reordonner($typeProjet->criteres(), $request->ids());
+        try {
+            $ordres->reordonner($typeProjet->criteres(), $request->ids());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back();
     }
@@ -140,7 +145,11 @@ class TypeProjetCritereController extends Controller
         abort_if($critere->type_projet_id !== $typeProjet->id, 404);
 
         // Renuméroter seulement les critères du même groupe (global ou même section)
-        $ordres->supprimer($critere, $typeProjet->criteres()->where('section_id', $critere->section_id));
+        try {
+            $ordres->supprimer($critere, $typeProjet->criteres()->where('section_id', $critere->section_id));
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', __('critere.deleted'));
     }

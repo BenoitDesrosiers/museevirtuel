@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Groupe;
 
 use App\Concerns\ValidatesGroupeChain;
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Groupe\DestroyGroupeNoteCorrectionRequest;
 use App\Http\Requests\Groupe\UpsertGroupeNoteCorrectionRequest;
@@ -11,9 +12,9 @@ use App\Models\Cours;
 use App\Models\Groupe;
 use App\Models\GroupeNote;
 use App\Models\GroupeNoteCorrection;
+use App\Services\CorrectionNoteService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
@@ -31,21 +32,19 @@ class GroupeNoteCorrectionController extends Controller
      * @throws HttpException si la note n'appartient pas au groupe
      * @throws AuthorizationException si l'utilisateur n'est pas l'enseignant du cours
      */
-    public function upsert(UpsertGroupeNoteCorrectionRequest $request, Cours $cours, Classe $classe, Groupe $groupe, GroupeNote $note): RedirectResponse
+    public function upsert(
+        UpsertGroupeNoteCorrectionRequest $request, Cours $cours,
+        Classe $classe, Groupe $groupe, GroupeNote $note,
+        CorrectionNoteService $correctionNoteService): RedirectResponse
     {
         $this->verifierChaine($cours, $classe, $groupe, $note);
         $this->authorize('corriger', $note);
 
-        $validated = $request->validated();
-
-        DB::transaction(function () use ($note, $validated) {
-            $note->update(['contenu' => $validated['note_html']]);
-
-            GroupeNoteCorrection::updateOrCreate(
-                ['note_id' => $note->id, 'commentaire_id' => $validated['commentaire_id']],
-                ['contenu' => $validated['contenu'], 'user_id' => auth()->id()]
-            );
-        });
+        try {
+            $correctionNoteService->enregistrer($note, $request->validated(), $request->user());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', __('groupe.note_correction_saved'));
     }
@@ -58,19 +57,20 @@ class GroupeNoteCorrectionController extends Controller
      * @throws HttpException si la note ou la correction ne correspond pas à l'URL
      * @throws AuthorizationException si l'utilisateur n'est pas l'enseignant du cours
      */
-    public function destroy(DestroyGroupeNoteCorrectionRequest $request, Cours $cours, Classe $classe, Groupe $groupe,
-        GroupeNote $note, GroupeNoteCorrection $correction): RedirectResponse
+    public function destroy(
+        DestroyGroupeNoteCorrectionRequest $request, Cours $cours, Classe $classe,
+        Groupe $groupe, GroupeNote $note, GroupeNoteCorrection $correction,
+        CorrectionNoteService $correctionNoteService): RedirectResponse
     {
         $this->verifierChaine($cours, $classe, $groupe, $note);
         abort_if($correction->note_id !== $note->id, 404);
         $this->authorize('corriger', $note);
 
-        $validated = $request->validated();
-
-        DB::transaction(function () use ($note, $validated, $correction) {
-            $note->update(['contenu' => $validated['note_html']]);
-            $correction->delete();
-        });
+        try {
+            $correctionNoteService->supprimer($note, $correction, $request->validated('note_html'));
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', __('groupe.note_correction_deleted'));
     }

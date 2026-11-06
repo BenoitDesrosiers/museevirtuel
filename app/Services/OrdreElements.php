@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Exceptions\TransactionEchoueeException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -27,16 +29,24 @@ class OrdreElements
      * Supprime l'élément puis renumérote les suivants pour garder une suite 1..n sans trou.
      *
      * @param  Builder<Model>|Relation<Model, Model, mixed>  $portee
+     *
+     * @throws TransactionEchoueeException
      */
     public function supprimer(Model $element, Builder|Relation $portee): void
     {
-        DB::transaction(function () use ($element, $portee): void {
-            $element->delete();
+        try {
+            DB::transaction(function () use ($element, $portee): void {
+                $element->delete();
 
-            (clone $portee)->orderBy('ordre')->each(function (Model $e, int $index): void {
-                $e->update(['ordre' => $index + 1]);
+                (clone $portee)->orderBy('ordre')->each(function (Model $e, int $index): void {
+                    $e->update(['ordre' => $index + 1]);
+                });
             });
-        });
+        } catch (QueryException $e) {
+            report($e);
+
+            throw TransactionEchoueeException::depuis($e);
+        }
     }
 
     /**
@@ -48,7 +58,8 @@ class OrdreElements
      * @param  Builder<Model>|Relation<Model, Model, mixed>  $portee
      * @param  list<int>  $ids
      *
-     * @throws ValidationException
+     * @throws ValidationException si un identifiant n'appartient pas à la portée
+     * @throws TransactionEchoueeException
      */
     public function reordonner(Builder|Relation $portee, array $ids): void
     {
@@ -58,10 +69,16 @@ class OrdreElements
             ]);
         }
 
-        DB::transaction(function () use ($portee, $ids): void {
-            foreach ($ids as $index => $id) {
-                (clone $portee)->whereKey($id)->update(['ordre' => $index + 1]);
-            }
-        });
+        try {
+            DB::transaction(function () use ($portee, $ids): void {
+                foreach ($ids as $index => $id) {
+                    (clone $portee)->whereKey($id)->update(['ordre' => $index + 1]);
+                }
+            });
+        } catch (QueryException $e) {
+            report($e);
+
+            throw TransactionEchoueeException::depuis($e);
+        }
     }
 }

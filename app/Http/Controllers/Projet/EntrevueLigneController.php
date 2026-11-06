@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Projet;
 
 use App\Concerns\ValidatesGroupeChain;
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Projet\UpdateEntrevueLigneRequest;
 use App\Models\Classe;
@@ -81,7 +82,11 @@ class EntrevueLigneController extends Controller
         abort_if($ligne->concept_id !== $concept->id, 404);
         $this->autoriserConcept($cours, $classe, $groupe, $typeProjet, $section, $concept);
 
-        $ordres->supprimer($ligne, $concept->lignes());
+        try {
+            $ordres->supprimer($ligne, $concept->lignes());
+        } catch (TransactionEchoueeException $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
 
         return response()->json(['message' => __('reponse.deleted')]);
     }

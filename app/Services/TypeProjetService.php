@@ -3,10 +3,12 @@
 namespace App\Services;
 
 use App\Enums\TypeSection;
+use App\Exceptions\TransactionEchoueeException;
 use App\Models\Cours;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetSection;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -22,40 +24,22 @@ class TypeProjetService
      * Un projet musée reçoit en plus son critère de publication et sa section de contenu.
      *
      * @param  array<string, mixed>  $data
+     *
+     * @throws TransactionEchoueeException
      */
     public function creer(User $enseignant, Cours $cours, array $data): TypeProjet
     {
-        return DB::transaction(function () use ($enseignant, $cours, $data) {
-            $typeProjet = TypeProjet::create([
-                'enseignant_id' => $enseignant->id,
-                'cours_id' => $cours->id,
-                'nom' => $data['nom'],
-                'type' => $data['type'] ?? 'standard',
-                'description' => $data['description'] ?? null,
-                'accessible' => false,
-                'date_remise' => $data['date_remise'] ?? null,
-                'remises_multiples' => (bool) ($data['remises_multiples'] ?? false),
-                'retard_permis' => (bool) ($data['retard_permis'] ?? false),
-                'generer_page_titre' => (bool) ($data['generer_page_titre'] ?? true),
-                'generer_table_matieres' => (bool) ($data['generer_table_matieres'] ?? true),
-                'aide_reference' => (bool) ($data['aide_reference'] ?? false),
-                // Nouvelles sections legacy — désactivées par défaut sur les nouveaux types
-                'has_introduction' => (bool) ($data['has_introduction'] ?? false),
-                'has_conclusion_individuelle' => (bool) ($data['has_conclusion_individuelle'] ?? false),
-                'ponderation' => $data['ponderation'] ?? null,
-                'is_sommatif' => (bool) ($data['is_sommatif'] ?? true),
-            ]);
+        try {
+            $typeProjet = DB::transaction(function () use ($enseignant, $cours, $data) {
+                return $this->creerAvecSections($enseignant, $cours, $data);
+            });
+        } catch (QueryException $e) {
+            report($e);
 
-            foreach ($data['sections'] ?? [] as $index => $section) {
-                $typeProjet->sections()->create($this->attributsSection($section, $index));
-            }
+            throw TransactionEchoueeException::depuis($e);
+        }
 
-            if ($typeProjet->isMusee()) {
-                $this->initialiserMusee($typeProjet);
-            }
-
-            return $typeProjet;
-        });
+        return $typeProjet;
     }
 
     /**
@@ -64,38 +48,98 @@ class TypeProjetService
      * Les booléens absents gardent leur valeur actuelle.
      *
      * @param  array<string, mixed>  $data
+     *
+     * @throws TransactionEchoueeException
      */
     public function mettreAJour(TypeProjet $typeProjet, array $data): void
     {
-        DB::transaction(function () use ($typeProjet, $data) {
-            $generaitPageTitre = (bool) $typeProjet->generer_page_titre;
-            $generePageTitre = (bool) ($data['generer_page_titre'] ?? $typeProjet->generer_page_titre);
+        try {
+            DB::transaction(function () use ($typeProjet, $data) {
+                $this->mettreAJourAvecSections($typeProjet, $data);
+            });
+        } catch (QueryException $e) {
+            report($e);
 
-            $typeProjet->update([
-                'nom' => $data['nom'],
-                'description' => $data['description'] ?? null,
-                'date_remise' => $data['date_remise'] ?? null,
-                'remises_multiples' => (bool) ($data['remises_multiples'] ?? $typeProjet->remises_multiples),
-                'retard_permis' => (bool) ($data['retard_permis'] ?? $typeProjet->retard_permis),
-                'generer_page_titre' => $generePageTitre,
-                'generer_table_matieres' => (bool) ($data['generer_table_matieres'] ?? $typeProjet->generer_table_matieres),
-                'aide_reference' => (bool) ($data['aide_reference'] ?? $typeProjet->aide_reference),
-                'has_introduction' => (bool) ($data['has_introduction'] ?? $typeProjet->has_introduction),
-                'has_conclusion_individuelle' => (bool) ($data['has_conclusion_individuelle'] ?? $typeProjet->has_conclusion_individuelle),
-                'ponderation' => $data['ponderation'] ?? $typeProjet->ponderation,
-                'is_sommatif' => (bool) ($data['is_sommatif'] ?? $typeProjet->is_sommatif),
-            ]);
+            throw TransactionEchoueeException::depuis($e);
+        }
+    }
 
-            // Vider le contenu auto-généré quand le flag passe de auto → manuel
-            if ($generaitPageTitre && ! $generePageTitre) {
-                $typeProjet->projets()->update(['page_titre_contenu' => null]);
-            }
+    /**
+     * Crée le type de projet, ses sections et, pour un musée, sa structure initiale.
+     *
+     * Appelée dans la transaction de creer().
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function creerAvecSections(User $enseignant, Cours $cours, array $data): TypeProjet
+    {
+        $typeProjet = TypeProjet::create([
+            'enseignant_id' => $enseignant->id,
+            'cours_id' => $cours->id,
+            'nom' => $data['nom'],
+            'type' => $data['type'] ?? 'standard',
+            'description' => $data['description'] ?? null,
+            'accessible' => false,
+            'date_remise' => $data['date_remise'] ?? null,
+            'remises_multiples' => (bool) ($data['remises_multiples'] ?? false),
+            'retard_permis' => (bool) ($data['retard_permis'] ?? false),
+            'generer_page_titre' => (bool) ($data['generer_page_titre'] ?? true),
+            'generer_table_matieres' => (bool) ($data['generer_table_matieres'] ?? true),
+            'aide_reference' => (bool) ($data['aide_reference'] ?? false),
+            // Nouvelles sections legacy — désactivées par défaut sur les nouveaux types
+            'has_introduction' => (bool) ($data['has_introduction'] ?? false),
+            'has_conclusion_individuelle' => (bool) ($data['has_conclusion_individuelle'] ?? false),
+            'ponderation' => $data['ponderation'] ?? null,
+            'is_sommatif' => (bool) ($data['is_sommatif'] ?? true),
+        ]);
 
-            // Sections absentes de la requête = on n'y touche pas
-            if (array_key_exists('sections', $data)) {
-                $this->synchroniserSections($typeProjet, $data['sections'] ?? []);
-            }
-        });
+        foreach ($data['sections'] ?? [] as $index => $section) {
+            $typeProjet->sections()->create($this->attributsSection($section, $index));
+        }
+
+        if ($typeProjet->isMusee()) {
+            $this->initialiserMusee($typeProjet);
+        }
+
+        return $typeProjet;
+    }
+
+    /**
+     * Applique la mise à jour du type de projet et de ses sections.
+     *
+     * Appelée dans la transaction de mettreAJour().
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function mettreAJourAvecSections(TypeProjet $typeProjet, array $data): void
+    {
+        $generaitPageTitre = (bool) $typeProjet->generer_page_titre;
+        $generePageTitre = (bool) ($data['generer_page_titre'] ?? $typeProjet->generer_page_titre);
+
+        $typeProjet->update([
+            'nom' => $data['nom'],
+            'description' => $data['description'] ?? null,
+            'date_remise' => $data['date_remise'] ?? null,
+            'remises_multiples' => (bool) ($data['remises_multiples'] ?? $typeProjet->remises_multiples),
+            'retard_permis' => (bool) ($data['retard_permis'] ?? $typeProjet->retard_permis),
+            'generer_page_titre' => $generePageTitre,
+            'generer_table_matieres' => (bool) ($data['generer_table_matieres'] ?? $typeProjet->generer_table_matieres),
+            'aide_reference' => (bool) ($data['aide_reference'] ?? $typeProjet->aide_reference),
+            'has_introduction' => (bool) ($data['has_introduction'] ?? $typeProjet->has_introduction),
+            'has_conclusion_individuelle' => (bool) ($data['has_conclusion_individuelle'] ?? $typeProjet->has_conclusion_individuelle),
+            'ponderation' => $data['ponderation'] ?? $typeProjet->ponderation,
+            'is_sommatif' => (bool) ($data['is_sommatif'] ?? $typeProjet->is_sommatif),
+        ]);
+
+        // Vider le contenu auto-généré quand le flag passe de auto → manuel
+        if ($generaitPageTitre && ! $generePageTitre) {
+            $typeProjet->projets()->update(['page_titre_contenu' => null]);
+        }
+
+        // Sections absentes de la requête = on n'y touche pas
+        if (array_key_exists('sections', $data)) {
+            $this->synchroniserSections($typeProjet, $data['sections'] ?? []);
+        }
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\TypeProjet;
 
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\TypeProjet\ReorderTypeProjetTacheRequest;
 use App\Http\Requests\TypeProjet\SaveTypeProjetTacheRequest;
@@ -68,7 +69,11 @@ class TypeProjetTacheController extends Controller
         TypeProjet $typeProjet,
         OrdreElements $ordres,
     ): RedirectResponse {
-        $ordres->reordonner($typeProjet->taches(), $request->ids());
+        try {
+            $ordres->reordonner($typeProjet->taches(), $request->ids());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back();
     }
@@ -88,7 +93,11 @@ class TypeProjetTacheController extends Controller
         $this->authorize('update', $typeProjet);
         abort_if($tache->type_projet_id !== $typeProjet->id, 404);
 
-        $ordres->supprimer($tache, $typeProjet->taches());
+        try {
+            $ordres->supprimer($tache, $typeProjet->taches());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', __('taches.deleted'));
     }

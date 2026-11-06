@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Classe;
 
 use App\Actions\CreateEtudiantAction;
 use App\Actions\ImportEtudiantsAction;
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Classe\ImportClasseEtudiantRequest;
 use App\Http\Requests\Classe\StoreClasseEtudiantRequest;
@@ -100,7 +101,11 @@ class ClasseEtudiantController extends Controller
     public function import(ImportClasseEtudiantRequest $request, Cours $cours, Classe $classe): RedirectResponse
     {
         $content = file_get_contents($request->file('csv')->getPathname());
-        $created = $this->importEtudiants->execute($classe, $content);
+        try {
+            $created = $this->importEtudiants->execute($classe, $content);
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', __('etudiant.imported', ['count' => $created]));
     }

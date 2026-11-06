@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Groupe;
 
 use App\Concerns\ValidatesGroupeChain;
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Groupe\UpdateGroupeThematiqueRequest;
 use App\Models\Classe;
@@ -33,7 +34,11 @@ class GroupeThematiqueController extends Controller
         $groupe->load('classe.cours');
         $this->authorize('manageThematiques', $groupe);
 
-        $groupeService->synchroniserThematiques($cours, $groupe, $request->validated('thematiques') ?? []);
+        try {
+            $groupeService->synchroniserThematiques($cours, $groupe, $request->validated('thematiques') ?? []);
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', __('groupe.thematiques_updated'));
     }

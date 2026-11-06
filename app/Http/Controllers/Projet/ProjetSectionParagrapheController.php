@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Projet;
 
-use App\Actions\SupprimerAnnotationsOrphelines;
 use App\Concerns\ValidatesGroupeChain;
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Commun\ReorderRequest;
 use App\Http\Requests\Projet\UpdateProjetSectionParagrapheRequest;
@@ -14,11 +14,11 @@ use App\Models\ProjetRecherche;
 use App\Models\ProjetSectionParagraphe;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetSection;
-use App\Services\OrdreElements;
+use App\Services\ParagraphesProjetService;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
@@ -34,11 +34,12 @@ class ProjetSectionParagrapheController extends Controller
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function store(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, OrdreElements $ordres): JsonResponse
+    public function store(
+        Cours $cours, Classe $classe, Groupe $groupe,
+        TypeProjet $typeProjet, TypeProjetSection $section,
+        ParagraphesProjetService $paragraphesProjetService): JsonResponse
     {
-        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
-        abort_if($section->type_projet_id !== $typeProjet->id, 404);
-
+        $this->verifierChaineSection($cours, $classe, $groupe, $typeProjet, $section);
         $this->authorize('acceder', [ProjetRecherche::class, $groupe]);
 
         $projet = ProjetRecherche::firstOrCreate([
@@ -47,15 +48,7 @@ class ProjetSectionParagrapheController extends Controller
         ]);
         $this->authorize('editerContenu', $projet);
 
-        $ordre = $ordres->prochain($this->portee($projet, $section));
-
-        $paragraphe = ProjetSectionParagraphe::create([
-            'projet_id' => $projet->id,
-            'section_id' => $section->id,
-            'ordre' => $ordre,
-            'titre' => null,
-            'contenu' => null,
-        ]);
+        $paragraphe = $paragraphesProjetService->ajouter($this->portee($projet, $section), ['section_id' => $section->id]);
 
         return response()->json([
             'message' => __('reponse.created'),
@@ -69,27 +62,15 @@ class ProjetSectionParagrapheController extends Controller
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function update(UpdateProjetSectionParagrapheRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, ProjetSectionParagraphe $paragraphe, SupprimerAnnotationsOrphelines $supprimerOrphelines): JsonResponse
+    public function update(
+        UpdateProjetSectionParagrapheRequest $request, Cours $cours,
+        Classe $classe, Groupe $groupe, TypeProjet $typeProjet,
+        TypeProjetSection $section,
+        ProjetSectionParagraphe $paragraphe, ParagraphesProjetService $paragraphesProjetService): JsonResponse
     {
-        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
-        abort_if($section->type_projet_id !== $typeProjet->id, 404);
+        $projet = $this->autoriser($cours, $classe, $groupe, $typeProjet, $section, $paragraphe);
 
-        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
-
-        abort_if($paragraphe->projet_id !== $projet->id || $paragraphe->section_id !== $section->id, 404);
-        $this->authorize('editerContenu', $projet);
-
-        $validated = $request->validated();
-
-        $paragraphe->update($validated);
-
-        if (array_key_exists('contenu', $validated) && $validated['contenu'] !== null) {
-            $supprimerOrphelines->execute(
-                $projet,
-                'section_paragraphe_'.$paragraphe->id,
-                $validated['contenu']
-            );
-        }
+        $paragraphesProjetService->mettreAJour($paragraphe, $projet, 'section_paragraphe_'.$paragraphe->id, $request->validated());
 
         return response()->json(['message' => __('reponse.saved')]);
     }
@@ -102,19 +83,18 @@ class ProjetSectionParagrapheController extends Controller
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function destroy(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, ProjetSectionParagraphe $paragraphe, OrdreElements $ordres): JsonResponse
+    public function destroy(
+        Cours $cours, Classe $classe, Groupe $groupe,
+        TypeProjet $typeProjet, TypeProjetSection $section,
+        ProjetSectionParagraphe $paragraphe, ParagraphesProjetService $paragraphesProjetService): JsonResponse
     {
-        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
-        abort_if($section->type_projet_id !== $typeProjet->id, 404);
+        $projet = $this->autoriser($cours, $classe, $groupe, $typeProjet, $section, $paragraphe);
 
-        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
-
-        abort_if($paragraphe->projet_id !== $projet->id || $paragraphe->section_id !== $section->id, 404);
-        $this->authorize('editerContenu', $projet);
-
-        abort_if($this->portee($projet, $section)->count() <= 1, 422, __('projet.paragraphe_minimum'));
-
-        $ordres->supprimer($paragraphe, $this->portee($projet, $section));
+        try {
+            abort_unless($paragraphesProjetService->supprimer($paragraphe, $this->portee($projet, $section)), 422, __('projet.paragraphe_minimum'));
+        } catch (TransactionEchoueeException $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
 
         return response()->json(['message' => __('reponse.deleted')]);
     }
@@ -124,29 +104,56 @@ class ProjetSectionParagrapheController extends Controller
      *
      * @throws HttpException
      * @throws AuthorizationException
+     * @throws ValidationException
      */
-    public function reorder(ReorderRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, TypeProjetSection $section, OrdreElements $ordres): JsonResponse
+    public function reorder(
+        ReorderRequest $request, Cours $cours, Classe $classe,
+        Groupe $groupe, TypeProjet $typeProjet,
+        TypeProjetSection $section, ParagraphesProjetService $paragraphesProjetService): JsonResponse
     {
-        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
-        abort_if($section->type_projet_id !== $typeProjet->id, 404);
+        $projet = $this->autoriser($cours, $classe, $groupe, $typeProjet, $section);
 
-        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
-
-        $this->authorize('editerContenu', $projet);
-
-        $ordres->reordonner($this->portee($projet, $section), $request->ids());
+        try {
+            $paragraphesProjetService->reordonner($this->portee($projet, $section), $request->ids());
+        } catch (TransactionEchoueeException $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
 
         return response()->json(['message' => __('reponse.reordered')]);
     }
 
     /**
+     * Vérifie la chaîne d'URL jusqu'à la section, autorise la modification du contenu et
+     * retourne le projet.
+     *
+     * @throws HttpException
+     * @throws AuthorizationException
+     */
+    private function autoriser(
+        Cours $cours, Classe $classe, Groupe $groupe,
+        TypeProjet $typeProjet, TypeProjetSection $section,
+        ?ProjetSectionParagraphe $paragraphe = null): ProjetRecherche
+    {
+        $this->verifierChaineSection($cours, $classe, $groupe, $typeProjet, $section);
+
+        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
+        abort_if(
+            $paragraphe !== null && ($paragraphe->projet_id !== $projet->id || $paragraphe->section_id !== $section->id),
+            404
+        );
+
+        $this->authorize('editerContenu', $projet);
+
+        return $projet;
+    }
+
+    /**
      * Paragraphes d'une section donnée dans ce projet : la liste sur laquelle porte l'ordre.
      *
-     * @return Builder<ProjetSectionParagraphe>
+     * @return HasMany<ProjetSectionParagraphe, ProjetRecherche>
      */
-    private function portee(ProjetRecherche $projet, TypeProjetSection $section): Builder
+    private function portee(ProjetRecherche $projet, TypeProjetSection $section): HasMany
     {
-        return ProjetSectionParagraphe::where('projet_id', $projet->id)
-            ->where('section_id', $section->id);
+        return $projet->sectionParagraphes()->where('section_id', $section->id);
     }
 }

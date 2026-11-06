@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Cours;
 
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Cours\ReorderCoursObjectifRequest;
 use App\Http\Requests\Cours\SaveCoursObjectifRequest;
@@ -57,7 +58,11 @@ class CoursObjectifController extends Controller
         $this->authorize('update', $cours);
         abort_if($objectif->cours_id !== $cours->id, 404);
 
-        $ordres->supprimer($objectif, $cours->objectifs());
+        try {
+            $ordres->supprimer($objectif, $cours->objectifs());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', __('objectif.deleted'));
     }
@@ -69,7 +74,11 @@ class CoursObjectifController extends Controller
      */
     public function reorder(ReorderCoursObjectifRequest $request, Cours $cours, OrdreElements $ordres): RedirectResponse
     {
-        $ordres->reordonner($cours->objectifs(), $request->ids());
+        try {
+            $ordres->reordonner($cours->objectifs(), $request->ids());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back();
     }

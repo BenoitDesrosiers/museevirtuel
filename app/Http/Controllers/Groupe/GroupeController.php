@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Groupe;
 
 use App\Concerns\ValidatesGroupeChain;
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Groupe\StoreGroupeRequest;
 use App\Http\Resources\VisioConferenceResource;
@@ -88,13 +89,17 @@ class GroupeController extends Controller
     {
         $validated = $request->validated();
 
-        $groupeService->creer(
-            $request->user(),
-            $cours,
-            $classe,
-            $validated['membres'] ?? [],
-            $validated['thematiques'] ?? [],
-        );
+        try {
+            $groupeService->creer(
+                $request->user(),
+                $cours,
+                $classe,
+                $validated['membres'] ?? [],
+                $validated['thematiques'] ?? [],
+            );
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', __('groupe.created'));
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Projet;
 
 use App\Concerns\ValidatesGroupeChain;
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Projet\ClonerProjetCritereCorrectionRequest;
 use App\Http\Requests\Projet\UpsertProjetCritereCorrectionRequest;
@@ -13,10 +14,11 @@ use App\Models\ProjetCritereCorrection;
 use App\Models\ProjetRecherche;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetCritere;
+use App\Services\CorrectionCritereService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Throwable;
 
 /**
  * Corrections des critères d'évaluation par l'enseignant.
@@ -34,6 +36,7 @@ class ProjetCritereCorrectionController extends Controller
      *
      * @throws HttpException
      * @throws AuthorizationException
+     * @throws Throwable
      */
     public function upsert(
         UpsertProjetCritereCorrectionRequest $request,
@@ -42,57 +45,27 @@ class ProjetCritereCorrectionController extends Controller
         Groupe $groupe,
         TypeProjet $typeProjet,
         TypeProjetCritere $critere,
+        CorrectionCritereService $correctionCritereService,
     ): JsonResponse {
         $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
         $this->authorize('corriger', [ProjetRecherche::class, $groupe]);
         abort_if($critere->type_projet_id !== $typeProjet->id, 404);
-
-        $validated = $request->validated();
 
         $projet = ProjetRecherche::firstOrCreate([
             'groupe_id' => $groupe->id,
             'type_projet_id' => $typeProjet->id,
         ]);
 
-        $verifie = $request->boolean('verifie', false);
-
-        [$correction, $idsRetires] = DB::transaction(function () use ($validated, $projet, $critere, $verifie) {
-            $idsRetires = [];
-            if (! isset($validated['user_id'])) {
-                $idsRetires = ProjetCritereCorrection::where('projet_id', $projet->id)
-                    ->where('critere_id', $critere->id)
-                    ->whereNotNull('user_id')
-                    ->pluck('user_id')
-                    ->all();
-
-                if (! empty($idsRetires)) {
-                    ProjetCritereCorrection::where('projet_id', $projet->id)
-                        ->where('critere_id', $critere->id)
-                        ->whereNotNull('user_id')
-                        ->delete();
-                }
-            }
-
-            $correction = ProjetCritereCorrection::updateOrCreate(
-                [
-                    'projet_id' => $projet->id,
-                    'critere_id' => $critere->id,
-                    'user_id' => $validated['user_id'] ?? null,
-                ],
-                [
-                    'points' => $validated['points'] ?? null,
-                    'commentaire' => $validated['commentaire'] ?? null,
-                    'verifie' => $verifie,
-                ]
-            );
-
-            return [$correction, $idsRetires];
-        });
+        try {
+            $resultat = $correctionCritereService->enregistrer($projet, $critere, $request->validated(), $request->boolean('verifie', false));
+        } catch (TransactionEchoueeException $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
 
         return response()->json([
             'message' => __('reponse.saved'),
-            'correction' => $correction->only('id', 'projet_id', 'critere_id', 'user_id', 'points', 'commentaire', 'verifie', 'source_id'),
-            'cleared_user_ids' => $idsRetires,
+            'correction' => $this->formater($resultat['correction']),
+            'cleared_user_ids' => $resultat['idsRetires'],
         ]);
     }
 
@@ -108,6 +81,7 @@ class ProjetCritereCorrectionController extends Controller
         Groupe $groupe,
         TypeProjet $typeProjet,
         ProjetCritereCorrection $correction,
+        CorrectionCritereService $correctionCritereService,
     ): JsonResponse {
         $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
         $this->authorize('corriger', [ProjetRecherche::class, $groupe]);
@@ -115,10 +89,11 @@ class ProjetCritereCorrectionController extends Controller
         $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
         abort_if($correction->projet_id !== $projet->id, 404);
 
-        DB::transaction(function () use ($correction) {
-            $correction->clones()->delete();
-            $correction->delete();
-        });
+        try {
+            $correctionCritereService->supprimer($correction);
+        } catch (TransactionEchoueeException $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
 
         return response()->json(['message' => __('reponse.deleted')]);
     }
@@ -140,6 +115,7 @@ class ProjetCritereCorrectionController extends Controller
         Groupe $groupe,
         TypeProjet $typeProjet,
         ProjetCritereCorrection $correction,
+        CorrectionCritereService $correctionCritereService,
     ): JsonResponse {
         $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
         $this->authorize('corriger', [ProjetRecherche::class, $groupe]);
@@ -147,30 +123,26 @@ class ProjetCritereCorrectionController extends Controller
         $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
         abort_if($correction->projet_id !== $projet->id, 404);
 
-        $validated = $request->validated();
-
         $verifie = $request->boolean('verifie', (bool) $correction->verifie);
-
-        $clone = DB::transaction(function () use ($projet, $correction, $validated, $verifie) {
-            ProjetCritereCorrection::where('projet_id', $projet->id)
-                ->where('critere_id', $correction->critere_id)
-                ->where('user_id', $validated['user_id'])
-                ->delete();
-
-            return ProjetCritereCorrection::create([
-                'projet_id' => $projet->id,
-                'critere_id' => $correction->critere_id,
-                'user_id' => $validated['user_id'],
-                'points' => $validated['points'] ?? null,
-                'commentaire' => $validated['commentaire'] ?? null,
-                'verifie' => $verifie,
-                'source_id' => $correction->id,
-            ]);
-        });
+        try {
+            $clone = $correctionCritereService->cloner($projet, $correction, $request->validated(), $verifie);
+        } catch (TransactionEchoueeException $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
 
         return response()->json([
             'message' => __('reponse.cloned'),
-            'correction' => $clone->only('id', 'projet_id', 'critere_id', 'user_id', 'points', 'commentaire', 'verifie', 'source_id'),
+            'correction' => $this->formater($clone),
         ]);
+    }
+
+    /**
+     * Retourne les champs d'une correction exposés au front.
+     *
+     * @return array<string, mixed>
+     */
+    private function formater(ProjetCritereCorrection $correction): array
+    {
+        return $correction->only('id', 'projet_id', 'critere_id', 'user_id', 'points', 'commentaire', 'verifie', 'source_id');
     }
 }

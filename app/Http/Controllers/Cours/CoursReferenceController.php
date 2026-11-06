@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Cours;
 
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Cours\ReorderCoursReferenceRequest;
 use App\Http\Requests\Cours\SaveCoursReferenceRequest;
@@ -58,7 +59,11 @@ class CoursReferenceController extends Controller
         $this->authorize('update', $cours);
         abort_if($reference->cours_id !== $cours->id, 404);
 
-        $ordres->supprimer($reference, $cours->references());
+        try {
+            $ordres->supprimer($reference, $cours->references());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', __('cours_reference.deleted'));
     }
@@ -70,7 +75,11 @@ class CoursReferenceController extends Controller
      */
     public function reorder(ReorderCoursReferenceRequest $request, Cours $cours, OrdreElements $ordres): RedirectResponse
     {
-        $ordres->reordonner($cours->references(), $request->ids());
+        try {
+            $ordres->reordonner($cours->references(), $request->ids());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back();
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\TypeProjet;
 
 use App\Enums\TypeSection;
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\TypeProjet\ReorderTypeProjetSectionRequest;
 use App\Http\Requests\TypeProjet\SaveTypeProjetSectionRequest;
@@ -57,7 +58,11 @@ class TypeProjetSectionController extends Controller
      */
     public function reorder(ReorderTypeProjetSectionRequest $request, Cours $cours, TypeProjet $typeProjet, OrdreElements $ordres): RedirectResponse
     {
-        $ordres->reordonner($typeProjet->sections(), $request->ids());
+        try {
+            $ordres->reordonner($typeProjet->sections(), $request->ids());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back();
     }
@@ -73,7 +78,11 @@ class TypeProjetSectionController extends Controller
         $this->authorize('update', $typeProjet);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
 
-        $ordres->supprimer($section, $typeProjet->sections());
+        try {
+            $ordres->supprimer($section, $typeProjet->sections());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', __('type_projet_section.deleted'));
     }

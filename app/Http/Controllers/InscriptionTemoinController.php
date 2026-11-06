@@ -2,16 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\InscrireTemoin;
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Requests\InscriptionTemoin\StoreInscriptionTemoinEngagementsRequest;
 use App\Http\Requests\InscriptionTemoin\StoreInscriptionTemoinRequest;
 use App\Models\Etablissement;
 use App\Models\Thematique;
-use App\Models\User;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
+/**
+ * Inscription publique d'un témoin (personne âgée) en deux étapes : identité et choix, puis engagements.
+ */
 class InscriptionTemoinController extends Controller
 {
     /** Nombre d'engagements à accepter à l'étape 2 de l'inscription. */
@@ -82,17 +85,19 @@ class InscriptionTemoinController extends Controller
      *
      * Les engagements et la signature sont validés par StoreInscriptionTemoinEngagementsRequest.
      */
-    public function storeEngagements(StoreInscriptionTemoinEngagementsRequest $request): RedirectResponse
+    public function storeEngagements(
+        StoreInscriptionTemoinEngagementsRequest $request,
+        InscrireTemoin $inscrireTemoinAction): RedirectResponse
     {
         if ($redirect = $this->redirectIfStep1Missing()) {
             return $redirect;
         }
 
-        $step1 = session('inscription_temoin_step1');
-
-        $validated = $request->validated();
-
-        $user = $this->creerPersonneAgee($step1, $validated['signature']);
+        try {
+            $inscrireTemoinAction->execute(session('inscription_temoin_step1'), $request->validated('signature'));
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         session()->forget('inscription_temoin_step1');
 
@@ -111,45 +116,5 @@ class InscriptionTemoinController extends Controller
         }
 
         return null;
-    }
-
-    /**
-     * Crée le compte personne âgée avec les données des deux étapes.
-     *
-     * @param  array<string, mixed>  $step1
-     */
-    private function creerPersonneAgee(array $step1, string $signature): User
-    {
-        return DB::transaction(function () use ($step1, $signature) {
-            $user = User::create([
-                'prenom' => $step1['prenom'],
-                'nom' => $step1['nom'],
-                'email' => $step1['email'],
-                'password' => $step1['password'],
-                'role' => 'personne_agee',
-                'statut' => 'en_attente',
-                'description' => $step1['description'],
-                'disponible_appel_distance' => $step1['disponible_appel_distance'] ?? false,
-                'engagements_acceptes_le' => now(),
-                'signature_electronique' => $signature,
-            ]);
-
-            $tousLesIds = collect($step1['choix'])
-                ->flatMap(fn ($c) => $c['thematique_ids'] ?? [])
-                ->unique()
-                ->all();
-
-            if (! empty($tousLesIds)) {
-                $user->thematiquesChoisies()->sync($tousLesIds);
-            }
-
-            $pivots = collect($step1['choix'])->mapWithKeys(fn ($c) => [
-                $c['etablissement_id'] => ['theme_libre' => $c['theme_libre'] ?? null],
-            ])->all();
-
-            $user->etablissementsChoisis()->sync($pivots);
-
-            return $user;
-        });
     }
 }

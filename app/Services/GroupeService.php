@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Exceptions\TransactionEchoueeException;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
 use App\Models\Thematique;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -27,6 +29,7 @@ class GroupeService
      * @param  array<int, int|string>  $thematiques
      *
      * @throws ValidationException
+     * @throws TransactionEchoueeException
      */
     public function creer(User $createur, Cours $cours, Classe $classe, array $membres, array $thematiques): Groupe
     {
@@ -54,17 +57,25 @@ class GroupeService
 
         $thematiquesValides = $this->thematiquesValides($cours, $thematiques);
 
-        return DB::transaction(function () use ($createur, $classe, $tousLesMembres, $thematiquesValides) {
-            $groupe = Groupe::create([
-                'classe_id' => $classe->id,
-                'created_by' => $createur->id,
-            ]);
+        try {
+            $groupe = DB::transaction(function () use ($createur, $classe, $tousLesMembres, $thematiquesValides) {
+                $nouveau = Groupe::create([
+                    'classe_id' => $classe->id,
+                    'created_by' => $createur->id,
+                ]);
 
-            $groupe->membres()->attach($tousLesMembres);
-            $groupe->thematiques()->attach($thematiquesValides);
+                $nouveau->membres()->attach($tousLesMembres);
+                $nouveau->thematiques()->attach($thematiquesValides);
 
-            return $groupe;
-        });
+                return $nouveau;
+            });
+        } catch (QueryException $e) {
+            report($e);
+
+            throw TransactionEchoueeException::depuis($e);
+        }
+
+        return $groupe;
     }
 
     /**
@@ -76,6 +87,7 @@ class GroupeService
      * @param  array<int, int|string>  $retirer
      *
      * @throws ValidationException
+     * @throws TransactionEchoueeException
      */
     public function modifierMembres(User $auteur, Cours $cours, Classe $classe, Groupe $groupe, array $ajouter, array $retirer): void
     {
@@ -99,15 +111,21 @@ class GroupeService
 
         $this->verifierTailleEquipe($cours, count($nouveauxMembres), inclutCreateur: false);
 
-        DB::transaction(function () use ($aAjouter, $aRetirer, $groupe) {
-            if ($aAjouter !== []) {
-                $groupe->membres()->syncWithoutDetaching($aAjouter);
-            }
+        try {
+            DB::transaction(function () use ($aAjouter, $aRetirer, $groupe) {
+                if ($aAjouter !== []) {
+                    $groupe->membres()->syncWithoutDetaching($aAjouter);
+                }
 
-            if ($aRetirer !== []) {
-                $groupe->membres()->detach($aRetirer);
-            }
-        });
+                if ($aRetirer !== []) {
+                    $groupe->membres()->detach($aRetirer);
+                }
+            });
+        } catch (QueryException $e) {
+            report($e);
+
+            throw TransactionEchoueeException::depuis($e);
+        }
     }
 
     /**
@@ -116,12 +134,21 @@ class GroupeService
      * @param  array<int, int|string>  $thematiques
      *
      * @throws ValidationException
+     * @throws TransactionEchoueeException
      */
     public function synchroniserThematiques(Cours $cours, Groupe $groupe, array $thematiques): void
     {
         $thematiquesValides = $this->thematiquesValides($cours, $thematiques);
 
-        DB::transaction(fn () => $groupe->thematiques()->sync($thematiquesValides));
+        try {
+            DB::transaction(function () use ($groupe, $thematiquesValides) {
+                $groupe->thematiques()->sync($thematiquesValides);
+            });
+        } catch (QueryException $e) {
+            report($e);
+
+            throw TransactionEchoueeException::depuis($e);
+        }
     }
 
     /**

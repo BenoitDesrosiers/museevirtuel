@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Cours;
 
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Cours\ReorderCoursLienEntrevueRequest;
 use App\Http\Requests\Cours\SaveCoursLienEntrevueRequest;
@@ -57,7 +58,11 @@ class CoursLienEntrevueController extends Controller
      */
     public function reorder(ReorderCoursLienEntrevueRequest $request, Cours $cours, OrdreElements $ordres): RedirectResponse
     {
-        $ordres->reordonner($cours->liensEntrevue(), $request->ids());
+        try {
+            $ordres->reordonner($cours->liensEntrevue(), $request->ids());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back();
     }
@@ -70,7 +75,11 @@ class CoursLienEntrevueController extends Controller
         $this->authorize('update', $cours);
         abort_if($lien->cours_id !== $cours->id, 404);
 
-        $ordres->supprimer($lien, $cours->liensEntrevue());
+        try {
+            $ordres->supprimer($lien, $cours->liensEntrevue());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', __('liens_entrevue.deleted'));
     }

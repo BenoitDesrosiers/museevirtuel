@@ -626,6 +626,7 @@
     "reponse.deleted": "Élément supprimé.",
     "reponse.reordered": "Ordre mis à jour.",
     "reponse.saved": "Modifications enregistrées.",
+    "transaction.echec": "L'opération n'a pas pu être enregistrée et aucune modification n'a été faite. Veuillez réessayer.",
     "reponse.toggled": "Statut modifié.",
     "temoin_approbation.approuve": "Le compte de :nom a été approuvé.",
     "temoin_approbation.decline": "La demande de :nom a été déclinée.",

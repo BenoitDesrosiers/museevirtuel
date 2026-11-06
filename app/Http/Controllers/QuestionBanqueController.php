@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\ChoisirQuestions;
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Requests\QuestionBanque\ChoisirQuestionBanqueRequest;
 use App\Http\Requests\QuestionBanque\ReorderQuestionBanqueRequest;
 use App\Http\Requests\QuestionBanque\SaveQuestionBanqueRequest;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
-use App\Models\ProjetQuestionChoisie;
 use App\Models\ProjetRecherche;
 use App\Models\QuestionBanque;
 use App\Models\TypeProjet;
@@ -16,8 +17,10 @@ use App\Models\TypeProjetSection;
 use App\Services\OrdreElements;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\DB;
 
+/**
+ * Banque de questions d'une section « choix de questions » et choix du groupe parmi elles.
+ */
 class QuestionBanqueController extends Controller
 {
     /**
@@ -78,7 +81,11 @@ class QuestionBanqueController extends Controller
         TypeProjetSection $section,
         OrdreElements $ordres,
     ): RedirectResponse {
-        $ordres->reordonner($section->questionsBanque(), $request->ids());
+        try {
+            $ordres->reordonner($section->questionsBanque(), $request->ids());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back();
     }
@@ -102,7 +109,11 @@ class QuestionBanqueController extends Controller
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
         abort_if($question->section_id !== $section->id, 404);
 
-        $ordres->supprimer($question, $section->questionsBanque());
+        try {
+            $ordres->supprimer($question, $section->questionsBanque());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', __('questions.deleted'));
     }
@@ -121,6 +132,7 @@ class QuestionBanqueController extends Controller
         Groupe $groupe,
         TypeProjet $typeProjet,
         TypeProjetSection $section,
+        ChoisirQuestions $choisirQuestionsAction,
     ): RedirectResponse {
         abort_if($section->type !== 'choix_questions', 422);
 
@@ -142,19 +154,11 @@ class QuestionBanqueController extends Controller
             abort_if($validCount !== count($questionIds), 422);
         }
 
-        DB::transaction(function () use ($projet, $section, $questionIds) {
-            ProjetQuestionChoisie::where('projet_id', $projet->id)
-                ->where('section_id', $section->id)
-                ->delete();
-
-            foreach ($questionIds as $questionId) {
-                ProjetQuestionChoisie::create([
-                    'projet_id' => $projet->id,
-                    'section_id' => $section->id,
-                    'question_banque_id' => $questionId,
-                ]);
-            }
-        });
+        try {
+            $choisirQuestionsAction->execute($projet, $section, $questionIds);
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', __('questions.choices_saved'));
     }

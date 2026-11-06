@@ -626,6 +626,7 @@
     "reponse.deleted": "Item deleted.",
     "reponse.reordered": "Order updated.",
     "reponse.saved": "Changes saved.",
+    "transaction.echec": "The operation could not be saved and no changes were made. Please try again.",
     "reponse.toggled": "Status changed.",
     "temoin_approbation.approuve": "The account of :nom has been approved.",
     "temoin_approbation.decline": "The request of :nom has been declined.",

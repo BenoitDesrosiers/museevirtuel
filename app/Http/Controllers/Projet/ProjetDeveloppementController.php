@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Projet;
 
-use App\Actions\SupprimerAnnotationsOrphelines;
 use App\Concerns\ValidatesGroupeChain;
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Commun\ReorderRequest;
 use App\Http\Requests\Projet\UpdateProjetDeveloppementRequest;
@@ -13,10 +13,10 @@ use App\Models\Groupe;
 use App\Models\ProjetDeveloppement;
 use App\Models\ProjetRecherche;
 use App\Models\TypeProjet;
-use App\Services\OrdreElements;
+use App\Services\ParagraphesProjetService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
@@ -32,10 +32,11 @@ class ProjetDeveloppementController extends Controller
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function store(Request $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, OrdreElements $ordres): JsonResponse
+    public function store(Cours $cours, Classe $classe,
+        Groupe $groupe, TypeProjet $typeProjet,
+        ParagraphesProjetService $paragraphesProjetService): JsonResponse
     {
         $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
-
         $this->authorize('acceder', [ProjetRecherche::class, $groupe]);
 
         $projet = ProjetRecherche::firstOrCreate([
@@ -44,18 +45,11 @@ class ProjetDeveloppementController extends Controller
         ]);
         $this->authorize('editerContenu', $projet);
 
-        $ordre = $ordres->prochain($projet->developpements());
-
-        $dev = ProjetDeveloppement::create([
-            'projet_id' => $projet->id,
-            'ordre' => $ordre,
-            'titre' => null,
-            'contenu' => null,
-        ]);
+        $developpement = $paragraphesProjetService->ajouter($projet->developpements());
 
         return response()->json([
             'message' => __('reponse.created'),
-            'developpement' => $dev->only('id', 'ordre', 'titre', 'contenu'),
+            'developpement' => $developpement->only('id', 'ordre', 'titre', 'contenu'),
             'completion' => $projet->completion(),
         ], 201);
     }
@@ -66,26 +60,16 @@ class ProjetDeveloppementController extends Controller
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function update(UpdateProjetDeveloppementRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetDeveloppement $developpement, SupprimerAnnotationsOrphelines $supprimerOrphelines): JsonResponse
+    public function update(
+        UpdateProjetDeveloppementRequest $request,
+        Cours $cours, Classe $classe,
+        Groupe $groupe, TypeProjet $typeProjet,
+        ProjetDeveloppement $developpement,
+        ParagraphesProjetService $paragraphesProjetService): JsonResponse
     {
-        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
+        $projet = $this->autoriser($cours, $classe, $groupe, $typeProjet, $developpement);
 
-        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
-
-        abort_if($developpement->projet_id !== $projet->id, 404);
-        $this->authorize('editerContenu', $projet);
-
-        $validated = $request->validated();
-
-        $developpement->update($validated);
-
-        if (array_key_exists('contenu', $validated) && $validated['contenu'] !== null) {
-            $supprimerOrphelines->execute(
-                $projet,
-                'developpement_'.$developpement->id,
-                $validated['contenu']
-            );
-        }
+        $paragraphesProjetService->mettreAJour($developpement, $projet, 'developpement_'.$developpement->id, $request->validated());
 
         return response()->json([
             'message' => __('reponse.saved'),
@@ -96,22 +80,22 @@ class ProjetDeveloppementController extends Controller
     /**
      * Supprime un paragraphe de développement et réordonne les suivants.
      *
-     * Refuse la suppression si c'est le dernier paragraphe (minimum : 1).
-     *
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function destroy(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetDeveloppement $developpement, OrdreElements $ordres): JsonResponse
+    public function destroy(
+        Cours $cours, Classe $classe,
+        Groupe $groupe, TypeProjet $typeProjet,
+        ProjetDeveloppement $developpement,
+        ParagraphesProjetService $paragraphesProjetService): JsonResponse
     {
-        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
+        $projet = $this->autoriser($cours, $classe, $groupe, $typeProjet, $developpement);
 
-        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
-
-        abort_if($developpement->projet_id !== $projet->id, 404);
-        $this->authorize('editerContenu', $projet);
-        abort_if($projet->developpements()->count() <= 1, 422, __('projet.developpement_minimum'));
-
-        $ordres->supprimer($developpement, $projet->developpements());
+        try {
+            abort_unless($paragraphesProjetService->supprimer($developpement, $projet->developpements()), 422, __('projet.developpement_minimum'));
+        } catch (TransactionEchoueeException $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
 
         return response()->json([
             'message' => __('reponse.deleted'),
@@ -124,17 +108,41 @@ class ProjetDeveloppementController extends Controller
      *
      * @throws HttpException
      * @throws AuthorizationException
+     * @throws ValidationException
      */
-    public function reorder(ReorderRequest $request, Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, OrdreElements $ordres): JsonResponse
+    public function reorder(
+        ReorderRequest $request, Cours $cours,
+        Classe $classe, Groupe $groupe,
+        TypeProjet $typeProjet, ParagraphesProjetService $paragraphesProjetService): JsonResponse
+    {
+        $projet = $this->autoriser($cours, $classe, $groupe, $typeProjet);
+
+        try {
+            $paragraphesProjetService->reordonner($projet->developpements(), $request->ids());
+        } catch (TransactionEchoueeException $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
+
+        return response()->json(['message' => __('reponse.reordered')]);
+    }
+
+    /**
+     * Vérifie la chaîne d'URL, autorise la modification du contenu et retourne le projet.
+     *
+     * @throws HttpException
+     * @throws AuthorizationException
+     */
+    private function autoriser(
+        Cours $cours, Classe $classe, Groupe $groupe,
+        TypeProjet $typeProjet, ?ProjetDeveloppement $developpement = null): ProjetRecherche
     {
         $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
 
         $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
+        abort_if($developpement !== null && $developpement->projet_id !== $projet->id, 404);
 
         $this->authorize('editerContenu', $projet);
 
-        $ordres->reordonner($projet->developpements(), $request->ids());
-
-        return response()->json(['message' => __('reponse.reordered')]);
+        return $projet;
     }
 }

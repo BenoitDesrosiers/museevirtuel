@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Requests\Zotero\StoreZoteroCredentialRequest;
 use App\Services\ZoteroService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Identifiants Zotero de l'étudiant (clé API + identifiant utilisateur).
@@ -21,12 +21,14 @@ class ZoteroCredentialController extends Controller
      *
      * @throws ConnectionException
      */
-    public function store(StoreZoteroCredentialRequest $request, ZoteroService $zotero): RedirectResponse
+    public function store(
+        StoreZoteroCredentialRequest $request,
+        ZoteroService $zoteroService): RedirectResponse
     {
         $validated = $request->validated();
 
         try {
-            $valide = $zotero->validateApiKey($validated['zotero_user_id'], $validated['api_key']);
+            $valide = $zoteroService->validateApiKey($validated['zotero_user_id'], $validated['api_key']);
         } catch (ConnectionException) {
             return back()->withErrors(['api_key' => __('zotero.connexion_impossible')]);
         }
@@ -52,14 +54,13 @@ class ZoteroCredentialController extends Controller
      *
      * Les références ajoutées manuellement (zotero_item_key = null) sont conservées.
      */
-    public function destroy(): RedirectResponse
+    public function destroy(ZoteroService $zoteroService): RedirectResponse
     {
-        $user = auth()->user();
-
-        DB::transaction(function () use ($user) {
-            $user->etudiantReferences()->whereNotNull('zotero_item_key')->delete();
-            $user->zoteroCredential()?->delete();
-        });
+        try {
+            $zoteroService->deconnecter(auth()->user());
+        } catch (TransactionEchoueeException $e) {
+            return back()->withErrors(['zotero' => $e->getMessage()]);
+        }
 
         return back()->with('success', __('zotero.deconnecte'));
     }

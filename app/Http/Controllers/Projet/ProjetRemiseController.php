@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Projet;
 
 use App\Concerns\ValidatesGroupeChain;
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Projet\VoterProjetRemiseRequest;
 use App\Models\Classe;
@@ -75,7 +76,11 @@ class ProjetRemiseController extends Controller
         $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
         $projet->setRelation('typeProjet', $typeProjet);
 
-        $remiseProjetService->annuler($projet);
+        try {
+            $remiseProjetService->annuler($projet);
+        } catch (TransactionEchoueeException $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
 
         return response()->json(['message' => __('projet.remise_annulee')]);
     }
@@ -100,7 +105,11 @@ class ProjetRemiseController extends Controller
 
         abort_unless($projet->peutEtreRemis(), 422, __('projet.remise_impossible'));
 
-        $remiseProjetService->voter($projet, $groupe, $request->user(), (bool) $request->validated('vote'));
+        try {
+            $remiseProjetService->voter($projet, $groupe, $request->user(), (bool) $request->validated('vote'));
+        } catch (TransactionEchoueeException $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
 
         return response()->json([
             'message' => __('projet.vote_enregistre'),

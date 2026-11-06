@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Groupe;
 
 use App\Concerns\ValidatesGroupeChain;
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Groupe\UpdateGroupeMembreRequest;
 use App\Models\Classe;
@@ -35,14 +36,18 @@ class GroupeMembreController extends Controller
 
         $validated = $request->validated();
 
-        $groupeService->modifierMembres(
-            $request->user(),
-            $cours,
-            $classe,
-            $groupe,
-            $validated['ajouter'] ?? [],
-            $validated['retirer'] ?? [],
-        );
+        try {
+            $groupeService->modifierMembres(
+                $request->user(),
+                $cours,
+                $classe,
+                $groupe,
+                $validated['ajouter'] ?? [],
+                $validated['retirer'] ?? [],
+            );
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', __('groupe.members_updated'));
     }

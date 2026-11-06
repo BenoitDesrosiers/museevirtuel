@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\TypeProjet;
 
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\TypeProjet\StoreTypeProjetRequest;
 use App\Http\Requests\TypeProjet\UpdateTypeProjetRequest;
@@ -87,7 +88,11 @@ class TypeProjetController extends Controller
      */
     public function store(StoreTypeProjetRequest $request, Cours $cours, TypeProjetService $typeProjetService): RedirectResponse
     {
-        $typeProjet = $typeProjetService->creer($request->user(), $cours, $request->validated());
+        try {
+            $typeProjet = $typeProjetService->creer($request->user(), $cours, $request->validated());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         if ($typeProjet->isMusee()) {
             return redirect()->route('types-projets.musee-template.edit', [$cours, $typeProjet])
@@ -109,7 +114,11 @@ class TypeProjetController extends Controller
      */
     public function update(UpdateTypeProjetRequest $request, Cours $cours, TypeProjet $typeProjet, TypeProjetService $typeProjetService): RedirectResponse
     {
-        $typeProjetService->mettreAJour($typeProjet, $request->validated());
+        try {
+            $typeProjetService->mettreAJour($typeProjet, $request->validated());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return redirect()->route('types-projets.index', $cours)
             ->with('success', __('type_projet.updated'));

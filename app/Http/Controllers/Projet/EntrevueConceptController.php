@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Projet;
 
 use App\Concerns\ValidatesGroupeChain;
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Commun\ReorderRequest;
 use App\Http\Requests\Projet\SaveEntrevueConceptRequest;
@@ -92,7 +93,11 @@ class EntrevueConceptController extends Controller
         $projet = $this->verifierConcept($groupe, $typeProjet, $section, $concept);
         $this->authorize('delete', $concept);
 
-        $ordres->supprimer($concept, $this->portee($projet, $section));
+        try {
+            $ordres->supprimer($concept, $this->portee($projet, $section));
+        } catch (TransactionEchoueeException $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
 
         return response()->json(['message' => __('reponse.deleted')]);
     }
@@ -110,7 +115,11 @@ class EntrevueConceptController extends Controller
         $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
         $this->authorize('reorder', [EntrevueConcept::class, $projet]);
 
-        $ordres->reordonner($this->portee($projet, $section), $request->ids());
+        try {
+            $ordres->reordonner($this->portee($projet, $section), $request->ids());
+        } catch (TransactionEchoueeException $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
 
         return response()->json(['message' => __('reponse.reordered')]);
     }

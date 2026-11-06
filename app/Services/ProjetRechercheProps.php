@@ -15,9 +15,7 @@ use App\Models\ProjetCritereEtudiantCoche;
 use App\Models\ProjetRecherche;
 use App\Models\ProjetRenvoi;
 use App\Models\ProjetSchemaVisuel;
-use App\Models\ProjetSectionContenu;
 use App\Models\ProjetSectionMedia;
-use App\Models\ProjetSectionParagraphe;
 use App\Models\ProjetVoteRemise;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetSection;
@@ -201,13 +199,6 @@ class ProjetRechercheProps
 
     /**
      * Construit le tableau des sections dynamiques avec leur contenu courant.
-     *
-     * Selon le type de section :
-     * - 'texte'         → champ `contenu` (ProjetSectionContenu)
-     * - 'paragraphes'   → champ `paragraphes` (liste ProjetSectionParagraphe triée par ordre)
-     * - 'individuel'    → champ `conclusionsParMembre` (1 entrée par membre du groupe)
-     * - 'entrevue'      → champ `concepts` (liste EntrevueConcept avec leurs lignes)
-     * - 'tache'         → champ `taches` (liste TypeProjetTache + état GroupeTache du groupe)
      *
      * @param  Collection|null  $membres  membres du groupe (requis pour le type 'individuel')
      * @param  Collection|null  $groupeTachesParTache  état des tâches du groupe, indexé par tache_id

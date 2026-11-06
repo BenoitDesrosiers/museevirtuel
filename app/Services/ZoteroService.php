@@ -2,10 +2,19 @@
 
 namespace App\Services;
 
+use App\Exceptions\TransactionEchoueeException;
+use App\Models\EtudiantZoteroCredential;
+use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
+/**
+ * sService d'intégration Zotero : appels à l'API (validation de clé, lecture de la bibliothèque)
+ * et synchronisation des références importées dans la liste de l'étudiant.
+ */
 class ZoteroService
 {
     private const API_BASE = 'https://api.zotero.org';
@@ -35,11 +44,6 @@ class ZoteroService
     /**
      * Récupère les items de la bibliothèque personnelle Zotero de l'étudiant.
      *
-     * Retourne un tableau d'items transformés et prêts à insérer en base.
-     * Les items sans titre ou sans clé sont écartés : sans clé, impossible de les
-     * rapprocher d'une référence existante lors des synchronisations suivantes.
-     * La limite par défaut est 100 items — suffisant pour un usage étudiant courant.
-     *
      * @param  string  $zoteroUserId  Identifiant numérique du compte Zotero
      * @param  string  $apiKey  Clé API chiffrée (déchiffrée avant appel)
      * @param  int  $limit  Nombre maximum d'items à récupérer
@@ -68,6 +72,60 @@ class ZoteroService
             ->map(fn (array $item): array => $this->parseItem($item))
             ->values()
             ->all();
+    }
+
+    /**
+     * Enregistre les items Zotero dans la liste de références de l'étudiant.
+     *
+     * @param  array<int, array<string, mixed>>  $items  Items normalisés par fetchItems()
+     *
+     * @throws TransactionEchoueeException
+     */
+    public function importerReferences(User $user, EtudiantZoteroCredential $credential, array $items): void
+    {
+        try {
+            DB::transaction(function () use ($user, $credential, $items) {
+                $maxOrdre = $user->etudiantReferences()->max('ordre') ?? 0;
+                $existantes = $user->etudiantReferences()
+                    ->whereNotNull('zotero_item_key')
+                    ->get()
+                    ->keyBy('zotero_item_key');
+
+                // Une référence déjà importée garde son ordre : l'étudiant conserve son classement
+                foreach ($items as $item) {
+                    if ($reference = $existantes->get($item['zotero_item_key'])) {
+                        $reference->update($item);
+                    } else {
+                        $user->etudiantReferences()->create(array_merge($item, ['ordre' => ++$maxOrdre]));
+                    }
+                }
+
+                $credential->update(['synchronise_le' => now()]);
+            });
+        } catch (QueryException $e) {
+            report($e);
+
+            throw TransactionEchoueeException::depuis($e);
+        }
+    }
+
+    /**
+     * Supprime les identifiants Zotero de l'étudiant et les références importées de Zotero.
+     *
+     * @throws TransactionEchoueeException
+     */
+    public function deconnecter(User $user): void
+    {
+        try {
+            DB::transaction(function () use ($user) {
+                $user->etudiantReferences()->whereNotNull('zotero_item_key')->delete();
+                $user->zoteroCredential()?->delete();
+            });
+        } catch (QueryException $e) {
+            report($e);
+
+            throw TransactionEchoueeException::depuis($e);
+        }
     }
 
     /**

@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\TransactionEchoueeException;
 use App\Services\ZoteroService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Synchronisation de la bibliothèque Zotero de l'étudiant.
@@ -21,7 +21,7 @@ class ZoteroSyncController extends Controller
      *
      * @throws ConnectionException
      */
-    public function __invoke(ZoteroService $zotero): RedirectResponse
+    public function __invoke(ZoteroService $zoteroService): RedirectResponse
     {
         $user = auth()->user();
         $credential = $user->zoteroCredential;
@@ -31,7 +31,7 @@ class ZoteroSyncController extends Controller
         }
 
         try {
-            $items = $zotero->fetchItems($credential->zotero_user_id, $credential->api_key);
+            $items = $zoteroService->fetchItems($credential->zotero_user_id, $credential->api_key);
         } catch (ConnectionException) {
             return back()->withErrors(['zotero' => __('zotero.connexion_impossible')]);
         } catch (RequestException $e) {
@@ -42,23 +42,11 @@ class ZoteroSyncController extends Controller
             return back()->withErrors(['zotero' => __('zotero.erreur_sync')]);
         }
 
-        DB::transaction(function () use ($user, $items, $credential) {
-            $maxOrdre = $user->etudiantReferences()->max('ordre') ?? 0;
-            $existantes = $user->etudiantReferences()
-                ->whereNotNull('zotero_item_key')
-                ->get()
-                ->keyBy('zotero_item_key');
-
-            foreach ($items as $item) {
-                if ($reference = $existantes->get($item['zotero_item_key'])) {
-                    $reference->update($item);
-                } else {
-                    $user->etudiantReferences()->create(array_merge($item, ['ordre' => ++$maxOrdre]));
-                }
-            }
-
-            $credential->update(['synchronise_le' => now()]);
-        });
+        try {
+            $zoteroService->importerReferences($user, $credential, $items);
+        } catch (TransactionEchoueeException $e) {
+            return back()->withErrors(['zotero' => $e->getMessage()]);
+        }
 
         return back()->with('success', __('zotero.synchronise', ['count' => count($items)]));
     }
