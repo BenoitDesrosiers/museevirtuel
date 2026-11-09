@@ -27,18 +27,6 @@ function scenarioTypeProjetService(): array
     return compact('enseignant', 'cours');
 }
 
-/**
- * Données minimales valides pour créer ou modifier un type de projet.
- */
-function donneesTypeProjet(array $surcharges = []): array
-{
-    return array_merge([
-        'nom' => 'Projet de recherche',
-        'type' => 'standard',
-        'date_remise' => '2026-12-01T12:00',
-    ], $surcharges);
-}
-
 test('creer applique les valeurs par défaut et crée les sections dans l\'ordre', function () {
     ['enseignant' => $enseignant, 'cours' => $cours] = scenarioTypeProjetService();
 

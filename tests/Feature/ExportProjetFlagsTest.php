@@ -73,11 +73,11 @@ test('mettre generer_page_titre à false via PUT persiste bien false en base', f
     ]);
 
     $this->actingAs($enseignant)
-        ->putJson("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
+        ->putJson("/cours/{$cours->id}/types-projets/{$typeProjet->id}", donneesTypeProjet([
             'nom' => 'Projet',
             'generer_page_titre' => false,
             'generer_table_matieres' => true,
-        ])
+        ]))
         ->assertRedirect();
 
     $this->assertDatabaseHas('types_projets', [
@@ -103,11 +103,11 @@ test('mettre generer_table_matieres à false via PUT persiste bien false en base
     ]);
 
     $this->actingAs($enseignant)
-        ->putJson("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
+        ->putJson("/cours/{$cours->id}/types-projets/{$typeProjet->id}", donneesTypeProjet([
             'nom' => 'Projet',
             'generer_page_titre' => true,
             'generer_table_matieres' => false,
-        ])
+        ]))
         ->assertRedirect();
 
     $this->assertDatabaseHas('types_projets', [
@@ -133,11 +133,11 @@ test('désactiver les deux flags simultanément persiste en base', function () {
     ]);
 
     $this->actingAs($enseignant)
-        ->putJson("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
+        ->putJson("/cours/{$cours->id}/types-projets/{$typeProjet->id}", donneesTypeProjet([
             'nom' => 'Projet',
             'generer_page_titre' => false,
             'generer_table_matieres' => false,
-        ])
+        ]))
         ->assertRedirect();
 
     $this->assertDatabaseHas('types_projets', [

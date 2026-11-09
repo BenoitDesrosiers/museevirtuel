@@ -48,7 +48,8 @@ class ProfileController extends Controller
     }
 
     /**
-     *Supprime le profile d'un utilisateur
+     * Supprime le profil de l'utilisateur connecté.
+     *
      * @throws AuthorizationException
      */
     public function destroy(ProfileDeleteRequest $request): RedirectResponse
