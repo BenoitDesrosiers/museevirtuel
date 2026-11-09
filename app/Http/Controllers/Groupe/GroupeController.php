@@ -6,16 +6,11 @@ use App\Concerns\ValidatesGroupeChain;
 use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Groupe\StoreGroupeRequest;
-use App\Http\Resources\VisioConferenceResource;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
-use App\Models\GroupeVideo;
-use App\Models\ProjetRecherche;
 use App\Models\Thematique;
-use App\Models\TypeProjet;
-use App\Models\User;
-use App\Models\VisioConference;
+use App\Services\GroupeProps;
 use App\Services\GroupeService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
@@ -85,7 +80,8 @@ class GroupeController extends Controller
      *
      * @throws ValidationException si l'étudiant est déjà dans un groupe ou si la composition est invalide
      */
-    public function store(StoreGroupeRequest $request, Cours $cours, Classe $classe, GroupeService $groupeService): RedirectResponse
+    public function store(StoreGroupeRequest $request, Cours $cours, Classe $classe,
+        GroupeService $groupeService): RedirectResponse
     {
         $validated = $request->validated();
 
@@ -111,116 +107,16 @@ class GroupeController extends Controller
      *
      * @throws AuthorizationException
      */
-    public function show(Cours $cours, Classe $classe, Groupe $groupe): Response
+    public function show(
+        Cours $cours, Classe $classe,
+        Groupe $groupe, GroupeProps $groupeProps): Response
     {
         $this->verifierChaine($cours, $classe, $groupe);
         $groupe->load('classe.cours');
         $this->authorize('view', $groupe);
 
-        $user = auth()->user();
-
-        $estMembre = $groupe->membres()->where('users.id', $user->id)->exists();
-        /**
-         * Il faudra retiré la portion $estEnseignant = $user->isEnseignant()
-         * && en production.
-         */
-        $estEnseignant = $user->isEnseignant()
-            && $cours->enseignant_id === $user->id;
-        $estTemoin = $groupe->personne_agee_id === $user->id;
-
-        $groupe->load([
-            'membres',
-            'thematiques',
-            'notes.auteur',
-            'notes.corrections',
-            'createur',
-            'medias.auteur',
-            'temoin',
-        ]);
-
-        $thematiquesDispo = Thematique::visiblesPar($cours->enseignant)
-            ->get(['id', 'nom', 'periode_historique']);
-
-        $membreIds = $groupe->membres->pluck('id');
-
-        $etudiantsDispo = $classe->etudiants()
-            ->whereNotIn('users.id', $membreIds)
-            ->whereNotIn('users.id', $classe->etudiantsDejaGroupes($groupe->id))
-            ->get(['users.id', 'prenom', 'nom']);
-
-        $groupeThematiqueIds = $groupe->thematiques->pluck('id');
-
-        $peutGererTemoin = $estEnseignant || $user->isAdmin();
-
-        // Une seule requête : tous les témoins actifs avec leurs thématiques pour le filtre
-        $tousLesTemoins = $peutGererTemoin
-            ? User::where('role', 'personne_agee')
-                ->where('statut', 'actif')
-                ->with('thematiquesChoisies:id')
-                ->orderBy('nom')
-                ->get(['id', 'prenom', 'nom'])
-            : collect();
-
-        // Témoins suggérés : filtrage PHP sur la collection déjà chargée
-        $temoinsDisponibles = ($peutGererTemoin && $groupeThematiqueIds->isNotEmpty())
-            ? $tousLesTemoins->filter(fn ($t) => $t->thematiquesChoisies->pluck('id')->intersect($groupeThematiqueIds)->isNotEmpty()
-            )->values()
-            : $tousLesTemoins;
-
-        $tousLesTemoins->each(fn ($t) => $t->makeHidden('thematiquesChoisies'));
-        $temoinsDisponibles->each(fn ($t) => $t->makeHidden('thematiquesChoisies'));
-
-        // Sessions visio pour ce groupe : ciblées au groupe ou ouvertes à tout le cours
-        $visioConferences = VisioConference::where('cours_id', $cours->id)
-            ->where(fn ($q) => $q
-                ->whereNull('groupe_id')
-                ->orWhere('groupe_id', $groupe->id)
-            )
-            ->with('animateur:id,prenom,nom')
-            ->orderByDesc('created_at')
-            ->get()
-            ->pipe(fn ($visios) => VisioConferenceResource::collection($visios)->resolve());
-
-        $videos = GroupeVideo::where('groupe_id', $groupe->id)
-            ->VisiblesPour($user, $estEnseignant)
-            ->with('auteur:id,prenom,nom')
-            ->orderByDesc('created_at')
-            ->get();
-
-        // Projet musée du groupe — exposé uniquement si le cours a un TypeProjet de type 'musee'
-        $typeProjetMusee = TypeProjet::where('cours_id', $cours->id)
-            ->where('type', 'musee')
-            ->first(['id', 'nom']);
-
-        $projetMusee = null;
-        if ($typeProjetMusee) {
-            $projetMusee = ProjetRecherche::where('groupe_id', $groupe->id)
-                ->where('type_projet_id', $typeProjetMusee->id)
-                ->with('museePublication:projet_recherche_id,est_publie')
-                ->first(['id', 'type_projet_id', 'groupe_id']);
-        }
-
-        return Inertia::render('Groupes/Show', [
-            'groupe' => $groupe,
-            'classe' => $classe->only('id', 'code', 'cours_id'),
-            'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
-            'estMembre' => $estMembre,
-            'estEnseignant' => $estEnseignant,
-            'estTemoin' => $estTemoin,
-            'estCreateur' => $groupe->created_by === $user->id,
-            'thematiquesDispo' => $thematiquesDispo,
-            'etudiantsDispo' => $etudiantsDispo,
-            'temoinsDisponibles' => $temoinsDisponibles,
-            'tousLesTemoins' => $tousLesTemoins,
-            'visioConferences' => $visioConferences,
-            'videos' => $videos,
-            'peutTranscrireMedia' => $user->can('transcrireMedia', $groupe),
-            'typeProjetMusee' => $typeProjetMusee?->only('id', 'nom'),
-            'projetMusee' => $projetMusee ? [
-                'type_projet_id' => $projetMusee->type_projet_id,
-                'est_publie' => (bool) $projetMusee->museePublication?->est_publie,
-            ] : null,
-        ]);
+        return Inertia::render('Groupes/Show',
+            $groupeProps->pourAffichage($cours, $classe, $groupe, auth()->user()));
     }
 
     /**
