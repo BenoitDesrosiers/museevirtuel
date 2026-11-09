@@ -6,10 +6,9 @@ use App\Enums\TypeCours;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Cours\StoreCoursRequest;
 use App\Http\Requests\Cours\UpdateCoursRequest;
-use App\Http\Resources\VisioConferenceResource;
 use App\Models\Cours;
-use App\Models\TypeProjet;
 use App\Services\AppliquerGabaritService;
+use App\Services\CoursProps;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -39,77 +38,14 @@ class CoursController extends Controller
      * Affiche le détail d'un cours avec ses étudiants, classes et documents.
      *
      * Accessible aux enseignants propriétaires et aux admins (CoursPolicy::view).
+     *
+     * @throws AuthorizationException
      */
-    public function show(Cours $cours): Response
+    public function show(Cours $cours, CoursProps $coursProps): Response
     {
         $this->authorize('view', $cours);
 
-        $classes = $cours->classes()
-            ->withCount(['etudiants', 'groupes'])
-            ->orderBy('numero')
-            ->get();
-
-        $documents = $cours->documents()->get();
-
-        $echeancierEtapes = $cours->echeancierEtapes()
-            ->get()
-            ->map(fn ($etape) => [
-                'id' => $etape->id,
-                'semaine' => $etape->semaine,
-                'periode' => $etape->periode,
-                'etape' => $etape->etape,
-                'is_done' => $etape->is_done,
-                'ordre' => $etape->ordre,
-            ]);
-
-        $objectifs = $cours->objectifs()
-            ->get()
-            ->map(fn ($o) => [
-                'id' => $o->id,
-                'contenu' => $o->contenu,
-                'ordre' => $o->ordre,
-            ]);
-
-        $references = $cours->references()
-            ->get()
-            ->map(fn ($r) => [
-                'id' => $r->id,
-                'nom' => $r->nom,
-                'url' => $r->url,
-                'ordre' => $r->ordre,
-            ]);
-
-        $typesProjets = TypeProjet::where('cours_id', $cours->id)
-            ->with(['sections'])
-            ->orderBy('nom')
-            ->get();
-
-        $visioConferences = $cours->visioConferences()
-            ->with('animateur:id,prenom,nom')
-            ->get()
-            ->pipe(fn ($visios) => VisioConferenceResource::collection($visios)->resolve());
-
-        return Inertia::render('Cours/Show', [
-            'cours' => $cours,
-            'classes' => $classes,
-            'documents' => $documents,
-            'echeancierEtapes' => $echeancierEtapes,
-            'objectifs' => $objectifs,
-            'references' => $references,
-            'typesProjets' => $typesProjets->map(fn (TypeProjet $tp) => [
-                'id' => $tp->id,
-                'nom' => $tp->nom,
-                'description' => $tp->description,
-                'accessible' => $tp->accessible,
-                'sections' => $tp->sections->map(fn ($s) => [
-                    'id' => $s->id,
-                    'label' => $s->label,
-                    'description' => $s->description,
-                    'ordre' => $s->ordre,
-                ])->values(),
-            ])->values(),
-            'visioConferences' => $visioConferences,
-        ]);
+        return Inertia::render('Cours/Show', $coursProps->pourShow($cours));
     }
 
     /**
