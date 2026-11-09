@@ -610,8 +610,8 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin', 'cours.accessible']
         ->name('projets.index');
 
     // Toutes les routes suivantes sont scoped par {typeProjet}
-    Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/edit', [ProjetRechercheController::class, 'show'])
-        ->name('projets.show');
+    Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/edit', [ProjetRechercheController::class, 'edit'])
+        ->name('projets.edit');
 
     Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/apercu', [ProjetRechercheController::class, 'apercu'])
         ->name('projets.apercu');

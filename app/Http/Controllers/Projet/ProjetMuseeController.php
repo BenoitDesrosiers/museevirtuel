@@ -98,9 +98,11 @@ class ProjetMuseeController extends Controller
             ->orderBy('ordre')
             ->get();
 
+        // Un critère peut avoir une correction de groupe et des corrections individuelles : on les garde toutes
         $corrections = ProjetCritereCorrection::where('projet_id', $projet->id)
+            ->with('etudiant:id,prenom,nom')
             ->get()
-            ->keyBy('critere_id');
+            ->groupBy('critere_id');
 
         return Inertia::render('Musee/Correction', [
             'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
@@ -124,9 +126,16 @@ class ProjetMuseeController extends Controller
                 'pointage' => (float) $c->pointage,
                 'section_id' => $c->section_id,
                 'ordre' => $c->ordre,
-                'correction' => isset($corrections[$c->id])
-                    ? $corrections[$c->id]->only('id', 'points', 'commentaire', 'verifie')
-                    : null,
+                'correction' => $corrections->get($c->id)
+                    ?->first(fn ($correction) => $correction->estPourGroupe())
+                    ?->only('id', 'points', 'commentaire', 'verifie'),
+                'correctionsIndividuelles' => ($corrections->get($c->id) ?? collect())
+                    ->reject(fn ($correction) => $correction->estPourGroupe())
+                    ->map(fn ($correction) => [
+                        ...$correction->only('id', 'points', 'commentaire', 'verifie'),
+                        'etudiant' => $correction->etudiant?->prenom.' '.$correction->etudiant?->nom,
+                    ])
+                    ->values(),
             ]),
         ]);
     }

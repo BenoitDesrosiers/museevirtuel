@@ -799,7 +799,7 @@
             "edit_project": "Éditer le projet",
             "view_project": "Consulter le projet"
         },
-        "show": {
+        "edit": {
             "back": "Projets de recherche",
             "page_head": "Projet — {nom}",
             "saving": "Enregistrement…",

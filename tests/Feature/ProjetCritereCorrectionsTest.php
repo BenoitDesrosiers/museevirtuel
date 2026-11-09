@@ -387,7 +387,7 @@ test("la page show() inclut les critères et les corrections pour l'enseignant",
     $this->actingAs($enseignant)
         ->get(urlProjet($cours, $cs, $groupe, $tp).'/edit')
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             ->has('criteresGlobaux')
             ->has('correctionsParCritere')
             ->has('cochesUtilisateur')
@@ -413,7 +413,7 @@ test('un étudiant ne voit pas les corrections si correction_visible = false', f
     $this->actingAs($etudiant)
         ->get(urlProjet($cours, $cs, $groupe, $tp).'/edit')
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             ->where('correctionsParCritere', [])
         );
 });
@@ -444,7 +444,7 @@ test("un étudiant ne voit que ses propres corrections (pas celles d'un autre é
     $this->actingAs($etudiant)
         ->get(urlProjet($cours, $cs, $groupe, $tp).'/edit')
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             // correctionsParCritere ne contient pas la correction de l'autre étudiant
             ->where('correctionsParCritere', [])
         );

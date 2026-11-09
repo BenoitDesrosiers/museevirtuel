@@ -226,7 +226,7 @@ it('un projet sans renvoi retourne un tableau vide dans show()', function () {
         ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/edit")
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             ->where('renvois', [])
         );
 });
@@ -312,7 +312,7 @@ it('les commentaires sont inclus dans show() pour l\'enseignant', function () {
         ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/edit")
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             ->has('renvois', 1)
             ->where('renvois.0.commentaires.0.contenu', 'Mon commentaire.')
         );
@@ -364,7 +364,7 @@ it('show() retourne modeEditionEnseignant dans les props', function () {
         ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/edit")
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             ->where('modeEditionEnseignant', true)
         );
 });

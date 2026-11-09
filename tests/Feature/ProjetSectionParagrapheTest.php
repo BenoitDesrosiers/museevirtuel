@@ -330,7 +330,7 @@ test('le show retourne les sections de type paragraphes avec leurs paragraphes',
     $this->actingAs($etudiant)
         ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             ->has('sections', 1)
             ->where('sections.0.type', 'paragraphes')
             ->has('sections.0.paragraphes', 1)
@@ -463,7 +463,7 @@ test('le show retourne les conclusionsParMembre dans les sections de type indivi
     $this->actingAs($etudiant)
         ->get("/cours/{$cours->id}/classes/{$classeSection->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             ->has('sections', 1)
             ->where('sections.0.type', 'individuel')
             ->has('sections.0.conclusionsParMembre', 1)

@@ -16,12 +16,12 @@ class ClasseProps
     /**
      * Retourne les props de la page Classes/Show.
      *
-     * L'enseignant reçoit les types de projets (boutons d'aperçu des notes) ;
-     * l'étudiant reçoit l'échéancier, les documents, les objectifs et les références.
+     * Ceux qui gèrent la classe (enseignant du cours, admin) reçoivent les types de projets
+     * (boutons d'aperçu des notes) et la liste des inscrits ; l'étudiant reçoit l'échéancier, les documents, les objectifs et les références.
      *
      * @return array<string, mixed>
      */
-    public function pourShow(Cours $cours, Classe $classe, User $user, bool $estEnseignant): array
+    public function pourShow(Cours $cours, Classe $classe, User $user, bool $peutGererClasse): array
     {
         $classe->load([
             'groupes.membres',
@@ -32,15 +32,45 @@ class ClasseProps
 
         return [
             'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
-            'classe' => $classe,
+            'classe' => $this->classe($classe, $user, $peutGererClasse),
             'utilisateurConnecteId' => $user->id,
-            'estEnseignant' => $estEnseignant,
-            'typesProjets' => $estEnseignant ?
+            'estEnseignant' => $peutGererClasse,
+            'typesProjets' => $peutGererClasse ?
                 $cours->typesProjets()->get(['id', 'nom', 'ponderation', 'is_sommatif']) : collect(),
-            'echeancierEtapes' => $estEnseignant ? collect() : $this->echeancierEtapes($cours, $user),
-            'documents' => $estEnseignant ? collect() : $this->documents($cours),
-            'objectifs' => $estEnseignant ? collect() : $this->objectifs($cours),
-            'references' => $estEnseignant ? collect() : $this->references($cours),
+            'echeancierEtapes' => $peutGererClasse ? collect() : $this->echeancierEtapes($cours, $user),
+            'documents' => $peutGererClasse ? collect() : $this->documents($cours),
+            'objectifs' => $peutGererClasse ? collect() : $this->objectifs($cours),
+            'references' => $peutGererClasse ? collect() : $this->references($cours),
+        ];
+    }
+
+    /**
+     * Sérialise la classe champ par champ : les props Inertia sont lisibles dans le navigateur,
+     *
+     * @return array<string, mixed>
+     */
+    private function classe(Classe $classe, User $user, bool $peutGererClasse): array
+    {
+        // Numéro d'un groupe = son rang par id dans la classe (comme Groupe::getNumeroAttribute, sans requête par groupe)
+        $numeros = $classe->groupes->pluck('id')->sort()->values()->flip()->map(fn ($rang) => $rang + 1);
+
+        $groupes = $peutGererClasse
+            ? $classe->groupes
+            : $classe->groupes->filter(fn ($groupe) => $groupe->membres->contains('id', $user->id));
+
+        return [
+            ...$classe->only('id', 'numero', 'code', 'nom', 'jour_semaine', 'plage_horaire', 'cours_id'),
+            'groupes' => $groupes->map(fn ($groupe) => [
+                ...$groupe->only('id', 'classe_id', 'created_by'),
+                'numero' => $numeros[$groupe->id],
+                'membres' => $groupe->membres->map->only('id', 'prenom', 'nom')->values(),
+                'thematiques' => $groupe->thematiques->map->only('id', 'nom')->values(),
+                'temoin' => $groupe->temoin?->only('id', 'prenom', 'nom'),
+            ])->values(),
+            'etudiants' => $peutGererClasse ? $classe->etudiants->map(fn ($etudiant) => [
+                ...$etudiant->only('id', 'prenom', 'nom', 'email', 'no_da'),
+                'pivot' => ['statut_cours' => $etudiant->pivot->statut_cours],
+            ])->values() : collect(),
         ];
     }
 

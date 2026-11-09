@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Classe;
 
-use App\Actions\CreateEtudiantAction;
 use App\Actions\ImportEtudiantsAction;
+use App\Actions\InscrireEtudiantClasseAction;
 use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Classe\ImportClasseEtudiantRequest;
@@ -17,7 +17,7 @@ use Illuminate\Http\RedirectResponse;
 class ClasseEtudiantController extends Controller
 {
     public function __construct(
-        private readonly CreateEtudiantAction $createEtudiant,
+        private readonly InscrireEtudiantClasseAction $inscrireEtudiantClasseAction,
         private readonly ImportEtudiantsAction $importEtudiants,
     ) {}
 
@@ -32,27 +32,16 @@ class ClasseEtudiantController extends Controller
     /**
      * Ajoute manuellement un étudiant dans une section.
      *
-     * Les données (statut « actif » par défaut) sont validées par StoreClasseEtudiantRequest.
+     * Les données (statut « actif » par défaut, courriel non pris par un autre compte,
+     * étudiant pas encore inscrit) sont validées par StoreClasseEtudiantRequest.
      */
     public function store(StoreClasseEtudiantRequest $request, Cours $cours, Classe $classe): RedirectResponse
     {
-        $validated = $request->validated();
-
-        $etudiant = $this->createEtudiant->execute(
-            $validated['no_da'],
-            $validated['prenom'],
-            $validated['nom'],
-            $validated['email'] ?? null,
-        );
-
-        if ($etudiant->classesInscrites()->exists()) {
-            return back()->withErrors(['no_da' => __('etudiant.already_in_class')]);
+        try {
+            $this->inscrireEtudiantClasseAction->execute($classe, $request->validated());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
         }
-
-        $classe->etudiants()->attach($etudiant->id, [
-            'no_da' => $validated['no_da'],
-            'statut_cours' => $validated['statut_cours'],
-        ]);
 
         return back()->with('success', __('etudiant.added'));
     }

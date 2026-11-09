@@ -31,15 +31,11 @@ class ClasseController extends Controller
         $this->authorize('view', $classe);
 
         $user = auth()->user();
-        /**
-         * Il faudra retiré la portion $estEnseignant = $user->isEnseignant()
-         * && en production.
-         */
-        $estEnseignant = $user->isEnseignant()
-            && $cours->enseignant_id === $user->id;
+        // L'enseignant du cours et l'admin gèrent la classe : ils ont la même vue, avec la liste des inscrits
+        $peutGererClasse = $user->can('update', $classe);
 
         return Inertia::render('Classes/Show',
-            $classeProps->pourShow($cours, $classe, $user, $estEnseignant));
+            $classeProps->pourShow($cours, $classe, $user, $peutGererClasse));
     }
 
     /**

@@ -30,7 +30,7 @@ use Illuminate\Support\Collection;
 class ProjetRechercheProps
 {
     /**
-     * Retourne les props de la page Projets/Show pour l'utilisateur donné.
+     * Retourne les props de la page Projets/Edit pour l'utilisateur donné.
      *
      * Charge les relations du projet en une passe (évite le N+1) et filtre
      * annotations, corrections et critères selon le rôle.

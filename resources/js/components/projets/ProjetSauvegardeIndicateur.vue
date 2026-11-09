@@ -22,16 +22,16 @@ defineProps<{
             class="h-4 w-4 text-green-500"
         />
 
-        <span v-if="status === 'saving'">{{ $t('projets.show.saving') }}</span>
+        <span v-if="status === 'saving'">{{ $t('projets.edit.saving') }}</span>
         <span
             v-else-if="status === 'saved'"
             class="text-green-600"
-            >{{ $t('projets.show.saved') }}</span
+            >{{ $t('projets.edit.saved') }}</span
         >
         <span
             v-else-if="status === 'error'"
             class="text-destructive"
-            >{{ $t('projets.show.save_error') }}</span
+            >{{ $t('projets.edit.save_error') }}</span
         >
         <span v-if="annotationDeleteError" class="text-destructive">
             {{ annotationDeleteError }}

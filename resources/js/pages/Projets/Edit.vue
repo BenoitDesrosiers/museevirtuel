@@ -2565,7 +2565,7 @@ async function supprimerCommentaireRenvoi(
     <AppLayout>
         <Head
             :title="
-                t('projets.show.page_head', {
+                t('projets.edit.page_head', {
                     nom: t('classes.groupes.group_number', {
                         n: groupe.numero,
                     }),
@@ -2582,7 +2582,7 @@ async function supprimerCommentaireRenvoi(
                             :href="`/cours/${classe.cours_id}/classes/${groupe.classe_id}/groupes/${groupe.id}/projets`"
                         >
                             <ArrowLeft class="mr-2 h-4 w-4" />
-                            {{ t('projets.show.back') }}
+                            {{ t('projets.edit.back') }}
                         </Link>
                     </Button>
 
@@ -2606,7 +2606,7 @@ async function supprimerCommentaireRenvoi(
                     class="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
                 >
                     <Lock class="h-4 w-4 shrink-0" />
-                    {{ t('projets.show.locked_message') }}
+                    {{ t('projets.edit.locked_message') }}
                 </div>
 
                 <!-- Boutons d'export + notes finales par étudiant -->
@@ -2675,7 +2675,7 @@ async function supprimerCommentaireRenvoi(
                 <!-- ─── Page titre ────────────────────────────────────────────── -->
                 <ProjetCollapsibleCard
                     v-if="genererPageTitre"
-                    :title="t('projets.show.page_title_card')"
+                    :title="t('projets.edit.page_title_card')"
                     :collapsed="!!collapsed.pageTitre"
                     @toggle="toggleSection('pageTitre')"
                 >
@@ -2683,7 +2683,7 @@ async function supprimerCommentaireRenvoi(
                         <RichEditor
                             v-model="form.page_titre_contenu"
                             :placeholder="
-                                t('projets.show.page_titre_manuel_placeholder')
+                                t('projets.edit.page_titre_manuel_placeholder')
                             "
                             :read-only="!peutEditer"
                             :est-enseignant="estEnseignant"
@@ -2722,7 +2722,7 @@ async function supprimerCommentaireRenvoi(
                             "
                             :est-enseignant="estEnseignant"
                             :placeholder="
-                                t('projets.show.comment_presentation')
+                                t('projets.edit.comment_presentation')
                             "
                             class="mt-4"
                             @toggle="toggleCommentaire('normes_presentation')"
@@ -2740,18 +2740,18 @@ async function supprimerCommentaireRenvoi(
                 </ProjetCollapsibleCard>
                 <ProjetCollapsibleCard
                     v-else
-                    :title="t('projets.show.page_titre_manuel_card')"
+                    :title="t('projets.edit.page_titre_manuel_card')"
                     :collapsed="!!collapsed.pageTitre"
                     @toggle="toggleSection('pageTitre')"
                 >
                     <!-- ─── Page titre (mode manuel) ──────────────────────────────── -->
                         <p class="mb-3 text-xs text-muted-foreground">
-                            {{ t('projets.show.page_titre_manuel_hint') }}
+                            {{ t('projets.edit.page_titre_manuel_hint') }}
                         </p>
                         <RichEditor
                             v-model="form.page_titre_contenu"
                             :placeholder="
-                                t('projets.show.page_titre_manuel_placeholder')
+                                t('projets.edit.page_titre_manuel_placeholder')
                             "
                             :read-only="!peutEditer"
                             :est-enseignant="estEnseignant"
@@ -2790,7 +2790,7 @@ async function supprimerCommentaireRenvoi(
                             "
                             :est-enseignant="estEnseignant"
                             :placeholder="
-                                t('projets.show.comment_presentation')
+                                t('projets.edit.comment_presentation')
                             "
                             class="mt-4"
                             @toggle="toggleCommentaire('normes_presentation')"
@@ -2810,8 +2810,8 @@ async function supprimerCommentaireRenvoi(
                 <ProjetCollapsibleCard
                     :title="
                         genererTableMatieres
-                            ? t('projets.show.toc_card')
-                            : t('projets.show.toc_manuel_card')
+                            ? t('projets.edit.toc_card')
+                            : t('projets.edit.toc_manuel_card')
                     "
                     :collapsed="!!collapsed.tdm"
                     @toggle="toggleSection('tdm')"
@@ -2821,17 +2821,17 @@ async function supprimerCommentaireRenvoi(
                             v-if="genererTableMatieres"
                             class="text-sm text-muted-foreground italic"
                         >
-                            {{ t('projets.show.toc_auto_notice') }}
+                            {{ t('projets.edit.toc_auto_notice') }}
                         </p>
                         <!-- Mode manuel : hint + éditeur -->
                         <template v-else>
                             <p class="mb-3 text-xs text-muted-foreground">
-                                {{ t('projets.show.tdm_manuel_hint') }}
+                                {{ t('projets.edit.tdm_manuel_hint') }}
                             </p>
                             <RichEditor
                                 v-model="form.table_matieres_contenu"
                                 :placeholder="
-                                    t('projets.show.tdm_manuel_placeholder')
+                                    t('projets.edit.tdm_manuel_placeholder')
                                 "
                                 :read-only="!peutEditer"
                                 :est-enseignant="estEnseignant"
@@ -3993,7 +3993,7 @@ async function supprimerCommentaireRenvoi(
                             class="flex flex-row items-center justify-between"
                         >
                             <CardTitle class="text-base font-semibold">{{
-                                t('projets.show.introduction')
+                                t('projets.edit.introduction')
                             }}</CardTitle>
                             <Button
                                 variant="ghost"
@@ -4038,7 +4038,7 @@ async function supprimerCommentaireRenvoi(
                             <!-- Amener -->
                             <div v-show="introTab === 'amener'">
                                 <p class="mb-2 text-xs text-muted-foreground">
-                                    {{ t('projets.show.amener_hint') }}
+                                    {{ t('projets.edit.amener_hint') }}
                                 </p>
                                 <RichEditor
                                     v-model="form.introduction_amener"
@@ -4114,7 +4114,7 @@ async function supprimerCommentaireRenvoi(
                             <!-- Poser -->
                             <div v-show="introTab === 'poser'">
                                 <p class="mb-2 text-xs text-muted-foreground">
-                                    {{ t('projets.show.poser_hint') }}
+                                    {{ t('projets.edit.poser_hint') }}
                                 </p>
                                 <RichEditor
                                     v-model="form.introduction_poser"
@@ -4190,7 +4190,7 @@ async function supprimerCommentaireRenvoi(
                             <!-- Diviser -->
                             <div v-show="introTab === 'diviser'">
                                 <p class="mb-2 text-xs text-muted-foreground">
-                                    {{ t('projets.show.diviser_hint') }}
+                                    {{ t('projets.edit.diviser_hint') }}
                                 </p>
                                 <RichEditor
                                     v-model="form.introduction_diviser"
@@ -4285,7 +4285,7 @@ async function supprimerCommentaireRenvoi(
                                 >
                                     {{
                                         dev.titre ||
-                                        t('projets.show.dev_paragraph', {
+                                        t('projets.edit.dev_paragraph', {
                                             n: dev.ordre,
                                         })
                                     }}
@@ -4296,13 +4296,13 @@ async function supprimerCommentaireRenvoi(
                                     v-if="
                                         peutEditer && developpements.length > 1
                                     "
-                                    :texte="t('projets.show.delete_paragraph')"
+                                    :texte="t('projets.edit.delete_paragraph')"
                                     size="icon-sm"
                                     class="text-destructive"
                                     :disabled="devEnCours"
                                     @click="
                                         demanderSupprimer({
-                                            titre: t('projets.show.delete_paragraph'),
+                                            titre: t('projets.edit.delete_paragraph'),
                                             description: 'Ce paragraphe de développement et tout son contenu seront supprimés définitivement.',
                                             action: () => supprimerDev(dev.id),
                                         })
@@ -4332,7 +4332,7 @@ async function supprimerCommentaireRenvoi(
                         >
                             <div v-if="peutEditer" class="mb-1">
                                 <Label class="text-xs text-muted-foreground">{{
-                                    t('projets.show.paragraph_title_label')
+                                    t('projets.edit.paragraph_title_label')
                                 }}</Label>
                                 <Input
                                     :model-value="dev.titre ?? ''"
@@ -4439,7 +4439,7 @@ async function supprimerCommentaireRenvoi(
                                 class="mr-2 h-4 w-4 animate-spin"
                             />
                             <Plus v-else class="mr-2 h-4 w-4" />
-                            {{ t('projets.show.add_paragraph') }}
+                            {{ t('projets.edit.add_paragraph') }}
                         </Button>
                     </div> </template
                 ><!-- /legacy développements -->
@@ -4458,7 +4458,7 @@ async function supprimerCommentaireRenvoi(
                                     }}{{ item.etudiant.nom[0] }}
                                 </span>
                                 {{
-                                    t('projets.show.conclusion_member', {
+                                    t('projets.edit.conclusion_member', {
                                         prenom: item.etudiant.prenom,
                                         nom: item.etudiant.nom,
                                     })
@@ -4486,7 +4486,7 @@ async function supprimerCommentaireRenvoi(
                         >
                             <template v-if="peutEditer">
                                 <p class="mb-2 text-xs text-muted-foreground">
-                                    {{ t('projets.show.conclusion_hint') }}
+                                    {{ t('projets.edit.conclusion_hint') }}
                                 </p>
                                 <RichEditor
                                     :model-value="
@@ -4520,7 +4520,7 @@ async function supprimerCommentaireRenvoi(
                                     :read-only="true"
                                     :est-enseignant="estEnseignant"
                                     :placeholder="
-                                        t('projets.show.section_not_written')
+                                        t('projets.edit.section_not_written')
                                     "
                                 />
                             </template>
@@ -4750,7 +4750,7 @@ async function supprimerCommentaireRenvoi(
                     <CardHeader>
                         <CardTitle class="flex items-center gap-2 text-base">
                             <CalendarDays class="h-4 w-4 text-primary" />
-                            {{ t('projets.show.submission_settings') }}
+                            {{ t('projets.edit.submission_settings') }}
                         </CardTitle>
                     </CardHeader>
                     <CardContent class="space-y-4">
@@ -4801,7 +4801,7 @@ async function supprimerCommentaireRenvoi(
                                 <CheckCircle2
                                     class="mr-1 inline-block h-4 w-4 text-green-500"
                                 />
-                                {{ t('projets.show.submitted_on') }}
+                                {{ t('projets.edit.submitted_on') }}
                                 {{
                                     new Date(remisLe).toLocaleDateString(
                                         'fr-CA',
@@ -4826,7 +4826,7 @@ async function supprimerCommentaireRenvoi(
                                     class="mr-2 h-4 w-4 animate-spin"
                                 />
                                 <XCircle v-else class="mr-2 h-4 w-4" />
-                                {{ t('projets.show.cancel_submission') }}
+                                {{ t('projets.edit.cancel_submission') }}
                             </Button>
                         </div>
                     </CardContent>
@@ -4837,7 +4837,7 @@ async function supprimerCommentaireRenvoi(
                     <CardHeader>
                         <CardTitle class="flex items-center gap-2 text-base">
                             <Users class="h-4 w-4 text-primary" />
-                            {{ t('projets.show.team_vote') }}
+                            {{ t('projets.edit.team_vote') }}
                         </CardTitle>
                     </CardHeader>
                     <CardContent class="space-y-4">
@@ -4848,7 +4848,7 @@ async function supprimerCommentaireRenvoi(
                         >
                             <CheckCircle2 class="h-5 w-5 shrink-0" />
                             <span>
-                                {{ t('projets.show.submitted_on') }}
+                                {{ t('projets.edit.submitted_on') }}
                                 {{
                                     new Date(remisLe).toLocaleDateString(
                                         'fr-CA',
@@ -4875,10 +4875,10 @@ async function supprimerCommentaireRenvoi(
                             "
                         >
                             <CalendarDays class="mr-1 inline-block h-4 w-4" />
-                            {{ t('projets.show.deadline') }}
+                            {{ t('projets.edit.deadline') }}
                             {{ dateRemiseFormatee }}
                             <span v-if="dateRemiseDepassee">
-                                — {{ t('projets.show.deadline_passed') }}</span
+                                — {{ t('projets.edit.deadline_passed') }}</span
                             >
                         </div>
 
@@ -4910,8 +4910,8 @@ async function supprimerCommentaireRenvoi(
                                         votes.find(
                                             (v) => v.user_id === membre.id,
                                         )?.vote
-                                            ? t('projets.show.voted')
-                                            : t('projets.show.waiting_vote')
+                                            ? t('projets.edit.voted')
+                                            : t('projets.edit.waiting_vote')
                                     }}
                                 </span>
                             </li>
@@ -4934,7 +4934,7 @@ async function supprimerCommentaireRenvoi(
                                     class="mr-2 h-4 w-4 animate-spin"
                                 />
                                 <Send v-else class="mr-2 h-4 w-4" />
-                                {{ t('projets.show.vote_to_submit') }}
+                                {{ t('projets.edit.vote_to_submit') }}
                             </Button>
                         </div>
 
@@ -4950,7 +4950,7 @@ async function supprimerCommentaireRenvoi(
                             <CheckCircle2
                                 class="mr-1 inline-block h-4 w-4 text-green-500"
                             />
-                            {{ t('projets.show.my_vote_registered') }}
+                            {{ t('projets.edit.my_vote_registered') }}
                         </div>
                     </CardContent>
                 </Card>

@@ -3,6 +3,9 @@
 namespace App\Http\Requests\Classe;
 
 use App\Enums\StatutEtudiantCours;
+use App\Models\User;
+use Closure;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -32,9 +35,20 @@ class StoreClasseEtudiantRequest extends FormRequest
         return [
             'prenom' => ['required', 'string', 'max:255'],
             'nom' => ['required', 'string', 'max:255'],
-            'no_da' => ['required', 'integer'],
+            'no_da' => ['required', 'integer', $this->pasDejaInscrit(...)],
             'statut_cours' => ['required', Rule::enum(StatutEtudiantCours::class)],
-            'email' => ['nullable', 'string', 'email', 'max:255'],
+            'email' => [
+                'nullable',
+                'string',
+                'email',
+                'max:255',
+                // Un courriel déjà pris n'est accepté que s'il appartient à l'étudiant de ce DA :
+                // on ne doit jamais inscrire le compte d'un enseignant ni celui d'un autre étudiant.
+                Rule::unique('users', 'email')->where(fn (Builder $query) => $query
+                    ->where('role', '!=', 'etudiant')
+                    ->orWhereNull('no_da')
+                    ->orWhere('no_da', '!=', $this->input('no_da'))),
+            ],
         ];
     }
 
@@ -59,7 +73,23 @@ class StoreClasseEtudiantRequest extends FormRequest
             'email.string' => __('classe_etudiant.email.string'),
             'email.email' => __('classe_etudiant.email.email'),
             'email.max' => __('classe_etudiant.email.max'),
+            'email.unique' => __('classe_etudiant.email.unique'),
         ];
+    }
+
+    /**
+     * Refuse un DA dont l'étudiant est déjà inscrit dans une classe, avant toute création de compte.
+     */
+    private function pasDejaInscrit(string $attribute, mixed $value, Closure $fail): void
+    {
+        $dejaInscrit = User::where('no_da', $value)
+            ->where('role', 'etudiant')
+            ->whereHas('classesInscrites')
+            ->exists();
+
+        if ($dejaInscrit) {
+            $fail(__('etudiant.already_in_class'));
+        }
     }
 
     /**

@@ -46,6 +46,8 @@ type Section = { id: number; label: string; ordre: number; blocs: Bloc[] }
 
 type MuseeImage = { id: number; url: string; alt: string; legende: string; crop_data?: { x: number; y: number } | null }
 
+type CorrectionCritere = { id: number; points: string | null; commentaire: string | null; verifie: boolean }
+
 type Critere = {
     id: number
     type: string
@@ -53,7 +55,8 @@ type Critere = {
     pointage: number
     section_id: number | null
     ordre: number
-    correction: { id: number; points: string | null; commentaire: string | null; verifie: boolean } | null
+    correction: CorrectionCritere | null
+    correctionsIndividuelles: (CorrectionCritere & { etudiant: string })[]
 }
 
 type Props = {
@@ -497,6 +500,17 @@ function togglePublication() {
                                     <span>{{ critere.correction.verifie ? 'Accordé' : '' }}</span>
                                     <span v-if="critere.correction.points">{{ critere.correction.points }}pts</span>
                                 </div>
+                                <ul v-if="critere.correctionsIndividuelles.length > 0" class="mt-1 space-y-0.5">
+                                    <li
+                                        v-for="individuelle in critere.correctionsIndividuelles"
+                                        :key="individuelle.id"
+                                        :class="['flex items-center gap-1 text-xs', individuelle.verifie ? 'text-emerald-600' : 'text-muted-foreground']"
+                                    >
+                                        <CheckCircle2 class="h-3 w-3" />
+                                        <span class="font-medium">{{ individuelle.etudiant }}</span>
+                                        <span v-if="individuelle.points">{{ individuelle.points }}pts</span>
+                                    </li>
+                                </ul>
                             </div>
                         </div>
 
@@ -533,6 +547,17 @@ function togglePublication() {
                                         <CheckCircle2 class="h-3 w-3" />
                                         <span v-if="critere.correction.points">{{ critere.correction.points }}pts</span>
                                     </div>
+                                    <ul v-if="critere.correctionsIndividuelles.length > 0" class="mt-1 space-y-0.5">
+                                        <li
+                                            v-for="individuelle in critere.correctionsIndividuelles"
+                                            :key="individuelle.id"
+                                            :class="['flex items-center gap-1 text-xs', individuelle.verifie ? 'text-emerald-600' : 'text-muted-foreground']"
+                                        >
+                                            <CheckCircle2 class="h-3 w-3" />
+                                            <span class="font-medium">{{ individuelle.etudiant }}</span>
+                                            <span v-if="individuelle.points">{{ individuelle.points }}pts</span>
+                                        </li>
+                                    </ul>
                                 </div>
                             </div>
                         </div>

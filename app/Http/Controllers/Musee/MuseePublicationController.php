@@ -7,7 +7,6 @@ use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
 use App\Models\MuseeBloc;
-use App\Models\MuseeMeta;
 use App\Models\MuseePage;
 use App\Models\MuseePublication;
 use App\Models\ProjetCritereCorrection;
@@ -362,14 +361,14 @@ class MuseePublicationController extends Controller
                 'groupe.classe',
                 'groupe.membres',
                 'museePublication',
-                'museeImages' => fn ($q) => $q->limit(1),
+                'museeMeta:id,projet_recherche_id,entete_titre,slug,intro_image_path,entete_image_path',
             ])
             ->get()
             ->map(fn (ProjetRecherche $p) => [
                 'id' => $p->id,
                 'groupe' => [
                     'id' => $p->groupe->id,
-                    'nom' => $p->groupe->nom ?? "Groupe {$p->groupe->id}",
+                    'nom' => $p->groupe->code,
                     'classe_id' => $p->groupe->classe_id,
                     'classe_nom' => $p->groupe->classe->nom ?? null,
                     'membres' => $p->groupe->membres->map(fn ($m) => $m->prenom.' '.$m->nom)->all(),
@@ -382,8 +381,7 @@ class MuseePublicationController extends Controller
                     'raison_rejet' => $p->museePublication?->raison_rejet,
                     'est_publie' => (bool) $p->museePublication?->est_publie,
                 ],
-                'meta' => MuseeMeta::where('projet_recherche_id', $p->id)
-                    ->first(['entete_titre', 'slug', 'intro_image_path', 'entete_image_path']),
+                'meta' => $p->museeMeta?->only('entete_titre', 'slug', 'intro_image_path', 'entete_image_path'),
             ]);
 
         return Inertia::render('Musee/Approbation/Index', [

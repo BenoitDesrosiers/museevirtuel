@@ -250,7 +250,7 @@ watch(
 );
 
 /**
- * Signal d'annulation du modal de suppression de renvoi — fourni par Projets/Show.vue via
+ * Signal d'annulation du modal de suppression de renvoi — fourni par Projets/Edit.vue via
  * provide('renvoisUndoTarget'). Vaut null par défaut quand RichEditor est utilisé ailleurs.
  * Quand la version change et que l'editorId correspond, on restaure l'exposant via undo().
  */

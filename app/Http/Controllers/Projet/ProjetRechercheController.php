@@ -54,12 +54,14 @@ class ProjetRechercheController extends Controller
     }
 
     /**
-     * Affiche le projet partagé avec l'éditeur de contenu et les conclusions individuelles.
+     * Affiche l'éditeur du projet partagé (contenu et conclusions individuelles).
+     *
+     * Crée le projet à la première ouverture : c'est le point d'entrée où le groupe commence à le rédiger.
      *
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function show(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet,
+    public function edit(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet,
         ProjetRechercheProps $projetRechercheProps): Response
     {
         $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
@@ -86,7 +88,7 @@ class ProjetRechercheController extends Controller
             return $this->renderMuseeShow($cours, $classe, $groupe, $typeProjet, $projet, $estEnseignant);
         }
 
-        return Inertia::render('Projets/Show',
+        return Inertia::render('Projets/Edit',
             $projetRechercheProps->pourEditeur($cours, $classe, $groupe, $typeProjet, $projet, $user, $estEnseignant));
     }
 

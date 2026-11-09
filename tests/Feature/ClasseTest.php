@@ -6,6 +6,7 @@ use App\Models\CoursObjectif;
 use App\Models\CoursReference;
 use App\Models\EcheancierEtape;
 use App\Models\EcheancierEtudiantProgress;
+use App\Models\Groupe;
 use App\Models\TypeProjet;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -184,5 +185,81 @@ test("show donne à l'étudiant l'échéancier avec sa progression, les objectif
             ->where('documents', [])
             ->where('objectifs', [['id' => $objectif->id, 'contenu' => 'Comprendre', 'ordre' => 1]])
             ->where('references', [['id' => $reference->id, 'nom' => 'BAnQ', 'url' => 'https://banq.qc.ca', 'ordre' => 1]])
+        );
+});
+
+// ─── Fuite de données — props de Classes/Show ─────────────────────────────────
+
+/**
+ * Classe avec deux groupes : celui de l'étudiant (avec un témoin) et un autre groupe.
+ *
+ * @return array<string, mixed>
+ */
+function scenarioClasseConfidentialite(): array
+{
+    ['enseignant' => $enseignant, 'cours' => $cours] = creerCoursAvecEnseignant();
+    $classe = creerClassePourCours($cours, '501');
+    $etudiant = User::factory()->create(['role' => 'etudiant', 'no_da' => '1110001']);
+    $autre = User::factory()->create(['role' => 'etudiant', 'no_da' => '1110002']);
+    $temoin = User::factory()->create(['role' => 'personne_agee', 'signature_electronique' => 'Signature secrète']);
+    $classe->etudiants()->attach([$etudiant->id => ['statut_cours' => 'actif'], $autre->id => ['statut_cours' => 'actif']]);
+
+    $monGroupe = Groupe::create(['classe_id' => $classe->id, 'created_by' => $etudiant->id, 'personne_agee_id' => $temoin->id]);
+    $monGroupe->membres()->attach($etudiant->id);
+    $autreGroupe = Groupe::create(['classe_id' => $classe->id, 'created_by' => $autre->id]);
+    $autreGroupe->membres()->attach($autre->id);
+
+    return compact('enseignant', 'cours', 'classe', 'etudiant', 'autre', 'temoin', 'monGroupe', 'autreGroupe');
+}
+
+test("show n'envoie à l'étudiant ni la liste des inscrits, ni les autres groupes, ni les données personnelles", function () {
+    $s = scenarioClasseConfidentialite();
+
+    $reponse = $this->actingAs($s['etudiant'])->get("/cours/{$s['cours']->id}/classes/{$s['classe']->id}");
+
+    $reponse->assertOk()->assertInertia(fn ($page) => $page
+        ->where('classe.etudiants', [])
+        ->has('classe.groupes', 1)
+        ->where('classe.groupes.0.id', $s['monGroupe']->id)
+        ->where('classe.groupes.0.membres.0', $s['etudiant']->only('id', 'prenom', 'nom'))
+        ->where('classe.groupes.0.temoin', $s['temoin']->only('id', 'prenom', 'nom'))
+    );
+    $props = json_encode($reponse->viewData('page')['props']);
+    expect($props)->not->toContain($s['autre']->email)
+        ->not->toContain('1110002')
+        ->not->toContain($s['temoin']->email)
+        ->not->toContain('Signature secrète');
+});
+
+test("show envoie à l'enseignant les inscrits et tous les groupes, sans le reste des comptes", function () {
+    $s = scenarioClasseConfidentialite();
+
+    $reponse = $this->actingAs($s['enseignant'])->get("/cours/{$s['cours']->id}/classes/{$s['classe']->id}");
+
+    $reponse->assertOk()->assertInertia(fn ($page) => $page
+        ->has('classe.etudiants', 2)
+        ->where('classe.etudiants.0', [
+            ...$s['etudiant']->only('id', 'prenom', 'nom', 'email', 'no_da'),
+            'pivot' => ['statut_cours' => 'actif'],
+        ])
+        ->has('classe.groupes', 2)
+        ->where('classe.groupes.0.numero', 1)
+        ->where('classe.groupes.1.temoin', null)
+    );
+    expect(json_encode($reponse->viewData('page')['props']))->not->toContain('Signature secrète');
+});
+
+test("show donne à l'admin la même vue que l'enseignant, avec la liste des inscrits", function () {
+    $s = scenarioClasseConfidentialite();
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $this->actingAs($admin)
+        ->get("/cours/{$s['cours']->id}/classes/{$s['classe']->id}")
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('estEnseignant', true)
+            ->has('classe.etudiants', 2)
+            ->where('classe.etudiants.0.no_da', '1110001')
+            ->has('classe.groupes', 2)
         );
 });

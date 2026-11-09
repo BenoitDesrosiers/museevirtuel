@@ -150,7 +150,7 @@ test('le show du projet contient les sections avec leur contenu', function () {
     $this->actingAs($etudiant)
         ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             ->has('sections', 1)
             ->where('sections.0.label', 'Introduction')
             ->where('sections.0.contenu', '<p>Contenu test</p>')
@@ -183,7 +183,7 @@ test("le show retourne un tableau sections vide si le type de projet n'a aucune 
     $this->actingAs($etudiant)
         ->get("/cours/{$cours->id}/classes/{$classeSection->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             ->where('sections', [])
         );
 });
