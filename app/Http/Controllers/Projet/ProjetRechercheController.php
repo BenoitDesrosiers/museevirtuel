@@ -3,18 +3,15 @@
 namespace App\Http\Controllers\Projet;
 
 use App\Concerns\ValidatesGroupeChain;
-use App\Enums\StatutProjetRecherche;
-use App\Helpers\HtmlHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Projet\Concerns\RendMuseeProjet;
 use App\Http\Requests\Projet\UpdateProjetRechercheRequest;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
-use App\Models\MuseePublication;
 use App\Models\ProjetRecherche;
 use App\Models\TypeProjet;
-use App\Models\User;
+use App\Services\ProjetRechercheIndexProps;
 use App\Services\ProjetRechercheProps;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
@@ -39,7 +36,8 @@ class ProjetRechercheController extends Controller
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function index(Cours $cours, Classe $classe, Groupe $groupe): Response
+    public function index(Cours $cours, Classe $classe, Groupe $groupe,
+        ProjetRechercheIndexProps $projetRechercheIndexProps): Response
     {
         abort_if($classe->cours_id !== $cours->id, 404);
         abort_if($groupe->classe_id !== $classe->id, 404);
@@ -51,66 +49,8 @@ class ProjetRechercheController extends Controller
         $estEnseignant = $user->isEnseignant()
             && $cours->enseignant_id === $user->id;
 
-        // Charger les TypeProjets du cours — pas de tous les cours de l'enseignant
-        $query = TypeProjet::where('cours_id', $cours->id);
-
-        // Les étudiants ne voient que les types rendus accessibles par l'enseignant
-        if (! $estEnseignant && ! $user->isAdmin()) {
-            $query->where('accessible', true);
-        }
-
-        $typesProjets = $query->get();
-
-        // Précharger tous les projets de ce groupe en une seule requête — évite le N+1
-        $projetsParType = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->whereIn('type_projet_id', $typesProjets->pluck('id'))
-            ->with(['typeProjet', 'conclusions', 'museePublication'])
-            ->get()
-            ->keyBy('type_projet_id');
-
-        $projets = $typesProjets->map(function (TypeProjet $typeProjet) use ($groupe, $projetsParType): array {
-            $projet = $projetsParType->get($typeProjet->id);
-
-            $conclusionsParMembre = $projet ? $projet->conclusions->keyBy('user_id') : collect();
-
-            $conclusions = $groupe->membres->map(function (User $membre) use ($conclusionsParMembre): array {
-                $conclusion = $conclusionsParMembre->get($membre->id);
-
-                return [
-                    'etudiant' => $membre->only('id', 'prenom', 'nom'),
-                    'a_redige' => $conclusion !== null && trim(strip_tags((string) ($conclusion->contenu ?? ''))) !== '',
-                ];
-            });
-
-            return [
-                'typeProjet' => array_merge(
-                    $typeProjet->only('id', 'nom', 'description', 'accessible'),
-                    ['type' => $typeProjet->type],
-                ),
-                'projet' => $projet
-                    ? [
-                        'id' => $projet->id,
-                        'titre_projet' => $projet->titre_projet,
-                        'completion' => $projet->completion(),
-                        'statut' => $projet->synchroniserStatut()->value,
-                        'statut_publication' => $typeProjet->isMusee()
-                            ? ($projet->museePublication?->statut ?? MuseePublication::STATUT_BROUILLON)
-                            : null,
-                    ]
-                    : null,
-                'statut' => $projet?->statutActuel()->value
-                    ?? StatutProjetRecherche::fromDates($typeProjet->date_remise, null)->value,
-                'conclusions' => $conclusions,
-            ];
-        });
-
-        return Inertia::render('Projets/Index', [
-            'groupe' => $groupe->only('id', 'code', 'classe_id'),
-            'classe' => $classe->only('id', 'code', 'cours_id'),
-            'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
-            'projets' => $projets,
-            'estEnseignant' => $estEnseignant,
-        ]);
+        return Inertia::render('Projets/Index',
+            $projetRechercheIndexProps->pourGroupe($cours, $classe, $groupe, $user, $estEnseignant));
     }
 
     /**
@@ -120,7 +60,7 @@ class ProjetRechercheController extends Controller
      * @throws AuthorizationException
      */
     public function show(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet,
-        ProjetRechercheProps $props): Response
+        ProjetRechercheProps $projetRechercheProps): Response
     {
         $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
 
@@ -146,17 +86,20 @@ class ProjetRechercheController extends Controller
             return $this->renderMuseeShow($cours, $classe, $groupe, $typeProjet, $projet, $estEnseignant);
         }
 
-        return Inertia::render('Projets/Show', $props->pourEditeur($cours, $classe, $groupe, $typeProjet, $projet, $user, $estEnseignant));
+        return Inertia::render('Projets/Show',
+            $projetRechercheProps->pourEditeur($cours, $classe, $groupe, $typeProjet, $projet, $user, $estEnseignant));
     }
 
     /**
      * Affiche le projet en mode aperçu (lecture seule, sans annotations ni contrôles).
      *
      * Accessible aux membres du groupe et à l'enseignant du cours.
+     *
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function apercu(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetRechercheProps $props): Response
+    public function apercu(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet,
+        ProjetRechercheProps $projetRechercheProps): Response
     {
         $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
 
@@ -167,58 +110,8 @@ class ProjetRechercheController extends Controller
         $estEnseignant = $user->isEnseignant()
             && $cours->enseignant_id === $user->id;
 
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->where('type_projet_id', $typeProjet->id)
-            ->with(['typeProjet.sections', 'sectionContenus', 'sectionParagraphes', 'conclusions', 'entrevueConcepts.lignes', 'renvois'])
-            ->first();
-
-        $sections = $projet
-            ? collect($props->sections($projet, $groupe->membres))->map(fn (array $s) => [
-                'id' => $s['id'],
-                'label' => $s['label'],
-                'description' => $s['description'],
-                'ordre' => $s['ordre'],
-                'type' => $s['type'],
-                'contenu' => $s['type'] === 'texte'
-                    ? HtmlHelper::stripAnnotationMarks($s['contenu'])
-                    : null,
-                'paragraphes' => $s['type'] === 'paragraphes'
-                    ? collect($s['paragraphes'] ?? [])->map(fn (array $p) => [
-                        'id' => $p['id'],
-                        'ordre' => $p['ordre'],
-                        'titre' => $p['titre'],
-                        'contenu' => HtmlHelper::stripAnnotationMarks($p['contenu']),
-                    ])->values()->all()
-                    : null,
-                'conclusionsParMembre' => $s['type'] === 'individuel'
-                    ? collect($s['conclusionsParMembre'] ?? [])
-                        ->filter(fn (array $c) => trim(strip_tags((string) ($c['contenu'] ?? ''))) !== '')
-                        ->map(fn (array $c) => [
-                            'userId' => $c['userId'],
-                            'contenu' => HtmlHelper::stripAnnotationMarks($c['contenu']),
-                        ])->values()->all()
-                    : null,
-                // Les concepts d'entrevue sont passés tels quels dans l'aperçu (pas d'annotations HTML à nettoyer)
-                'concepts' => $s['type'] === 'entrevue' ? ($s['concepts'] ?? []) : null,
-            ])->values()
-            : collect();
-
-        return Inertia::render('Projets/Apercu', [
-            'groupe' => $groupe->only('id', 'numero', 'classe_id'),
-            'classe' => $classe->only('id', 'code', 'cours_id'),
-            'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
-            'typeProjet' => $typeProjet->only('id', 'nom'),
-            'thematiques' => $groupe->thematiques->map->only('id', 'nom'),
-            'membres' => $groupe->membres->map->only('id', 'prenom', 'nom')->values(),
-            'projet' => $projet
-                ? ['id' => $projet->id, 'titre_projet' => $projet->titre_projet]
-                : null,
-            'sections' => $sections,
-            'renvois' => $projet
-                ? $projet->renvois->map->only('id', 'numero', 'contenu')->values()
-                : collect(),
-            'estEnseignant' => $estEnseignant,
-        ]);
+        return Inertia::render('Projets/Apercu',
+            $projetRechercheProps->pourApercu($cours, $classe, $groupe, $typeProjet, $estEnseignant));
     }
 
     /**

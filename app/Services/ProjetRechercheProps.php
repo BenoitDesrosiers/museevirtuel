@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Helpers\HtmlHelper;
 use App\Models\Classe;
 use App\Models\ConsentementVideo;
 use App\Models\Cours;
@@ -24,7 +25,7 @@ use App\Models\User;
 use Illuminate\Support\Collection;
 
 /**
- * Construit les props Inertia de l'éditeur de projet de recherche.
+ * Construit les props Inertia de l'éditeur et de l'aperçu du projet de recherche.
  */
 class ProjetRechercheProps
 {
@@ -74,6 +75,94 @@ class ProjetRechercheProps
             'correctionsParCritere' => $this->correctionsParCritere($projet, $user, $estEnseignant),
             'cochesUtilisateur' => $estMembre ? $this->cochesUtilisateur($projet, $user) : [],
         ];
+    }
+
+    /**
+     * Retourne les props de la page Projets/Apercu (lecture seule, sans annotations ni contrôles).
+     *
+     * Le projet n'est jamais créé ici : s'il n'existe pas encore, l'aperçu est vide.
+     *
+     * @return array<string, mixed>
+     */
+    public function pourApercu(
+        Cours $cours, Classe $classe, Groupe $groupe,
+        TypeProjet $typeProjet, bool $estEnseignant): array
+    {
+        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->with(['typeProjet.sections', 'sectionContenus', 'sectionParagraphes', 'conclusions', 'entrevueConcepts.lignes', 'renvois'])
+            ->first();
+
+        return [
+            'groupe' => $groupe->only('id', 'numero', 'classe_id'),
+            'classe' => $classe->only('id', 'code', 'cours_id'),
+            'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
+            'typeProjet' => $typeProjet->only('id', 'nom'),
+            'thematiques' => $groupe->thematiques->map->only('id', 'nom'),
+            'membres' => $groupe->membres->map->only('id', 'prenom', 'nom')->values(),
+            'projet' => $projet ? ['id' => $projet->id, 'titre_projet' => $projet->titre_projet] : null,
+            'sections' => $projet
+                ? collect($this->sections($projet, $groupe->membres))->map(fn (array $s) => $this->sectionApercu($s))->values()
+                : collect(),
+            'renvois' => $projet ? $projet->renvois->map->only('id', 'numero', 'contenu')->values() : collect(),
+            'estEnseignant' => $estEnseignant,
+        ];
+    }
+
+    /**
+     * Réduit une section de l'éditeur à ce que l'aperçu affiche, sans les marques d'annotation.
+     *
+     * @param  array<string, mixed>  $s
+     * @return array<string, mixed>
+     */
+    private function sectionApercu(array $s): array
+    {
+        return [
+            'id' => $s['id'],
+            'label' => $s['label'],
+            'description' => $s['description'],
+            'ordre' => $s['ordre'],
+            'type' => $s['type'],
+            'contenu' => $s['type'] === 'texte' ? HtmlHelper::stripAnnotationMarks($s['contenu']) : null,
+            'paragraphes' => $s['type'] === 'paragraphes' ? $this->paragraphesApercu($s['paragraphes'] ?? []) : null,
+            'conclusionsParMembre' => $s['type'] === 'individuel'
+                ? $this->conclusionsApercu($s['conclusionsParMembre'] ?? [])
+                : null,
+            // Les concepts d'entrevue n'ont pas d'annotations HTML à nettoyer
+            'concepts' => $s['type'] === 'entrevue' ? ($s['concepts'] ?? []) : null,
+        ];
+    }
+
+    /**
+     * Retourne les paragraphes d'une section sans les marques d'annotation.
+     *
+     * @param  array<int, array<string, mixed>>  $paragraphes
+     * @return array<int, array<string, mixed>>
+     */
+    private function paragraphesApercu(array $paragraphes): array
+    {
+        return collect($paragraphes)->map(fn (array $p) => [
+            'id' => $p['id'],
+            'ordre' => $p['ordre'],
+            'titre' => $p['titre'],
+            'contenu' => HtmlHelper::stripAnnotationMarks($p['contenu']),
+        ])->values()->all();
+    }
+
+    /**
+     * Retourne les conclusions individuelles rédigées (les vides sont omises), sans marques d'annotation.
+     *
+     * @param  array<int, array<string, mixed>>  $conclusions
+     * @return array<int, array<string, mixed>>
+     */
+    private function conclusionsApercu(array $conclusions): array
+    {
+        return collect($conclusions)
+            ->filter(fn (array $c) => trim(strip_tags((string) ($c['contenu'] ?? ''))) !== '')
+            ->map(fn (array $c) => [
+                'userId' => $c['userId'],
+                'contenu' => HtmlHelper::stripAnnotationMarks($c['contenu']),
+            ])->values()->all();
     }
 
     /**
