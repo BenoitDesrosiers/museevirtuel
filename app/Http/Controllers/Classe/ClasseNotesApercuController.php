@@ -7,6 +7,7 @@ use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\TypeProjet;
 use App\Services\CalculNotesService;
+use App\Services\NotesAccumuleesClasse;
 use Illuminate\Auth\Access\AuthorizationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -30,7 +31,8 @@ class ClasseNotesApercuController extends Controller
     public function show(Cours $cours, Classe $classe, TypeProjet $typeProjet,
         CalculNotesService $notes): Response
     {
-        $this->autoriserEnseignantOuAdmin($cours, $classe);
+        abort_if($classe->cours_id !== $cours->id, 404);
+        $this->authorize('voirNotes', $classe);
 
         $typeProjet->load('criteres');
 
@@ -49,8 +51,7 @@ class ClasseNotesApercuController extends Controller
             foreach ($groupe->membres as $membre) {
                 $note = $projet !== null
                     ? $notes->pourcentage($typeProjet->criteres,
-                        $projet->critereCorrections, $projet->annotations, $membre->id)
-                    : null;
+                        $projet->critereCorrections, $projet->annotations, $membre->id) : null;
 
                 $lignes->push([
                     'da' => preg_replace('/\D/', '', (string) $membre->no_da),
@@ -71,109 +72,18 @@ class ClasseNotesApercuController extends Controller
 
     /**
      * Affiche la page d'aperçu des notes accumulées (pondérées) de toute la classe.
-     *
-     * Agrège les notes finales de chaque étudiant sur tous les TypeProjets ayant
-     * une pondération définie, et calcule le total pondéré : Σ(noteFinale × pondération / 100).
      * Accessible aux enseignants et admins uniquement.
      *
      * @throws AuthorizationException
      * @throws HttpException
      */
-    public function accumulees(Cours $cours, Classe $classe, CalculNotesService $notes): Response
-    {
-        $this->autoriserEnseignantOuAdmin($cours, $classe);
-
-        // TypeProjets sommatifs du cours ayant une pondération définie.
-        // Les projets non-sommatifs (is_sommatif = false) n'ont pas de poids sur la note finale.
-        $typesProjets = $cours->typesProjets()
-            ->where('is_sommatif', true)
-            ->whereNotNull('ponderation')
-            ->orderBy('nom')
-            ->with('criteres')
-            ->get();
-
-        $typeProjetIds = $typesProjets->pluck('id');
-
-        $classe->load([
-            'groupes.membres',
-            'groupes.projets' => fn ($q) => $q->whereIn('type_projet_id', $typeProjetIds),
-            'groupes.projets.critereCorrections',
-            'groupes.projets.annotations',
-        ]);
-
-        $lignes = collect();
-
-        foreach ($classe->groupes as $groupe) {
-            // Index des projets du groupe par type_projet_id pour accès O(1)
-            $projetParType = $groupe->projets->keyBy('type_projet_id');
-
-            foreach ($groupe->membres as $membre) {
-                $notesParType = [];
-                $total = 0.0;
-
-                foreach ($typesProjets as $tp) {
-                    $projet = $projetParType->get($tp->id);
-
-                    if ($projet === null) {
-                        $notesParType[$tp->id] = null;
-
-                        continue;
-                    }
-
-                    $note = $notes->pourcentage($tp->criteres, $projet->critereCorrections, $projet->annotations, $membre->id);
-                    $notesParType[$tp->id] = $note;
-
-                    if ($note !== null) {
-                        $total += $note * ((float) $tp->ponderation / 100);
-                    }
-                }
-
-                $lignes->push([
-                    'da' => preg_replace('/\D/', '', (string) $membre->no_da),
-                    'prenom' => $membre->prenom,
-                    'nom' => $membre->nom,
-                    'notes_par_type' => $notesParType,
-                    'total' => round($total, 2),
-                ]);
-            }
-        }
-
-        $somme = $typesProjets->sum('ponderation');
-
-        return Inertia::render('Classes/ApercuNotesAccumulees', [
-            'cours' => $cours->only('id', 'nom_cours'),
-            'classe' => ['id' => $classe->id, 'numero' => $classe->numero, 'nom' => $classe->nom],
-            'typesProjets' => $typesProjets->map(fn ($tp) => [
-                'id' => $tp->id,
-                'nom' => $tp->nom,
-                'ponderation' => (float) $tp->ponderation,
-            ])->values(),
-            'lignes' => $lignes->values(),
-            'sommePonderations' => (float) $somme,
-        ]);
-    }
-
-    /**
-     * Valide que la classe appartient au cours, que l'utilisateur a accès via la Policy,
-     * et qu'il est l'enseignant du cours ou un admin.
-     *
-     * Factorisé ici car ce triplet apparaît dans toutes les méthodes réservées
-     * aux enseignants (apercuNotesClasse, apercuNotesAccumulees, etc.).
-     *
-     * @throws AuthorizationException
-     * @throws HttpException
-     */
-    private function autoriserEnseignantOuAdmin(Cours $cours, Classe $classe): void
+    public function accumulees(Cours $cours, Classe $classe,
+        NotesAccumuleesClasse $notesAccumuleesClasse): Response
     {
         abort_if($classe->cours_id !== $cours->id, 404);
+        $this->authorize('voirNotes', $classe);
 
-        $classe->load('cours');
-        $this->authorize('view', $classe);
-
-        $user = auth()->user();
-        abort_unless(
-            $user->isAdmin() || ($user->isEnseignant() && $cours->enseignant_id === $user->id),
-            403,
-        );
+        return Inertia::render('Classes/ApercuNotesAccumulees',
+            $notesAccumuleesClasse->pourClasse($cours, $classe));
     }
 }

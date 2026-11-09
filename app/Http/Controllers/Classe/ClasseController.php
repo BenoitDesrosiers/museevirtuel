@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Classe\SaveClasseRequest;
 use App\Models\Classe;
 use App\Models\Cours;
-use App\Models\EcheancierEtudiantProgress;
+use App\Services\ClasseProps;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -23,7 +23,7 @@ class ClasseController extends Controller
      * @throws AuthorizationException
      * @throws HttpException
      */
-    public function show(Cours $cours, Classe $classe): Response
+    public function show(Cours $cours, Classe $classe, ClasseProps $classeProps): Response
     {
         abort_if($classe->cours_id !== $cours->id, 404);
 
@@ -38,72 +38,8 @@ class ClasseController extends Controller
         $estEnseignant = $user->isEnseignant()
             && $cours->enseignant_id === $user->id;
 
-        $classe->load([
-            'groupes.membres',
-            'groupes.thematiques',
-            'groupes.temoin',
-            'etudiants' => fn ($query) => $query->withPivot('statut_cours'),
-        ]);
-
-        // TypeProjets du cours — pour les boutons d'aperçu notes (enseignant seulement)
-        $typesProjets = $estEnseignant
-            ? $cours->typesProjets()->get(['id', 'nom', 'ponderation', 'is_sommatif'])
-            : collect();
-
-        // Échéancier, documents, objectifs et références — pour les étudiants uniquement
-        $echeancierEtapes = collect();
-        $documents = collect();
-        $objectifs = collect();
-        $references = collect();
-
-        if (! $estEnseignant) {
-            $etapes = $cours->echeancierEtapes()->get();
-            $progressions = EcheancierEtudiantProgress::whereIn('echeancier_etape_id', $etapes->pluck('id'))
-                ->where('user_id', $user->id)
-                ->pluck('is_done', 'echeancier_etape_id');
-
-            $echeancierEtapes = $etapes->map(fn ($etape) => [
-                'id' => $etape->id,
-                'semaine' => $etape->semaine,
-                'etape' => $etape->etape,
-                'is_done' => $etape->is_done,
-                'ordre' => $etape->ordre,
-                'etudiant_done' => (bool) ($progressions[$etape->id] ?? false),
-            ]);
-
-            $documents = $cours->documents()->get()->map(fn ($doc) => [
-                'id' => $doc->id,
-                'nom_original' => $doc->nom_original,
-                'url' => $doc->url,
-                'type' => $doc->type,
-                'taille' => $doc->taille,
-            ]);
-
-            $objectifs = $cours->objectifs()->orderBy('ordre')->get()->map(fn ($o) => [
-                'id' => $o->id,
-                'contenu' => $o->contenu,
-                'ordre' => $o->ordre,
-            ]);
-
-            $references = $cours->references()->get()->map(fn ($r) => [
-                'id' => $r->id,
-                'nom' => $r->nom,
-                'url' => $r->url,
-                'ordre' => $r->ordre,
-            ]);
-        }
-
-        return Inertia::render('Classes/Show', [
-            'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe'),
-            'classe' => $classe,
-            'utilisateurConnecteId' => $user->id,
-            'estEnseignant' => $estEnseignant,
-            'typesProjets' => $typesProjets,
-            'echeancierEtapes' => $echeancierEtapes,
-            'documents' => $documents,
-            'objectifs' => $objectifs,
-            'references' => $references,
-        ]);
+        return Inertia::render('Classes/Show',
+            $classeProps->pourShow($cours, $classe, $user, $estEnseignant));
     }
 
     /**
