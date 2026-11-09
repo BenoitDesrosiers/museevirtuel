@@ -284,7 +284,10 @@ test('un membre ne peut pas cibler un user_id hors de son groupe (422)', functio
             'user_id' => $horsGroupe->id,
             'contenu' => '<p>Tentative IDOR</p>',
         ])
-        ->assertUnprocessable();
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['user_id' => __('projet_conclusion.user_id.exists')]);
+
+    $this->assertDatabaseMissing('projet_conclusions', ['user_id' => $horsGroupe->id]);
 });
 
 // ─── Export ───────────────────────────────────────────────────────────────────

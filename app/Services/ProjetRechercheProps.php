@@ -22,13 +22,9 @@ use App\Models\TypeProjetSection;
 use App\Models\TypeProjetTache;
 use App\Models\User;
 use Illuminate\Support\Collection;
-use Inertia\Inertia;
 
 /**
  * Construit les props Inertia de l'éditeur de projet de recherche.
- *
- * Sorti du contrôleur pour que show() se limite à l'autorisation et au rendu,
- * et pour partager la construction des sections avec l'aperçu.
  */
 class ProjetRechercheProps
 {
@@ -40,171 +36,58 @@ class ProjetRechercheProps
      *
      * @return array<string, mixed>
      */
-    public function pourEditeur(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetRecherche $projet, User $user, bool $estEnseignant): array
+    public function pourEditeur(
+        Cours $cours, Classe $classe, Groupe $groupe,
+        TypeProjet $typeProjet, ProjetRecherche $projet,
+        User $user, bool $estEnseignant): array
     {
         // Précharger en une seule requête chacune des relations — évite le N+1
         $projet->load(['conclusions', 'commentaires', 'annotations', 'developpements', 'votes', 'typeProjet.sections.questionsBanque', 'typeProjet.sections.criteres', 'typeProjet.criteresGlobaux', 'typeProjet.taches', 'sectionContenus', 'sectionParagraphes', 'entrevueConcepts.lignes', 'sectionMedias', 'questionsChoisies', 'schemaVisuels', 'renvois.commentaires', 'critereCorrections']);
 
-        // État des tâches pour ce groupe — groupé par tache_id pour O(1) dans construireSections
-        $tacheIds = $typeProjet->taches()->pluck('id');
-        $groupeTachesParTache = $tacheIds->isNotEmpty()
-            ? GroupeTache::where('groupe_id', $groupe->id)
-                ->whereIn('tache_id', $tacheIds)
-                ->with('assigneA:id,prenom,nom')
-                ->get()
-                ->keyBy('tache_id')
-            : collect();
-
-        $conclusionsParMembre = $projet->conclusions->keyBy('user_id');
-
-        $conclusions = $groupe->membres->map(function (User $membre) use ($conclusionsParMembre): array {
-            $conclusion = $conclusionsParMembre->get($membre->id);
-
-            return [
-                'etudiant' => $membre->only('id', 'prenom', 'nom'),
-                'contenu' => $conclusion?->contenu,
-            ];
-        });
-
-        // Commentaires indexés par champ pour un accès O(1) côté Vue
-        $commentaires = $projet->commentaires->keyBy('champ')->map(fn (ProjetCommentaire $c) => [
-            'id' => $c->id,
-            'contenu' => $c->contenu,
-        ]);
-
-        // Pour les étudiants, masquer les annotations si correction_visible = false
-        $annotationsFiltrees = $estEnseignant
-            ? $projet->annotations
-            : $projet->annotations->when(! $projet->correction_visible, fn ($coll) => $coll->whereNull('id'));
-
-        // Annotations inline indexées par champ, triées par la position persistée en base.
-        $annotationsParChamp = $annotationsFiltrees
-            ->groupBy('champ')
-            ->map(function ($annotations) {
-                return $annotations
-                    ->sortBy(fn (ProjetAnnotation $a): int => $a->position ?? PHP_INT_MAX)
-                    ->map(fn (ProjetAnnotation $a) => [
-                        'id' => $a->id,
-                        'commentaire_id' => $a->commentaire_id,
-                        'contenu' => $a->contenu,
-                        'points_malus' => $a->points_malus !== null ? (float) $a->points_malus : null,
-                        'cible_user_id' => $a->cible_user_id,
-                        'annotation_type' => $a->annotation_type ?? 'commentaire',
-                        'user_id' => $a->user_id,
-                    ])
-                    ->values();
-            });
-
         $estMembre = ! $estEnseignant && $groupe->membres->contains('id', $user->id);
-
-        // Références personnelles de l'étudiant — alimentent l'onglet "Ma bibliothèque" du modal APA
-        $mesReferences = (! $estEnseignant && ! $user->isAdmin())
-            ? $user->etudiantReferences()->get()->map(fn ($r) => [
-                'id' => $r->id,
-                'titre' => $r->titre,
-                'auteurs' => $r->auteurs,
-                'annee' => $r->annee,
-                'type_source' => $r->type_source,
-                'url' => $r->url,
-                'doi' => $r->doi,
-                'publication' => $r->publication,
-            ])->values()
-            : collect();
 
         // Condition commune : membre + non verrouillé + remise encore possible
         $peutAgir = $estMembre && ! $projet->verrouille && $projet->peutEtreRemis();
 
-        // L'enseignant en mode édition peut modifier le contenu comme un membre
-        $peutEditer = $peutAgir || ($estEnseignant && (bool) $projet->mode_edition_enseignant);
-
-        // Corrections filtrées selon le rôle :
-        // - Enseignant : toutes les corrections
-        // - Étudiant : uniquement si correction_visible, et seulement ses corrections + groupe
-        $correctionsVisibles = $estEnseignant
-            ? $projet->critereCorrections
-            : ($projet->correction_visible
-                ? $projet->critereCorrections->filter(fn ($c) => $c->user_id === null || $c->user_id === $user->id)
-                : collect()
-            );
-
-        $correctionsParCritere = $correctionsVisibles
-            ->groupBy('critere_id')
-            ->map(fn ($corrs) => $corrs->map->only('id', 'user_id', 'points', 'commentaire', 'verifie', 'source_id')->values())
-            ->all();
-
-        // Critères globaux — les étudiants ne voient que les critères visibles
-        $criteresGlobaux = $typeProjet->criteresGlobaux
-            ->when(! $estEnseignant, fn ($col) => $col->where('visible', true))
-            ->map->only('id', 'type', 'contenu_type', 'pointage', 'contenu', 'echelle', 'visible', 'ordre')
-            ->values();
-
-        // Coches personnelles du membre courant (indicateur local, hors correction)
-        $cochesUtilisateur = $estMembre
-            ? ProjetCritereEtudiantCoche::where('projet_id', $projet->id)
-                ->where('user_id', $user->id)
-                ->pluck('critere_id')
-                ->values()
-                ->all()
-            : [];
-
         return [
-            'groupe' => $groupe,
-            'classe' => $classe->only('id', 'code', 'cours_id'),
-            'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe', 'type_cours'),
-            'enseignant' => $cours->enseignant->only('id', 'prenom', 'nom'),
-            'membres' => $groupe->membres->map->only('id', 'prenom', 'nom')->values(),
+            ...$this->contexte($cours, $classe, $groupe, $typeProjet),
+            ...$this->optionsTypeProjet($typeProjet),
+            ...$this->etatProjet($projet),
             'projet' => $projet,
-            'typeProjet' => $typeProjet->only('id', 'nom'),
-            'genererPageTitre' => (bool) $typeProjet->generer_page_titre,
-            'genererTableMatieres' => (bool) $typeProjet->generer_table_matieres,
-            'aideReference' => (bool) $typeProjet->aide_reference,
-            'hasIntroduction' => (bool) $typeProjet->has_introduction,
-            'hasConclusionIndividuelle' => (bool) $typeProjet->has_conclusion_individuelle,
-            'pageTitreContenu' => $projet->page_titre_contenu,
-            'tableMatieresContenu' => $projet->table_matieres_contenu,
             'developpements' => $projet->developpements->map->only('id', 'ordre', 'titre', 'contenu')->values(),
-            'conclusions' => $conclusions,
-            'peutEditer' => $peutEditer,
+            'conclusions' => $this->conclusions($projet, $groupe),
+            // L'enseignant en mode édition peut modifier le contenu comme un membre
+            'peutEditer' => $peutAgir || ($estEnseignant && (bool) $projet->mode_edition_enseignant),
             'estEnseignant' => $estEnseignant,
-            'correctionVisible' => (bool) $projet->correction_visible,
-            'verrouille' => (bool) $projet->verrouille,
-            'modeEditionEnseignant' => (bool) $projet->mode_edition_enseignant,
-            'dateRemise' => $typeProjet->date_remise?->toIso8601String(),
-            'remisLe' => $projet->remis_le?->toIso8601String(),
-            'remisesMultiples' => (bool) $typeProjet->remises_multiples,
             'peutRemettre' => $peutAgir,
-            'commentaires' => $commentaires,
-            'annotationsParChamp' => $annotationsParChamp,
+            'commentaires' => $this->commentaires($projet),
+            'annotationsParChamp' => $this->annotationsParChamp($projet, $estEnseignant),
             'votes' => $projet->votes->map(fn (ProjetVoteRemise $v) => [
                 'user_id' => $v->user_id,
                 'vote' => (bool) $v->vote,
             ])->values(),
-            'retardPermis' => (bool) $typeProjet->retard_permis,
-            'sections' => $this->sections($projet, $groupe->membres, $groupeTachesParTache, $estEnseignant),
-            'renvois' => $projet->renvois->map(function (ProjetRenvoi $r) use ($estEnseignant, $projet) {
-                $data = $r->only('id', 'numero', 'contenu', 'type_reference', 'champs_reference');
-                $data['commentaires'] = ($estEnseignant || $projet->correction_visible)
-                    ? $r->commentaires->map->only('id', 'contenu', 'user_id')->values()
-                    : collect();
-
-                return $data;
-            })->values(),
+            'sections' => $this->sections($projet, $groupe->membres, $this->tachesDuGroupe($typeProjet, $groupe), $estEnseignant),
+            'renvois' => $this->renvois($projet, $estEnseignant),
             'consentement' => $this->consentement($projet->id, $user->id),
-            'mesReferences' => $mesReferences,
-            'criteresGlobaux' => $criteresGlobaux,
-            'correctionsParCritere' => $correctionsParCritere,
-            'cochesUtilisateur' => $cochesUtilisateur,
+            'mesReferences' => $this->mesReferences($user, $estEnseignant),
+            'criteresGlobaux' => $this->criteresVisibles($typeProjet->criteresGlobaux, $estEnseignant),
+            'correctionsParCritere' => $this->correctionsParCritere($projet, $user, $estEnseignant),
+            'cochesUtilisateur' => $estMembre ? $this->cochesUtilisateur($projet, $user) : [],
         ];
     }
 
     /**
      * Construit le tableau des sections dynamiques avec leur contenu courant.
      *
+     * Chaque section expose toutes les clés de contenu ; seules celles de son type sont remplies.
+     *
      * @param  Collection|null  $membres  membres du groupe (requis pour le type 'individuel')
      * @param  Collection|null  $groupeTachesParTache  état des tâches du groupe, indexé par tache_id
      * @return array<int, array<string, mixed>>
      */
-    public function sections(ProjetRecherche $projet, ?Collection $membres = null, ?Collection $groupeTachesParTache = null, bool $estEnseignant = true): array
+    public function sections(
+        ProjetRecherche $projet, ?Collection $membres = null,
+        ?Collection $groupeTachesParTache = null, bool $estEnseignant = true): array
     {
         $sections = $projet->typeProjet?->sections ?? collect();
 
@@ -212,37 +95,7 @@ class ProjetRechercheProps
             return [];
         }
 
-        // Médias de section (vidéo/audio) — groupés par section_id si déjà chargés
-        $mediasParSection = $projet->relationLoaded('sectionMedias')
-            ? $projet->sectionMedias->groupBy('section_id')
-            : collect();
-
-        $contenusParSection = $projet->sectionContenus->keyBy('section_id');
-
-        $paragraphesParSection = $projet->relationLoaded('sectionParagraphes')
-            ? $projet->sectionParagraphes->groupBy('section_id')
-            : collect();
-
-        // Conclusions scoped à une section (section_id non null)
-        $conclusionsParSectionEtUser = $projet->conclusions
-            ->filter(fn (ProjetConclusion $c) => $c->section_id !== null)
-            ->groupBy('section_id')
-            ->map(fn ($conc) => $conc->keyBy('user_id'));
-
-        // Concepts d'entrevue groupés par section
-        $conceptsParSection = $projet->relationLoaded('entrevueConcepts')
-            ? $projet->entrevueConcepts->groupBy('section_id')
-            : collect();
-
-        // Questions choisies par ce projet, groupées par section_id — pour les sections choix_questions
-        $questionsChoisiesParSection = $projet->relationLoaded('questionsChoisies')
-            ? $projet->questionsChoisies->groupBy('section_id')
-            : collect();
-
-        // Schémas visuels par section_id — pour les sections schema_visuel
-        $schemaVisuelsParSection = $projet->relationLoaded('schemaVisuels')
-            ? $projet->schemaVisuels->keyBy('section_id')
-            : collect();
+        $index = $this->indexerContenus($projet);
 
         return $sections->map(fn (TypeProjetSection $s) => [
             'id' => $s->id,
@@ -250,63 +103,347 @@ class ProjetRechercheProps
             'description' => $s->description,
             'ordre' => $s->ordre,
             'type' => $s->type ?? 'texte',
-            'contenu' => ($s->type === null || $s->type === 'texte')
-                ? $contenusParSection->get($s->id)?->contenu
-                : null,
-            'paragraphes' => $s->type === 'paragraphes'
-                ? ($paragraphesParSection->get($s->id)?->map->only('id', 'ordre', 'titre', 'contenu')->values()->all() ?? [])
-                : null,
-            'conclusionsParMembre' => $s->type === 'individuel' && $membres !== null
-                ? $membres->map(fn (User $m) => [
-                    'userId' => $m->id,
-                    'contenu' => $conclusionsParSectionEtUser->get($s->id)?->get($m->id)?->contenu,
-                ])->values()->all()
-                : null,
-            'concepts' => $s->type === 'entrevue'
-                ? ($conceptsParSection->get($s->id)?->map(fn (EntrevueConcept $c) => [
-                    'id' => $c->id,
-                    'label' => $c->label,
-                    'ordre' => $c->ordre,
-                    'lignes' => $c->lignes->map->only('id', 'ordre', 'dimension', 'indicateur', 'questions')->values()->all(),
-                ])->values()->all() ?? [])
-                : null,
-            'medias' => in_array($s->type, ['video', 'audio'])
-                ? ($mediasParSection->get($s->id)?->map(fn (ProjetSectionMedia $m) => [
-                    'id' => $m->id,
-                    'source_type' => $m->source_type,
-                    'url' => $m->url,
-                    'nom_original' => $m->nom_original,
-                    'url_publique' => $m->url_publique,
-                ])->values()->all() ?? [])
-                : null,
-            'taches' => $s->type === 'tache'
-                ? ($projet->typeProjet?->taches->map(fn (TypeProjetTache $t) => [
-                    'id' => $t->id,
-                    'titre' => $t->titre,
-                    'description' => $t->description,
-                    'ordre' => $t->ordre,
-                    'assigne_a' => $groupeTachesParTache?->get($t->id)?->assigneA?->only('id', 'prenom', 'nom'),
-                    'completed_at' => $groupeTachesParTache?->get($t->id)?->completed_at?->toIso8601String(),
-                ])->values()->all() ?? [])
-                : null,
-            'questions' => $s->type === 'choix_questions'
-                ? $s->questionsBanque->map->only('id', 'contenu', 'ordre')->values()->all()
-                : null,
-            'questionsChoisies' => $s->type === 'choix_questions'
-                ? $questionsChoisiesParSection->get($s->id)?->pluck('question_banque_id')->values()->all() ?? []
-                : null,
-            'schemaVisuel' => $s->type === 'schema_visuel'
-                ? ($schemaVisuelsParSection->get($s->id)?->contenu ?? ProjetSchemaVisuel::contenuVide())
-                : null,
+            'contenu' => null,
+            'paragraphes' => null,
+            'conclusionsParMembre' => null,
+            'concepts' => null,
+            'medias' => null,
+            'taches' => null,
+            'questions' => null,
+            'questionsChoisies' => null,
+            'schemaVisuel' => null,
+            ...$this->contenuParType($s, $projet, $index, $membres, $groupeTachesParTache),
             'criteres' => $s->relationLoaded('criteres')
-                ? $s->criteres
-                    ->when(! $estEnseignant, fn ($col) => $col->where('visible', true))
-                    ->map->only('id', 'type', 'contenu_type', 'pointage', 'contenu', 'echelle', 'visible', 'ordre')
-                    ->values()
-                    ->all()
+                ? $this->criteresVisibles($s->criteres, $estEnseignant)->all()
                 : [],
             'pointage' => $s->pointage !== null ? (float) $s->pointage : null,
         ])->values()->all();
+    }
+
+    /**
+     * Retourne le contexte de navigation de la page (cours, classe, groupe, membres).
+     *
+     * @return array<string, mixed>
+     */
+    private function contexte(
+        Cours $cours, Classe $classe,
+        Groupe $groupe, TypeProjet $typeProjet): array
+    {
+        return [
+            'groupe' => $groupe,
+            'classe' => $classe->only('id', 'code', 'cours_id'),
+            'cours' => $cours->only('id', 'nom_cours', 'code', 'groupe', 'type_cours'),
+            'enseignant' => $cours->enseignant->only('id', 'prenom', 'nom'),
+            'membres' => $groupe->membres->map->only('id', 'prenom', 'nom')->values(),
+            'typeProjet' => $typeProjet->only('id', 'nom'),
+        ];
+    }
+
+    /**
+     * Retourne les réglages du type de projet qui pilotent l'éditeur et la remise.
+     *
+     * @return array<string, mixed>
+     */
+    private function optionsTypeProjet(TypeProjet $typeProjet): array
+    {
+        return [
+            'genererPageTitre' => (bool) $typeProjet->generer_page_titre,
+            'genererTableMatieres' => (bool) $typeProjet->generer_table_matieres,
+            'aideReference' => (bool) $typeProjet->aide_reference,
+            'hasIntroduction' => (bool) $typeProjet->has_introduction,
+            'hasConclusionIndividuelle' => (bool) $typeProjet->has_conclusion_individuelle,
+            'dateRemise' => $typeProjet->date_remise?->toIso8601String(),
+            'remisesMultiples' => (bool) $typeProjet->remises_multiples,
+            'retardPermis' => (bool) $typeProjet->retard_permis,
+        ];
+    }
+
+    /**
+     * Retourne l'état courant du projet (verrou, correction, remise, pages générées).
+     *
+     * @return array<string, mixed>
+     */
+    private function etatProjet(ProjetRecherche $projet): array
+    {
+        return [
+            'pageTitreContenu' => $projet->page_titre_contenu,
+            'tableMatieresContenu' => $projet->table_matieres_contenu,
+            'correctionVisible' => (bool) $projet->correction_visible,
+            'verrouille' => (bool) $projet->verrouille,
+            'modeEditionEnseignant' => (bool) $projet->mode_edition_enseignant,
+            'remisLe' => $projet->remis_le?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Retourne l'état des tâches du groupe, indexé par tache_id pour un accès O(1) dans sections().
+     */
+    private function tachesDuGroupe(TypeProjet $typeProjet, Groupe $groupe): Collection
+    {
+        $tacheIds = $typeProjet->taches()->pluck('id');
+
+        if ($tacheIds->isEmpty()) {
+            return collect();
+        }
+
+        return GroupeTache::where('groupe_id', $groupe->id)
+            ->whereIn('tache_id', $tacheIds)
+            ->with('assigneA:id,prenom,nom')
+            ->get()
+            ->keyBy('tache_id');
+    }
+
+    /**
+     * Retourne la conclusion générale (hors section) de chaque membre du groupe.
+     */
+    private function conclusions(ProjetRecherche $projet, Groupe $groupe): Collection
+    {
+        $conclusionsParMembre = $projet->conclusions->keyBy('user_id');
+
+        return $groupe->membres->map(fn (User $membre): array => [
+            'etudiant' => $membre->only('id', 'prenom', 'nom'),
+            'contenu' => $conclusionsParMembre->get($membre->id)?->contenu,
+        ]);
+    }
+
+    /**
+     * Retourne les commentaires indexés par champ pour un accès O(1) côté Vue.
+     */
+    private function commentaires(ProjetRecherche $projet): Collection
+    {
+        return $projet->commentaires->keyBy('champ')->map(fn (ProjetCommentaire $c) => [
+            'id' => $c->id,
+            'contenu' => $c->contenu,
+        ]);
+    }
+
+    /**
+     * Retourne les annotations inline indexées par champ, triées par leur position persistée.
+     *
+     * Les étudiants ne voient aucune annotation tant que la correction n'est pas visible.
+     */
+    private function annotationsParChamp(ProjetRecherche $projet, bool $estEnseignant): Collection
+    {
+        $annotations = $estEnseignant
+            ? $projet->annotations
+            : $projet->annotations->when(! $projet->correction_visible, fn ($coll) => $coll->whereNull('id'));
+
+        return $annotations
+            ->groupBy('champ')
+            ->map(fn (Collection $parChamp) => $parChamp
+                ->sortBy(fn (ProjetAnnotation $a): int => $a->position ?? PHP_INT_MAX)
+                ->map(fn (ProjetAnnotation $a) => [
+                    'id' => $a->id,
+                    'commentaire_id' => $a->commentaire_id,
+                    'contenu' => $a->contenu,
+                    'points_malus' => $a->points_malus !== null ? (float) $a->points_malus : null,
+                    'cible_user_id' => $a->cible_user_id,
+                    'annotation_type' => $a->annotation_type ?? 'commentaire',
+                    'user_id' => $a->user_id,
+                ])
+                ->values());
+    }
+
+    /**
+     * Retourne les renvois du projet ; leurs commentaires restent masqués aux étudiants
+     * tant que la correction n'est pas visible.
+     */
+    private function renvois(ProjetRecherche $projet, bool $estEnseignant): Collection
+    {
+        return $projet->renvois->map(function (ProjetRenvoi $r) use ($estEnseignant, $projet) {
+            $data = $r->only('id', 'numero', 'contenu', 'type_reference', 'champs_reference');
+            $data['commentaires'] = ($estEnseignant || $projet->correction_visible)
+                ? $r->commentaires->map->only('id', 'contenu', 'user_id')->values()
+                : collect();
+
+            return $data;
+        })->values();
+    }
+
+    /**
+     * Retourne les références personnelles de l'étudiant, qui alimentent l'onglet
+     */
+    private function mesReferences(User $user, bool $estEnseignant): Collection
+    {
+        if ($estEnseignant || $user->isAdmin()) {
+            return collect();
+        }
+
+        return $user->etudiantReferences()->get()->map(fn ($r) => [
+            'id' => $r->id,
+            'titre' => $r->titre,
+            'auteurs' => $r->auteurs,
+            'annee' => $r->annee,
+            'type_source' => $r->type_source,
+            'url' => $r->url,
+            'doi' => $r->doi,
+            'publication' => $r->publication,
+        ])->values();
+    }
+
+    /**
+     * Retourne les critères affichables : les étudiants ne voient que les critères visibles.
+     */
+    private function criteresVisibles(Collection $criteres, bool $estEnseignant): Collection
+    {
+        return $criteres
+            ->when(! $estEnseignant, fn ($col) => $col->where('visible', true))
+            ->map->only('id', 'type', 'contenu_type', 'pointage', 'contenu', 'echelle', 'visible', 'ordre')
+            ->values();
+    }
+
+    /**
+     * Retourne les corrections groupées par critère selon le rôle.
+     *
+     * L'enseignant voit tout ; l'étudiant ne voit, une fois la correction visible,
+     * que les corrections de groupe et les siennes.
+     *
+     * @return array<int, Collection>
+     */
+    private function correctionsParCritere(ProjetRecherche $projet, User $user, bool $estEnseignant): array
+    {
+        $corrections = match (true) {
+            $estEnseignant => $projet->critereCorrections,
+            (bool) $projet->correction_visible => $projet->critereCorrections
+                ->filter(fn ($c) => $c->user_id === null || $c->user_id === $user->id),
+            default => collect(),
+        };
+
+        return $corrections
+            ->groupBy('critere_id')
+            ->map(fn ($corrs) => $corrs->map->only('id', 'user_id', 'points', 'commentaire', 'verifie', 'source_id')->values())
+            ->all();
+    }
+
+    /**
+     * Retourne les critères cochés par le membre courant (indicateur local, hors correction).
+     *
+     * @return list<int>
+     */
+    private function cochesUtilisateur(ProjetRecherche $projet, User $user): array
+    {
+        return ProjetCritereEtudiantCoche::where('projet_id', $projet->id)
+            ->where('user_id', $user->id)
+            ->pluck('critere_id')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Indexe par section les contenus déjà chargés du projet.
+     *
+     * Une relation non chargée donne un index vide plutôt qu'une requête par section.
+     *
+     * @return array{contenus: Collection, paragraphes: Collection, conclusions: Collection, concepts: Collection, medias: Collection, questionsChoisies: Collection, schemas: Collection}
+     */
+    private function indexerContenus(ProjetRecherche $projet): array
+    {
+        $grouper = fn (string $relation) => $projet->relationLoaded($relation)
+            ? $projet->{$relation}->groupBy('section_id')
+            : collect();
+
+        return [
+            'contenus' => $projet->sectionContenus->keyBy('section_id'),
+            'paragraphes' => $grouper('sectionParagraphes'),
+            'conclusions' => $projet->conclusions
+                ->filter(fn (ProjetConclusion $c) => $c->section_id !== null)
+                ->groupBy('section_id')
+                ->map(fn ($conc) => $conc->keyBy('user_id')),
+            'concepts' => $grouper('entrevueConcepts'),
+            'medias' => $grouper('sectionMedias'),
+            'questionsChoisies' => $grouper('questionsChoisies'),
+            'schemas' => $projet->relationLoaded('schemaVisuels')
+                ? $projet->schemaVisuels->keyBy('section_id')
+                : collect(),
+        ];
+    }
+
+    /**
+     * Retourne les clés de contenu propres au type de la section.
+     *
+     * @param  array<string, Collection>  $index  résultat de indexerContenus()
+     * @return array<string, mixed>
+     */
+    private function contenuParType(
+        TypeProjetSection $s, ProjetRecherche $projet, array $index,
+        ?Collection $membres, ?Collection $groupeTachesParTache): array
+    {
+        return match ($s->type ?? 'texte') {
+            'texte' => ['contenu' => $index['contenus']->get($s->id)?->contenu],
+            'paragraphes' => [
+                'paragraphes' => $index['paragraphes']->get($s->id)?->map->only('id', 'ordre', 'titre',
+                    'contenu')->values()->all() ?? [],
+            ],
+            'individuel' => $membres === null ? [] : [
+                'conclusionsParMembre' => $membres->map(fn (User $m) => [
+                    'userId' => $m->id,
+                    'contenu' => $index['conclusions']->get($s->id)?->get($m->id)?->contenu,
+                ])->values()->all(),
+            ],
+            'entrevue' => ['concepts' => $this->concepts($index['concepts']->get($s->id))],
+            'video', 'audio' => ['medias' => $this->medias($index['medias']->get($s->id))],
+            'tache' => ['taches' => $this->taches($projet, $groupeTachesParTache)],
+            'choix_questions' => [
+                'questions' => $s->questionsBanque->map->only('id', 'contenu', 'ordre')
+                    ->values()->all(),
+                'questionsChoisies' => $index['questionsChoisies']->get($s->id)?->pluck(
+                    'question_banque_id')->values()->all() ?? [],
+            ],
+            'schema_visuel' => [
+                'schemaVisuel' => $index['schemas']->get($s->id)?->contenu ??
+                    ProjetSchemaVisuel::contenuVide(),
+            ],
+            default => [],
+        };
+    }
+
+    /**
+     * Retourne les concepts d'une section d'entrevue avec leurs lignes.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function concepts(?Collection $concepts): array
+    {
+        return $concepts?->map(fn (EntrevueConcept $c) => [
+            'id' => $c->id,
+            'label' => $c->label,
+            'ordre' => $c->ordre,
+            'lignes' => $c->lignes->map->only('id', 'ordre', 'dimension', 'indicateur',
+                'questions')->values()->all(),
+        ])->values()->all() ?? [];
+    }
+
+    /**
+     * Retourne les médias (vidéo/audio) d'une section.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function medias(?Collection $medias): array
+    {
+        return $medias?->map(fn (ProjetSectionMedia $m) => [
+            'id' => $m->id,
+            'source_type' => $m->source_type,
+            'url' => $m->url,
+            'nom_original' => $m->nom_original,
+            'url_publique' => $m->url_publique,
+        ])->values()->all() ?? [];
+    }
+
+    /**
+     * Retourne les tâches du type de projet avec leur état (assignation, complétion) pour le groupe.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function taches(ProjetRecherche $projet, ?Collection $groupeTachesParTache): array
+    {
+        return $projet->typeProjet?->taches->map(fn (TypeProjetTache $t) => [
+            'id' => $t->id,
+            'titre' => $t->titre,
+            'description' => $t->description,
+            'ordre' => $t->ordre,
+            'assigne_a' => $groupeTachesParTache?->get($t->id)?->assigneA?->only('id', 'prenom', 'nom'),
+            'completed_at' => $groupeTachesParTache?->get($t->id)?->completed_at?->toIso8601String(),
+        ])->values()->all() ?? [];
     }
 
     /**

@@ -366,7 +366,7 @@
     "projet_conclusion.contenu.string": "Le contenu de la conclusion doit être un texte.",
     "projet_conclusion.section_id.exists": "La section sélectionnée n'appartient pas à ce type de projet.",
     "projet_conclusion.section_id.integer": "L'identifiant de la section doit être un nombre entier.",
-    "projet_conclusion.user_id.exists": "L'étudiant sélectionné n'existe pas.",
+    "projet_conclusion.user_id.exists": "Cet étudiant n'est pas membre du groupe.",
     "projet_conclusion.user_id.integer": "L'identifiant de l'étudiant doit être un nombre entier.",
     "projet_conclusion.user_id.required": "L'étudiant est obligatoire.",
     "projet_critere_correction.commentaire.max": "Le commentaire ne peut pas dépasser :max caractères.",

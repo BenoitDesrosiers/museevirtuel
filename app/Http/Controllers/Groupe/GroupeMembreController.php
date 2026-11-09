@@ -28,7 +28,8 @@ class GroupeMembreController extends Controller
      * @throws AuthorizationException
      * @throws ValidationException si la composition du groupe est invalide
      */
-    public function update(UpdateGroupeMembreRequest $request, Cours $cours, Classe $classe, Groupe $groupe, GroupeService $groupeService): RedirectResponse
+    public function update(UpdateGroupeMembreRequest $request, Cours $cours, Classe $classe,
+        Groupe $groupe, GroupeService $groupeService): RedirectResponse
     {
         $this->verifierChaine($cours, $classe, $groupe);
         $groupe->load('classe.cours');

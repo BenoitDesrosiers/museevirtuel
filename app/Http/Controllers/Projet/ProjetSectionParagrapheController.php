@@ -42,11 +42,13 @@ class ProjetSectionParagrapheController extends Controller
         $this->verifierChaineSection($cours, $classe, $groupe, $typeProjet, $section);
         $this->authorize('acceder', [ProjetRecherche::class, $groupe]);
 
-        $projet = ProjetRecherche::firstOrCreate([
+        // Projet préparé en mémoire : une requête refusée ne doit pas le créer en base
+        $projet = ProjetRecherche::firstOrNew([
             'groupe_id' => $groupe->id,
             'type_projet_id' => $typeProjet->id,
         ]);
         $this->authorize('editerContenu', $projet);
+        $projet->save();
 
         $paragraphe = $paragraphesProjetService->ajouter($this->portee($projet, $section), ['section_id' => $section->id]);
 

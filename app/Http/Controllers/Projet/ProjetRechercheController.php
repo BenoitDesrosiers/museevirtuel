@@ -116,14 +116,11 @@ class ProjetRechercheController extends Controller
     /**
      * Affiche le projet partagé avec l'éditeur de contenu et les conclusions individuelles.
      *
-     * Crée le projet s'il n'existe pas encore (premier accès à l'éditeur).
-     * Utilise un eager load des conclusions, commentaires et notes pour éviter le N+1.
-     * Filtre les annotations de type "correction" pour les étudiants si correction_visible = false.
-     *
      * @throws HttpException
      * @throws AuthorizationException
      */
-    public function show(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet, ProjetRechercheProps $props): Response
+    public function show(Cours $cours, Classe $classe, Groupe $groupe, TypeProjet $typeProjet,
+        ProjetRechercheProps $props): Response
     {
         $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
 
@@ -140,15 +137,11 @@ class ProjetRechercheController extends Controller
             abort_if(! $typeProjet->accessible, 403, __('projet.type_inaccessible'));
         }
 
-        // Exception assumée à pas d'écriture sur un GET : ouvrir l'éditeur
-        // crée le projet partagé s'il n'existe pas encore, car la page en a besoin pour
-        // s'afficher.
         $projet = ProjetRecherche::firstOrCreate([
             'groupe_id' => $groupe->id,
             'type_projet_id' => $typeProjet->id,
         ]);
 
-        // Les projets musée ont leur propre éditeur — on les rend séparément
         if ($typeProjet->isMusee()) {
             return $this->renderMuseeShow($cours, $classe, $groupe, $typeProjet, $projet, $estEnseignant);
         }
@@ -160,8 +153,6 @@ class ProjetRechercheController extends Controller
      * Affiche le projet en mode aperçu (lecture seule, sans annotations ni contrôles).
      *
      * Accessible aux membres du groupe et à l'enseignant du cours.
-     * Rend les sections dynamiques des 3 types (texte, paragraphes, individuel).
-     *
      * @throws HttpException
      * @throws AuthorizationException
      */

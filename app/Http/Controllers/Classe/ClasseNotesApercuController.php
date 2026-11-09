@@ -27,11 +27,11 @@ class ClasseNotesApercuController extends Controller
      * @throws AuthorizationException
      * @throws HttpException
      */
-    public function show(Cours $cours, Classe $classe, TypeProjet $typeProjet, CalculNotesService $notes): Response
+    public function show(Cours $cours, Classe $classe, TypeProjet $typeProjet,
+        CalculNotesService $notes): Response
     {
         $this->autoriserEnseignantOuAdmin($cours, $classe);
 
-        // Charger les critères du TypeProjet pour le calcul des notes
         $typeProjet->load('criteres');
 
         $classe->load([
@@ -44,7 +44,6 @@ class ClasseNotesApercuController extends Controller
         $lignes = collect();
 
         foreach ($classe->groupes as $groupe) {
-            // Un groupe a au plus un projet par TypeProjet
             $projet = $groupe->projets->first();
 
             foreach ($groupe->membres as $membre) {

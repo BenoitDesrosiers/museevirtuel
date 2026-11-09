@@ -366,7 +366,7 @@
     "projet_conclusion.contenu.string": "The conclusion content must be text.",
     "projet_conclusion.section_id.exists": "The selected section does not belong to this project type.",
     "projet_conclusion.section_id.integer": "The section identifier must be an integer.",
-    "projet_conclusion.user_id.exists": "The selected student does not exist.",
+    "projet_conclusion.user_id.exists": "This student is not a member of the group.",
     "projet_conclusion.user_id.integer": "The student identifier must be an integer.",
     "projet_conclusion.user_id.required": "The student is required.",
     "projet_critere_correction.commentaire.max": "The comment may not exceed :max characters.",

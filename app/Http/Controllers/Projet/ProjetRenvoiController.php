@@ -39,11 +39,12 @@ class ProjetRenvoiController extends Controller
 
         $this->authorize('acceder', [ProjetRecherche::class, $groupe]);
 
-        $projet = ProjetRecherche::firstOrCreate([
+        $projet = ProjetRecherche::firstOrNew([
             'groupe_id' => $groupe->id,
             'type_projet_id' => $typeProjet->id,
         ]);
         $this->authorize('editerContenu', $projet);
+        $projet->save();
 
         $validated = $request->validated();
 

@@ -158,6 +158,30 @@ it('un non-membre est bloqué lors de la mise à jour', function () {
         ->assertForbidden();
 });
 
+it('un refus d\'édition ne crée pas de projet', function () {
+    ['enseignant' => $enseignant, 'projet' => $projet, 'baseUrl' => $url] = creerScenarioRenvoi();
+    $projet->delete();
+
+    // L'enseignant accède au projet mais ne peut pas écrire hors du mode édition
+    $this->actingAs($enseignant)
+        ->postJson("{$url}/renvois", ['contenu' => 'Tentative.'])
+        ->assertForbidden();
+
+    $this->assertDatabaseMissing('projets_recherche', ['groupe_id' => $projet->groupe_id, 'type_projet_id' => $projet->type_projet_id]);
+});
+
+it('un membre crée le projet s\'il n\'existe pas encore', function () {
+    ['etudiant1' => $etudiant, 'projet' => $projet, 'baseUrl' => $url] = creerScenarioRenvoi();
+    $projet->delete();
+
+    $this->actingAs($etudiant)
+        ->postJson("{$url}/renvois", ['contenu' => 'Première source.'])
+        ->assertCreated()
+        ->assertJsonPath('renvoi.numero', 1);
+
+    $this->assertDatabaseHas('projets_recherche', ['groupe_id' => $projet->groupe_id, 'type_projet_id' => $projet->type_projet_id]);
+});
+
 // ─── Numérotation par projet ──────────────────────────────────────────────────
 
 it('le numéro repart de 1 pour un nouveau projet', function () {

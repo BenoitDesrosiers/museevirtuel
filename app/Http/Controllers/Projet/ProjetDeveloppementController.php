@@ -39,11 +39,13 @@ class ProjetDeveloppementController extends Controller
         $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
         $this->authorize('acceder', [ProjetRecherche::class, $groupe]);
 
-        $projet = ProjetRecherche::firstOrCreate([
+        // Projet préparé en mémoire : une requête refusée ne doit pas le créer en base
+        $projet = ProjetRecherche::firstOrNew([
             'groupe_id' => $groupe->id,
             'type_projet_id' => $typeProjet->id,
         ]);
         $this->authorize('editerContenu', $projet);
+        $projet->save();
 
         $developpement = $paragraphesProjetService->ajouter($projet->developpements());
 

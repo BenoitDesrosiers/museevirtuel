@@ -119,6 +119,17 @@ test('un non-membre refusé ne crée pas de projet au passage', function () {
     expect(ProjetRecherche::count())->toBe(0);
 });
 
+test('un membre crée le projet en ajoutant un concept s\'il n\'existe pas encore', function () {
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
+    $projet->delete();
+
+    $this->actingAs($etudiant)
+        ->postJson(urlConcepts($cours, $cs, $classe, $typeProjet, $section), ['label' => 'Premier concept'])
+        ->assertCreated();
+
+    expect(ProjetRecherche::count())->toBe(1);
+});
+
 test("l'enseignant du cours, même en mode édition, ne peut pas écrire dans la grille d'entrevue (403)", function () {
     ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'section' => $section, 'projet' => $projet] = creerScenarioEntrevue();
     $projet->update(['mode_edition_enseignant' => true]);

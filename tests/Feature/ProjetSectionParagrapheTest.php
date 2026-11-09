@@ -112,6 +112,29 @@ test('un non-membre ne peut pas créer un paragraphe (403)', function () {
         ->assertForbidden();
 });
 
+test('un refus d\'édition ne crée pas de projet', function () {
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
+    $projet->delete();
+
+    // L'enseignant accède au projet mais ne peut pas écrire hors du mode édition
+    $this->actingAs($enseignant)
+        ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes")
+        ->assertForbidden();
+
+    $this->assertDatabaseMissing('projets_recherche', ['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
+});
+
+test('un membre crée le projet s\'il n\'existe pas encore', function () {
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
+    $projet->delete();
+
+    $this->actingAs($etudiant)
+        ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes")
+        ->assertCreated();
+
+    $this->assertDatabaseHas('projets_recherche', ['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
+});
+
 test('une section d\'un autre TypeProjet retourne 404', function () {
     ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet] = creerScenarioParagraphe();
 
@@ -336,6 +359,35 @@ test('un membre peut sauvegarder une conclusion liée à une section', function 
         'section_id' => $section->id,
         'contenu' => '<p>Ma conclusion</p>',
     ]);
+});
+
+test('un refus d\'édition de la conclusion ne crée pas de projet', function () {
+    ['enseignant' => $enseignant, 'etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet] = creerScenarioParagraphe();
+    $projet->delete();
+
+    // L'enseignant accède au projet mais ne peut pas écrire hors du mode édition
+    $this->actingAs($enseignant)
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/conclusion", [
+            'user_id' => $etudiant->id,
+            'contenu' => '<p>Tentative</p>',
+        ])
+        ->assertForbidden();
+
+    $this->assertDatabaseMissing('projets_recherche', ['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
+});
+
+test('un membre crée le projet en sauvegardant sa conclusion s\'il n\'existe pas encore', function () {
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet] = creerScenarioParagraphe();
+    $projet->delete();
+
+    $this->actingAs($etudiant)
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/conclusion", [
+            'user_id' => $etudiant->id,
+            'contenu' => '<p>Ma conclusion</p>',
+        ])
+        ->assertOk();
+
+    $this->assertDatabaseHas('projets_recherche', ['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
 });
 
 test('deux conclusions pour le même user mais sections différentes sont distinctes', function () {

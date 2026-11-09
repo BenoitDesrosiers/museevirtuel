@@ -52,6 +52,30 @@ test('un membre ajoute un développement vide à la fin de la liste', function (
         ->assertJsonPath('developpement.contenu', null);
 });
 
+test('un refus d\'édition ne crée pas de projet', function () {
+    ['enseignant' => $enseignant, 'projet' => $projet, 'url' => $url] = scenarioDeveloppement();
+    $projet->delete();
+
+    // L'enseignant accède au projet mais ne peut pas écrire hors du mode édition
+    $this->actingAs($enseignant)
+        ->postJson($url)
+        ->assertForbidden();
+
+    $this->assertDatabaseMissing('projets_recherche', ['groupe_id' => $projet->groupe_id, 'type_projet_id' => $projet->type_projet_id]);
+});
+
+test('un membre crée le projet s\'il n\'existe pas encore', function () {
+    ['etudiant' => $etudiant, 'projet' => $projet, 'url' => $url] = scenarioDeveloppement();
+    $projet->delete();
+
+    $this->actingAs($etudiant)
+        ->postJson($url)
+        ->assertCreated()
+        ->assertJsonPath('developpement.ordre', 1);
+
+    $this->assertDatabaseHas('projets_recherche', ['groupe_id' => $projet->groupe_id, 'type_projet_id' => $projet->type_projet_id]);
+});
+
 test('modifier le contenu supprime les annotations dont la marque a disparu', function () {
     ['enseignant' => $enseignant, 'etudiant' => $etudiant, 'projet' => $projet, 'url' => $url] = scenarioDeveloppement();
     $dev = $projet->developpements()->create(['ordre' => 1, 'contenu' => '<p><mark data-comment-id="a">x</mark></p>']);

@@ -3,13 +3,13 @@
 namespace App\Services;
 
 use App\Models\Groupe;
+use App\Models\ProjetConclusion;
 use App\Models\ProjetRecherche;
+use App\Models\ProjetSectionParagraphe;
+use Illuminate\Support\Collection;
 
 /**
  * Vérifie qu'un projet contient les textes requis avant sa remise.
- *
- * Les seuils de mots sont dans config/projet.php ; l'éditeur Vue applique les mêmes
- * règles côté client, ce service empêche qu'une requête directe les contourne.
  */
 class VerificationCompletudeProjet
 {
@@ -23,8 +23,6 @@ class VerificationCompletudeProjet
      */
     public function contenusManquants(ProjetRecherche $projet, Groupe $groupe): array
     {
-        $seuils = config('projet.mots_minimum');
-
         $projet->loadMissing([
             'typeProjet.sections',
             'sectionContenus',
@@ -33,110 +31,155 @@ class VerificationCompletudeProjet
             'developpements',
         ]);
 
-        $manquants = [];
+        $sansSections = $projet->typeProjet->sections->isEmpty();
 
+        return [
+            ...$this->manquantsSections($projet, $groupe),
+            ...($sansSections && $projet->typeProjet->has_introduction ?
+                $this->manquantsIntroduction($projet) : []),
+            ...($sansSections && $projet->typeProjet->has_conclusion_individuelle
+                ? $this->conclusionsInsuffisantes($projet->conclusions->
+                    whereNull('section_id'), $groupe, null) : []),
+            ...$this->manquantsDeveloppements($projet),
+        ];
+    }
+
+    /**
+     * Vérifie le contenu de chaque section selon son type (texte, paragraphes, individuel).
+     *
+     * @return list<array{section: string, raison: string}>
+     */
+    private function manquantsSections(ProjetRecherche $projet, Groupe $groupe): array
+    {
         $contenusParSection = $projet->sectionContenus->keyBy('section_id');
         $paragraphesParSection = $projet->sectionParagraphes->groupBy('section_id');
         $conclusionsParSection = $projet->conclusions
             ->whereNotNull('section_id')
             ->groupBy('section_id');
 
+        $manquants = [];
+
         foreach ($projet->typeProjet->sections as $section) {
             $libelle = $section->label ?: 'Section '.$section->id;
 
-            if ($section->type === 'texte') {
-                $manquants = $this->ajouterSiInsuffisant(
-                    $manquants,
+            array_push($manquants, ...match ($section->type) {
+                'texte' => $this->manque(
                     (string) $contenusParSection->get($section->id)?->contenu,
                     1,
                     $libelle,
                     'Le contenu textuel est vide.',
-                );
-            }
-
-            if ($section->type === 'paragraphes') {
-                $paragraphes = $paragraphesParSection->get($section->id, collect());
-
-                if ($paragraphes->isEmpty()) {
-                    $manquants[] = [
-                        'section' => $libelle,
-                        'raison' => 'Aucun paragraphe n’a été ajouté.',
-                    ];
-                }
-
-                foreach ($paragraphes as $paragraphe) {
-                    if ($this->nombreMots($paragraphe->contenu) < 1) {
-                        $manquants[] = [
-                            'section' => "{$libelle} — paragraphe {$paragraphe->ordre}",
-                            'raison' => 'Le contenu est vide.',
-                        ];
-                    }
-                }
-            }
-
-            if ($section->type === 'individuel') {
-                $conclusions = $conclusionsParSection->get($section->id, collect());
-
-                foreach ($groupe->membres as $membre) {
-                    $conclusion = $conclusions->firstWhere('user_id', $membre->id);
-
-                    $manquants = $this->ajouterSiInsuffisant(
-                        $manquants,
-                        (string) $conclusion?->contenu,
-                        $seuils['conclusion'],
-                        "{$libelle} — conclusion de {$membre->prenom} {$membre->nom}",
-                        "La conclusion doit avoir au moins {$seuils['conclusion']} mots.",
-                    );
-                }
-            }
+                ),
+                'paragraphes' => $this->paragraphesVides($paragraphesParSection->get(
+                    $section->id, collect()), $libelle),
+                'individuel' => $this->conclusionsInsuffisantes($conclusionsParSection->get(
+                    $section->id, collect()), $groupe, $libelle),
+                default => [],
+            });
         }
 
-        if ($projet->typeProjet->sections->isEmpty() && $projet->typeProjet->has_introduction) {
-            foreach ([
-                'introduction_amener' => 'Sujet amené',
-                'introduction_poser' => 'Sujet posé',
-                'introduction_diviser' => 'Sujet divisé',
-            ] as $champ => $libelle) {
-                $manquants = $this->ajouterSiInsuffisant(
-                    $manquants,
-                    (string) $projet->{$champ},
-                    $seuils['introduction'],
-                    $libelle,
-                    "L'introduction doit avoir au moins {$seuils['introduction']} mots.",
-                );
-            }
+        return $manquants;
+    }
+
+    /**
+     * Signale une section de paragraphes sans paragraphe, puis chaque paragraphe vide.
+     *
+     * @param  Collection<int, ProjetSectionParagraphe>  $paragraphes
+     * @return list<array{section: string, raison: string}>
+     */
+    private function paragraphesVides(Collection $paragraphes, string $libelle): array
+    {
+        $manquants = $paragraphes->isEmpty()
+            ? [['section' => $libelle, 'raison' => 'Aucun paragraphe n’a été ajouté.']]
+            : [];
+
+        foreach ($paragraphes as $paragraphe) {
+            array_push($manquants, ...$this->manque(
+                (string) $paragraphe->contenu,
+                1,
+                "{$libelle} — paragraphe {$paragraphe->ordre}",
+                'Le contenu est vide.',
+            ));
         }
 
-        if ($projet->typeProjet->sections->isEmpty() && $projet->typeProjet->has_conclusion_individuelle) {
-            $conclusions = $projet->conclusions->whereNull('section_id');
+        return $manquants;
+    }
 
-            foreach ($groupe->membres as $membre) {
-                $conclusion = $conclusions->firstWhere('user_id', $membre->id);
+    /**
+     * Vérifie que chaque membre du groupe a une conclusion assez longue.
+     *
+     * @param  Collection<int, ProjetConclusion>  $conclusions  conclusions de la section (ou générales)
+     * @param  string|null  $libelleSection  null pour la conclusion générale hors section
+     * @return list<array{section: string, raison: string}>
+     */
+    private function conclusionsInsuffisantes(Collection $conclusions, Groupe $groupe, ?string $libelleSection): array
+    {
+        $minimum = config('projet.mots_minimum.conclusion');
+        $manquants = [];
 
-                $manquants = $this->ajouterSiInsuffisant(
-                    $manquants,
-                    (string) $conclusion?->contenu,
-                    $seuils['conclusion'],
-                    "Conclusion de {$membre->prenom} {$membre->nom}",
-                    "La conclusion doit avoir au moins {$seuils['conclusion']} mots.",
-                );
-            }
+        foreach ($groupe->membres as $membre) {
+            $nom = "{$membre->prenom} {$membre->nom}";
+
+            array_push($manquants, ...$this->manque(
+                (string) $conclusions->firstWhere('user_id', $membre->id)?->contenu,
+                $minimum,
+                $libelleSection === null ? "Conclusion de {$nom}" : "{$libelleSection} — conclusion de {$nom}",
+                "La conclusion doit avoir au moins {$minimum} mots.",
+            ));
         }
+
+        return $manquants;
+    }
+
+    /**
+     * Vérifie les trois parties de l'introduction (sujet amené, posé, divisé).
+     *
+     * @return list<array{section: string, raison: string}>
+     */
+    private function manquantsIntroduction(ProjetRecherche $projet): array
+    {
+        $minimum = config('projet.mots_minimum.introduction');
+        $manquants = [];
+
+        foreach ([
+            'introduction_amener' => 'Sujet amené',
+            'introduction_poser' => 'Sujet posé',
+            'introduction_diviser' => 'Sujet divisé',
+        ] as $champ => $libelle) {
+            array_push($manquants, ...$this->manque(
+                (string) $projet->{$champ},
+                $minimum,
+                $libelle,
+                "L'introduction doit avoir au moins {$minimum} mots.",
+            ));
+        }
+
+        return $manquants;
+    }
+
+    /**
+     * Vérifie le titre et le contenu de chaque paragraphe de développement.
+     *
+     * @return list<array{section: string, raison: string}>
+     */
+    private function manquantsDeveloppements(ProjetRecherche $projet): array
+    {
+        $seuils = config('projet.mots_minimum');
+        $manquants = [];
 
         foreach ($projet->developpements as $developpement) {
-            $manquants = $this->ajouterSiInsuffisant(
-                $manquants,
-                (string) $developpement->titre,
-                $seuils['developpement_titre'],
-                "Paragraphe de développement {$developpement->ordre} — titre",
-                "Le titre doit avoir au moins {$seuils['developpement_titre']} mots.",
-            );
-            $manquants = $this->ajouterSiInsuffisant(
-                $manquants,
-                (string) $developpement->contenu,
-                $seuils['developpement_contenu'],
-                "Paragraphe de développement {$developpement->ordre} — contenu",
-                "Le contenu doit avoir au moins {$seuils['developpement_contenu']} mots.",
+            array_push($manquants,
+                ...$this->manque(
+                    (string) $developpement->titre,
+                    $seuils['developpement_titre'],
+                    "Paragraphe de développement {$developpement->ordre} — titre",
+                    "Le titre doit avoir au moins {$seuils['developpement_titre']} mots.",
+                ),
+                ...$this->manque(
+                    (string) $developpement->contenu,
+                    $seuils['developpement_contenu'],
+                    "Paragraphe de développement {$developpement->ordre} — contenu",
+                    "Le contenu doit avoir au moins {$seuils['developpement_contenu']} mots.",
+                ),
             );
         }
 
@@ -144,21 +187,15 @@ class VerificationCompletudeProjet
     }
 
     /**
-     * Ajoute une entrée à la liste si le contenu n'atteint pas le nombre de mots minimum.
+     * Retourne une entrée manquante si le contenu n'atteint pas le nombre de mots minimum,
+     * sinon une liste vide.
      *
-     * @param  list<array{section: string, raison: string}>  $manquants
      * @return list<array{section: string, raison: string}>
      */
-    private function ajouterSiInsuffisant(array $manquants, string $contenu, int $minimum, string $section, string $raison): array
+    private function manque(string $contenu, int $minimum, string $section, string $raison): array
     {
-        if ($this->nombreMots($contenu) < $minimum) {
-            $manquants[] = [
-                'section' => $section,
-                'raison' => $raison,
-            ];
-        }
-
-        return $manquants;
+        return $this->nombreMots($contenu) < $minimum
+            ? [['section' => $section, 'raison' => $raison]] : [];
     }
 
     /**
