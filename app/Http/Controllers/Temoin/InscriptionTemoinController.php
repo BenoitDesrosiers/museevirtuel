@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Temoin;
 
 use App\Actions\InscrireTemoin;
 use App\Exceptions\TransactionEchoueeException;
+use App\Http\Controllers\Controller;
 use App\Http\Requests\InscriptionTemoin\StoreInscriptionTemoinEngagementsRequest;
 use App\Http\Requests\InscriptionTemoin\StoreInscriptionTemoinRequest;
 use App\Models\Etablissement;

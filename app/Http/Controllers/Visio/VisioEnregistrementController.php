@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Visio;
 
 use App\Actions\StoreUploadedFile;
+use App\Http\Controllers\Controller;
 use App\Http\Requests\Visio\StoreVisioEnregistrementRequest;
 use App\Models\Cours;
 use App\Models\VisioConference;

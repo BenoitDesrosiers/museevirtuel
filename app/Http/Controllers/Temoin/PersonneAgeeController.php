@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Temoin;
 
+use App\Http\Controllers\Controller;
 use App\Models\Groupe;
 use Inertia\Inertia;
 use Inertia\Response;

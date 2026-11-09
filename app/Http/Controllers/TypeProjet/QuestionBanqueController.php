@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\TypeProjet;
 
 use App\Actions\ChoisirQuestions;
 use App\Exceptions\TransactionEchoueeException;
+use App\Http\Controllers\Controller;
 use App\Http\Requests\QuestionBanque\ChoisirQuestionBanqueRequest;
 use App\Http\Requests\QuestionBanque\ReorderQuestionBanqueRequest;
 use App\Http\Requests\QuestionBanque\SaveQuestionBanqueRequest;

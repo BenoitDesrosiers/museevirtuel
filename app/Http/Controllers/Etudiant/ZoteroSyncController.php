@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Etudiant;
 
 use App\Exceptions\TransactionEchoueeException;
+use App\Http\Controllers\Controller;
 use App\Services\ZoteroService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;

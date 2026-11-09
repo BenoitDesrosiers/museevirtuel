@@ -21,7 +21,8 @@ class ExportProjetPdf
     {
         // Charger les sections dynamiques si le projet a un type de projet
         if (! $projet->relationLoaded('typeProjet')) {
-            $projet->load(['typeProjet.sections', 'sectionContenus', 'sectionParagraphes', 'conclusions', 'renvois']);
+            $projet->load(['typeProjet.sections', 'sectionContenus', 'sectionParagraphes',
+                'conclusions', 'renvois']);
         } elseif (! $projet->relationLoaded('renvois')) {
             $projet->load(['renvois']);
         }

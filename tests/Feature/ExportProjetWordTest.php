@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\ExportProjetWord;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
@@ -98,7 +99,7 @@ test("l'export Word contient page titre, table des matières, sections et réfé
 
     $response->assertOk()
         ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-        ->assertDownload("projet_groupe_{$groupe->id}.docx");
+        ->assertDownload("projet_groupe_{$groupe->numero}.docx");
 
     $xml = documentXmlExportWord($response);
 
@@ -138,4 +139,40 @@ test("l'export Word ne met pas de titre par membre quand le groupe n'a qu'un mem
     $xml = documentXmlExportWord($this->actingAs($e1)->get(urlExportWord($cours, $classe, $groupe, $tp)));
 
     expect(texteExportWord($xml))->toBe('Conclusion|Seule');
+});
+
+test("le fichier Word est nommé d'après le numéro du groupe dans sa classe, comme le PDF", function () {
+    ['cours' => $cours, 'e1' => $e1, 'typeProjet' => $tp] = creerProjetExportWord();
+
+    // Groupe d'une seconde classe : numero = 1 alors que son id vaut au moins 2
+    $autreClasse = Classe::create(['cours_id' => $cours->id]);
+    $groupe = Groupe::create(['classe_id' => $autreClasse->id, 'created_by' => $e1->id]);
+    $groupe->membres()->attach($e1->id);
+    $projet = ProjetRecherche::create(['groupe_id' => $groupe->id, 'type_projet_id' => $tp->id]);
+
+    $response = TestResponse::fromBaseResponse((new ExportProjetWord)->execute($projet, $groupe));
+
+    expect($groupe->numero)->toBe(1)->and($groupe->id)->toBeGreaterThan(1);
+    $response->assertDownload('projet_groupe_1.docx');
+});
+
+test("sans type de projet, l'export Word génère la page titre et la table des matières, comme le PDF", function () {
+    ['groupe' => $groupe] = creerProjetExportWord();
+    $projet = ProjetRecherche::create(['groupe_id' => $groupe->id, 'type_projet_id' => null, 'titre_projet' => 'Sans type']);
+
+    $xml = documentXmlExportWord(TestResponse::fromBaseResponse((new ExportProjetWord)->execute($projet, $groupe)));
+
+    expect(texteExportWord($xml))->toContain('SANS TYPE|RECHERCHE DOCUMENTAIRE')
+        // Le champ TOC lui-même n'est écrit par PhpWord que s'il existe des titres de section
+        ->and(texteExportWord($xml))->toContain('TABLE DES MATIÈRES');
+});
+
+test("l'export Word ne laisse aucun fichier temporaire derrière lui", function () {
+    ['cours' => $cours, 'classe' => $classe, 'groupe' => $groupe, 'e1' => $e1, 'typeProjet' => $tp] = creerProjetExportWord();
+    // Sous Windows, tempnam() ne garde que les 3 premiers caractères du préfixe (php*.tmp)
+    $avant = glob(sys_get_temp_dir().DIRECTORY_SEPARATOR.'php*') ?: [];
+
+    $this->actingAs($e1)->get(urlExportWord($cours, $classe, $groupe, $tp))->streamedContent();
+
+    expect(array_diff(glob(sys_get_temp_dir().DIRECTORY_SEPARATOR.'php*') ?: [], $avant))->toBeEmpty();
 });

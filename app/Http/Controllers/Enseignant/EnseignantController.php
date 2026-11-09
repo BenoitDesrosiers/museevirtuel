@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Enseignant;
 
+use App\Http\Controllers\Controller;
 use App\Services\TableauBordEnseignantProps;
 use Inertia\Inertia;
 use Inertia\Response;

@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Visio;
 
+use App\Http\Controllers\Controller;
 use App\Http\Requests\Visio\StoreVisioConferenceRequest;
 use App\Http\Requests\Visio\UpdateVisioConferenceRequest;
 use App\Models\Cours;

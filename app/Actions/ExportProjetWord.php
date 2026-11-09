@@ -45,7 +45,7 @@ class ExportProjetWord
         $this->ajouterSections($contenu, $projet, $groupe->membres);
         $this->ajouterReferences($contenu, $projet->renvois ?? collect());
 
-        return $this->telecharger($word, sprintf('projet_groupe_%d.docx', $groupe->id));
+        return $this->telecharger($word, sprintf('projet_groupe_%d.docx', $groupe->numero));
     }
 
     /**
@@ -86,17 +86,20 @@ class ExportProjetWord
      */
     private function ajouterPageTitre(PhpWord $word, ProjetRecherche $projet, Groupe $groupe): void
     {
-        if (! $projet->typeProjet?->generer_page_titre) {
-            if (! empty($projet->page_titre_contenu)) {
-                $this->addHtmlContent($this->newSection($word, false), $projet->page_titre_contenu);
-            }
-
-            return;
+        if ($projet->typeProjet?->generer_page_titre ?? true) {
+            $this->genererPageTitre($this->newSection($word, false), $projet, $groupe);
+        } elseif (! empty($projet->page_titre_contenu)) {
+            $this->addHtmlContent($this->newSection($word, false), $projet->page_titre_contenu);
         }
+    }
 
+    /**
+     * Écrit la page titre générée : membres, cours, titre du projet, enseignant et date.
+     */
+    private function genererPageTitre(Section $pageTitre, ProjetRecherche $projet, Groupe $groupe): void
+    {
         $cours = $groupe->classe->cours;
         $enseignant = $cours->enseignant;
-        $pageTitre = $this->newSection($word, false);
 
         foreach ($groupe->membres as $membre) {
             $this->addCenteredText($pageTitre, "{$membre->prenom} {$membre->nom}");
@@ -122,23 +125,19 @@ class ExportProjetWord
      */
     private function ajouterTableMatieres(PhpWord $word, ProjetRecherche $projet): void
     {
-        if (! $projet->typeProjet?->generer_table_matieres) {
-            if (! empty($projet->table_matieres_contenu)) {
-                $this->addHtmlContent($this->newSection($word, false), $projet->table_matieres_contenu);
-            }
-
-            return;
+        if ($projet->typeProjet?->generer_table_matieres ?? true) {
+            $tocSection = $this->newSection($word, false);
+            $tocSection->addText(
+                'TABLE DES MATIÈRES',
+                ['bold' => true, 'size' => 13, 'allCaps' => true],
+                ['alignment' => 'center'],
+            );
+            $tocSection->addTextBreak(1);
+            // Champ TOC automatique : se met à jour à l'ouverture du fichier dans Word
+            $tocSection->addTOC(['size' => 11], null, 1, 2);
+        } elseif (! empty($projet->table_matieres_contenu)) {
+            $this->addHtmlContent($this->newSection($word, false), $projet->table_matieres_contenu);
         }
-
-        $tocSection = $this->newSection($word, false);
-        $tocSection->addText(
-            'TABLE DES MATIÈRES',
-            ['bold' => true, 'size' => 13, 'allCaps' => true],
-            ['alignment' => 'center'],
-        );
-        $tocSection->addTextBreak(1);
-        // Champ TOC automatique : se met à jour à l'ouverture du fichier dans Word
-        $tocSection->addTOC(['size' => 11], null, 1, 2);
     }
 
     /**
@@ -154,10 +153,20 @@ class ExportProjetWord
         // Repli si aucune section définie (projet sans TypeProjet configuré)
         if ($sections->isEmpty()) {
             $this->addHtmlContent($contenu, null);
-
-            return;
+        } else {
+            $this->ajouterSectionsTypees($contenu, $projet, $sections, $membres);
         }
+    }
 
+    /**
+     * Ajoute chaque TypeProjetSection : Heading 1 puis contenu selon le type, avec un saut de page entre elles.
+     *
+     * @param  Collection<int, TypeProjetSection>  $sections
+     * @param  Collection<int, User>  $membres
+     */
+    private function ajouterSectionsTypees(Section $contenu, ProjetRecherche $projet,
+        Collection $sections, Collection $membres): void
+    {
         $contenusParSection = $projet->sectionContenus->keyBy('section_id');
         $paragraphesParSection = $projet->sectionParagraphes->groupBy('section_id');
         $conclusionsParUser = $projet->conclusions
@@ -192,17 +201,15 @@ class ExportProjetWord
      */
     private function ajouterReferences(Section $contenu, Collection $renvois): void
     {
-        if ($renvois->isEmpty()) {
-            return;
-        }
+        if ($renvois->isNotEmpty()) {
+            $contenu->addPageBreak();
+            $contenu->addTitle('Références', 1);
+            $contenu->addTextBreak(1);
 
-        $contenu->addPageBreak();
-        $contenu->addTitle('Références', 1);
-        $contenu->addTextBreak(1);
-
-        foreach ($renvois as $renvoi) {
-            $texte = "{$renvoi->numero}.\t".($renvoi->contenu ?? '—');
-            $contenu->addText(htmlspecialchars($texte), ['size' => 11]);
+            foreach ($renvois as $renvoi) {
+                $texte = "{$renvoi->numero}.\t".($renvoi->contenu ?? '—');
+                $contenu->addText(htmlspecialchars($texte), ['size' => 11]);
+            }
         }
     }
 
@@ -216,7 +223,10 @@ class ExportProjetWord
             // l'ID numérique du signet au lieu de son nom (_TocN), et l'instruction
             // TOC omet les guillemets autour de la plage de niveaux.
             // On corrige le XML directement dans le .docx avant de l'envoyer.
-            $temp = tempnam(sys_get_temp_dir(), 'phpword_').'.docx';
+            // tempnam() crée un fichier vide réservant le nom ; on écrit dans une variante .docx
+            // (ZipArchive refuse d'ouvrir un fichier vide) et on supprime les deux ensuite.
+            $reserve = tempnam(sys_get_temp_dir(), 'phpword_');
+            $temp = $reserve.'.docx';
 
             try {
                 $writer = IOFactory::createWriter($word, 'Word2007');
@@ -224,8 +234,10 @@ class ExportProjetWord
                 $this->fixTocXml($temp);
                 readfile($temp);
             } finally {
-                if (file_exists($temp)) {
-                    unlink($temp);
+                foreach ([$temp, $reserve] as $fichier) {
+                    if (file_exists($fichier)) {
+                        unlink($fichier);
+                    }
                 }
             }
         }, $nomFichier, [
@@ -271,15 +283,13 @@ class ExportProjetWord
     {
         if ($paragraphes->isEmpty()) {
             $this->addHtmlContent($section, null);
-
-            return;
-        }
-
-        foreach ($paragraphes->sortBy('ordre') as $paragraphe) {
-            $titre = $paragraphe->titre ?: "Paragraphe {$paragraphe->ordre}";
-            $section->addTitle($titre, 2);
-            $section->addTextBreak(1);
-            $this->addHtmlContent($section, $paragraphe->contenu);
+        } else {
+            foreach ($paragraphes->sortBy('ordre') as $paragraphe) {
+                $titre = $paragraphe->titre ?: "Paragraphe {$paragraphe->ordre}";
+                $section->addTitle($titre, 2);
+                $section->addTextBreak(1);
+                $this->addHtmlContent($section, $paragraphe->contenu);
+            }
         }
     }
 
@@ -317,25 +327,23 @@ class ExportProjetWord
     private function fixTocXml(string $filePath): void
     {
         $zip = new \ZipArchive;
-        if ($zip->open($filePath) !== true) {
-            return;
-        }
 
-        $xml = $zip->getFromName('word/document.xml');
-        if ($xml === false) {
+        // Fichier illisible ou sans document.xml : on l'envoie tel quel plutôt que d'échouer
+        if ($zip->open($filePath) === true) {
+            $xml = $zip->getFromName('word/document.xml');
+
+            if ($xml !== false) {
+                // Bug 1 : PAGEREF 0 \h → PAGEREF _Toc0 \h
+                $xml = preg_replace('/PAGEREF (\d+) \\\\h/', 'PAGEREF _Toc$1 \\h', $xml);
+
+                // Bug 2 : \o 1-2 → \o "1-2"
+                $xml = preg_replace('/TOC \\\\o (\d+-\d+) /', 'TOC \\o "$1" ', $xml);
+
+                $zip->addFromString('word/document.xml', $xml);
+            }
+
             $zip->close();
-
-            return;
         }
-
-        // Bug 1 : PAGEREF 0 \h → PAGEREF _Toc0 \h
-        $xml = preg_replace('/PAGEREF (\d+) \\\\h/', 'PAGEREF _Toc$1 \\h', $xml);
-
-        // Bug 2 : \o 1-2 → \o "1-2"
-        $xml = preg_replace('/TOC \\\\o (\d+-\d+) /', 'TOC \\o "$1" ', $xml);
-
-        $zip->addFromString('word/document.xml', $xml);
-        $zip->close();
     }
 
     /**
@@ -361,16 +369,13 @@ class ExportProjetWord
 
         if (empty($html) || trim(strip_tags($html)) === '') {
             $section->addText('(Section non rédigée)', ['italic' => true, 'color' => '999999']);
-            $section->addTextBreak(1);
-
-            return;
-        }
-
-        try {
-            Html::addHtml($section, $html, false, false);
-        } catch (\Throwable) {
-            // Fallback : texte brut si le parser HTML échoue
-            $section->addText(htmlspecialchars(strip_tags($html)));
+        } else {
+            try {
+                Html::addHtml($section, $html, false, false);
+            } catch (\Throwable) {
+                // Fallback : texte brut si le parser HTML échoue
+                $section->addText(htmlspecialchars(strip_tags($html)));
+            }
         }
 
         $section->addTextBreak(1);

@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Enseignant;
 
+use App\Http\Controllers\Controller;
 use App\Http\Requests\Thematique\SaveThematiqueRequest;
 use App\Models\Thematique;
 use Illuminate\Auth\Access\AuthorizationException;

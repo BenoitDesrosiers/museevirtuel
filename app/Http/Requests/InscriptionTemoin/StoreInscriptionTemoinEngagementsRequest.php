@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\InscriptionTemoin;
 
-use App\Http\Controllers\InscriptionTemoinController;
+use App\Http\Controllers\Temoin\InscriptionTemoinController;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**

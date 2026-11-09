@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Visio;
 
+use App\Http\Controllers\Controller;
 use App\Models\Cours;
 use App\Models\VisioConference;
 use Illuminate\Auth\Access\AuthorizationException;

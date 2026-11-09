@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Etudiant;
 
+use App\Http\Controllers\Controller;
 use App\Http\Requests\Etudiant\StoreEtudiantReferenceRequest;
 use App\Models\EtudiantReference;
 use App\Services\OrdreElements;

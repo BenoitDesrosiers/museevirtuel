@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Etudiant;
 
+use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 
 class EtudiantController extends Controller

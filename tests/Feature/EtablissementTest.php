@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\InscriptionTemoinController;
+use App\Http\Controllers\Temoin\InscriptionTemoinController;
 use App\Models\Etablissement;
 use App\Models\Thematique;
 use App\Models\User;
