@@ -5,6 +5,7 @@ namespace App\Actions;
 use App\Helpers\HtmlHelper;
 use App\Models\Groupe;
 use App\Models\ProjetRecherche;
+use App\Models\ProjetRenvoi;
 use App\Models\TypeProjetSection;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -30,17 +31,40 @@ class ExportProjetWord
      */
     public function execute(ProjetRecherche $projet, Groupe $groupe): StreamedResponse
     {
-        $cours = $groupe->classe->cours;
-        $enseignant = $cours->enseignant;
+        $this->chargerRelations($projet);
 
+        $word = $this->creerDocument();
+        $this->ajouterPageTitre($word, $projet, $groupe);
+        $this->ajouterTableMatieres($word, $projet);
+
+        // Tout le contenu dans UNE SEULE section Word (pageNumberingStart = 1) afin que
+        // la numérotation soit continue et que la TOC reflète les vrais numéros de page.
+        // Les séparations entre TypeProjetSections sont des sauts de page simples (pas
+        // des sauts de section), ce qui évite tout redémarrage implicite du compteur.
+        $contenu = $this->newSection($word, true, 1);
+        $this->ajouterSections($contenu, $projet, $groupe->membres);
+        $this->ajouterReferences($contenu, $projet->renvois ?? collect());
+
+        return $this->telecharger($word, sprintf('projet_groupe_%d.docx', $groupe->id));
+    }
+
+    /**
+     * Charge les relations nécessaires à l'export si l'appelant ne l'a pas déjà fait.
+     */
+    private function chargerRelations(ProjetRecherche $projet): void
+    {
         if (! $projet->relationLoaded('typeProjet')) {
             $projet->load(['typeProjet.sections', 'sectionContenus', 'sectionParagraphes', 'conclusions', 'renvois']);
         } elseif (! $projet->relationLoaded('renvois')) {
             $projet->load(['renvois']);
         }
+    }
 
-        $typeProjet = $projet->typeProjet;
-
+    /**
+     * Crée le document Word avec la police par défaut et les styles de titres.
+     */
+    private function creerDocument(): PhpWord
+    {
         $word = new PhpWord;
         $word->setDefaultFontName('Times New Roman');
         $word->setDefaultFontSize(12);
@@ -53,51 +77,87 @@ class ExportProjetWord
         $word->addTitleStyle(1, ['bold' => true, 'size' => 14], ['spaceAfter' => 200, 'spaceBefore' => 240]);
         $word->addTitleStyle(2, ['bold' => true, 'size' => 12], ['spaceAfter' => 160, 'spaceBefore' => 160]);
 
-        // ─── Page titre ───────────────────────────────────────────────────────
-        if ($typeProjet && $typeProjet->generer_page_titre) {
-            $pageTitre = $this->newSection($word, false);
+        return $word;
+    }
 
-            foreach ($groupe->membres as $membre) {
-                $this->addCenteredText($pageTitre, "{$membre->prenom} {$membre->nom}");
+    /**
+     * Ajoute la page titre : générée si le type de projet le demande,
+     * sinon le contenu rédigé manuellement par l'étudiant (s'il existe).
+     */
+    private function ajouterPageTitre(PhpWord $word, ProjetRecherche $projet, Groupe $groupe): void
+    {
+        if (! $projet->typeProjet?->generer_page_titre) {
+            if (! empty($projet->page_titre_contenu)) {
+                $this->addHtmlContent($this->newSection($word, false), $projet->page_titre_contenu);
             }
 
-            $this->addCenteredText($pageTitre, $cours->nom_cours);
-            $this->addCenteredText($pageTitre, "{$cours->code} / Gr. {$cours->groupe}", 10);
-            $pageTitre->addTextBreak(3);
-            $this->addCenteredText($pageTitre, strtoupper($projet->titre_projet ?? 'Recherche documentaire'), 16, true);
-            $this->addCenteredText($pageTitre, 'RECHERCHE DOCUMENTAIRE');
-            $pageTitre->addTextBreak(3);
-            $this->addCenteredText($pageTitre, 'Travail présenté à');
-            $this->addCenteredText($pageTitre, "{$enseignant->prenom} {$enseignant->nom}", 12, true);
-            $pageTitre->addTextBreak(2);
-            $this->addCenteredText($pageTitre, 'Département des sciences humaines', 10);
-            $this->addCenteredText($pageTitre, $enseignant->etablissement?->nom ?? 'Cégep de Drummondville', 10);
-            $this->addCenteredText($pageTitre, 'Le '.now()->translatedFormat('j F Y'), 10);
-        } elseif (! empty($projet->page_titre_contenu)) {
-            // Contenu rédigé manuellement par l'étudiant
-            $pageTitre = $this->newSection($word, false);
-            $this->addHtmlContent($pageTitre, $projet->page_titre_contenu);
+            return;
         }
 
-        // ─── Table des matières (champ TOC Word — Heading 1 & 2) ─────────────
-        if ($typeProjet && $typeProjet->generer_table_matieres) {
-            $tocSection = $this->newSection($word, false);
-            $tocSection->addText(
-                'TABLE DES MATIÈRES',
-                ['bold' => true, 'size' => 13, 'allCaps' => true],
-                ['alignment' => 'center'],
-            );
-            $tocSection->addTextBreak(1);
-            // Champ TOC automatique : se met à jour à l'ouverture du fichier dans Word
-            $tocSection->addTOC(['size' => 11], null, 1, 2);
-        } elseif (! empty($projet->table_matieres_contenu)) {
-            // Contenu rédigé manuellement par l'étudiant
-            $tocSection = $this->newSection($word, false);
-            $this->addHtmlContent($tocSection, $projet->table_matieres_contenu);
+        $cours = $groupe->classe->cours;
+        $enseignant = $cours->enseignant;
+        $pageTitre = $this->newSection($word, false);
+
+        foreach ($groupe->membres as $membre) {
+            $this->addCenteredText($pageTitre, "{$membre->prenom} {$membre->nom}");
         }
 
-        // ─── Sections dynamiques ──────────────────────────────────────────────
+        $this->addCenteredText($pageTitre, $cours->nom_cours);
+        $this->addCenteredText($pageTitre, "{$cours->code} / Gr. {$cours->groupe}", 10);
+        $pageTitre->addTextBreak(3);
+        $this->addCenteredText($pageTitre, strtoupper($projet->titre_projet ?? 'Recherche documentaire'), 16, true);
+        $this->addCenteredText($pageTitre, 'RECHERCHE DOCUMENTAIRE');
+        $pageTitre->addTextBreak(3);
+        $this->addCenteredText($pageTitre, 'Travail présenté à');
+        $this->addCenteredText($pageTitre, "{$enseignant->prenom} {$enseignant->nom}", 12, true);
+        $pageTitre->addTextBreak(2);
+        $this->addCenteredText($pageTitre, 'Département des sciences humaines', 10);
+        $this->addCenteredText($pageTitre, $enseignant->etablissement?->nom ?? 'Cégep de Drummondville', 10);
+        $this->addCenteredText($pageTitre, 'Le '.now()->translatedFormat('j F Y'), 10);
+    }
+
+    /**
+     * Ajoute la table des matières : champ TOC Word (Heading 1 et 2) si le type de projet
+     * le demande, sinon le contenu rédigé manuellement par l'étudiant (s'il existe).
+     */
+    private function ajouterTableMatieres(PhpWord $word, ProjetRecherche $projet): void
+    {
+        if (! $projet->typeProjet?->generer_table_matieres) {
+            if (! empty($projet->table_matieres_contenu)) {
+                $this->addHtmlContent($this->newSection($word, false), $projet->table_matieres_contenu);
+            }
+
+            return;
+        }
+
+        $tocSection = $this->newSection($word, false);
+        $tocSection->addText(
+            'TABLE DES MATIÈRES',
+            ['bold' => true, 'size' => 13, 'allCaps' => true],
+            ['alignment' => 'center'],
+        );
+        $tocSection->addTextBreak(1);
+        // Champ TOC automatique : se met à jour à l'ouverture du fichier dans Word
+        $tocSection->addTOC(['size' => 11], null, 1, 2);
+    }
+
+    /**
+     * Ajoute une partie par TypeProjetSection (Heading 1 + contenu selon le type),
+     * séparées par des sauts de page.
+     *
+     * @param  Collection<int, User>  $membres
+     */
+    private function ajouterSections(Section $contenu, ProjetRecherche $projet, Collection $membres): void
+    {
         $sections = $projet->typeProjet?->sections ?? collect();
+
+        // Repli si aucune section définie (projet sans TypeProjet configuré)
+        if ($sections->isEmpty()) {
+            $this->addHtmlContent($contenu, null);
+
+            return;
+        }
+
         $contenusParSection = $projet->sectionContenus->keyBy('section_id');
         $paragraphesParSection = $projet->sectionParagraphes->groupBy('section_id');
         $conclusionsParUser = $projet->conclusions
@@ -105,65 +165,52 @@ class ExportProjetWord
             ->groupBy('section_id')
             ->map(fn ($conc) => $conc->keyBy('user_id'));
 
-        $nbMembres = $groupe->membres->count();
-
-        // Tout le contenu dans UNE SEULE section Word (pageNumberingStart = 1) afin que
-        // la numérotation soit continue et que la TOC reflète les vrais numéros de page.
-        // Les séparations entre TypeProjetSections sont des sauts de page simples (pas
-        // des sauts de section), ce qui évite tout redémarrage implicite du compteur.
-        $contenu = $this->newSection($word, true, 1);
-        $aContenu = false;
-
-        foreach ($sections as $typeSection) {
+        foreach ($sections->values() as $position => $typeSection) {
             /** @var TypeProjetSection $typeSection */
-            if ($aContenu) {
+            if ($position > 0) {
                 $contenu->addPageBreak();
             }
-            $aContenu = true;
 
             $contenu->addTitle($typeSection->label, 1);
             $contenu->addTextBreak(1);
 
             match ($typeSection->type ?? 'texte') {
-                'paragraphes' => $this->renderParagraphes(
-                    $contenu,
-                    $paragraphesParSection->get($typeSection->id) ?? collect()
-                ),
-                'individuel' => $this->renderIndividuel(
-                    $contenu,
-                    $groupe->membres,
-                    $conclusionsParUser->get($typeSection->id) ?? collect(),
-                    $nbMembres
-                ),
-                default => $this->addHtmlContent(
-                    $contenu,
-                    $contenusParSection->get($typeSection->id)?->contenu
-                ),
+                'paragraphes' => $this->renderParagraphes($contenu,
+                    $paragraphesParSection->get($typeSection->id) ?? collect()),
+                'individuel' => $this->renderIndividuel($contenu, $membres,
+                    $conclusionsParUser->get($typeSection->id) ?? collect(), $membres->count()),
+                default => $this->addHtmlContent($contenu,
+                    $contenusParSection->get($typeSection->id)?->contenu),
             };
         }
+    }
 
-        // Fallback si aucune section définie (projet sans TypeProjet configuré)
-        if (! $aContenu) {
-            $this->addHtmlContent($contenu, null);
+    /**
+     * Ajoute la liste des références (renvois) sur une nouvelle page, s'il y en a.
+     *
+     * @param  Collection<int, ProjetRenvoi>  $renvois
+     */
+    private function ajouterReferences(Section $contenu, Collection $renvois): void
+    {
+        if ($renvois->isEmpty()) {
+            return;
         }
 
-        // ─── Références (renvois / endnotes) ──────────────────────────────────
-        $renvois = $projet->renvois ?? collect();
+        $contenu->addPageBreak();
+        $contenu->addTitle('Références', 1);
+        $contenu->addTextBreak(1);
 
-        if ($renvois->isNotEmpty()) {
-            $contenu->addPageBreak();
-            $contenu->addTitle('Références', 1);
-            $contenu->addTextBreak(1);
-
-            foreach ($renvois as $renvoi) {
-                $texte = "{$renvoi->numero}.\t".($renvoi->contenu ?? '—');
-                $contenu->addText(htmlspecialchars($texte), ['size' => 11]);
-            }
+        foreach ($renvois as $renvoi) {
+            $texte = "{$renvoi->numero}.\t".($renvoi->contenu ?? '—');
+            $contenu->addText(htmlspecialchars($texte), ['size' => 11]);
         }
+    }
 
-        // ─── Stream du fichier ────────────────────────────────────────────────
-        $nomFichier = sprintf('projet_groupe_%d.docx', $groupe->id);
-
+    /**
+     * Retourne le document en téléchargement, après correction du XML de la table des matières.
+     */
+    private function telecharger(PhpWord $word, string $nomFichier): StreamedResponse
+    {
         return response()->streamDownload(function () use ($word) {
             // PhpWord génère les champs TOC avec deux bugs : PAGEREF utilise
             // l'ID numérique du signet au lieu de son nom (_TocN), et l'instruction
