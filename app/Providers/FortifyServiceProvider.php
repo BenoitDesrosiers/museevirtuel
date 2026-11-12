@@ -51,7 +51,7 @@ class FortifyServiceProvider extends ServiceProvider
                 // Bloquer les comptes en attente d'approbation admin
                 if ($user->estEnAttente()) {
                     throw ValidationException::withMessages([
-                        Fortify::username() => __('Votre compte est en attente d\'approbation par un administrateur.'),
+                        Fortify::username() => __('auth.compte_en_attente'),
                     ]);
                 }
 

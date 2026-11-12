@@ -96,3 +96,23 @@ function creerVideo(Groupe $groupe, User $auteur, array $attrs = []): GroupeVide
         'statut' => 'brouillon',
     ], $attrs));
 }
+
+// ─── Helpers partagés — Types de projets ──────────────────────────────────────
+
+/**
+ * Données minimales valides pour créer ou modifier un type de projet.
+ *
+ * Fournit les champs obligatoires (nom, type, date de remise) que le formulaire Vue envoie toujours ;
+ * les valeurs passées en paramètre ont priorité.
+ *
+ * @param  array<string, mixed>  $surcharges
+ * @return array<string, mixed>
+ */
+function donneesTypeProjet(array $surcharges = []): array
+{
+    return array_merge([
+        'nom' => 'Projet de recherche',
+        'type' => 'standard',
+        'date_remise' => '2026-12-01T12:00',
+    ], $surcharges);
+}

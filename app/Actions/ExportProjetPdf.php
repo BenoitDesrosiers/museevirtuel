@@ -9,6 +9,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Dompdf\Cpdf;
 use Dompdf\Dompdf;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 
 class ExportProjetPdf
 {
@@ -18,133 +19,150 @@ class ExportProjetPdf
      */
     public function execute(ProjetRecherche $projet, Groupe $groupe): Response
     {
-        $cours = $groupe->classe->cours;
-        $enseignant = $cours->enseignant;
-
-        // Membres : noms (pour page titre/TOC) + objets (pour sections individuel)
-        $membresObjets = $groupe->membres;
-        $membres = $membresObjets->map(fn ($m) => "{$m->prenom} {$m->nom}")->values();
-
         // Charger les sections dynamiques si le projet a un type de projet
         if (! $projet->relationLoaded('typeProjet')) {
-            $projet->load(['typeProjet.sections', 'sectionContenus', 'sectionParagraphes', 'conclusions', 'renvois']);
+            $projet->load(['typeProjet.sections', 'sectionContenus', 'sectionParagraphes',
+                'conclusions', 'renvois']);
         } elseif (! $projet->relationLoaded('renvois')) {
             $projet->load(['renvois']);
         }
 
-        $sections = $projet->typeProjet?->sections ?? collect();
-        $contenusParSection = $projet->sectionContenus->keyBy('section_id');
-        $paragraphesParSection = $projet->sectionParagraphes->groupBy('section_id');
+        $viewData = $this->donneesVue($projet, $groupe);
+        $pagesAIgnorer = $this->pagesAIgnorer($projet, $viewData);
+        $tocPageNums = $this->numerosTableMatieres($viewData, $pagesAIgnorer);
 
-        // Conclusions liées à des sections (type individuel), indexées par section_id puis user_id
-        $conclusionsParSection = $projet->conclusions
-            ->filter(fn ($c) => $c->section_id !== null)
-            ->groupBy('section_id')
-            ->map(fn ($concs) => $concs->keyBy('user_id')
-                ->map(fn ($c) => HtmlHelper::addRenvoisLinks(
-                    HtmlHelper::stripAnnotationMarks($c->contenu)
-                )));
+        // Passe 2 : rendu final avec les vrais numéros de page dans la TDM
+        $pdf = Pdf::loadView('projets.export',
+            $viewData + ['tocPageNums' => $tocPageNums])
+            ->setPaper('a4', 'portrait');
+        $pdf->render();
+        $this->numeroterPages($pdf->getDomPDF(), $pagesAIgnorer);
 
-        $sectionsAvecContenu = $sections->map(fn ($s) => [
-            'label' => $s->label,
-            'type' => $s->type ?? 'texte',
-            'contenu' => HtmlHelper::addRenvoisLinks(
-                HtmlHelper::stripAnnotationMarks($contenusParSection->get($s->id)?->contenu)
-            ),
-            'paragraphes' => ($paragraphesParSection->get($s->id) ?? collect())
-                ->sortBy('ordre')
-                ->map(fn ($p) => [
-                    'titre' => $p->titre,
-                    'contenu' => HtmlHelper::addRenvoisLinks(
-                        HtmlHelper::stripAnnotationMarks($p->contenu)
-                    ),
-                ])
-                ->values(),
-            // Keyed by user_id → contenu HTML nettoyé (pour sections de type individuel)
-            'membres_conclusions' => $conclusionsParSection->get($s->id) ?? collect(),
-        ])->values();
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.sprintf('projet_groupe_%d.pdf', $groupe->numero).'"',
+        ]);
+    }
 
-        $typeProjet = $projet->typeProjet;
+    /**
+     * Retourne les données communes aux deux passes de rendu de la vue projets.export.
+     *
+     * @return array<string, mixed>
+     */
+    private function donneesVue(ProjetRecherche $projet, Groupe $groupe): array
+    {
+        $cours = $groupe->classe->cours;
 
-        $genererPageTitre = $typeProjet?->generer_page_titre ?? true;
-        $genererTableMatieres = $typeProjet?->generer_table_matieres ?? true;
-
-        // ─── Données communes aux deux passes de rendu ────────────────────────
-        $viewData = [
+        return [
             'projet' => $projet,
             'groupe' => $groupe,
             'classe' => $cours,
-            'enseignant' => $enseignant,
-            'membres' => $membres,
-            'membresObjets' => $membresObjets,
-            'sections' => $sectionsAvecContenu,
+            'enseignant' => $cours->enseignant,
+            // Noms pour la page titre et la TDM ; objets pour les sections de type individuel
+            'membres' => $groupe->membres->map(fn ($m) => "{$m->prenom} {$m->nom}")->values(),
+            'membresObjets' => $groupe->membres,
+            'sections' => $this->sections($projet),
             'renvois' => $projet->renvois ?? collect(),
-            'genererPageTitre' => $genererPageTitre,
-            'genererTableMatieres' => $genererTableMatieres,
+            'genererPageTitre' => $projet->typeProjet?->generer_page_titre ?? true,
+            'genererTableMatieres' => $projet->typeProjet?->generer_table_matieres ?? true,
             'pageTitreContenu' => $projet->page_titre_contenu,
             'tableMatieresContenu' => $projet->table_matieres_contenu,
-            // $stripMarks est utilisé dans le Blade pour les sections de l'ancien format
-            // (intro, développements, conclusions standalone). On y ajoute aussi les liens de renvoi.
-            'stripMarks' => fn (?string $html): string => HtmlHelper::addRenvoisLinks(
-                HtmlHelper::stripAnnotationMarks($html)
-            ),
+            // Utilisé dans le Blade pour les sections de l'ancien format (intro, développements, conclusions standalone)
+            'stripMarks' => $this->nettoyer(...),
         ];
+    }
 
-        // ─── Numérotation conditionnelle ──────────────────────────────────────
-        // La numérotation s'affiche uniquement à partir de la première page de contenu
-        // (après la page titre et la table des matières). Les numéros sont continus :
-        // titre = p.1 (masqué), TDM = p.2 (masqué), Introduction = p.3 (visible).
-        $hasPageTitre = $genererPageTitre || ! empty($projet->page_titre_contenu);
-        $hasTableMatieres = $genererTableMatieres || ! empty($projet->table_matieres_contenu);
-        $pagesAIgnorer = ($hasPageTitre ? 1 : 0) + ($hasTableMatieres ? 1 : 0);
+    /**
+     * Retourne les sections du type de projet avec leur contenu nettoyé.
+     *
+     * Les conclusions des sections de type individuel sont indexées par user_id.
+     */
+    private function sections(ProjetRecherche $projet): Collection
+    {
+        $contenusParSection = $projet->sectionContenus->keyBy('section_id');
+        $paragraphesParSection = $projet->sectionParagraphes->groupBy('section_id');
+        $conclusionsParSection = $projet->conclusions
+            ->filter(fn ($c) => $c->section_id !== null)
+            ->groupBy('section_id')
+            ->map(fn ($conclusions) => $conclusions->keyBy('user_id')->map(fn ($c) => $this->nettoyer($c->contenu)));
 
-        // ─── Passe 1 : localisation des sections pour la TDM ─────────────────
-        // Le document est rendu une première fois sans numéros de page dans la TDM.
-        // Les destinations nommées (id="section-N", id="subsection-N-M", id="member-N-M")
-        // permettent de retrouver la page réelle de chaque entrée via Cpdf.
-        $sectionStructure = $sectionsAvecContenu->map(fn ($s) => [
+        return ($projet->typeProjet?->sections ?? collect())->map(fn ($s) => [
+            'label' => $s->label,
+            'type' => $s->type ?? 'texte',
+            'contenu' => $this->nettoyer($contenusParSection->get($s->id)?->contenu),
+            'paragraphes' => ($paragraphesParSection->get($s->id) ?? collect())
+                ->sortBy('ordre')
+                ->map(fn ($p) => ['titre' => $p->titre, 'contenu' => $this->nettoyer($p->contenu)])
+                ->values(),
+            'membres_conclusions' => $conclusionsParSection->get($s->id) ?? collect(),
+        ])->values();
+    }
+
+    /**
+     * Retire les marques d'annotation du HTML et y ajoute les liens de renvoi.
+     */
+    private function nettoyer(?string $html): string
+    {
+        return HtmlHelper::addRenvoisLinks(HtmlHelper::stripAnnotationMarks($html));
+    }
+
+    /**
+     * Retourne le nombre de pages (titre, TDM) exclues de la numérotation visible.
+     *
+     * Les numéros restent continus : titre = p.1 (masqué), TDM = p.2 (masqué), contenu = p.3 (affiché 1).
+     *
+     * @param  array<string, mixed>  $viewData
+     */
+    private function pagesAIgnorer(ProjetRecherche $projet, array $viewData): int
+    {
+        $hasPageTitre = $viewData['genererPageTitre'] || ! empty($projet->page_titre_contenu);
+        $hasTableMatieres = $viewData['genererTableMatieres'] || ! empty($projet->table_matieres_contenu);
+
+        return ($hasPageTitre ? 1 : 0) + ($hasTableMatieres ? 1 : 0);
+    }
+
+    /**
+     * Passe 1 : rend le document une première fois pour localiser la page de chaque entrée de la TDM.
+     *
+     * Les destinations nommées (id="section-N", "subsection-N-M", "member-N-M") donnent la page réelle via Cpdf.
+     * Aucun rendu supplémentaire si la TDM n'est pas générée ou s'il n'y a aucune section.
+     *
+     * @param  array<string, mixed>  $viewData
+     * @return array<string, int|string>
+     */
+    private function numerosTableMatieres(array $viewData, int $pagesAIgnorer): array
+    {
+        if ($viewData['sections']->isEmpty() || ! $viewData['genererTableMatieres']) {
+            return [];
+        }
+
+        $sectionStructure = $viewData['sections']->map(fn ($s) => [
             'type' => $s['type'],
             'subCount' => match ($s['type']) {
                 'paragraphes' => $s['paragraphes']->count(),
-                'individuel' => $membresObjets->count(),
+                'individuel' => $viewData['membresObjets']->count(),
                 default => 0,
             },
         ])->values()->toArray();
 
-        $tocPageNums = [];
-        if ($sectionsAvecContenu->isNotEmpty() && $genererTableMatieres) {
-            $pdfPass1 = Pdf::loadView('projets.export', $viewData + ['tocPageNums' => []])
-                ->setPaper('a4', 'portrait');
-            $pdfPass1->render();
-            $tocPageNums = $this->extractTocPageNumbers(
-                $pdfPass1->getDomPDF(),
-                $sectionStructure,
-                $pagesAIgnorer
-            );
-        }
-
-        // ─── Passe 2 : rendu final avec vrais numéros de page dans la TDM ────
-        $pdf = Pdf::loadView('projets.export', $viewData + ['tocPageNums' => $tocPageNums])
+        $pdfPass1 = Pdf::loadView('projets.export', $viewData + ['tocPageNums' => []])
             ->setPaper('a4', 'portrait');
+        $pdfPass1->render();
 
-        $pdf->render();
+        return $this->extractTocPageNumbers($pdfPass1->getDomPDF(), $sectionStructure, $pagesAIgnorer);
+    }
 
-        $canvas = $pdf->getDomPDF()->getCanvas();
-        $canvas->page_script(function ($pageNumber, $pageCount, $canvas, $fontMetrics) use ($pagesAIgnorer): void {
+    /**
+     * Affiche le numéro de page en bas à droite, à partir de la première page de contenu.
+     */
+    private function numeroterPages(Dompdf $dompdf, int $pagesAIgnorer): void
+    {
+        $dompdf->getCanvas()->page_script(function ($pageNumber, $pageCount, $canvas, $fontMetrics) use ($pagesAIgnorer): void {
             if ($pageNumber > $pagesAIgnorer) {
-                $w = $canvas->get_width();
-                $h = $canvas->get_height();
                 $font = $fontMetrics->get_font('Times New Roman', 'normal');
-                $canvas->text($w - 55, $h - 22, $pageNumber - $pagesAIgnorer, $font, 9, [0, 0, 0]);
+                $canvas->text($canvas->get_width() - 55, $canvas->get_height() - 22, $pageNumber - $pagesAIgnorer, $font, 9, [0, 0, 0]);
             }
         });
-
-        $nomFichier = sprintf('projet_groupe_%d.pdf', $groupe->numero);
-
-        return response($pdf->output(), 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="'.$nomFichier.'"',
-        ]);
     }
 
     /**

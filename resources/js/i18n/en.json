@@ -800,7 +800,7 @@
             "edit_project": "Edit project",
             "view_project": "View project"
         },
-        "show": {
+        "edit": {
             "back": "Research projects",
             "page_head": "Project — {nom}",
             "saving": "Saving…",

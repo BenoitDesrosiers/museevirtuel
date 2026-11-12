@@ -39,6 +39,7 @@ function creerScenarioMedia(): array
 
     $typeProjet = TypeProjet::create([
         'enseignant_id' => $enseignant->id,
+        'cours_id' => $cours->id,
         'nom' => 'Projet vidéo',
         'accessible' => true,
     ]);
@@ -206,4 +207,51 @@ test("un étudiant tiers ne peut pas supprimer le média d'un autre", function (
     $this->actingAs($intrus)
         ->delete(urlMedias($s['cours'], $s['classeSection'], $s['groupe'], $s['typeProjet'], $s['section'])."/{$media->id}")
         ->assertForbidden();
+});
+
+test("l'enseignant d'un autre cours ne peut pas supprimer un média", function () {
+    $s = creerScenarioMedia();
+    $autreEnseignant = User::factory()->create(['role' => 'enseignant']);
+
+    $media = ProjetSectionMedia::create([
+        'projet_id' => $s['projet']->id,
+        'section_id' => $s['section']->id,
+        'type' => 'video',
+        'source_type' => 'url',
+        'url' => 'https://example.com/video.mp4',
+        'user_id' => $s['etudiant']->id,
+    ]);
+
+    $this->actingAs($autreEnseignant)
+        ->delete(urlMedias($s['cours'], $s['classeSection'], $s['groupe'], $s['typeProjet'], $s['section'])."/{$media->id}")
+        ->assertForbidden();
+
+    $this->assertDatabaseHas('projet_section_medias', ['id' => $media->id]);
+});
+
+test("un média d'un autre projet est refusé (404)", function () {
+    $s = creerScenarioMedia();
+
+    $autreType = TypeProjet::create([
+        'enseignant_id' => $s['enseignant']->id,
+        'cours_id' => $s['cours']->id,
+        'nom' => 'Autre type',
+        'accessible' => true,
+    ]);
+    $autreProjet = ProjetRecherche::create([
+        'groupe_id' => $s['groupe']->id,
+        'type_projet_id' => $autreType->id,
+    ]);
+    $media = ProjetSectionMedia::create([
+        'projet_id' => $autreProjet->id,
+        'section_id' => $s['section']->id,
+        'type' => 'video',
+        'source_type' => 'url',
+        'url' => 'https://example.com/video.mp4',
+        'user_id' => $s['etudiant']->id,
+    ]);
+
+    $this->actingAs($s['enseignant'])
+        ->delete(urlMedias($s['cours'], $s['classeSection'], $s['groupe'], $s['typeProjet'], $s['section'])."/{$media->id}")
+        ->assertNotFound();
 });

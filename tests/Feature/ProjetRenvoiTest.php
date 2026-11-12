@@ -30,6 +30,7 @@ function creerScenarioRenvoi(): array
         'groupe' => '0001',
         'enseignant_id' => $enseignant->id,
     ]);
+    $typeProjet->update(['cours_id' => $cours->id]);
 
     $etudiant1 = User::factory()->create(['role' => 'etudiant']);
     $etudiant2 = User::factory()->create(['role' => 'etudiant']);
@@ -99,7 +100,7 @@ it('peut modifier le contenu d\'un renvoi', function () {
     $this->actingAs($etudiant)
         ->patchJson("{$url}/renvois/{$renvoi->id}", ['contenu' => 'Nouveau texte.'])
         ->assertOk()
-        ->assertJsonPath('message', 'saved');
+        ->assertJsonPath('message', __('reponse.saved'));
 
     expect($renvoi->fresh()->contenu)->toBe('Nouveau texte.');
 });
@@ -114,7 +115,7 @@ it('peut modifier le numéro d\'un renvoi lors d\'une renumérotation', function
     $this->actingAs($etudiant)
         ->patchJson("{$url}/renvois/{$renvoi3->id}", ['numero' => 2])
         ->assertOk()
-        ->assertJsonPath('message', 'saved');
+        ->assertJsonPath('message', __('reponse.saved'));
 
     expect($renvoi3->fresh()->numero)->toBe(2);
 });
@@ -129,7 +130,7 @@ it('peut supprimer un renvoi', function () {
     $this->actingAs($etudiant)
         ->deleteJson("{$url}/renvois/{$renvoi->id}")
         ->assertOk()
-        ->assertJsonPath('message', 'deleted');
+        ->assertJsonPath('message', __('reponse.deleted'));
 
     expect(ProjetRenvoi::find($renvoi->id))->toBeNull();
 });
@@ -155,6 +156,30 @@ it('un non-membre est bloqué lors de la mise à jour', function () {
     $this->actingAs($autre)
         ->patchJson("{$url}/renvois/{$renvoi->id}", ['contenu' => 'Piraté.'])
         ->assertForbidden();
+});
+
+it('un refus d\'édition ne crée pas de projet', function () {
+    ['enseignant' => $enseignant, 'projet' => $projet, 'baseUrl' => $url] = creerScenarioRenvoi();
+    $projet->delete();
+
+    // L'enseignant accède au projet mais ne peut pas écrire hors du mode édition
+    $this->actingAs($enseignant)
+        ->postJson("{$url}/renvois", ['contenu' => 'Tentative.'])
+        ->assertForbidden();
+
+    $this->assertDatabaseMissing('projets_recherche', ['groupe_id' => $projet->groupe_id, 'type_projet_id' => $projet->type_projet_id]);
+});
+
+it('un membre crée le projet s\'il n\'existe pas encore', function () {
+    ['etudiant1' => $etudiant, 'projet' => $projet, 'baseUrl' => $url] = creerScenarioRenvoi();
+    $projet->delete();
+
+    $this->actingAs($etudiant)
+        ->postJson("{$url}/renvois", ['contenu' => 'Première source.'])
+        ->assertCreated()
+        ->assertJsonPath('renvoi.numero', 1);
+
+    $this->assertDatabaseHas('projets_recherche', ['groupe_id' => $projet->groupe_id, 'type_projet_id' => $projet->type_projet_id]);
 });
 
 // ─── Numérotation par projet ──────────────────────────────────────────────────
@@ -201,7 +226,7 @@ it('un projet sans renvoi retourne un tableau vide dans show()', function () {
         ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/edit")
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             ->where('renvois', [])
         );
 });
@@ -216,7 +241,7 @@ it('un enseignant peut ajouter un commentaire sur un renvoi', function () {
     $this->actingAs($enseignant)
         ->postJson("{$url}/renvois/{$renvoi->id}/commentaires", ['contenu' => 'Vérifier la source.'])
         ->assertCreated()
-        ->assertJsonPath('message', 'created')
+        ->assertJsonPath('message', __('reponse.created'))
         ->assertJsonPath('commentaire.contenu', 'Vérifier la source.');
 
     expect(ProjetRenvoiCommentaire::where('renvoi_id', $renvoi->id)->count())->toBe(1);
@@ -255,7 +280,7 @@ it('un enseignant peut supprimer son commentaire sur un renvoi', function () {
     $this->actingAs($enseignant)
         ->deleteJson("{$url}/renvois/{$renvoi->id}/commentaires/{$commentaire->id}")
         ->assertOk()
-        ->assertJsonPath('message', 'deleted');
+        ->assertJsonPath('message', __('reponse.deleted'));
 
     expect(ProjetRenvoiCommentaire::find($commentaire->id))->toBeNull();
 });
@@ -287,7 +312,7 @@ it('les commentaires sont inclus dans show() pour l\'enseignant', function () {
         ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/edit")
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             ->has('renvois', 1)
             ->where('renvois.0.commentaires.0.contenu', 'Mon commentaire.')
         );
@@ -303,7 +328,7 @@ it('un enseignant peut activer le mode édition enseignant', function () {
     $this->actingAs($enseignant)
         ->patchJson("{$url}/mode-edition-enseignant")
         ->assertOk()
-        ->assertJsonPath('message', 'toggled')
+        ->assertJsonPath('message', __('reponse.toggled'))
         ->assertJsonPath('mode_edition_enseignant', true);
 
     expect($projet->fresh()->mode_edition_enseignant)->toBeTrue();
@@ -339,7 +364,7 @@ it('show() retourne modeEditionEnseignant dans les props', function () {
         ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$groupe->id}/projets/{$typeProjet->id}/edit")
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             ->where('modeEditionEnseignant', true)
         );
 });

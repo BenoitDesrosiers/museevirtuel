@@ -126,7 +126,7 @@ test('on ne peut pas modifier un chapitre appartenant à une autre vidéo', func
             route('groupes.videos.chapitres.update', [$cours, $classe, $groupe, $video, $chapitreAutreVideo]),
             ['label' => 'Injection', 'debut' => 0.0],
         )
-        ->assertForbidden();
+        ->assertNotFound();
 });
 
 // ─── Chapitres — destroy() ─────────────────────────────────────────────────────

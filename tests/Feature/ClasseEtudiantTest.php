@@ -1,5 +1,7 @@
 <?php
 
+use App\Actions\InscrireEtudiantClasseAction;
+use App\Exceptions\TransactionEchoueeException;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\User;
@@ -229,4 +231,99 @@ test('store retourne 403 pour un utilisateur non autorise', function () {
         ->assertRedirect();
 
     $this->assertDatabaseMissing('users', ['no_da' => '1234567']);
+});
+
+test("update refuse un étudiant qui n'est pas inscrit dans la classe", function () {
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe] = creerContexteClasseEtudiant();
+    $autre = User::factory()->create(['role' => 'etudiant', 'prenom' => 'Intact']);
+
+    $this->actingAs($enseignant)
+        ->put("/cours/{$cours->id}/classes/{$classe->id}/etudiants/{$autre->id}", [
+            'prenom' => 'Pirate',
+            'nom' => 'Lavoie',
+            'email' => 'pirate@example.com',
+            'no_da' => '1234567',
+            'statut_cours' => 'actif',
+        ])
+        ->assertNotFound();
+
+    expect($autre->fresh()->prenom)->toBe('Intact');
+});
+
+// ─── B8 — Le courriel ne doit jamais récupérer le compte d'un autre utilisateur ───
+
+/**
+ * Données d'ajout manuel d'un étudiant ; les valeurs passées en paramètre ont priorité.
+ *
+ * @param  array<string, mixed>  $surcharges
+ * @return array<string, mixed>
+ */
+function donneesAjoutEtudiant(array $surcharges = []): array
+{
+    return array_merge([
+        'prenom' => 'Alice',
+        'nom' => 'Tremblay',
+        'no_da' => '2223334',
+        'statut_cours' => 'actif',
+    ], $surcharges);
+}
+
+test('store refuse le courriel d\'un compte qui n\'est pas étudiant', function () {
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe] = creerContexteClasseEtudiant();
+    $collegue = User::factory()->create(['role' => 'enseignant', 'email' => 'collegue@example.com']);
+
+    $this->actingAs($enseignant)
+        ->post("/cours/{$cours->id}/classes/{$classe->id}/etudiants", donneesAjoutEtudiant(['email' => 'collegue@example.com']))
+        ->assertSessionHasErrors('email');
+
+    expect($classe->etudiants()->count())->toBe(0)
+        ->and($collegue->fresh()->role)->toBe('enseignant');
+});
+
+test('store refuse le courriel d\'un étudiant qui a un autre DA', function () {
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe] = creerContexteClasseEtudiant();
+    User::factory()->create(['role' => 'etudiant', 'no_da' => '9998887', 'email' => 'autre@example.com']);
+
+    $this->actingAs($enseignant)
+        ->post("/cours/{$cours->id}/classes/{$classe->id}/etudiants", donneesAjoutEtudiant(['email' => 'autre@example.com']))
+        ->assertSessionHasErrors('email');
+
+    expect($classe->etudiants()->count())->toBe(0);
+});
+
+test('store reprend l\'étudiant existant qui a le même DA', function () {
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe] = creerContexteClasseEtudiant();
+    $existant = User::factory()->create(['role' => 'etudiant', 'no_da' => '2223334', 'email' => 'alice@example.com']);
+
+    $this->actingAs($enseignant)
+        ->post("/cours/{$cours->id}/classes/{$classe->id}/etudiants", donneesAjoutEtudiant(['email' => 'alice@example.com']))
+        ->assertSessionHasNoErrors();
+
+    expect($classe->etudiants()->pluck('users.id')->all())->toBe([$existant->id])
+        ->and(User::count())->toBe(2);
+});
+
+test('store refuse un étudiant déjà inscrit ailleurs sans créer de compte', function () {
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classe' => $classe] = creerContexteClasseEtudiant();
+    $autreClasse = Classe::create(['cours_id' => $cours->id, 'code' => 'AUTRE']);
+    $inscrit = User::factory()->create(['role' => 'etudiant', 'no_da' => '2223334']);
+    $autreClasse->etudiants()->attach($inscrit->id, ['no_da' => '2223334', 'statut_cours' => 'actif']);
+    $comptes = User::count();
+
+    $this->actingAs($enseignant)
+        ->post("/cours/{$cours->id}/classes/{$classe->id}/etudiants", donneesAjoutEtudiant(['email' => 'nouveau@example.com']))
+        ->assertSessionHasErrors(['no_da' => __('etudiant.already_in_class')]);
+
+    expect(User::count())->toBe($comptes)
+        ->and($classe->etudiants()->count())->toBe(0);
+});
+
+test('l\'inscription manuelle annule la création du compte si l\'inscription échoue', function () {
+    // Une classe jamais enregistrée fait échouer l'attach (classe_id nul) après la création du compte
+    $classeFantome = new Classe;
+
+    expect(fn () => app(InscrireEtudiantClasseAction::class)->execute($classeFantome, donneesAjoutEtudiant()))
+        ->toThrow(TransactionEchoueeException::class);
+
+    expect(User::where('no_da', '2223334')->exists())->toBeFalse();
 });

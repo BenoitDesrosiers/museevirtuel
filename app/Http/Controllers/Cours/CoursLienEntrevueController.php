@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Cours;
 
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Cours\ReorderCoursLienEntrevueRequest;
+use App\Http\Requests\Cours\SaveCoursLienEntrevueRequest;
 use App\Models\Cours;
 use App\Models\CoursLienEntrevue;
+use App\Services\OrdreElements;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 
 class CoursLienEntrevueController extends Controller
 {
@@ -14,17 +17,13 @@ class CoursLienEntrevueController extends Controller
      * Ajoute un lien d'entrevue au cours.
      *
      * Accessible aux enseignants et admins (authorize sur le cours).
+     * Les données sont validées par SaveCoursLienEntrevueRequest.
      */
-    public function store(Request $request, Cours $cours): RedirectResponse
+    public function store(SaveCoursLienEntrevueRequest $request, Cours $cours, OrdreElements $ordres): RedirectResponse
     {
-        $this->authorize('update', $cours);
+        $data = $request->validated();
 
-        $data = $request->validate([
-            'label' => ['required', 'string', 'max:255'],
-            'url' => ['required', 'url', 'max:2048'],
-        ]);
-
-        $ordre = ($cours->liensEntrevue()->max('ordre') ?? 0) + 1;
+        $ordre = $ordres->prochain($cours->liensEntrevue());
 
         $cours->liensEntrevue()->create([
             'label' => $data['label'],
@@ -37,19 +36,15 @@ class CoursLienEntrevueController extends Controller
 
     /**
      * Met à jour un lien d'entrevue existant.
+     *
+     * Les données sont validées par SaveCoursLienEntrevueRequest.
      */
     public function update(
-        Request $request,
+        SaveCoursLienEntrevueRequest $request,
         Cours $cours,
         CoursLienEntrevue $lien,
     ): RedirectResponse {
-        $this->authorize('update', $cours);
-        abort_if($lien->cours_id !== $cours->id, 404);
-
-        $data = $request->validate([
-            'label' => ['required', 'string', 'max:255'],
-            'url' => ['required', 'url', 'max:2048'],
-        ]);
+        $data = $request->validated();
 
         $lien->update($data);
 
@@ -61,19 +56,12 @@ class CoursLienEntrevueController extends Controller
      *
      * Reçoit un tableau d'IDs dans l'ordre désiré.
      */
-    public function reorder(Request $request, Cours $cours): RedirectResponse
+    public function reorder(ReorderCoursLienEntrevueRequest $request, Cours $cours, OrdreElements $ordres): RedirectResponse
     {
-        $this->authorize('update', $cours);
-
-        $validated = $request->validate([
-            'ordre' => ['required', 'array'],
-            'ordre.*' => ['required', 'integer'],
-        ]);
-
-        foreach ($validated['ordre'] as $index => $lienId) {
-            CoursLienEntrevue::where('id', $lienId)
-                ->where('cours_id', $cours->id)
-                ->update(['ordre' => $index + 1]);
+        try {
+            $ordres->reordonner($cours->liensEntrevue(), $request->ids());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
         return back();
@@ -82,18 +70,16 @@ class CoursLienEntrevueController extends Controller
     /**
      * Supprime un lien d'entrevue et renumérote les restants.
      */
-    public function destroy(Cours $cours, CoursLienEntrevue $lien): RedirectResponse
+    public function destroy(Cours $cours, CoursLienEntrevue $lien, OrdreElements $ordres): RedirectResponse
     {
         $this->authorize('update', $cours);
         abort_if($lien->cours_id !== $cours->id, 404);
 
-        $lien->delete();
-
-        $cours->liensEntrevue()->each(
-            function (CoursLienEntrevue $l, int $index): void {
-                $l->update(['ordre' => $index + 1]);
-            }
-        );
+        try {
+            $ordres->supprimer($lien, $cours->liensEntrevue());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', __('liens_entrevue.deleted'));
     }

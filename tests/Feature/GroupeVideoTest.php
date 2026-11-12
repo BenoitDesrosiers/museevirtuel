@@ -336,7 +336,7 @@ test('jumeler avec une vidéo d\'un autre groupe est refusé', function () {
             route('groupes.videos.jumeler', [$cours, $classe, $groupe, $videoBase]),
             ['video_a_inserer_id' => $videoAutreGroupe->id, 'position' => 5],
         )
-        ->assertForbidden();
+        ->assertUnprocessable();
 });
 
 test('jumeler une vidéo en cours de traitement est refusé', function () {

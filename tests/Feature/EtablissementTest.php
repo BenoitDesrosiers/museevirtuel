@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\InscriptionTemoinController;
+use App\Http\Controllers\Temoin\InscriptionTemoinController;
 use App\Models\Etablissement;
 use App\Models\Thematique;
 use App\Models\User;
@@ -203,4 +203,20 @@ test('supprimer un etablissement met etablissement_id a null sur les users', fun
         ->assertRedirect();
 
     expect($enseignant->fresh()->etablissement_id)->toBeNull();
+});
+
+// ─── B9 — Règle unique de visibilité des thématiques ──────────────────────────
+
+test("visiblesPar retourne les thématiques de l'enseignant et celles de son établissement", function () {
+    $cegep = creerCegep();
+    $enseignant = creerEnseignantAvecCegep($cegep);
+
+    $propreSansCegep = Thematique::factory()->create(['enseignant_id' => $enseignant->id, 'etablissement_id' => null]);
+    $duCegep = Thematique::factory()->create(['etablissement_id' => $cegep->id]);
+    $autre = Thematique::factory()->create(['etablissement_id' => creerCegep('Autre', 'Québec')->id]);
+
+    $ids = Thematique::visiblesPar($enseignant)->pluck('id');
+
+    expect($ids)->toContain($propreSansCegep->id, $duCegep->id)
+        ->not->toContain($autre->id);
 });

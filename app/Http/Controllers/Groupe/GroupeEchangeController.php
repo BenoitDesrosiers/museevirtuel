@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Groupe;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Groupe\StoreGroupeEchangeRequest;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
 use App\Models\GroupeEchange;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -39,15 +39,15 @@ class GroupeEchangeController extends Controller
     /**
      * Enregistre un nouveau message dans le fil d'échanges du groupe.
      *
+     * Données validées par StoreGroupeEchangeRequest.
+     *
      * @throws AuthorizationException
      */
-    public function store(Request $request, Cours $cours, Classe $classe, Groupe $groupe): RedirectResponse
+    public function store(StoreGroupeEchangeRequest $request, Cours $cours, Classe $classe, Groupe $groupe): RedirectResponse
     {
         $this->autoriserEchange($cours, $classe, $groupe);
 
-        $validated = $request->validate([
-            'contenu' => ['required', 'string', 'max:3000'],
-        ]);
+        $validated = $request->validated();
 
         GroupeEchange::create([
             'groupe_id' => $groupe->id,
@@ -55,7 +55,7 @@ class GroupeEchangeController extends Controller
             'contenu' => $validated['contenu'],
         ]);
 
-        return back()->with('success', 'Message envoyé.');
+        return back()->with('success', __('groupe.echange_sent'));
     }
 
     /**

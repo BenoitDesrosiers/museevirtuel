@@ -186,6 +186,22 @@ test('une sync répétée ne crée pas de doublon (upsert)', function () {
     expect(EtudiantReference::where('user_id', $etudiant->id)->count())->toBe(1);
 });
 
+test('sync ignore les items sans clé Zotero et ne les compte pas', function () {
+    Http::preventStrayRequests();
+    $sansCle = fakeZoteroItems()[0];
+    unset($sansCle['key']);
+    Http::fake(['api.zotero.org/*' => Http::response([...fakeZoteroItems(), $sansCle], 200)]);
+
+    $etudiant = creerEtudiant();
+    creerCredential($etudiant);
+
+    $this->actingAs($etudiant)
+        ->post('/etudiant/references/sync')
+        ->assertSessionHas('success', __('zotero.synchronise', ['count' => 1]));
+
+    expect(EtudiantReference::where('user_id', $etudiant->id)->count())->toBe(1);
+});
+
 test('sync sans credentials redirige avec une erreur', function () {
     $etudiant = creerEtudiant();
 
@@ -283,4 +299,20 @@ test('destroyCredential supprime les credentials et les références Zotero, mai
     $this->assertDatabaseEmpty('etudiant_zotero_credentials');
     $this->assertDatabaseMissing('etudiant_references', ['zotero_item_key' => 'ZOT123']);
     $this->assertDatabaseHas('etudiant_references', ['titre' => 'Note personnelle']);
+});
+
+test("une sync répétée conserve l'ordre choisi par l'étudiant (B7)", function () {
+    Http::preventStrayRequests();
+    Http::fake(['api.zotero.org/*' => Http::response(fakeZoteroItems(), 200)]);
+
+    $etudiant = creerEtudiant();
+    creerCredential($etudiant);
+
+    $this->actingAs($etudiant)->post('/etudiant/references/sync');
+    $reference = EtudiantReference::where('user_id', $etudiant->id)->firstOrFail();
+    $reference->update(['ordre' => 1]);
+
+    $this->actingAs($etudiant)->post('/etudiant/references/sync');
+
+    expect($reference->fresh()->ordre)->toBe(1);
 });

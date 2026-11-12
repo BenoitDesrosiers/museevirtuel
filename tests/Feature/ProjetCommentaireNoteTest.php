@@ -42,6 +42,7 @@ function creerContexteProjet(): array
 
     $typeProjet = TypeProjet::create([
         'enseignant_id' => $enseignant->id,
+        'cours_id' => $cours->id,
         'nom' => 'Projet test',
         'accessible' => true,
     ]);
@@ -126,7 +127,7 @@ test("l'enseignant peut supprimer un commentaire", function () {
     $this->actingAs($enseignant)
         ->deleteJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/commentaires/{$commentaire->id}")
         ->assertOk()
-        ->assertJson(['message' => 'deleted']);
+        ->assertJson(['message' => __('reponse.deleted')]);
 
     $this->assertDatabaseMissing('projet_commentaires', ['id' => $commentaire->id]);
 });

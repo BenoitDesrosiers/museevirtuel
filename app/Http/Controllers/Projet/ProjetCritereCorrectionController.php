@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers\Projet;
 
+use App\Concerns\ValidatesGroupeChain;
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Projet\Concerns\AutoriseProjetRecherche;
+use App\Http\Requests\Projet\ClonerProjetCritereCorrectionRequest;
+use App\Http\Requests\Projet\UpsertProjetCritereCorrectionRequest;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
@@ -11,16 +14,18 @@ use App\Models\ProjetCritereCorrection;
 use App\Models\ProjetRecherche;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetCritere;
+use App\Services\CorrectionCritereService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Throwable;
 
 /**
  * Corrections des critères d'évaluation par l'enseignant.
  */
 class ProjetCritereCorrectionController extends Controller
 {
-    use AutoriseProjetRecherche;
+    use ValidatesGroupeChain;
 
     /**
      * Crée ou met à jour la correction d'un critère pour ce projet.
@@ -30,66 +35,37 @@ class ProjetCritereCorrectionController extends Controller
      * automatiquement le pointage complet du critère.
      *
      * @throws HttpException
+     * @throws AuthorizationException
+     * @throws Throwable
      */
     public function upsert(
-        Request $request,
+        UpsertProjetCritereCorrectionRequest $request,
         Cours $cours,
         Classe $classe,
         Groupe $groupe,
         TypeProjet $typeProjet,
         TypeProjetCritere $critere,
+        CorrectionCritereService $correctionCritereService,
     ): JsonResponse {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserEnseignant($cours, $classe, $groupe);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
+        $this->authorize('corriger', [ProjetRecherche::class, $groupe]);
         abort_if($critere->type_projet_id !== $typeProjet->id, 404);
-
-        $validated = $request->validate([
-            'user_id' => ['nullable', 'integer', 'exists:users,id'],
-            'points' => ['nullable', 'numeric', 'min:0'],
-            'commentaire' => ['nullable', 'string', 'max:2000'],
-            'verifie' => ['boolean'],
-        ]);
 
         $projet = ProjetRecherche::firstOrCreate([
             'groupe_id' => $groupe->id,
             'type_projet_id' => $typeProjet->id,
         ]);
 
-        // Quand on met à jour la correction groupe (user_id = null), supprimer les
-        // overrides individuels afin que "attribuer à tous" s'applique réellement à tous.
-        $clearedUserIds = [];
-        if (! isset($validated['user_id'])) {
-            $clearedUserIds = ProjetCritereCorrection::where('projet_id', $projet->id)
-                ->where('critere_id', $critere->id)
-                ->whereNotNull('user_id')
-                ->pluck('user_id')
-                ->all();
-
-            if (! empty($clearedUserIds)) {
-                ProjetCritereCorrection::where('projet_id', $projet->id)
-                    ->where('critere_id', $critere->id)
-                    ->whereNotNull('user_id')
-                    ->delete();
-            }
+        try {
+            $resultat = $correctionCritereService->enregistrer($projet, $critere, $request->validated(), $request->boolean('verifie', false));
+        } catch (TransactionEchoueeException $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
         }
 
-        $correction = ProjetCritereCorrection::updateOrCreate(
-            [
-                'projet_id' => $projet->id,
-                'critere_id' => $critere->id,
-                'user_id' => $validated['user_id'] ?? null,
-            ],
-            [
-                'points' => $validated['points'] ?? null,
-                'commentaire' => $validated['commentaire'] ?? null,
-                'verifie' => $request->boolean('verifie', false),
-            ]
-        );
-
         return response()->json([
-            'message' => 'saved',
-            'correction' => $correction->only('id', 'projet_id', 'critere_id', 'user_id', 'points', 'commentaire', 'verifie', 'source_id'),
-            'cleared_user_ids' => $clearedUserIds,
+            'message' => __('reponse.saved'),
+            'correction' => $this->formater($resultat['correction']),
+            'cleared_user_ids' => $resultat['idsRetires'],
         ]);
     }
 
@@ -97,6 +73,7 @@ class ProjetCritereCorrectionController extends Controller
      * Supprime une correction de critère et tous ses clones.
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function destroy(
         Cours $cours,
@@ -104,18 +81,21 @@ class ProjetCritereCorrectionController extends Controller
         Groupe $groupe,
         TypeProjet $typeProjet,
         ProjetCritereCorrection $correction,
+        CorrectionCritereService $correctionCritereService,
     ): JsonResponse {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserEnseignant($cours, $classe, $groupe);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
+        $this->authorize('corriger', [ProjetRecherche::class, $groupe]);
 
-        $projet = $this->trouverProjet($groupe, $typeProjet);
+        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
         abort_if($correction->projet_id !== $projet->id, 404);
 
-        // Supprimer d'abord les clones pour éviter la violation de contrainte FK
-        $correction->clones()->delete();
-        $correction->delete();
+        try {
+            $correctionCritereService->supprimer($correction);
+        } catch (TransactionEchoueeException $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
 
-        return response()->json(['message' => 'deleted']);
+        return response()->json(['message' => __('reponse.deleted')]);
     }
 
     /**
@@ -126,47 +106,43 @@ class ProjetCritereCorrectionController extends Controller
      * le même (projet, critère, étudiant).
      *
      * @throws HttpException
+     * @throws AuthorizationException
      */
     public function cloner(
-        Request $request,
+        ClonerProjetCritereCorrectionRequest $request,
         Cours $cours,
         Classe $classe,
         Groupe $groupe,
         TypeProjet $typeProjet,
         ProjetCritereCorrection $correction,
+        CorrectionCritereService $correctionCritereService,
     ): JsonResponse {
-        $this->verifierTypeProjetAppartientCours($typeProjet, $cours);
-        $this->autoriserEnseignant($cours, $classe, $groupe);
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
+        $this->authorize('corriger', [ProjetRecherche::class, $groupe]);
 
-        $projet = $this->trouverProjet($groupe, $typeProjet);
+        $projet = ProjetRecherche::trouverPour($groupe, $typeProjet);
         abort_if($correction->projet_id !== $projet->id, 404);
 
-        $validated = $request->validate([
-            'user_id' => ['required', 'integer', 'exists:users,id'],
-            'points' => ['nullable', 'numeric', 'min:0'],
-            'commentaire' => ['nullable', 'string', 'max:2000'],
-            'verifie' => ['boolean'],
-        ]);
-
-        // Remplacer un éventuel clone existant pour ce (critère, étudiant)
-        ProjetCritereCorrection::where('projet_id', $projet->id)
-            ->where('critere_id', $correction->critere_id)
-            ->where('user_id', $validated['user_id'])
-            ->delete();
-
-        $clone = ProjetCritereCorrection::create([
-            'projet_id' => $projet->id,
-            'critere_id' => $correction->critere_id,
-            'user_id' => $validated['user_id'],
-            'points' => $validated['points'] ?? null,
-            'commentaire' => $validated['commentaire'] ?? null,
-            'verifie' => $request->boolean('verifie', (bool) $correction->verifie),
-            'source_id' => $correction->id,
-        ]);
+        $verifie = $request->boolean('verifie', (bool) $correction->verifie);
+        try {
+            $clone = $correctionCritereService->cloner($projet, $correction, $request->validated(), $verifie);
+        } catch (TransactionEchoueeException $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
 
         return response()->json([
-            'message' => 'cloned',
-            'correction' => $clone->only('id', 'projet_id', 'critere_id', 'user_id', 'points', 'commentaire', 'verifie', 'source_id'),
+            'message' => __('reponse.cloned'),
+            'correction' => $this->formater($clone),
         ]);
+    }
+
+    /**
+     * Retourne les champs d'une correction exposés au front.
+     *
+     * @return array<string, mixed>
+     */
+    private function formater(ProjetCritereCorrection $correction): array
+    {
+        return $correction->only('id', 'projet_id', 'critere_id', 'user_id', 'points', 'commentaire', 'verifie', 'source_id');
     }
 }

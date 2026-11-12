@@ -23,6 +23,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import * as GroupeController from '@/actions/App/Http/Controllers/Groupe/GroupeController';
 import * as ChapitreRoutes from '@/actions/App/Http/Controllers/Groupe/GroupeVideoChapitreController';
 import * as GroupeVideoController from '@/actions/App/Http/Controllers/Groupe/GroupeVideoController';
+import * as GroupeVideoEditionController from '@/actions/App/Http/Controllers/Groupe/GroupeVideoEditionController';
+import * as GroupeVideoTranscriptionController from '@/actions/App/Http/Controllers/Groupe/GroupeVideoTranscriptionController';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -146,7 +148,7 @@ function submitEdit() {
     stopPreview();
 
     editForm.post(
-        GroupeVideoController.editer({
+        GroupeVideoEditionController.editer({
             cours: props.cours,
             classe: props.classe,
             groupe: props.groupe,
@@ -323,7 +325,7 @@ function submitJumelage() {
     jumelageForm.video_a_inserer_id = jumelageVideoId.value;
     jumelageForm.position = jumelagePosition.value;
 
-    const url = GroupeVideoController.jumeler({
+    const url = GroupeVideoEditionController.jumeler({
         cours: props.cours,
         classe: props.classe,
         groupe: props.groupe,
@@ -683,7 +685,7 @@ function sauvegarderTranscription() {
     sauvegardeTranscriptionForm
         .transform(() => ({ segments: segmentsEdites.value }))
         .post(
-            GroupeVideoController.modifierTranscription({
+            GroupeVideoTranscriptionController.update({
                 cours: props.cours,
                 classe: props.classe,
                 groupe: props.groupe,
@@ -720,7 +722,7 @@ function onImportFichierChange(e: Event) {
         importTranscriptionForm
             .transform((data) => ({ fichier: data.fichier }))
             .post(
-                GroupeVideoController.importerTranscription({
+                GroupeVideoTranscriptionController.importMethod({
                     cours: props.cours,
                     classe: props.classe,
                     groupe: props.groupe,
@@ -777,7 +779,7 @@ function submitTranscrire() {
     demarrerPolling();
 
     transcrireForm.post(
-        GroupeVideoController.transcrire({
+        GroupeVideoTranscriptionController.store({
             cours: props.cours,
             classe: props.classe,
             groupe: props.groupe,

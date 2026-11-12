@@ -38,4 +38,19 @@ class Thematique extends Model
     {
         return $query->where('etablissement_id', $etablissementId);
     }
+
+    /**
+     * Filtre les thématiques visibles par un enseignant :
+     * les siennes, plus celles de son établissement s'il en a un.
+     *
+     * Règle unique partagée par les écrans enseignant et groupes, pour qu'ils
+     * proposent toujours la même liste.
+     */
+    public function scopeVisiblesPar(Builder $query, User $enseignant): Builder
+    {
+        return $query->where(function (Builder $q) use ($enseignant): void {
+            $q->where('enseignant_id', $enseignant->id)
+                ->when($enseignant->etablissement_id, fn (Builder $q, int $etablissementId) => $q->orWhere('etablissement_id', $etablissementId));
+        });
+    }
 }

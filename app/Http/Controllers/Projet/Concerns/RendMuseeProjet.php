@@ -128,8 +128,8 @@ trait RendMuseeProjet
 
         // L'édition est bloquée quand le musée est soumis (en attente) ou approuvé (publié)
         // — à moins que l'enseignant ait activé le mode édition manuelle.
-        $blocqueParStatut = $projet->museePublication?->bloqueEditionEtudiants() ?? false;
-        $peutEditer = (! $blocqueParStatut && $groupe->membres->contains('id', auth()->id()))
+        $bloqueParStatut = $projet->museePublication?->bloqueEditionEtudiants() ?? false;
+        $peutEditer = (! $bloqueParStatut && $groupe->membres->contains('id', auth()->id()))
             || ($estEnseignant && (bool) $projet->mode_edition_enseignant);
 
         // Les vidéos, audios, notes et statistiques sont différés : ils ne sont pas inclus

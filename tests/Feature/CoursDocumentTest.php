@@ -107,3 +107,25 @@ test('store accepte un document pdf', function () {
         'nom_original' => 'consignes.pdf',
     ]);
 });
+
+test('destroy refuse un document appartenant à un autre cours', function () {
+    ['enseignant' => $enseignant, 'cours' => $cours] = creerScenarioDocument();
+    $autreCours = Cours::create([
+        'nom_cours' => 'Autre cours',
+        'code' => '330-AUT',
+        'groupe' => '00002',
+        'enseignant_id' => $enseignant->id,
+    ]);
+
+    $this->actingAs($enseignant)
+        ->post("/cours/{$autreCours->id}/documents", [
+            'document' => UploadedFile::fake()->create('plan.pdf', 100, 'application/pdf'),
+        ]);
+    $document = $autreCours->documents()->firstOrFail();
+
+    $this->actingAs($enseignant)
+        ->delete("/cours/{$cours->id}/documents/{$document->id}")
+        ->assertNotFound();
+
+    $this->assertDatabaseHas('cours_documents', ['id' => $document->id]);
+});

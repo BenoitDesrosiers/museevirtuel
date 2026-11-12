@@ -39,6 +39,7 @@ function creerScenario(): array
         'groupe' => '0001',
         'enseignant_id' => $enseignant->id,
     ]);
+    $typeProjet->update(['cours_id' => $cours->id]);
 
     $etudiant1 = User::factory()->create(['role' => 'etudiant']);
     $etudiant2 = User::factory()->create(['role' => 'etudiant']);
@@ -218,7 +219,7 @@ test('un membre peut enregistrer sa conclusion individuelle', function () {
             'contenu' => '<p>Ma conclusion personnelle…</p>',
         ])
         ->assertOk()
-        ->assertJson(['message' => 'saved']);
+        ->assertJson(['message' => __('reponse.saved')]);
 
     $projet = ProjetRecherche::where('groupe_id', $classe->id)->first();
     $this->assertDatabaseHas('projet_conclusions', [
@@ -283,7 +284,10 @@ test('un membre ne peut pas cibler un user_id hors de son groupe (422)', functio
             'user_id' => $horsGroupe->id,
             'contenu' => '<p>Tentative IDOR</p>',
         ])
-        ->assertUnprocessable();
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['user_id' => __('projet_conclusion.user_id.exists')]);
+
+    $this->assertDatabaseMissing('projet_conclusions', ['user_id' => $horsGroupe->id]);
 });
 
 // ─── Export ───────────────────────────────────────────────────────────────────
@@ -323,7 +327,7 @@ test("l'enseignant peut verrouiller un document", function () {
     $this->actingAs($enseignant)
         ->patchJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/verrouille")
         ->assertOk()
-        ->assertJson(['message' => 'toggled', 'verrouille' => true]);
+        ->assertJson(['message' => __('reponse.toggled'), 'verrouille' => true]);
 
     $this->assertDatabaseHas('projets_recherche', ['groupe_id' => $classe->id, 'verrouille' => true]);
 });
@@ -381,7 +385,7 @@ test("l'enseignant peut activer la visibilité des corrections", function () {
     $this->actingAs($enseignant)
         ->patchJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/correction-visible")
         ->assertOk()
-        ->assertJson(['message' => 'toggled', 'correction_visible' => true]);
+        ->assertJson(['message' => __('reponse.toggled'), 'correction_visible' => true]);
 });
 
 test('un étudiant ne peut pas modifier la visibilité des corrections', function () {
@@ -469,7 +473,7 @@ test('un membre peut remettre son travail', function () {
         ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/remettre")
         ->assertOk()
         ->assertJsonStructure(['message', 'remis_le'])
-        ->assertJson(['message' => 'remis']);
+        ->assertJson(['message' => __('projet.remis')]);
 
     $projet = ProjetRecherche::where('groupe_id', $classe->id)->first();
     expect($projet->remis_le)->not->toBeNull();
@@ -554,7 +558,7 @@ test('une deuxième remise est autorisée avec remises multiples (paramètre Typ
     $this->actingAs($etudiant)
         ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/remettre")
         ->assertOk()
-        ->assertJson(['message' => 'remis']);
+        ->assertJson(['message' => __('projet.remis')]);
 });
 
 // ─── Paramètres de remise — route supprimée (Sprint 10) ───────────────────────
@@ -603,7 +607,7 @@ test('upsertAnnotation persiste la position séquentielle et le mot annoté', fu
             'html' => $html,
         ])
         ->assertOk()
-        ->assertJson(['message' => 'saved']);
+        ->assertJson(['message' => __('reponse.saved')]);
 
     $this->assertDatabaseHas('projet_annotations', [
         'commentaire_id' => $uuid,
@@ -782,4 +786,123 @@ test('destroyAnnotation ne supprime pas les autres annotations du même champ', 
     // A est supprimée, B doit rester intacte.
     $this->assertDatabaseMissing('projet_annotations', ['commentaire_id' => $uuidA]);
     $this->assertDatabaseHas('projet_annotations', ['commentaire_id' => $uuidB]);
+});
+
+// ─── B2 — Vote de remise : paramètres lus depuis TypeProjet ───────────────────
+
+test('le vote unanime re-remet un projet quand le TypeProjet permet les remises multiples', function () {
+    ['typeProjet' => $tp, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $groupe, 'etudiant1' => $e1, 'etudiant2' => $e2] = creerScenario();
+    $tp->update(['remises_multiples' => true]);
+
+    // La colonne héritée du projet dit l'inverse : seule la valeur du TypeProjet doit compter
+    $premiereRemise = now()->subDay();
+    $projet = ProjetRecherche::create([
+        'groupe_id' => $groupe->id,
+        'type_projet_id' => $tp->id,
+        'remis_le' => $premiereRemise,
+        'remises_multiples' => false,
+    ]);
+
+    $url = "/cours/{$cours->id}/classes/{$cs->id}/groupes/{$groupe->id}/projets/{$tp->id}/voter-remise";
+    $this->actingAs($e1)->postJson($url, ['vote' => true])->assertOk();
+    $this->actingAs($e2)->postJson($url, ['vote' => true])->assertOk();
+
+    expect($projet->fresh()->remis_le->gt($premiereRemise))->toBeTrue();
+});
+
+// ─── B10 — Pas de création de projet avant autorisation ───────────────────────
+
+test("un étudiant hors du groupe n'entraîne pas la création du projet", function (string $suffixe) {
+    ['typeProjet' => $tp, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $groupe] = creerScenario();
+    $intrus = User::factory()->create(['role' => 'etudiant']);
+
+    $this->actingAs($intrus)
+        ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$groupe->id}/projets/{$tp->id}/{$suffixe}", [])
+        ->assertForbidden();
+
+    expect(ProjetRecherche::where('groupe_id', $groupe->id)->exists())->toBeFalse();
+})->with(['developpements', 'renvois']);
+
+test('updateConclusion refuse un intrus sans créer le projet', function () {
+    ['typeProjet' => $tp, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $groupe, 'etudiant1' => $e1] = creerScenario();
+    $intrus = User::factory()->create(['role' => 'etudiant']);
+
+    $this->actingAs($intrus)
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$groupe->id}/projets/{$tp->id}/conclusion", [
+            'contenu' => 'x',
+            'user_id' => $e1->id,
+        ])
+        ->assertForbidden();
+
+    expect(ProjetRecherche::where('groupe_id', $groupe->id)->exists())->toBeFalse();
+});
+
+// ─── Lot 6 — Ordre des développements (service OrdreElements) ─────────────────
+
+test('les développements sont ajoutés en fin, renumérotés après suppression et réordonnés', function () {
+    ['typeProjet' => $tp, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $groupe, 'etudiant1' => $etudiant] = creerScenario();
+    $url = "/cours/{$cours->id}/classes/{$cs->id}/groupes/{$groupe->id}/projets/{$tp->id}/developpements";
+
+    foreach (range(1, 3) as $i) {
+        $this->actingAs($etudiant)->postJson($url)->assertCreated();
+    }
+
+    $projet = ProjetRecherche::where('groupe_id', $groupe->id)->firstOrFail();
+    [$d1, $d2, $d3] = $projet->developpements()->orderBy('ordre')->get()->all();
+    expect([$d1->ordre, $d2->ordre, $d3->ordre])->toBe([1, 2, 3]);
+
+    $this->actingAs($etudiant)->deleteJson("{$url}/{$d2->id}")->assertOk();
+    expect($d3->fresh()->ordre)->toBe(2);
+
+    $this->actingAs($etudiant)->patchJson("{$url}/reorder", ['ordre' => [$d3->id, $d1->id]])->assertOk();
+    expect($d3->fresh()->ordre)->toBe(1)
+        ->and($d1->fresh()->ordre)->toBe(2);
+});
+
+test("le réordonnancement refuse un développement d'un autre projet", function () {
+    ['typeProjet' => $tp, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $groupe, 'etudiant1' => $etudiant] = creerScenario();
+    $url = "/cours/{$cours->id}/classes/{$cs->id}/groupes/{$groupe->id}/projets/{$tp->id}/developpements";
+    $this->actingAs($etudiant)->postJson($url)->assertCreated();
+
+    $autreType = TypeProjet::create(['enseignant_id' => $tp->enseignant_id, 'cours_id' => $cours->id, 'nom' => 'Autre', 'accessible' => true]);
+    $autreProjet = ProjetRecherche::create(['groupe_id' => $groupe->id, 'type_projet_id' => $autreType->id]);
+    $etranger = $autreProjet->developpements()->create(['ordre' => 5, 'titre' => 'x', 'contenu' => 'x']);
+
+    $this->actingAs($etudiant)->patchJson("{$url}/reorder", ['ordre' => [$etranger->id]])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('ordre');
+
+    expect($etranger->fresh()->ordre)->toBe(5);
+});
+
+// ─── Lot 6 — Seuils de complétude configurables ───────────────────────────────
+
+test('la remise applique le seuil de mots défini dans config/projet.php', function () {
+    ['typeProjet' => $tp, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $groupe, 'etudiant1' => $etudiant] = creerScenario();
+    config(['projet.mots_minimum.developpement_contenu' => 2]);
+
+    $projet = ProjetRecherche::create(['groupe_id' => $groupe->id, 'type_projet_id' => $tp->id, 'titre_projet' => 'Un titre']);
+    $projet->developpements()->create(['ordre' => 1, 'titre' => 'Un titre correct', 'contenu' => 'Seul']);
+
+    $this->actingAs($etudiant)
+        ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$groupe->id}/projets/{$tp->id}/remettre")
+        ->assertUnprocessable()
+        ->assertJsonFragment(['raison' => 'Le contenu doit avoir au moins 2 mots.']);
+});
+
+// ─── Lot 6 — Aperçus de notes (ClasseNotesApercuController) ───────────────────
+
+test("l'enseignant du cours voit les aperçus de notes, un autre enseignant non", function () {
+    ['enseignant' => $enseignant, 'typeProjet' => $tp, 'cours' => $cours, 'classeSection' => $cs] = creerScenario();
+    $autre = User::factory()->create(['role' => 'enseignant']);
+
+    $urls = [
+        "/cours/{$cours->id}/classes/{$cs->id}/types-projets/{$tp->id}/apercu-notes",
+        "/cours/{$cours->id}/classes/{$cs->id}/apercu-notes-accumulees",
+    ];
+
+    foreach ($urls as $url) {
+        $this->actingAs($enseignant)->get($url)->assertOk();
+        $this->actingAs($autre)->get($url)->assertForbidden();
+    }
 });

@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers\TypeProjet;
 
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreCritereRequest;
-use App\Http\Requests\UpdateCritereRequest;
+use App\Http\Requests\TypeProjet\ReorderCritereRequest;
+use App\Http\Requests\TypeProjet\StoreCritereRequest;
+use App\Http\Requests\TypeProjet\UpdateCritereRequest;
+use App\Http\Requests\TypeProjet\UpdateVisibiliteGroupeCritereRequest;
 use App\Models\Cours;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetCritere;
 use App\Models\TypeProjetSection;
+use App\Services\OrdreElements;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 
 class TypeProjetCritereController extends Controller
 {
@@ -25,10 +29,8 @@ class TypeProjetCritereController extends Controller
         StoreCritereRequest $request,
         Cours $cours,
         TypeProjet $typeProjet,
+        OrdreElements $ordres,
     ): RedirectResponse {
-        $this->authorize('update', $cours);
-        abort_if($typeProjet->cours_id !== $cours->id, 404);
-
         $data = $request->validated();
         $sectionId = $data['section_id'] ?? null;
 
@@ -39,9 +41,7 @@ class TypeProjetCritereController extends Controller
         }
 
         // Calculer le prochain ordre dans le même contexte (global ou par section)
-        $ordre = ($typeProjet->criteres()
-            ->where('section_id', $sectionId)
-            ->max('ordre') ?? 0) + 1;
+        $ordre = $ordres->prochain($typeProjet->criteres()->where('section_id', $sectionId));
 
         $typeProjet->criteres()->create([
             'section_id' => $sectionId,
@@ -55,7 +55,7 @@ class TypeProjetCritereController extends Controller
             'ordre' => $ordre,
         ]);
 
-        return back()->with('success', 'Critère ajouté.');
+        return back()->with('success', __('critere.created'));
     }
 
     /**
@@ -69,10 +69,6 @@ class TypeProjetCritereController extends Controller
         TypeProjet $typeProjet,
         TypeProjetCritere $critere,
     ): RedirectResponse {
-        $this->authorize('update', $cours);
-        abort_if($typeProjet->cours_id !== $cours->id, 404);
-        abort_if($critere->type_projet_id !== $typeProjet->id, 404);
-
         $data = $request->validated();
 
         $critere->update([
@@ -85,7 +81,7 @@ class TypeProjetCritereController extends Controller
             'visible' => $request->boolean('visible', $critere->visible),
         ]);
 
-        return back()->with('success', 'Critère mis à jour.');
+        return back()->with('success', __('critere.updated'));
     }
 
     /**
@@ -95,22 +91,15 @@ class TypeProjetCritereController extends Controller
      * L'UI envoie uniquement les IDs d'un même groupe (global ou section donnée).
      */
     public function reorder(
-        Request $request,
+        ReorderCritereRequest $request,
         Cours $cours,
         TypeProjet $typeProjet,
+        OrdreElements $ordres,
     ): RedirectResponse {
-        $this->authorize('update', $cours);
-        abort_if($typeProjet->cours_id !== $cours->id, 404);
-
-        $validated = $request->validate([
-            'ordre' => ['required', 'array'],
-            'ordre.*' => ['required', 'integer'],
-        ]);
-
-        foreach ($validated['ordre'] as $index => $critereId) {
-            TypeProjetCritere::where('id', $critereId)
-                ->where('type_projet_id', $typeProjet->id)
-                ->update(['ordre' => $index + 1]);
+        try {
+            $ordres->reordonner($typeProjet->criteres(), $request->ids());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
         return back();
@@ -121,19 +110,14 @@ class TypeProjetCritereController extends Controller
      *
      * Permet au professeur de basculer la visibilité de l'ensemble des critères
      * d'un type en une seule action depuis la page d'édition du TypeProjet.
+     * Les données sont validées par UpdateVisibiliteGroupeCritereRequest.
      */
-    public function toggleVisibleGroupe(
-        Request $request,
+    public function toggleVisibiliteGroupe(
+        UpdateVisibiliteGroupeCritereRequest $request,
         Cours $cours,
         TypeProjet $typeProjet,
     ): RedirectResponse {
-        $this->authorize('update', $cours);
-        abort_if($typeProjet->cours_id !== $cours->id, 404);
-
-        $validated = $request->validate([
-            'type' => ['required', 'in:positif,negatif'],
-            'visible' => ['required', 'boolean'],
-        ]);
+        $validated = $request->validated();
 
         $typeProjet->criteres()
             ->where('type', $validated['type'])
@@ -147,29 +131,26 @@ class TypeProjetCritereController extends Controller
      *
      * La renumération cible uniquement les critères partageant le même
      * (type_projet_id, section_id) que le critère supprimé.
+     *
+     * @throws AuthorizationException
      */
     public function destroy(
         Cours $cours,
         TypeProjet $typeProjet,
         TypeProjetCritere $critere,
+        OrdreElements $ordres,
     ): RedirectResponse {
-        $this->authorize('update', $cours);
         abort_if($typeProjet->cours_id !== $cours->id, 404);
+        $this->authorize('update', $typeProjet);
         abort_if($critere->type_projet_id !== $typeProjet->id, 404);
 
-        // Sauvegarder section_id avant suppression pour la renumération
-        $sectionId = $critere->section_id;
+        // Renuméroter seulement les critères du même groupe (global ou même section)
+        try {
+            $ordres->supprimer($critere, $typeProjet->criteres()->where('section_id', $critere->section_id));
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
-        $critere->delete();
-
-        // Renuméroter les critères restants dans le même groupe
-        TypeProjetCritere::where('type_projet_id', $typeProjet->id)
-            ->where('section_id', $sectionId)
-            ->orderBy('ordre')
-            ->each(function (TypeProjetCritere $c, int $index): void {
-                $c->update(['ordre' => $index + 1]);
-            });
-
-        return back()->with('success', 'Critère supprimé.');
+        return back()->with('success', __('critere.deleted'));
     }
 }

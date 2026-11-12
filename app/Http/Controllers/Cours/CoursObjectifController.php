@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Cours;
 
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Cours\ReorderCoursObjectifRequest;
+use App\Http\Requests\Cours\SaveCoursObjectifRequest;
 use App\Models\Cours;
 use App\Models\CoursObjectif;
+use App\Services\OrdreElements;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 
 class CoursObjectifController extends Controller
 {
@@ -15,42 +17,35 @@ class CoursObjectifController extends Controller
      * Ajoute un objectif pédagogique à un cours.
      *
      * Réservé à l'enseignant du cours et aux admins.
+     * Les données sont validées par SaveCoursObjectifRequest.
      */
-    public function store(Request $request, Cours $cours): RedirectResponse
+    public function store(SaveCoursObjectifRequest $request, Cours $cours, OrdreElements $ordres): RedirectResponse
     {
-        Gate::authorize('update', $cours);
+        $validated = $request->validated();
 
-        $validated = $request->validate([
-            'contenu' => ['required', 'string', 'max:1000'],
-        ]);
-
-        $ordre = ($cours->objectifs()->max('ordre') ?? 0) + 1;
+        $ordre = $ordres->prochain($cours->objectifs());
 
         $cours->objectifs()->create([
             'contenu' => $validated['contenu'],
             'ordre' => $ordre,
         ]);
 
-        return back()->with('success', 'Objectif ajouté.');
+        return back()->with('success', __('objectif.created'));
     }
 
     /**
      * Met à jour le contenu d'un objectif pédagogique.
      *
      * Réservé à l'enseignant du cours et aux admins.
+     * Les données sont validées par SaveCoursObjectifRequest.
      */
-    public function update(Request $request, Cours $cours, CoursObjectif $objectif): RedirectResponse
+    public function update(SaveCoursObjectifRequest $request, Cours $cours, CoursObjectif $objectif): RedirectResponse
     {
-        Gate::authorize('update', $cours);
-        abort_if($objectif->cours_id !== $cours->id, 404);
-
-        $validated = $request->validate([
-            'contenu' => ['required', 'string', 'max:1000'],
-        ]);
+        $validated = $request->validated();
 
         $objectif->update($validated);
 
-        return back()->with('success', 'Objectif mis à jour.');
+        return back()->with('success', __('objectif.updated'));
     }
 
     /**
@@ -58,21 +53,18 @@ class CoursObjectifController extends Controller
      *
      * Réservé à l'enseignant du cours et aux admins.
      */
-    public function destroy(Cours $cours, CoursObjectif $objectif): RedirectResponse
+    public function destroy(Cours $cours, CoursObjectif $objectif, OrdreElements $ordres): RedirectResponse
     {
-        Gate::authorize('update', $cours);
+        $this->authorize('update', $cours);
         abort_if($objectif->cours_id !== $cours->id, 404);
 
-        $objectif->delete();
+        try {
+            $ordres->supprimer($objectif, $cours->objectifs());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
-        // Renuméroter pour éviter les trous
-        $cours->objectifs()->orderBy('ordre')->each(
-            function (CoursObjectif $o, int $index): void {
-                $o->update(['ordre' => $index + 1]);
-            }
-        );
-
-        return back()->with('success', 'Objectif supprimé.');
+        return back()->with('success', __('objectif.deleted'));
     }
 
     /**
@@ -80,19 +72,12 @@ class CoursObjectifController extends Controller
      *
      * Reçoit un tableau d'IDs dans l'ordre désiré.
      */
-    public function reorder(Request $request, Cours $cours): RedirectResponse
+    public function reorder(ReorderCoursObjectifRequest $request, Cours $cours, OrdreElements $ordres): RedirectResponse
     {
-        Gate::authorize('update', $cours);
-
-        $validated = $request->validate([
-            'ordre' => ['required', 'array'],
-            'ordre.*' => ['required', 'integer'],
-        ]);
-
-        foreach ($validated['ordre'] as $index => $objectifId) {
-            CoursObjectif::where('id', $objectifId)
-                ->where('cours_id', $cours->id)
-                ->update(['ordre' => $index + 1]);
+        try {
+            $ordres->reordonner($cours->objectifs(), $request->ids());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
         return back();

@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers\Cours;
 
-use App\Http\Controllers\Controller;
 use App\Actions\TransfererCoursAction;
-use App\Http\Requests\TransfererCoursRequest;
+use App\Exceptions\TransactionEchoueeException;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Cours\TransfererCoursRequest;
 use App\Models\Cours;
 use Illuminate\Http\RedirectResponse;
 
@@ -22,11 +23,15 @@ class TransfererCoursController extends Controller
         Cours $cours,
         TransfererCoursAction $action,
     ): RedirectResponse {
-        $nouveauCours = $action->execute(
-            source: $cours,
-            annee: $request->integer('annee'),
-            session: $request->string('session'),
-        );
+        try {
+            $nouveauCours = $action->execute(
+                source: $cours,
+                annee: $request->integer('annee'),
+                session: $request->string('session'),
+            );
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return to_route('cours.show', $nouveauCours)
             ->with('success', __('cours.transfere'));

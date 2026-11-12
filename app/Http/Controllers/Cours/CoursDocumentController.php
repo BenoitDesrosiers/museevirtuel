@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Cours;
 
-use App\Http\Controllers\Controller;
 use App\Actions\StoreUploadedFile;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Cours\StoreCoursDocumentRequest;
 use App\Models\Cours;
 use App\Models\CoursDocument;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class CoursDocumentController extends Controller
@@ -16,23 +16,14 @@ class CoursDocumentController extends Controller
     /**
      * Uploade un document et l'associe au cours.
      *
-     * La validation MIME réelle (pas uniquement l'extension client) est assurée par Laravel.
+     * La validation (dont le MIME réel, pas uniquement l'extension client) est assurée par StoreCoursDocumentRequest.
      * L'autorisation délègue à CoursPolicy::update().
      *
      * @throws AuthorizationException
      */
-    public function store(Request $request, Cours $cours): RedirectResponse
+    public function store(StoreCoursDocumentRequest $request, Cours $cours, StoreUploadedFile $fichiers): RedirectResponse
     {
-        $this->authorize('update', $cours);
-
-        $request->validate(
-            [
-                'document' => ['required', 'file', 'max:10240', 'mimes:pdf,doc,docx'],
-            ],
-            $this->messagesValidationDocument(),
-        );
-
-        $meta = (new StoreUploadedFile)->execute(
+        $meta = $fichiers->execute(
             $request->file('document'),
             "images/cours/{$cours->id}"
         );
@@ -44,21 +35,6 @@ class CoursDocumentController extends Controller
         ]);
 
         return back()->with('success', __('document.added'));
-    }
-
-    /**
-     * Retourne les messages d'erreur de validation en français pour un document.
-     *
-     * @return array<string, string>
-     */
-    private function messagesValidationDocument(): array
-    {
-        return [
-            'document.required' => __('document.required'),
-            'document.file' => __('document.format_error'),
-            'document.mimes' => __('document.format_error'),
-            'document.max' => __('document.max'),
-        ];
     }
 
     /**
@@ -84,6 +60,7 @@ class CoursDocumentController extends Controller
      */
     public function destroy(Cours $cours, CoursDocument $document): RedirectResponse
     {
+        abort_if($document->cours_id !== $cours->id, 404);
         $this->authorize('update', $cours);
 
         $document->deleteWithFile();

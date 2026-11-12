@@ -29,19 +29,20 @@ class CreateEtudiantAction
 
         $email ??= $this->generateUniqueEmail($prenom, $nom);
 
-        return User::firstOrCreate(
-            ['email' => strtolower($email)],
-            [
-                'prenom' => $prenom,
-                'nom' => $nom,
-                'no_da' => $noDa,
-                // Hash::make() explicite — même si le cast 'hashed' le ferait,
-                // on garde l'intention lisible et indépendante du modèle.
-                'password' => Hash::make('password'),
-                'role' => 'etudiant',
-                'email_verified_at' => now(),
-            ]
-        );
+        // create() et non firstOrCreate() : retrouver un compte par courriel pourrait récupérer celui
+        // d'un enseignant ou d'un autre étudiant. Le courriel est libre (généré unique, ou validé
+        // par StoreClasseEtudiantRequest) ; sinon la contrainte unique fait échouer la transaction.
+        return User::create([
+            'email' => strtolower($email),
+            'prenom' => $prenom,
+            'nom' => $nom,
+            'no_da' => $noDa,
+            // Hash::make() explicite — même si le cast 'hashed' le ferait,
+            // on garde l'intention lisible et indépendante du modèle.
+            'password' => Hash::make('password'),
+            'role' => 'etudiant',
+            'email_verified_at' => now(),
+        ]);
     }
 
     /**

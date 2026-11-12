@@ -58,3 +58,38 @@ test('les ordres sont renumérotés après la suppression d un objectif', functi
 
     expect($ordres)->toBe([1, 2]);
 });
+
+// ─── Réordonnancement commun (ReorderRequest + OrdreElements) ─────────────────
+
+test('reorder applique le nouvel ordre', function () {
+    ['enseignant' => $enseignant, 'cours' => $cours] = creerScenarioObjectif();
+    $a = CoursObjectif::create(['cours_id' => $cours->id, 'contenu' => 'A', 'ordre' => 1]);
+    $b = CoursObjectif::create(['cours_id' => $cours->id, 'contenu' => 'B', 'ordre' => 2]);
+
+    $this->actingAs($enseignant)
+        ->patch(urlObjectifs($cours).'/reorder', ['ordre' => [$b->id, $a->id]])
+        ->assertRedirect();
+
+    expect($b->fresh()->ordre)->toBe(1)->and($a->fresh()->ordre)->toBe(2);
+});
+
+test('reorder refuse un ID en double', function () {
+    ['enseignant' => $enseignant, 'cours' => $cours] = creerScenarioObjectif();
+    $a = CoursObjectif::create(['cours_id' => $cours->id, 'contenu' => 'A', 'ordre' => 1]);
+
+    $this->actingAs($enseignant)
+        ->patchJson(urlObjectifs($cours).'/reorder', ['ordre' => [$a->id, $a->id]])
+        ->assertJsonValidationErrors('ordre.0');
+});
+
+test("reorder refuse l'objectif d'un autre cours sans rien modifier", function () {
+    ['enseignant' => $enseignant, 'cours' => $cours] = creerScenarioObjectif();
+    $autreCours = Cours::create(['nom_cours' => 'Autre', 'code' => '330-AUT', 'groupe' => '02', 'enseignant_id' => $enseignant->id]);
+    $etranger = CoursObjectif::create(['cours_id' => $autreCours->id, 'contenu' => 'X', 'ordre' => 4]);
+
+    $this->actingAs($enseignant)
+        ->patchJson(urlObjectifs($cours).'/reorder', ['ordre' => [$etranger->id]])
+        ->assertJsonValidationErrors('ordre');
+
+    expect($etranger->fresh()->ordre)->toBe(4);
+});

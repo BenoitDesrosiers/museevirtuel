@@ -25,6 +25,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import * as GroupeMediaController from '@/actions/App/Http/Controllers/Groupe/GroupeMediaController';
 import * as GroupeVideoController from '@/actions/App/Http/Controllers/Groupe/GroupeVideoController';
+import GroupeVideoPublicationController from '@/actions/App/Http/Controllers/Groupe/GroupeVideoPublicationController';
 import FormDialog from '@/components/shared/FormDialog.vue';
 import Heading from '@/components/shared/Heading.vue';
 import NoteAvecCorrections from '@/components/classes/NoteAvecCorrections.vue';
@@ -421,9 +422,12 @@ function editerPhotoUrl(): string {
 const noteForm = useForm({ contenu: '' });
 
 function submitNote() {
-    noteForm.post(`/groupes/${props.groupe.id}/notes`, {
-        onSuccess: () => noteForm.reset(),
-    });
+    noteForm.post(
+        `/cours/${props.cours.id}/classes/${props.classe.id}/groupes/${props.groupe.id}/notes`,
+        {
+            onSuccess: () => noteForm.reset(),
+        },
+    );
 }
 
 // ─── Supprimer une note ───────────────────────────────────────────────────────
@@ -434,7 +438,7 @@ function deleteNote(note: Note) {
         return;
     }
 
-    deleteNoteForm.delete(`/groupes/${props.groupe.id}/notes/${note.id}`);
+    deleteNoteForm.delete(`/cours/${props.cours.id}/classes/${props.classe.id}/groupes/${props.groupe.id}/notes`);
 }
 
 // ─── Masquer/afficher les notes ───────────────────────────────────────────────
@@ -731,10 +735,14 @@ function formatSize(bytes: number): string {
 
             <!-- Carte Musée virtuel — visible aux membres et à l'enseignant si le cours a un TypeProjet musée -->
             <Card v-if="typeProjetMusee && (estMembre || estEnseignant)">
-                <CardHeader class="flex flex-row items-center justify-between pb-3">
+                <CardHeader
+                    class="flex flex-row items-center justify-between pb-3"
+                >
                     <div class="flex items-center gap-2">
                         <Landmark class="h-5 w-5 text-muted-foreground" />
-                        <CardTitle class="text-base">{{ typeProjetMusee.nom }}</CardTitle>
+                        <CardTitle class="text-base">{{
+                            typeProjetMusee.nom
+                        }}</CardTitle>
                     </div>
                     <span
                         v-if="projetMusee?.est_publie"
@@ -757,14 +765,19 @@ function formatSize(bytes: number): string {
                 </CardHeader>
                 <CardContent class="pt-0">
                     <p class="mb-3 text-sm text-muted-foreground">
-                        Composez et publiez votre musée virtuel à partir des médias de votre groupe.
+                        Composez et publiez votre musée virtuel à partir des
+                        médias de votre groupe.
                     </p>
                     <Button as-child size="sm">
                         <Link
                             :href="`/cours/${cours.id}/classes/${classe.id}/groupes/${groupe.id}/projets/${typeProjetMusee.id}/edit`"
                         >
                             <Landmark class="mr-2 h-4 w-4" />
-                            {{ projetMusee ? 'Ouvrir mon musée' : 'Démarrer mon musée' }}
+                            {{
+                                projetMusee
+                                    ? 'Ouvrir mon musée'
+                                    : 'Démarrer mon musée'
+                            }}
                         </Link>
                     </Button>
                 </CardContent>
@@ -1717,7 +1730,7 @@ function formatSize(bytes: number): string {
                                 }).url
                             "
                             :publier-url="
-                                GroupeVideoController.publier({
+                                GroupeVideoPublicationController({
                                     cours,
                                     classe,
                                     groupe,
@@ -1993,7 +2006,7 @@ function formatSize(bytes: number): string {
                         </div>
                         <div
                             v-if="membresRetirer.length > 0"
-                            class="flex flex-wrap gap-2 mt-1"
+                            class="mt-1 flex flex-wrap gap-2"
                         >
                             <span
                                 v-for="id in membresRetirer"

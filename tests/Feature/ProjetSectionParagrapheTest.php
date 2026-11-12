@@ -38,6 +38,7 @@ function creerScenarioParagraphe(): array
 
     $typeProjet = TypeProjet::create([
         'enseignant_id' => $enseignant->id,
+        'cours_id' => $cours->id,
         'nom' => 'Type paragraphes',
         'accessible' => true,
     ]);
@@ -65,7 +66,7 @@ test('un membre peut créer un paragraphe dans une section de type paragraphes',
     $this->actingAs($etudiant)
         ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes")
         ->assertCreated()
-        ->assertJsonFragment(['message' => 'created'])
+        ->assertJsonFragment(['message' => __('reponse.created')])
         ->assertJsonPath('paragraphe.ordre', 1);
 
     $this->assertDatabaseHas('projet_section_paragraphes', [
@@ -109,6 +110,29 @@ test('un non-membre ne peut pas créer un paragraphe (403)', function () {
     $this->actingAs($autre)
         ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes")
         ->assertForbidden();
+});
+
+test('un refus d\'édition ne crée pas de projet', function () {
+    ['enseignant' => $enseignant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
+    $projet->delete();
+
+    // L'enseignant accède au projet mais ne peut pas écrire hors du mode édition
+    $this->actingAs($enseignant)
+        ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes")
+        ->assertForbidden();
+
+    $this->assertDatabaseMissing('projets_recherche', ['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
+});
+
+test('un membre crée le projet s\'il n\'existe pas encore', function () {
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet, 'section' => $section] = creerScenarioParagraphe();
+    $projet->delete();
+
+    $this->actingAs($etudiant)
+        ->postJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes")
+        ->assertCreated();
+
+    $this->assertDatabaseHas('projets_recherche', ['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
 });
 
 test('une section d\'un autre TypeProjet retourne 404', function () {
@@ -157,7 +181,7 @@ test('un membre peut modifier le titre et le contenu d\'un paragraphe', function
             'contenu' => '<p>Mon contenu</p>',
         ])
         ->assertOk()
-        ->assertJsonFragment(['message' => 'saved']);
+        ->assertJsonFragment(['message' => __('reponse.saved')]);
 
     $this->assertDatabaseHas('projet_section_paragraphes', [
         'id' => $paragraphe->id,
@@ -226,7 +250,7 @@ test('un membre peut supprimer un paragraphe s\'il en reste au moins 2', functio
     $this->actingAs($etudiant)
         ->deleteJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/sections/{$section->id}/paragraphes/{$p1->id}")
         ->assertOk()
-        ->assertJsonFragment(['message' => 'deleted']);
+        ->assertJsonFragment(['message' => __('reponse.deleted')]);
 
     $this->assertDatabaseMissing('projet_section_paragraphes', ['id' => $p1->id]);
     $this->assertDatabaseHas('projet_section_paragraphes', ['id' => $p2->id, 'ordre' => 1]);
@@ -274,7 +298,7 @@ test('l\'ordre des paragraphes est mis à jour correctement', function () {
             'ordre' => [$p2->id, $p1->id],
         ])
         ->assertOk()
-        ->assertJsonFragment(['message' => 'reordered']);
+        ->assertJsonFragment(['message' => __('reponse.reordered')]);
 
     $this->assertDatabaseHas('projet_section_paragraphes', ['id' => $p2->id, 'ordre' => 1]);
     $this->assertDatabaseHas('projet_section_paragraphes', ['id' => $p1->id, 'ordre' => 2]);
@@ -306,7 +330,7 @@ test('le show retourne les sections de type paragraphes avec leurs paragraphes',
     $this->actingAs($etudiant)
         ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             ->has('sections', 1)
             ->where('sections.0.type', 'paragraphes')
             ->has('sections.0.paragraphes', 1)
@@ -327,7 +351,7 @@ test('un membre peut sauvegarder une conclusion liée à une section', function 
             'contenu' => '<p>Ma conclusion</p>',
         ])
         ->assertOk()
-        ->assertJsonFragment(['message' => 'saved']);
+        ->assertJsonFragment(['message' => __('reponse.saved')]);
 
     $this->assertDatabaseHas('projet_conclusions', [
         'projet_id' => $projet->id,
@@ -335,6 +359,35 @@ test('un membre peut sauvegarder une conclusion liée à une section', function 
         'section_id' => $section->id,
         'contenu' => '<p>Ma conclusion</p>',
     ]);
+});
+
+test('un refus d\'édition de la conclusion ne crée pas de projet', function () {
+    ['enseignant' => $enseignant, 'etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet] = creerScenarioParagraphe();
+    $projet->delete();
+
+    // L'enseignant accède au projet mais ne peut pas écrire hors du mode édition
+    $this->actingAs($enseignant)
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/conclusion", [
+            'user_id' => $etudiant->id,
+            'contenu' => '<p>Tentative</p>',
+        ])
+        ->assertForbidden();
+
+    $this->assertDatabaseMissing('projets_recherche', ['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
+});
+
+test('un membre crée le projet en sauvegardant sa conclusion s\'il n\'existe pas encore', function () {
+    ['etudiant' => $etudiant, 'cours' => $cours, 'classeSection' => $cs, 'classe' => $classe, 'typeProjet' => $typeProjet, 'projet' => $projet] = creerScenarioParagraphe();
+    $projet->delete();
+
+    $this->actingAs($etudiant)
+        ->putJson("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/conclusion", [
+            'user_id' => $etudiant->id,
+            'contenu' => '<p>Ma conclusion</p>',
+        ])
+        ->assertOk();
+
+    $this->assertDatabaseHas('projets_recherche', ['groupe_id' => $classe->id, 'type_projet_id' => $typeProjet->id]);
 });
 
 test('deux conclusions pour le même user mais sections différentes sont distinctes', function () {
@@ -383,6 +436,7 @@ test('le show retourne les conclusionsParMembre dans les sections de type indivi
 
     $typeProjet = TypeProjet::create([
         'enseignant_id' => $enseignant->id,
+        'cours_id' => $cours->id,
         'nom' => 'Type individuel',
         'accessible' => true,
     ]);
@@ -409,7 +463,7 @@ test('le show retourne les conclusionsParMembre dans les sections de type indivi
     $this->actingAs($etudiant)
         ->get("/cours/{$cours->id}/classes/{$classeSection->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             ->has('sections', 1)
             ->where('sections.0.type', 'individuel')
             ->has('sections.0.conclusionsParMembre', 1)
