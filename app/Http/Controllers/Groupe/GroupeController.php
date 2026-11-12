@@ -38,7 +38,7 @@ class GroupeController extends Controller
      * existant de l'étudiant.
      *
      * @throws HttpException si la classe n'appartient pas au cours
-     * @throws AuthorizationException si l'étudiant n'est pas inscrit à la classe
+     * @throws AuthorizationException si l'utilisateur n'est pas autorisé dans la classe
      */
     public function create(Cours $cours, Classe $classe): Response|RedirectResponse
     {
@@ -97,7 +97,10 @@ class GroupeController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('success', __('groupe.created'));
+        // On renvoie vers la classe pour que l'utilisateur voie le nouveau groupe dans la liste.
+        return redirect()
+            ->route('classes.show', [$cours, $classe])
+            ->with('success', __('groupe.created'));
     }
 
     /**

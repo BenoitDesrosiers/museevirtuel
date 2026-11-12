@@ -391,6 +391,13 @@ function executeDeleteGroupe() {
                             :class="{ '-rotate-180': ouvert.groupes }"
                         />
                     </button>
+                    <Button size="sm" as-child>
+                        <Link
+                            :href="`/cours/${cours.id}/classes/${classe.id}/groupes/create`"
+                        >
+                            {{ $t('classes.show.create_group') }}
+                        </Link>
+                    </Button>
                 </CardHeader>
                 <CardContent v-show="ouvert.groupes">
                     <div

@@ -473,16 +473,6 @@ Route::middleware(['auth', 'role:etudiant'])->group(function () {
 
     // Routes sur un cours spécifique — bloquées si le cours est verrouillé
     Route::middleware('cours.accessible')->group(function () {
-        // Groupes dans une classe (section) — l'étudiant crée et consulte son groupe
-        Route::get('/cours/{cours}/classes/{classe}/groupes', [GroupeController::class, 'index'])
-            ->name('groupes.index');
-
-        Route::get('/cours/{cours}/classes/{classe}/groupes/create', [GroupeController::class, 'create'])
-            ->name('groupes.create');
-
-        Route::post('/cours/{cours}/classes/{classe}/groupes', [GroupeController::class, 'store'])
-            ->name('groupes.store');
-
         // Notes collaboratives du groupe
         Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/notes', [GroupeNoteController::class, 'store'])
             ->name('groupes.notes.store');
@@ -494,6 +484,18 @@ Route::middleware(['auth', 'role:etudiant'])->group(function () {
         Route::patch('/cours/{cours}/echeancier/{etape}/toggle-etudiant', [EcheancierController::class, 'toggleEtudiant'])
             ->name('echeancier.toggleEtudiant');
     });
+});
+
+// ─── Création de groupes — étudiants inscrits, enseignant du cours et admins ──
+Route::middleware(['auth', 'role:etudiant,enseignant', 'cours.accessible'])->group(function () {
+    Route::get('/cours/{cours}/classes/{classe}/groupes', [GroupeController::class, 'index'])
+        ->name('groupes.index');
+
+    Route::get('/cours/{cours}/classes/{classe}/groupes/create', [GroupeController::class, 'create'])
+        ->name('groupes.create');
+
+    Route::post('/cours/{cours}/classes/{classe}/groupes', [GroupeController::class, 'store'])
+        ->name('groupes.store');
 });
 
 // ─── Échanges groupe ↔ témoin + Consentement vidéo (tous les rôles auth concernés) ──

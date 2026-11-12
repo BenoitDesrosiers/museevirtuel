@@ -11,7 +11,7 @@ use Illuminate\Foundation\Http\FormRequest;
 class StoreGroupeRequest extends FormRequest
 {
     /**
-     * Seul un étudiant inscrit dans la classe peut y créer un groupe.
+     * Un étudiant inscrit, l'enseignant du cours peut créer un groupe.
      */
     public function authorize(): bool
     {
@@ -30,7 +30,7 @@ class StoreGroupeRequest extends FormRequest
     {
         return [
             'membres' => ['array'],
-            'membres.*' => ['integer', 'exists:users,id'],
+            'membres.*' => ['integer', 'exists:users,id', 'min:1'],
             'thematiques' => ['required', 'array', 'min:1', 'max:3'],
             'thematiques.*' => ['integer', 'exists:thematiques,id'],
         ];

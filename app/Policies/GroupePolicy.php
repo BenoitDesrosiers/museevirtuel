@@ -11,11 +11,14 @@ class GroupePolicy
     /**
      * Détermine si l'utilisateur peut créer un groupe dans la classe.
      *
-     * Réservé aux étudiants inscrits dans la classe.
+     * Réservé à l'enseignant du cours et aux étudiants inscrits à la classe.
+     * Le rôle étudiant est vérifié en plus de l'inscription : un compte d'un autre
+     * rôle rattaché par erreur au pivot ne doit pas pouvoir créer de groupe.
      */
     public function create(User $user, Classe $classe): bool
     {
-        return $classe->etudiants()->where('users.id', $user->id)->exists();
+        return ($user->isEnseignant() && $classe->cours->enseignant_id === $user->id)
+            || ($user->isEtudiant() && $classe->etudiants()->where('users.id', $user->id)->exists());
     }
 
     /**

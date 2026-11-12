@@ -595,7 +595,6 @@
     "etudiant_reference.created": "Référence ajoutée.",
     "etudiant_reference.deleted": "Référence supprimée.",
     "groupe.echange_sent": "Message envoyé.",
-    "groupe.membres_minimum": "Le groupe doit avoir au moins 2 membres.",
     "groupe.note_correction_deleted": "Correction supprimée.",
     "groupe.note_correction_saved": "Correction enregistrée.",
     "groupe.taille_max": "Le groupe ne peut pas avoir plus de :max membre(s).",

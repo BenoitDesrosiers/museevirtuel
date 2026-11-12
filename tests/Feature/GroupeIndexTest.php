@@ -73,20 +73,39 @@ test('index redirige vers la page de création', function () {
         ->assertRedirect(route('groupes.create', [$ctx['cours'], $ctx['classe']]));
 });
 
-test('un enseignant ne peut pas accéder aux routes de création de groupe', function () {
+test('un enseignant peut accéder aux routes de création de groupe', function () {
     $ctx = creerScenarioGroupeIndex();
+    $thematique = Thematique::factory()->create([
+        'enseignant_id' => $ctx['enseignant']->id,
+    ]);
+    $secondEtudiant = User::factory()->create(['role' => 'etudiant']);
+    $ctx['classe']->etudiants()->attach($secondEtudiant->id);
 
     $this->actingAs($ctx['enseignant'])
         ->get(route('groupes.index', [$ctx['cours'], $ctx['classe']]))
-        ->assertRedirect(route('dashboard'));
+        ->assertRedirect(route('groupes.create', [$ctx['cours'], $ctx['classe']]));
 
     $this->actingAs($ctx['enseignant'])
         ->get(route('groupes.create', [$ctx['cours'], $ctx['classe']]))
-        ->assertRedirect(route('dashboard'));
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Groupes/Create')
+            ->has('autresEtudiants')
+            ->has('thematiques')
+        );
 
     $this->actingAs($ctx['enseignant'])
-        ->post(route('groupes.store', [$ctx['cours'], $ctx['classe']]))
-        ->assertRedirect(route('dashboard'));
+        ->post(route('groupes.store', [$ctx['cours'], $ctx['classe']]), [
+            'membres' => [$ctx['etudiant']->id, $secondEtudiant->id],
+            'thematiques' => [$thematique->id],
+        ])
+        ->assertRedirect(route('classes.show', [$ctx['cours'], $ctx['classe']]));
+
+    $groupe = Groupe::query()->latest('id')->firstOrFail();
+
+    expect($groupe->created_by)->toBe($ctx['enseignant']->id)
+        ->and($groupe->membres()->pluck('users.id')->all())
+        ->toBe([$ctx['etudiant']->id, $secondEtudiant->id]);
 });
 
 // ─── index() — accès refusé ────────────────────────────────────────────────────
@@ -98,6 +117,31 @@ test('étudiant non inscrit ne peut pas accéder à groupes index', function () 
     $this->actingAs($autre)
         ->get(route('groupes.create', [$ctx['cours'], $ctx['classe']]))
         ->assertForbidden();
+});
+
+test('un enseignant d\'un autre cours ne peut pas créer de groupe', function () {
+    $ctx = creerScenarioGroupeIndex();
+    $autreEnseignant = User::factory()->create(['role' => 'enseignant']);
+
+    $this->actingAs($autreEnseignant)
+        ->get(route('groupes.create', [$ctx['cours'], $ctx['classe']]))
+        ->assertForbidden();
+});
+
+test('un admin ne peut pas créer de groupe', function () {
+    $ctx = creerScenarioGroupeIndex();
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    // Le middleware de rôle bloque déjà la route : on vérifie la policy directement.
+    expect($admin->can('create', [Groupe::class, $ctx['classe']]))->toBeFalse();
+});
+
+test('un non-étudiant rattaché à la classe ne peut pas créer de groupe', function () {
+    $ctx = creerScenarioGroupeIndex();
+    $personneAgee = User::factory()->create(['role' => 'personne_agee']);
+    $ctx['classe']->etudiants()->attach($personneAgee->id);
+
+    expect($personneAgee->can('create', [Groupe::class, $ctx['classe']]))->toBeFalse();
 });
 
 test('cours et classe incompatibles renvoient 404', function () {
@@ -179,12 +223,29 @@ test('store ignore les membres déjà dans un autre groupe', function () {
             ])->id],
         ]);
 
-    expect(Groupe::where('classe_id', $ctx['classe']->id)
+    // Le membre déjà pris est filtré : le groupe est créé avec le créateur seul.
+    $groupe = Groupe::where('classe_id', $ctx['classe']->id)
         ->where('created_by', $ctx['etudiant']->id)
-        ->exists())->toBeFalse();
+        ->firstOrFail();
+
+    expect($groupe->membres()->pluck('users.id')->all())->toBe([$ctx['etudiant']->id]);
 });
 
-test('store refuse un groupe avec moins de deux membres', function () {
+test('un enseignant ne peut pas créer un groupe vide', function () {
+    $ctx = creerScenarioGroupeIndex();
+    $thematique = Thematique::factory()->create([
+        'enseignant_id' => $ctx['enseignant']->id,
+    ]);
+
+    $this->actingAs($ctx['enseignant'])
+        ->post(route('groupes.store', [$ctx['cours'], $ctx['classe']]), [
+            'membres' => [],
+            'thematiques' => [$thematique->id],
+        ])
+        ->assertSessionHasErrors('membres');
+});
+
+test('un étudiant peut créer un groupe seul et est redirigé vers la classe', function () {
     $ctx = creerScenarioGroupeIndex();
     $thematique = Thematique::factory()->create([
         'enseignant_id' => $ctx['enseignant']->id,
@@ -195,7 +256,12 @@ test('store refuse un groupe avec moins de deux membres', function () {
             'membres' => [],
             'thematiques' => [$thematique->id],
         ])
-        ->assertSessionHasErrors('membres');
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('classes.show', [$ctx['cours'], $ctx['classe']]));
+
+    $groupe = Groupe::query()->latest('id')->firstOrFail();
+
+    expect($groupe->membres()->pluck('users.id')->all())->toBe([$ctx['etudiant']->id]);
 });
 
 test('store refuse un groupe sans thematique', function () {
@@ -280,7 +346,7 @@ test('updateMembres ignore les étudiants déjà dans un autre groupe', function
         ->not->toContain((int) $etudiantPris->id);
 });
 
-test('updateMembres refuse de réduire un groupe à un seul membre', function () {
+test('updateMembres permet de réduire un groupe à un seul membre', function () {
     $ctx = creerScenarioGroupeIndex();
     $secondEtudiant = User::factory()->create(['role' => 'etudiant']);
     $ctx['classe']->etudiants()->attach($secondEtudiant->id);
@@ -296,7 +362,9 @@ test('updateMembres refuse de réduire un groupe à un seul membre', function ()
             'ajouter' => [],
             'retirer' => [$secondEtudiant->id],
         ])
-        ->assertSessionHasErrors('membres');
+        ->assertSessionHasNoErrors();
+
+    expect($groupe->membres()->pluck('users.id')->all())->toBe([$ctx['etudiant']->id]);
 });
 
 test('updateThematiques refuse de supprimer la dernière thematique', function () {

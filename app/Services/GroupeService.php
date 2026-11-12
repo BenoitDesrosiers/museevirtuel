@@ -33,7 +33,8 @@ class GroupeService
      */
     public function creer(User $createur, Cours $cours, Classe $classe, array $membres, array $thematiques): Groupe
     {
-        $dejaDansGroupe = $classe->groupes()
+        $inclutCreateur = $createur->isEtudiant();
+        $dejaDansGroupe = $inclutCreateur && $classe->groupes()
             ->whereHas('membres', fn ($q) => $q->where('users.id', $createur->id))
             ->exists();
 
@@ -50,10 +51,13 @@ class GroupeService
         // Exclure les membres déjà dans un autre groupe de la même classe
         $membresInscrits = array_diff($membresInscrits, $classe->etudiantsDejaGroupes());
 
-        // Le créateur est toujours inclus même s'il ne s'est pas sélectionné lui-même
-        $tousLesMembres = array_values(array_unique(array_merge([(int) $createur->id], $membresInscrits)));
+        // Un utilisateur non étudiant crée le groupe sans devenir membre étudiant.
+        $tousLesMembres = array_values(array_unique(array_merge(
+            $inclutCreateur ? [(int) $createur->id] : [],
+            $membresInscrits,
+        )));
 
-        $this->verifierTailleEquipe($cours, count($tousLesMembres), inclutCreateur: true);
+        $this->verifierTailleEquipe($cours, count($tousLesMembres), inclutCreateur: $inclutCreateur);
 
         $thematiquesValides = $this->thematiquesValides($cours, $thematiques);
 
@@ -152,14 +156,15 @@ class GroupeService
     }
 
     /**
-     * Vérifie le minimum de 2 membres et les bornes de taille d'équipe du cours.
+     * Vérifie les bornes de taille d'équipe configurées sur le cours.
      *
      * @throws ValidationException
      */
     private function verifierTailleEquipe(Cours $cours, int $totalMembres, bool $inclutCreateur): void
     {
         $message = match (true) {
-            $totalMembres < 2 => __('groupe.membres_minimum'),
+            // Un groupe vide n'a pas de sens, même si le cours ne fixe aucun minimum.
+            $totalMembres < 1 => __('groupe.taille_min', ['min' => 1]),
             $cours->taille_equipe_min !== null && $totalMembres < $cours->taille_equipe_min => __(
                 $inclutCreateur ? 'groupe.taille_min_createur' : 'groupe.taille_min',
                 ['min' => $cours->taille_equipe_min],
