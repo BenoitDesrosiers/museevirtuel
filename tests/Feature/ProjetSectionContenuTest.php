@@ -35,6 +35,7 @@ function creerScenarioSection(): array
 
     $typeProjet = TypeProjet::create([
         'enseignant_id' => $enseignant->id,
+        'cours_id' => $cours->id,
         'nom' => 'Type test',
         'accessible' => true,
     ]);
@@ -62,7 +63,7 @@ test("un étudiant membre peut sauvegarder le contenu d'une section", function (
             'contenu' => '<p>Texte de la section</p>',
         ])
         ->assertOk()
-        ->assertJsonFragment(['message' => 'saved']);
+        ->assertJsonFragment(['message' => __('reponse.saved')]);
 
     $this->assertDatabaseHas('projet_section_contenus', [
         'projet_id' => $projet->id,
@@ -149,7 +150,7 @@ test('le show du projet contient les sections avec leur contenu', function () {
     $this->actingAs($etudiant)
         ->get("/cours/{$cours->id}/classes/{$cs->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             ->has('sections', 1)
             ->where('sections.0.label', 'Introduction')
             ->where('sections.0.contenu', '<p>Contenu test</p>')
@@ -174,6 +175,7 @@ test("le show retourne un tableau sections vide si le type de projet n'a aucune 
     // TypeProjet sans aucune section
     $typeProjet = TypeProjet::create([
         'enseignant_id' => $enseignant->id,
+        'cours_id' => $cours->id,
         'nom' => 'Type sans sections',
         'accessible' => true,
     ]);
@@ -181,7 +183,7 @@ test("le show retourne un tableau sections vide si le type de projet n'a aucune 
     $this->actingAs($etudiant)
         ->get("/cours/{$cours->id}/classes/{$classeSection->id}/groupes/{$classe->id}/projets/{$typeProjet->id}/edit")
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             ->where('sections', [])
         );
 });

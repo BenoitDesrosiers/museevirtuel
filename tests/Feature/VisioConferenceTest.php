@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Resources\VisioConferenceResource;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
@@ -406,6 +407,117 @@ test('streamRecording retourne 404 si aucun enregistrement existe', function () 
         ->assertNotFound();
 });
 
+// ─── Visio ciblée sur un groupe (faille S8) ──────────────────────────────────
+
+/**
+ * Ajoute au scénario un membre du groupe ciblé, un membre d'un autre groupe
+ * du même cours, et une visio ciblée sur le premier groupe avec enregistrement.
+ *
+ * @return array{membre: User, autreMembre: User, visio: VisioConference}
+ */
+function creerVisioDeGroupe(array $s): array
+{
+    $membre = User::factory()->create(['role' => 'etudiant']);
+    $autreMembre = User::factory()->create(['role' => 'etudiant']);
+    $s['classe']->etudiants()->attach([$membre->id, $autreMembre->id]);
+    $s['groupe']->membres()->attach($membre->id);
+
+    $autreGroupe = Groupe::create(['classe_id' => $s['classe']->id, 'created_by' => $autreMembre->id]);
+    $autreGroupe->membres()->attach($autreMembre->id);
+
+    $path = UploadedFile::fake()->create('recording.mp4', 100, 'video/mp4')
+        ->storeAs("visio-recordings/{$s['groupe']->id}", 'recording.mp4');
+
+    $visio = VisioConference::create([
+        'cours_id' => $s['cours']->id,
+        'groupe_id' => $s['groupe']->id,
+        'animateur_id' => $s['enseignant']->id,
+        'jitsi_room' => '0001-GrPe0001',
+        'titre' => 'Rencontre du groupe',
+        'recording_path' => $path,
+    ]);
+
+    return compact('membre', 'autreMembre', 'visio');
+}
+
+test("l'enregistrement d'une visio de groupe est refusé aux membres d'un autre groupe du cours", function () {
+    Storage::fake();
+    $s = creerScenarioVisio();
+    ['membre' => $membre, 'autreMembre' => $autreMembre, 'visio' => $visio] = creerVisioDeGroupe($s);
+
+    $this->actingAs($autreMembre)
+        ->get("/cours/{$s['cours']->id}/visio/{$visio->id}/recording")
+        ->assertForbidden();
+
+    $this->actingAs($membre)
+        ->get("/cours/{$s['cours']->id}/visio/{$visio->id}/recording")
+        ->assertOk();
+});
+
+test("un membre d'un autre groupe ne peut ni démarrer ni terminer une visio de groupe", function () {
+    Storage::fake();
+    $s = creerScenarioVisio();
+    ['autreMembre' => $autreMembre, 'visio' => $visio] = creerVisioDeGroupe($s);
+
+    $this->actingAs($autreMembre)->patch(urlVisio($s['cours'], $visio).'/start')->assertForbidden();
+    $this->actingAs($autreMembre)->patch(urlVisio($s['cours'], $visio).'/end')->assertForbidden();
+
+    expect($visio->fresh()->started_at)->toBeNull()
+        ->and($visio->fresh()->ended_at)->toBeNull();
+});
+
+test('un membre du groupe ciblé peut démarrer puis terminer la visio', function () {
+    Storage::fake();
+    $s = creerScenarioVisio();
+    ['membre' => $membre, 'visio' => $visio] = creerVisioDeGroupe($s);
+
+    $this->actingAs($membre)->patch(urlVisio($s['cours'], $visio).'/start')->assertRedirect();
+    $this->actingAs($membre)->patch(urlVisio($s['cours'], $visio).'/end')->assertRedirect();
+
+    expect($visio->fresh()->started_at)->not->toBeNull()
+        ->and($visio->fresh()->ended_at)->not->toBeNull();
+});
+
+test("une visio commune reste ouverte aux membres de n'importe quel groupe du cours", function () {
+    Storage::fake();
+    $s = creerScenarioVisio();
+    ['autreMembre' => $autreMembre, 'visio' => $visio] = creerVisioDeGroupe($s);
+    $visio->update(['groupe_id' => null]);
+
+    $this->actingAs($autreMembre)->patch(urlVisio($s['cours'], $visio).'/start')->assertRedirect();
+});
+
+test('un étudiant hors du cours ne peut pas démarrer une visio commune', function () {
+    $s = creerScenarioVisio();
+    $visio = VisioConference::create([
+        'cours_id' => $s['cours']->id,
+        'animateur_id' => $s['enseignant']->id,
+        'jitsi_room' => '0001-CoMm0001',
+        'titre' => 'Commune',
+    ]);
+
+    $this->actingAs(User::factory()->create(['role' => 'etudiant']))
+        ->patch(urlVisio($s['cours'], $visio).'/start')
+        ->assertForbidden();
+});
+
+test('un membre peut créer une visio ciblée sur son groupe, mais pas sur un autre groupe', function () {
+    Storage::fake();
+    $s = creerScenarioVisio();
+    ['membre' => $membre] = creerVisioDeGroupe($s);
+    $autreGroupe = Groupe::where('id', '!=', $s['groupe']->id)->firstOrFail();
+
+    $this->actingAs($membre)
+        ->post(urlVisio($s['cours']), ['titre' => 'Notre rencontre', 'groupe_id' => $s['groupe']->id])
+        ->assertRedirect();
+
+    $this->actingAs($membre)
+        ->post(urlVisio($s['cours']), ['titre' => 'Intrusion', 'groupe_id' => $autreGroupe->id])
+        ->assertForbidden();
+
+    expect(VisioConference::where('titre', 'Intrusion')->exists())->toBeFalse();
+});
+
 // ─── Cleanup fichier ──────────────────────────────────────────────────────────
 
 test('le fichier enregistrement est supprimé du storage quand la visio est effacée', function () {
@@ -430,4 +542,27 @@ test('le fichier enregistrement est supprimé du storage quand la visio est effa
     $visio->delete();
 
     Storage::assertMissing($path);
+});
+
+// ─── VisioConferenceResource ──────────────────────────────────────────────────
+
+test('la resource expose le flux interne pour un enregistrement local et les relations chargées', function () {
+    $s = creerScenarioVisio();
+    $visio = VisioConference::create([
+        'cours_id' => $s['cours']->id,
+        'groupe_id' => $s['groupe']->id,
+        'animateur_id' => $s['enseignant']->id,
+        'jitsi_room' => '0001-Resource',
+        'titre' => 'Séance',
+    ]);
+    $visio->forceFill(['recording_path' => "visio-recordings/{$visio->id}/recording.mp4"])->save();
+
+    $props = VisioConferenceResource::make($visio->load(['animateur', 'cours']))->resolve();
+
+    expect($props['recording_stream_url'])->toBe(route('cours.visio.recording', [$s['cours'], $visio]))
+        ->and($props['recording_is_local'])->toBeTrue()
+        ->and($props['has_recording'])->toBeTrue()
+        ->and($props['animateur'])->toBe(['id' => $s['enseignant']->id, 'prenom' => $s['enseignant']->prenom, 'nom' => $s['enseignant']->nom])
+        ->and($props['cours']['nom_cours'])->toBe('Cours Visio Test')
+        ->and($props)->not->toHaveKey('groupe_numero');
 });

@@ -3,12 +3,11 @@
 namespace App\Http\Controllers\Cours;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Cours\SaveEcheancierEtapeRequest;
 use App\Models\Cours;
 use App\Models\EcheancierEtape;
 use App\Models\EcheancierEtudiantProgress;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 
 class EcheancierController extends Controller
 {
@@ -16,16 +15,11 @@ class EcheancierController extends Controller
      * Ajoute une nouvelle étape à l'échéancier d'un cours.
      *
      * Réservé à l'enseignant du cours et aux admins.
+     * Les données sont validées par SaveEcheancierEtapeRequest.
      */
-    public function store(Request $request, Cours $cours): RedirectResponse
+    public function store(SaveEcheancierEtapeRequest $request, Cours $cours): RedirectResponse
     {
-        Gate::authorize('update', $cours);
-
-        $validated = $request->validate([
-            'semaine' => ['required', 'integer', 'min:1', 'max:15'],
-            'periode' => ['nullable', 'integer', 'in:1,2'],
-            'etape' => ['required', 'string', 'max:500'],
-        ]);
+        $validated = $request->validated();
 
         // L'ordre est défini comme le prochain dans la semaine
         $ordre = EcheancierEtape::where('cours_id', $cours->id)
@@ -41,28 +35,22 @@ class EcheancierController extends Controller
             'ordre' => $ordre + 1,
         ]);
 
-        return back()->with('success', 'La nouvelle étape a été créée!');
+        return back()->with('success', __('echeancier.etape_created'));
     }
 
     /**
      * Met à jour les informations d'une étape de l'échéancier.
      *
      * Réservé à l'enseignant du cours et aux admins.
+     * Les données sont validées par SaveEcheancierEtapeRequest.
      */
-    public function update(Request $request, Cours $cours, EcheancierEtape $etape): RedirectResponse
+    public function update(SaveEcheancierEtapeRequest $request, Cours $cours, EcheancierEtape $etape): RedirectResponse
     {
-        abort_if($etape->cours_id !== $cours->id, 404);
-        Gate::authorize('update', $cours);
-
-        $validated = $request->validate([
-            'semaine' => ['required', 'integer', 'min:1', 'max:15'],
-            'etape' => ['required', 'string', 'max:500'],
-            'periode' => ['nullable', 'integer', 'in:1,2'],
-        ]);
+        $validated = $request->validated();
 
         $etape->update($validated);
 
-        return back()->with('success', 'L\'étape a été modifiée avec succès!');
+        return back()->with('success', __('echeancier.etape_updated'));
     }
 
     /**
@@ -73,7 +61,7 @@ class EcheancierController extends Controller
     public function destroy(Cours $cours, EcheancierEtape $etape): RedirectResponse
     {
         abort_if($etape->cours_id !== $cours->id, 404);
-        Gate::authorize('update', $cours);
+        $this->authorize('update', $cours);
 
         $etape->delete();
 
@@ -87,11 +75,11 @@ class EcheancierController extends Controller
      */
     public function destroyAll(Cours $cours): RedirectResponse
     {
-        Gate::authorize('update', $cours);
+        $this->authorize('update', $cours);
 
         $cours->echeancierEtapes()->delete();
 
-        return back()->with('success', 'L\'étape a été supprimée avec succès!');
+        return back()->with('success', __('echeancier.etape_deleted'));
     }
 
     /**
@@ -99,10 +87,10 @@ class EcheancierController extends Controller
      *
      * Réservé à l'enseignant du cours et aux admins.
      */
-    public function toggleDone(Cours $cours, EcheancierEtape $etape): RedirectResponse
+    public function toggleTerminee(Cours $cours, EcheancierEtape $etape): RedirectResponse
     {
         abort_if($etape->cours_id !== $cours->id, 404);
-        Gate::authorize('update', $cours);
+        $this->authorize('update', $cours);
 
         $etape->update(['is_done' => ! $etape->is_done]);
 

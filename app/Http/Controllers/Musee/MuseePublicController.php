@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Musee;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\ExplorerMuseeRequest;
+use App\Http\Requests\Musee\ExplorerMuseeRequest;
 use App\Models\EpoqueHistorique;
 use App\Models\GroupeMedia;
 use App\Models\GroupeVideo;

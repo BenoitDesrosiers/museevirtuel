@@ -240,7 +240,7 @@ test("l'enseignant peut cloner une correction pour donner des points différents
             'verifie' => true,
         ])
         ->assertOk()
-        ->assertJson(['message' => 'cloned']);
+        ->assertJson(['message' => __('reponse.cloned')]);
 
     $this->assertDatabaseHas('projet_critere_corrections', [
         'critere_id' => $critere->id,
@@ -387,7 +387,7 @@ test("la page show() inclut les critères et les corrections pour l'enseignant",
     $this->actingAs($enseignant)
         ->get(urlProjet($cours, $cs, $groupe, $tp).'/edit')
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             ->has('criteresGlobaux')
             ->has('correctionsParCritere')
             ->has('cochesUtilisateur')
@@ -413,7 +413,7 @@ test('un étudiant ne voit pas les corrections si correction_visible = false', f
     $this->actingAs($etudiant)
         ->get(urlProjet($cours, $cs, $groupe, $tp).'/edit')
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             ->where('correctionsParCritere', [])
         );
 });
@@ -444,8 +444,29 @@ test("un étudiant ne voit que ses propres corrections (pas celles d'un autre é
     $this->actingAs($etudiant)
         ->get(urlProjet($cours, $cs, $groupe, $tp).'/edit')
         ->assertInertia(fn ($page) => $page
-            ->component('Projets/Show')
+            ->component('Projets/Edit')
             // correctionsParCritere ne contient pas la correction de l'autre étudiant
             ->where('correctionsParCritere', [])
         );
+});
+
+test("un TypeProjet d'un autre cours du même enseignant est refusé (404)", function () {
+    ['enseignant' => $enseignant, 'cours' => $cours, 'cs' => $cs, 'groupe' => $groupe, 'typeProjet' => $tp, 'section' => $section] = creerContexteCritereCorrection();
+    $autreCours = Cours::create([
+        'nom_cours' => 'Autre cours',
+        'code' => '330-AUT',
+        'groupe' => '00002',
+        'enseignant_id' => $enseignant->id,
+    ]);
+    $tp->update(['cours_id' => $autreCours->id]);
+
+    $critere = TypeProjetCritere::create([
+        'type_projet_id' => $tp->id, 'section_id' => $section->id,
+        'type' => 'positif', 'contenu_type' => 'texte',
+        'pointage' => 5.0, 'visible' => true, 'ordre' => 1,
+    ]);
+
+    $this->actingAs($enseignant)
+        ->putJson(urlProjet($cours, $cs, $groupe, $tp)."/criteres/{$critere->id}/correction", ['verifie' => true])
+        ->assertNotFound();
 });

@@ -121,7 +121,7 @@ test('update met a jour annee et session', function () {
 });
 
 test('store retourne des messages de validation en français', function () {
-    $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $enseignant = User::factory()->create(['role' => 'enseignant', 'locale' => 'fr']);
 
     $this->actingAs($enseignant)
         ->from('/enseignant')
@@ -133,7 +133,7 @@ test('store retourne des messages de validation en français', function () {
 });
 
 test('update retourne des messages de validation en français', function () {
-    $enseignant = User::factory()->create(['role' => 'enseignant']);
+    $enseignant = User::factory()->create(['role' => 'enseignant', 'locale' => 'fr']);
 
     $cours = Cours::create([
         'nom_cours' => 'Cours original',

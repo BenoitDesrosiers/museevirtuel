@@ -85,10 +85,10 @@ test("la création d'un TypeProjet de type musée redirige vers le template", fu
     $cours = creerCoursMusee($enseignant);
 
     $response = $this->actingAs($enseignant)
-        ->post("/cours/{$cours->id}/types-projets", [
+        ->post("/cours/{$cours->id}/types-projets", donneesTypeProjet([
             'nom' => 'Musée de la Nouvelle-France',
             'type' => 'musee',
-        ]);
+        ]));
 
     $response->assertRedirectContains('musee-template');
 });
@@ -98,10 +98,10 @@ test('la création standard redirige vers edit (comportement inchangé)', functi
     $cours = creerCoursMusee($enseignant);
 
     $response = $this->actingAs($enseignant)
-        ->post("/cours/{$cours->id}/types-projets", [
+        ->post("/cours/{$cours->id}/types-projets", donneesTypeProjet([
             'nom' => 'Projet recherche',
             'type' => 'standard',
-        ]);
+        ]));
 
     $response->assertRedirectContains('edit');
 });

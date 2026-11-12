@@ -26,6 +26,42 @@ class HtmlHelper
     }
 
     /**
+     * Retourne les identifiants des marques d'annotation TipTap, dans leur ordre d'apparition.
+     *
+     * @return list<string>
+     */
+    public static function annotationIds(string $html): array
+    {
+        preg_match_all('/data-comment-id="([^"]+)"/', $html, $matches);
+
+        return $matches[1];
+    }
+
+    /**
+     * Retourne le rang (0-based) d'une annotation dans le HTML, ou null si sa marque est absente.
+     */
+    public static function positionAnnotation(string $html, string $commentaireId): ?int
+    {
+        $position = array_search($commentaireId, self::annotationIds($html), true);
+
+        return $position !== false ? $position : null;
+    }
+
+    /**
+     * Retourne le texte brut entouré par la marque d'une annotation, ou null si elle est absente.
+     */
+    public static function motAnnote(string $html, string $commentaireId): ?string
+    {
+        preg_match(
+            '/<mark[^>]*data-comment-id="'.preg_quote($commentaireId, '/').'[^>]*"[^>]*>(.*?)<\/mark>/si',
+            $html,
+            $match,
+        );
+
+        return isset($match[1]) ? strip_tags($match[1]) : null;
+    }
+
+    /**
      * Enveloppe chaque exposant de renvoi TipTap d'un lien ancré vers la section Références du PDF.
      *
      * Les exposants sont générés par TipTap sous la forme :

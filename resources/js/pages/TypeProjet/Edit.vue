@@ -282,7 +282,7 @@ function supprimerCritere(critereId: number) {
  */
 function rendreVisibles(type: 'positif' | 'negatif') {
     router.patch(
-        critereRoutes.toggleVisibleGroupe.url({
+        critereRoutes.visibleGroupe.url({
             cours: props.cours.id,
             typeProjet: props.typeProjet.id,
         }),

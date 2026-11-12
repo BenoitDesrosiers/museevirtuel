@@ -63,4 +63,25 @@ class Classe extends Model
             ->withPivot(['statut_cours', 'no_da'])
             ->withTimestamps();
     }
+
+    /**
+     * Retourne les IDs des étudiants déjà membres d'un groupe de cette classe.
+     *
+     * Un étudiant ne peut appartenir qu'à un seul groupe par classe ; on peut exclure
+     * le groupe courant pour permettre de modifier ses propres membres.
+     *
+     * @return array<int>
+     */
+    public function etudiantsDejaGroupes(?int $exclureGroupeId = null): array
+    {
+        return $this->groupes()
+            ->with('membres:id')
+            ->when($exclureGroupeId !== null, fn ($q) => $q->where('id', '!=', $exclureGroupeId))
+            ->get()
+            ->flatMap(fn (Groupe $g) => $g->membres->pluck('id'))
+            ->unique()
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->toArray();
+    }
 }

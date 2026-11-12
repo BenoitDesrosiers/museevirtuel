@@ -32,6 +32,16 @@ class ClassePolicy
     }
 
     /**
+     * Détermine si l'utilisateur peut consulter les aperçus de notes de la classe.
+     *
+     * Réservé à l'enseignant du cours et aux admins : les étudiants inscrits n'y ont pas accès.
+     */
+    public function voirNotes(User $user, Classe $classe): bool
+    {
+        return $user->isAdmin() || ($user->isEnseignant() && $classe->cours->enseignant_id === $user->id);
+    }
+
+    /**
      * Détermine si l'utilisateur peut supprimer la classe (section).
      *
      * Réservé à l'enseignant du cours et aux admins.

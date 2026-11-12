@@ -5,6 +5,8 @@ namespace App\Concerns;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
+use App\Models\TypeProjet;
+use App\Models\TypeProjetSection;
 use Illuminate\Database\Eloquent\Model;
 
 trait ValidatesGroupeChain
@@ -28,5 +30,37 @@ trait ValidatesGroupeChain
         if ($ressource !== null) {
             abort_if($ressource->groupe_id !== $groupe->id, 404);
         }
+    }
+
+    /**
+     * Vérifie la chaîne cours → classe → groupe et que le type de projet
+     * appartient au même cours.
+     *
+     * Interrompt avec 404 si un maillon ne correspond pas.
+     */
+    protected function verifierChaineProjet(
+        Cours $cours,
+        Classe $classe,
+        Groupe $groupe,
+        TypeProjet $typeProjet,
+    ): void {
+        $this->verifierChaine($cours, $classe, $groupe);
+        abort_if($typeProjet->cours_id !== $cours->id, 404);
+    }
+
+    /**
+     * Vérifie la chaîne complète jusqu'à une section du type de projet.
+     *
+     * Interrompt avec 404 si un maillon ne correspond pas.
+     */
+    protected function verifierChaineSection(
+        Cours $cours,
+        Classe $classe,
+        Groupe $groupe,
+        TypeProjet $typeProjet,
+        TypeProjetSection $section,
+    ): void {
+        $this->verifierChaineProjet($cours, $classe, $groupe, $typeProjet);
+        abort_if($section->type_projet_id !== $typeProjet->id, 404);
     }
 }

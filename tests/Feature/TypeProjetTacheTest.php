@@ -186,7 +186,7 @@ test("l'enseignant peut réordonner les tâches", function () {
     expect($t1->fresh()->ordre)->toBe(2);
 });
 
-// ─── toggleCompleted() + assigner() — Étudiant ───────────────────────────────
+// ─── toggleTerminee() + assigner() — Étudiant ───────────────────────────────
 
 test('un étudiant membre peut marquer une tâche comme complétée', function () {
     $s = creerScenarioTaches();
@@ -270,4 +270,24 @@ test('un étudiant non-membre ne peut pas modifier les tâches du groupe', funct
     $this->actingAs($intrus)
         ->patch(urlGroupeTache($s['cours'], $s['classeSection'], $s['groupe'], $s['typeProjet'], $tache, 'toggle'))
         ->assertForbidden();
+});
+
+test("un TypeProjet d'un autre cours est refusé (404) pour toggle et assigner", function () {
+    $s = creerScenarioTaches();
+    $autreCours = Cours::create([
+        'nom_cours' => 'Autre cours',
+        'code' => '330-AUT',
+        'groupe' => '00002',
+        'enseignant_id' => $s['enseignant']->id,
+    ]);
+    $s['typeProjet']->update(['cours_id' => $autreCours->id]);
+    $tache = TypeProjetTache::create(['type_projet_id' => $s['typeProjet']->id, 'titre' => 'T', 'ordre' => 1]);
+
+    $this->actingAs($s['etudiant'])
+        ->patch(urlGroupeTache($s['cours'], $s['classeSection'], $s['groupe'], $s['typeProjet'], $tache, 'toggle'))
+        ->assertNotFound();
+
+    $this->actingAs($s['etudiant'])
+        ->patch(urlGroupeTache($s['cours'], $s['classeSection'], $s['groupe'], $s['typeProjet'], $tache, 'assigner'), ['assigne_a' => null])
+        ->assertNotFound();
 });

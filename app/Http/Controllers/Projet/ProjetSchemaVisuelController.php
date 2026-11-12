@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Projet;
 
 use App\Actions\StoreUploadedFile;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Projet\UpdateProjetSchemaVisuelRequest;
+use App\Http\Requests\Projet\UploadProjetSchemaImageRequest;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
@@ -11,9 +13,10 @@ use App\Models\ProjetRecherche;
 use App\Models\ProjetSchemaVisuel;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetSection;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ProjetSchemaVisuelController extends Controller
 {
@@ -34,48 +37,16 @@ class ProjetSchemaVisuelController extends Controller
      * Le projet ne doit pas être verrouillé.
      */
     public function update(
-        Request $request,
+        UpdateProjetSchemaVisuelRequest $request,
         Cours $cours,
         Classe $classe,
         Groupe $groupe,
         TypeProjet $typeProjet,
         TypeProjetSection $section,
     ): RedirectResponse {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
-        abort_if($section->type_projet_id !== $typeProjet->id, 404);
-        abort_if($section->type !== 'schema_visuel', 422);
+        $projet = $this->autoriserEtTrouverProjet($cours, $classe, $groupe, $typeProjet, $section);
 
-        $user = $request->user();
-        $estMembre = $groupe->membres()->where('user_id', $user->id)->exists();
-        $estEnseignant = in_array($user->role, ['enseignant', 'admin']);
-
-        abort_unless($estMembre || $estEnseignant, 403);
-
-        /** @var ProjetRecherche $projet */
-        $projet = ProjetRecherche::where('groupe_id', $groupe->id)
-            ->where('type_projet_id', $typeProjet->id)
-            ->firstOrFail();
-
-        abort_if((bool) $projet->verrouille, 403);
-
-        $validated = $request->validate([
-            'contenu' => ['required', 'array'],
-            'contenu.image_centrale' => ['nullable', 'string'],
-            'contenu.zones' => ['required', 'array'],
-            'contenu.zones.causes' => ['present', 'array'],
-            'contenu.zones.activites' => ['present', 'array'],
-            'contenu.zones.consequences' => ['present', 'array'],
-            'contenu.zones.causes.*.id' => ['required', 'string'],
-            'contenu.zones.causes.*.texte' => ['nullable', 'string', 'max:500'],
-            'contenu.zones.causes.*.image' => ['nullable', 'string'],
-            'contenu.zones.activites.*.id' => ['required', 'string'],
-            'contenu.zones.activites.*.texte' => ['nullable', 'string', 'max:500'],
-            'contenu.zones.activites.*.image' => ['nullable', 'string'],
-            'contenu.zones.consequences.*.id' => ['required', 'string'],
-            'contenu.zones.consequences.*.texte' => ['nullable', 'string', 'max:500'],
-            'contenu.zones.consequences.*.image' => ['nullable', 'string'],
-        ]);
+        $validated = $request->validated();
 
         ProjetSchemaVisuel::updateOrCreate(
             ['projet_id' => $projet->id, 'section_id' => $section->id],
@@ -92,23 +63,49 @@ class ProjetSchemaVisuelController extends Controller
      * Le frontend intègre l'URL dans le contenu JSON avant de sauvegarder via update().
      */
     public function uploadImage(
-        Request $request,
+        UploadProjetSchemaImageRequest $request,
         Cours $cours,
         Classe $classe,
         Groupe $groupe,
         TypeProjet $typeProjet,
         TypeProjetSection $section,
+        StoreUploadedFile $fichiers,
     ): JsonResponse {
+        $projet = $this->autoriserEtTrouverProjet($cours, $classe, $groupe, $typeProjet, $section);
+
+        $meta = $fichiers->execute(
+            $request->file('image'),
+            "medias/schema/{$projet->id}"
+        );
+
+        return response()->json(['url' => '/'.$meta['file_path']]);
+    }
+
+    /**
+     * Vérifie la chaîne Cours → Classe → Groupe → TypeProjet → Section,
+     * autorise l'utilisateur et retourne le projet non verrouillé du groupe.
+     *
+     * Seuls les membres du groupe, l'enseignant du cours et les admins passent :
+     * un simple contrôle de rôle laisserait n'importe quel enseignant modifier le projet.
+     *
+     * @throws HttpException
+     * @throws AuthorizationException
+     */
+    private function autoriserEtTrouverProjet(
+        Cours $cours,
+        Classe $classe,
+        Groupe $groupe,
+        TypeProjet $typeProjet,
+        TypeProjetSection $section,
+    ): ProjetRecherche {
         abort_if($classe->cours_id !== $cours->id, 404);
         abort_if($groupe->classe_id !== $classe->id, 404);
+        abort_if($typeProjet->cours_id !== $cours->id, 404);
         abort_if($section->type_projet_id !== $typeProjet->id, 404);
         abort_if($section->type !== 'schema_visuel', 422);
 
-        $user = $request->user();
-        $estMembre = $groupe->membres()->where('user_id', $user->id)->exists();
-        $estEnseignant = in_array($user->role, ['enseignant', 'admin']);
-
-        abort_unless($estMembre || $estEnseignant, 403);
+        $groupe->loadMissing('classe.cours');
+        $this->authorize('editerMedia', $groupe);
 
         /** @var ProjetRecherche $projet */
         $projet = ProjetRecherche::where('groupe_id', $groupe->id)
@@ -117,15 +114,6 @@ class ProjetSchemaVisuelController extends Controller
 
         abort_if((bool) $projet->verrouille, 403);
 
-        $request->validate([
-            'image' => ['required', 'image', 'max:5120', 'mimes:jpg,jpeg,png,gif,webp'],
-        ]);
-
-        $meta = (new StoreUploadedFile)->execute(
-            $request->file('image'),
-            "medias/schema/{$projet->id}"
-        );
-
-        return response()->json(['url' => '/'.$meta['file_path']]);
+        return $projet;
     }
 }

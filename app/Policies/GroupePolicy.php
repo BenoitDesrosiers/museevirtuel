@@ -2,11 +2,22 @@
 
 namespace App\Policies;
 
+use App\Models\Classe;
 use App\Models\Groupe;
 use App\Models\User;
 
 class GroupePolicy
 {
+    /**
+     * Détermine si l'utilisateur peut créer un groupe dans la classe.
+     *
+     * Réservé aux étudiants inscrits dans la classe.
+     */
+    public function create(User $user, Classe $classe): bool
+    {
+        return $classe->etudiants()->where('users.id', $user->id)->exists();
+    }
+
     /**
      * Détermine si l'utilisateur peut consulter le groupe.
      *
@@ -92,7 +103,7 @@ class GroupePolicy
             return true;
         }
 
-        return $user->role === 'enseignant'
+        return $user->isEnseignant()
             && $groupe->classe->cours->enseignant_id === $user->id;
     }
 

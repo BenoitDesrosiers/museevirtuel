@@ -302,3 +302,18 @@ test("choisir rejette les questions n'appartenant pas à la section", function (
         ])
         ->assertStatus(422);
 });
+
+test("choisir refuse un TypeProjet d'un autre cours (404)", function () {
+    $s = creerScenarioQuestions();
+    $autreCours = Cours::create([
+        'nom_cours' => 'Autre cours',
+        'code' => '330-AUT',
+        'groupe' => '00002',
+        'enseignant_id' => $s['enseignant']->id,
+    ]);
+    $s['typeProjet']->update(['cours_id' => $autreCours->id]);
+
+    $this->actingAs($s['etudiant'])
+        ->post(urlChoisir($s['cours'], $s['classeSection'], $s['groupe'], $s['typeProjet'], $s['section']), ['question_ids' => []])
+        ->assertNotFound();
+});

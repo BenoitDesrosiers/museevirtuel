@@ -35,6 +35,7 @@ function creerScenarioAideRef(array $typeProjetOverrides = []): array
         'groupe' => '01',
         'enseignant_id' => $enseignant->id,
     ]);
+    $typeProjet->update(['cours_id' => $cours->id]);
 
     $etudiant = User::factory()->create(['role' => 'etudiant']);
     $cs = Classe::create(['cours_id' => $cours->id]);
@@ -55,10 +56,10 @@ it('peut créer un type de projet avec aide_reference activée', function () {
     ]);
 
     $this->actingAs($enseignant)
-        ->postJson("/cours/{$cours->id}/types-projets", [
+        ->postJson("/cours/{$cours->id}/types-projets", donneesTypeProjet([
             'nom' => 'Projet avec aide',
             'aide_reference' => true,
-        ])
+        ]))
         ->assertRedirect();
 
     $this->assertDatabaseHas('types_projets', [
@@ -76,7 +77,7 @@ it('aide_reference est false par défaut à la création', function () {
     ]);
 
     $this->actingAs($enseignant)
-        ->postJson("/cours/{$cours->id}/types-projets", ['nom' => 'Projet sans aide'])
+        ->postJson("/cours/{$cours->id}/types-projets", donneesTypeProjet(['nom' => 'Projet sans aide']))
         ->assertRedirect();
 
     $this->assertDatabaseHas('types_projets', [
@@ -100,9 +101,9 @@ it('peut activer aide_reference via update', function () {
     ]);
 
     $this->actingAs($enseignant)
-        ->putJson("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
+        ->putJson("/cours/{$cours->id}/types-projets/{$typeProjet->id}", donneesTypeProjet([
             'nom' => 'Projet', 'aide_reference' => true,
-        ])
+        ]))
         ->assertRedirect();
 
     $this->assertDatabaseHas('types_projets', [
@@ -122,9 +123,9 @@ it('peut désactiver aide_reference via update', function () {
     ]);
 
     $this->actingAs($enseignant)
-        ->putJson("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
+        ->putJson("/cours/{$cours->id}/types-projets/{$typeProjet->id}", donneesTypeProjet([
             'nom' => 'Projet', 'aide_reference' => false,
-        ])
+        ]))
         ->assertRedirect();
 
     $this->assertDatabaseHas('types_projets', [
@@ -145,9 +146,9 @@ it('update préserve aide_reference quand le paramètre est absent', function ()
 
     // Aucun champ aide_reference dans la requête → doit conserver true
     $this->actingAs($enseignant)
-        ->putJson("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
+        ->putJson("/cours/{$cours->id}/types-projets/{$typeProjet->id}", donneesTypeProjet([
             'nom' => 'Projet renommé',
-        ])
+        ]))
         ->assertRedirect();
 
     $this->assertDatabaseHas('types_projets', [
@@ -294,7 +295,7 @@ it('updateRenvoi met à jour les trois champs', function () {
             'champs_reference' => $nouveauxChamps,
         ])
         ->assertOk()
-        ->assertJsonPath('message', 'saved');
+        ->assertJsonPath('message', __('reponse.saved'));
 
     $renvoi->refresh();
 

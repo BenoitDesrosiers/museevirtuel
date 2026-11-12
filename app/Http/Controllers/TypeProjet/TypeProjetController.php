@@ -2,21 +2,28 @@
 
 namespace App\Http\Controllers\TypeProjet;
 
-use App\Enums\TypeSection;
+use App\Exceptions\TransactionEchoueeException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\TypeProjet\StoreTypeProjetRequest;
+use App\Http\Requests\TypeProjet\UpdateTypeProjetRequest;
 use App\Models\Cours;
 use App\Models\TypeProjet;
-use App\Models\TypeProjetSection;
+use App\Services\TypeProjetService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
+/**
+ * Types de projet d'un cours : liste, création, édition, accessibilité et suppression.
+ */
 class TypeProjetController extends Controller
 {
     /**
      * Affiche la liste des types de projet d'un cours.
+     *
+     * @throws AuthorizationException
      */
     public function index(Cours $cours): Response
     {
@@ -35,6 +42,8 @@ class TypeProjetController extends Controller
 
     /**
      * Affiche la page de création d'un type de projet pour un cours donné.
+     *
+     * @throws AuthorizationException
      */
     public function create(Cours $cours): Response
     {
@@ -50,11 +59,14 @@ class TypeProjetController extends Controller
      *
      * Charge les sections avec leurs questions et leurs critères, ainsi que
      * les critères globaux (sans section) pour les afficher en tête de page.
+     *
+     * @throws HttpException si le type de projet n'appartient pas au cours
+     * @throws AuthorizationException
      */
     public function edit(Cours $cours, TypeProjet $typeProjet): Response
     {
-        $this->authorize('update', $cours);
         abort_if($typeProjet->cours_id !== $cours->id, 404);
+        $this->authorize('update', $typeProjet);
 
         $typeProjet->load([
             'sections' => fn ($q) => $q->with(['questionsBanque', 'criteres'])->orderBy('ordre'),
@@ -72,87 +84,23 @@ class TypeProjetController extends Controller
      * Crée un nouveau type de projet pour le cours donné.
      *
      * Accepte un tableau optionnel `sections[]` pour créer les sections en une seule requête.
+     * Les données sont validées par StoreTypeProjetRequest ; la création est faite par TypeProjetService.
      */
-    public function store(Request $request, Cours $cours): RedirectResponse
+    public function store(StoreTypeProjetRequest $request, Cours $cours, TypeProjetService $typeProjetService): RedirectResponse
     {
-        $this->authorize('update', $cours);
-
-        $data = $request->validate([
-            'nom' => ['required', 'string', 'max:150'],
-            'type' => ['required', 'string', 'in:standard,musee'],
-            'description' => ['nullable', 'string', 'max:1000'],
-            'date_remise' => ['required', 'date_format:Y-m-d\TH:i'],
-            'remises_multiples' => ['boolean'],
-            'retard_permis' => ['boolean'],
-            'generer_page_titre' => ['boolean'],
-            'generer_table_matieres' => ['boolean'],
-            'aide_reference' => ['boolean'],
-            'has_introduction' => ['boolean'],
-            'has_conclusion_individuelle' => ['boolean'],
-            'ponderation' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'is_sommatif' => ['boolean'],
-            'sections' => ['nullable', 'array'],
-            'sections.*.label' => ['required', 'string', 'max:200'],
-            'sections.*.description' => ['nullable', 'string', 'max:1000'],
-            'sections.*.type' => ['nullable', Rule::enum(TypeSection::class)],
-        ]);
-
-        $typeProjet = TypeProjet::create([
-            'enseignant_id' => auth()->id(),
-            'cours_id' => $cours->id,
-            'nom' => $data['nom'],
-            'type' => $data['type'] ?? 'standard',
-            'description' => $data['description'] ?? null,
-            'accessible' => false,
-            'date_remise' => $data['date_remise'] ?? null,
-            'remises_multiples' => $data['remises_multiples'] ?? false,
-            'retard_permis' => $data['retard_permis'] ?? false,
-            'generer_page_titre' => $request->boolean('generer_page_titre', true),
-            'generer_table_matieres' => $request->boolean('generer_table_matieres', true),
-            'aide_reference' => $request->boolean('aide_reference', false),
-            // Nouvelles sections legacy — désactivées par défaut sur les nouveaux types
-            'has_introduction' => $request->boolean('has_introduction', false),
-            'has_conclusion_individuelle' => $request->boolean('has_conclusion_individuelle', false),
-            'ponderation' => $data['ponderation'] ?? null,
-            'is_sommatif' => $request->boolean('is_sommatif', true),
-        ]);
-
-        foreach ($data['sections'] ?? [] as $index => $section) {
-            $typeProjet->sections()->create([
-                'label' => $section['label'],
-                'description' => $section['description'] ?? null,
-                'type' => $section['type'] ?? TypeSection::Texte->value,
-                'ordre' => $index + 1,
-            ]);
+        try {
+            $typeProjet = $typeProjetService->creer($request->user(), $cours, $request->validated());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
         if ($typeProjet->isMusee()) {
-            // Créer automatiquement le critère de publication du musée (20 pts par défaut).
-            // Il sera coché lors de l'approbation par l'enseignant.
-            $typeProjet->criteres()->create([
-                'type' => 'positif',
-                'contenu_type' => 'texte',
-                'contenu' => '<p>Publication du musée dans la galerie.</p>',
-                'pointage' => 20,
-                'visible' => true,
-                'is_musee_publication' => true,
-                'ordre' => 1,
-            ]);
-
-            // Créer une section de contenu par défaut — un musée est un long bloc libre
-            // sans structure intro/développement/conclusion imposée.
-            $typeProjet->sections()->create([
-                'label' => 'Publication',
-                'type' => TypeSection::MuseeContenu->value,
-                'ordre' => 1,
-            ]);
-
             return redirect()->route('types-projets.musee-template.edit', [$cours, $typeProjet])
-                ->with('success', 'Projet musée créé. Personnalisez maintenant le template visuel.');
+                ->with('success', __('type_projet.musee_created'));
         }
 
         return redirect()->route('types-projets.edit', [$cours, $typeProjet])
-            ->with('success', 'Type de projet créé.');
+            ->with('success', __('type_projet.created'));
     }
 
     /**
@@ -162,100 +110,32 @@ class TypeProjetController extends Controller
      * les sections absentes sont supprimées (cascade sur projet_section_contenus),
      * les existantes (avec `id`) sont mises à jour, les nouvelles (sans `id`) sont créées.
      * Si `sections` est absent de la requête, les sections ne sont pas touchées.
+     * Les données sont validées par UpdateTypeProjetRequest ; la mise à jour est faite par TypeProjetService.
      */
-    public function update(Request $request, Cours $cours, TypeProjet $typeProjet): RedirectResponse
+    public function update(UpdateTypeProjetRequest $request, Cours $cours, TypeProjet $typeProjet, TypeProjetService $typeProjetService): RedirectResponse
     {
-        $this->authorize('update', $cours);
-        abort_if($typeProjet->cours_id !== $cours->id, 404);
-
-        $data = $request->validate([
-            'nom' => ['required', 'string', 'max:150'],
-            'description' => ['nullable', 'string', 'max:1000'],
-            'date_remise' => ['required', 'date_format:Y-m-d\TH:i'],
-            'remises_multiples' => ['boolean'],
-            'retard_permis' => ['boolean'],
-            'generer_page_titre' => ['boolean'],
-            'generer_table_matieres' => ['boolean'],
-            'aide_reference' => ['boolean'],
-            'has_introduction' => ['boolean'],
-            'has_conclusion_individuelle' => ['boolean'],
-            'ponderation' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'is_sommatif' => ['boolean'],
-            'sections' => ['nullable', 'array'],
-            'sections.*.id' => ['nullable', 'integer'],
-            'sections.*.label' => ['required', 'string', 'max:200'],
-            'sections.*.description' => ['nullable', 'string', 'max:1000'],
-            'sections.*.type' => ['nullable', Rule::enum(TypeSection::class)],
-        ]);
-
-        $wasGeneratingPageTitre = (bool) $typeProjet->generer_page_titre;
-        $willGeneratePageTitre = $request->boolean('generer_page_titre', $typeProjet->generer_page_titre);
-
-        $typeProjet->update([
-            'nom' => $data['nom'],
-            'description' => $data['description'] ?? null,
-            'date_remise' => $data['date_remise'] ?? null,
-            'remises_multiples' => $request->boolean('remises_multiples', $typeProjet->remises_multiples),
-            'retard_permis' => $request->boolean('retard_permis', $typeProjet->retard_permis),
-            'generer_page_titre' => $willGeneratePageTitre,
-            'generer_table_matieres' => $request->boolean('generer_table_matieres', $typeProjet->generer_table_matieres),
-            'aide_reference' => $request->boolean('aide_reference', $typeProjet->aide_reference),
-            'has_introduction' => $request->boolean('has_introduction', $typeProjet->has_introduction),
-            'has_conclusion_individuelle' => $request->boolean('has_conclusion_individuelle', $typeProjet->has_conclusion_individuelle),
-            'ponderation' => $data['ponderation'] ?? $typeProjet->ponderation,
-            'is_sommatif' => $request->boolean('is_sommatif', $typeProjet->is_sommatif),
-        ]);
-
-        // Vider le contenu auto-généré quand le flag passe de auto → manuel
-        if ($wasGeneratingPageTitre && ! $willGeneratePageTitre) {
-            $typeProjet->projets()->update(['page_titre_contenu' => null]);
-        }
-
-        if ($request->has('sections')) {
-            $sections = $data['sections'] ?? [];
-            $incomingIds = collect($sections)->pluck('id')->filter()->values()->all();
-
-            // Supprimer les sections retirées — la contrainte DB cascade sur projet_section_contenus
-            if (! empty($incomingIds)) {
-                $typeProjet->sections()->whereNotIn('id', $incomingIds)->delete();
-            } else {
-                $typeProjet->sections()->delete();
-            }
-
-            foreach ($sections as $index => $sec) {
-                if (! empty($sec['id'])) {
-                    TypeProjetSection::where('id', $sec['id'])
-                        ->where('type_projet_id', $typeProjet->id)
-                        ->update([
-                            'label' => $sec['label'],
-                            'description' => $sec['description'] ?? null,
-                            'type' => $sec['type'] ?? TypeSection::Texte->value,
-                            'ordre' => $index + 1,
-                        ]);
-                } else {
-                    $typeProjet->sections()->create([
-                        'label' => $sec['label'],
-                        'description' => $sec['description'] ?? null,
-                        'type' => $sec['type'] ?? TypeSection::Texte->value,
-                        'ordre' => $index + 1,
-                    ]);
-                }
-            }
+        try {
+            $typeProjetService->mettreAJour($typeProjet, $request->validated());
+        } catch (TransactionEchoueeException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
         return redirect()->route('types-projets.index', $cours)
-            ->with('success', 'Type de projet mis à jour.');
+            ->with('success', __('type_projet.updated'));
     }
 
     /**
      * Inverse le statut d'accessibilité du type de projet.
      *
      * Si `accessible = false`, les étudiants ne voient pas les projets associés.
+     *
+     * @throws HttpException si le type de projet n'appartient pas au cours
+     * @throws AuthorizationException
      */
     public function toggleAccessible(Cours $cours, TypeProjet $typeProjet): RedirectResponse
     {
-        $this->authorize('update', $cours);
         abort_if($typeProjet->cours_id !== $cours->id, 404);
+        $this->authorize('update', $typeProjet);
 
         $typeProjet->update(['accessible' => ! $typeProjet->accessible]);
 
@@ -264,15 +144,18 @@ class TypeProjetController extends Controller
 
     /**
      * Supprime un type de projet ainsi que sa grille en cascade.
+     *
+     * @throws HttpException si le type de projet n'appartient pas au cours
+     * @throws AuthorizationException
      */
     public function destroy(Cours $cours, TypeProjet $typeProjet): RedirectResponse
     {
-        $this->authorize('update', $cours);
         abort_if($typeProjet->cours_id !== $cours->id, 404);
+        $this->authorize('delete', $typeProjet);
 
         $typeProjet->delete();
 
         return redirect()->route('types-projets.index', $cours)
-            ->with('success', 'Type de projet supprimé.');
+            ->with('success', __('type_projet.deleted'));
     }
 }

@@ -13,6 +13,7 @@ use App\Models\TypeProjet;
 use App\Models\TypeProjetSection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class MuseeVideoSegmentController extends Controller
@@ -99,6 +100,7 @@ class MuseeVideoSegmentController extends Controller
      * Met à jour un segment vidéo existant.
      *
      * @throws HttpException
+     * @throws ValidationException
      */
     public function update(
         Request $request,
@@ -123,6 +125,15 @@ class MuseeVideoSegmentController extends Controller
         if (isset($data['section_id'])) {
             $sectionCible = TypeProjetSection::findOrFail($data['section_id']);
             abort_if($sectionCible->type_projet_id !== $typeProjet->id, 422);
+        }
+
+        // Les champs sont optionnels : on compare aux bornes déjà enregistrées quand une seule est envoyée
+        $debut = $data['debut_secondes'] ?? $segment->debut_secondes;
+        $fin = $data['fin_secondes'] ?? $segment->fin_secondes;
+        if ($fin <= $debut) {
+            throw ValidationException::withMessages([
+                'fin_secondes' => 'La fin du segment doit être après le début.',
+            ]);
         }
 
         $segment->update($data);

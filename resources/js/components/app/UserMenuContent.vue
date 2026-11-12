@@ -3,7 +3,7 @@ import { Link, router, usePage } from '@inertiajs/vue3';
 import { LogOut, Settings } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import SessionController from '@/actions/App/Http/Controllers/SessionController';
+import SessionController from '@/actions/App/Http/Controllers/Auth/SessionController';
 import LocaleController from '@/actions/App/Http/Controllers/Settings/LocaleController';
 import {
     DropdownMenuGroup,

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\HasPublicFile;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -174,5 +175,26 @@ class GroupeVideo extends Model
     public function auteur(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Filtre les vidéos visibles par un utilisateur.
+     *
+     * Publiées pour tous ; l'enseignant du cours et l'admin voient aussi brouillons et archives ;
+     *
+     * @param  Builder<GroupeVideo>  $query
+     * @return Builder<GroupeVideo>
+     */
+    public function scopeVisiblesPour(Builder $query, User $user, bool $estEnseignantDuCours): Builder
+    {
+        return $query->where(function (Builder $q) use ($user, $estEnseignantDuCours): void {
+            $q->where('statut', 'publié');
+
+            if ($estEnseignantDuCours || $user->isAdmin()) {
+                $q->orWhereIn('statut', ['brouillon', 'archivé']);
+            } else {
+                $q->orWhere(fn (Builder $q2) => $q2->where('statut', 'brouillon')->where('user_id', $user->id));
+            }
+        });
     }
 }

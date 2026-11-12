@@ -2,13 +2,18 @@
 
 namespace App\Actions;
 
+use App\Exceptions\TransactionEchoueeException;
 use App\Models\Cours;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetSection;
 use App\Models\TypeProjetTache;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
+/**
+ * Action qui duplique un cours vers une nouvelle session (contenu pédagogique, sans les étudiants).
+ */
 class TransfererCoursAction
 {
     /**
@@ -21,36 +26,56 @@ class TransfererCoursAction
      * @param  Cours  $source  Le cours source à transférer.
      * @param  int  $annee  L'année académique du nouveau cours (ex. 2027).
      * @param  string  $session  La session du nouveau cours (hiver, ete, automne).
+     *
+     * @throws TransactionEchoueeException
      */
     public function execute(Cours $source, int $annee, string $session): Cours
     {
-        return DB::transaction(function () use ($source, $annee, $session) {
-            // Rafraîchir depuis la DB pour récupérer les valeurs par défaut
-            // que le modèle en mémoire n'aurait pas si elles n'étaient pas passées au create().
-            $source->refresh();
+        try {
+            $nouveauCours = DB::transaction(function () use ($source, $annee, $session) {
+                return $this->dupliquer($source, $annee, $session);
+            });
+        } catch (QueryException $e) {
+            report($e);
 
-            $nouveau = Cours::create([
-                'nom_cours' => $source->nom_cours,
-                'description' => $source->description,
-                'code' => $source->code,
-                'groupe' => $source->groupe,
-                'annee' => $annee,
-                'session' => $session,
-                'is_verrouille' => false,
-                'enseignant_id' => $source->enseignant_id,
-                'type_cours' => $source->type_cours,
-                'taille_equipe_min' => $source->taille_equipe_min,
-                'taille_equipe_max' => $source->taille_equipe_max,
-            ]);
+            throw TransactionEchoueeException::depuis($e);
+        }
 
-            $this->copierEcheancier($source, $nouveau);
-            $this->copierObjectifs($source, $nouveau);
-            $this->copierDocuments($source, $nouveau);
-            $this->copierLiensEntrevue($source, $nouveau);
-            $this->copierTypesProjets($source, $nouveau);
+        return $nouveauCours;
+    }
 
-            return $nouveau;
-        });
+    /**
+     * Crée le nouveau cours et y copie le contenu du cours source.
+     *
+     * Appelée dans la transaction de execute().
+     */
+    private function dupliquer(Cours $source, int $annee, string $session): Cours
+    {
+        // Rafraîchir depuis la DB pour récupérer les valeurs par défaut
+        // que le modèle en mémoire n'aurait pas si elles n'étaient pas passées au create().
+        $source->refresh();
+
+        $nouveau = Cours::create([
+            'nom_cours' => $source->nom_cours,
+            'description' => $source->description,
+            'code' => $source->code,
+            'groupe' => $source->groupe,
+            'annee' => $annee,
+            'session' => $session,
+            'is_verrouille' => false,
+            'enseignant_id' => $source->enseignant_id,
+            'type_cours' => $source->type_cours,
+            'taille_equipe_min' => $source->taille_equipe_min,
+            'taille_equipe_max' => $source->taille_equipe_max,
+        ]);
+
+        $this->copierEcheancier($source, $nouveau);
+        $this->copierObjectifs($source, $nouveau);
+        $this->copierDocuments($source, $nouveau);
+        $this->copierLiensEntrevue($source, $nouveau);
+        $this->copierTypesProjets($source, $nouveau);
+
+        return $nouveau;
     }
 
     /**

@@ -182,3 +182,27 @@ test('IDOR : section appartenant à un autre typeProjet retourne 404', function 
         ->put($url, ['contenu' => contenuValide()])
         ->assertNotFound();
 });
+
+test("l'enseignant d'un autre cours reçoit 403", function () {
+    $s = creerScenarioSchema();
+    $autreEnseignant = User::factory()->create(['role' => 'enseignant']);
+
+    $this->actingAs($autreEnseignant)
+        ->put(urlSchema($s), ['contenu' => contenuValide()])
+        ->assertForbidden();
+});
+
+test("IDOR : TypeProjet d'un autre cours du même enseignant retourne 404", function () {
+    $s = creerScenarioSchema();
+    $autreCours = Cours::create([
+        'nom_cours' => 'Autre cours',
+        'code' => '330-AUT',
+        'groupe' => '00002',
+        'enseignant_id' => $s['enseignant']->id,
+    ]);
+    $s['typeProjet']->update(['cours_id' => $autreCours->id]);
+
+    $this->actingAs($s['membre'])
+        ->put(urlSchema($s), ['contenu' => contenuValide()])
+        ->assertNotFound();
+});

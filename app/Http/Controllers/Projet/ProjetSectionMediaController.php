@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Projet;
 
 use App\Actions\StoreUploadedFile;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Projet\StoreProjetSectionMediaRequest;
 use App\Models\Classe;
 use App\Models\Cours;
 use App\Models\Groupe;
@@ -12,7 +13,6 @@ use App\Models\ProjetSectionMedia;
 use App\Models\TypeProjet;
 use App\Models\TypeProjetSection;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 
 class ProjetSectionMediaController extends Controller
 {
@@ -23,41 +23,22 @@ class ProjetSectionMediaController extends Controller
      * La section doit être de type 'video' ou 'audio'.
      */
     public function store(
-        Request $request,
+        StoreProjetSectionMediaRequest $request,
         Cours $cours,
         Classe $classe,
         Groupe $groupe,
         TypeProjet $typeProjet,
         TypeProjetSection $section,
+        StoreUploadedFile $fichiers,
     ): RedirectResponse {
-        abort_if($classe->cours_id !== $cours->id, 404);
-        abort_if($groupe->classe_id !== $classe->id, 404);
-
         /** @var ProjetRecherche $projet */
         $projet = ProjetRecherche::where('groupe_id', $groupe->id)
             ->where('type_projet_id', $typeProjet->id)
             ->firstOrFail();
 
-        abort_if($section->type_projet_id !== $typeProjet->id, 404);
         abort_if(! in_array($section->type, ['video', 'audio']), 422);
 
-        // Vérifier que l'utilisateur est membre du groupe
-        abort_unless(
-            $groupe->membres()->where('user_id', auth()->id())->exists(),
-            403
-        );
-
-        $validated = $request->validate([
-            'source_type' => ['required', 'in:upload,url'],
-            'url' => ['required_if:source_type,url', 'nullable', 'url', 'max:2048'],
-            'fichier' => [
-                'required_if:source_type,upload',
-                'nullable',
-                'file',
-                'max:204800', // 200 Mo
-                'mimes:mp4,webm,ogg,mp3,wav,m4a,aac',
-            ],
-        ]);
+        $validated = $request->validated();
 
         $mediaMeta = [
             'projet_id' => $projet->id,
@@ -71,7 +52,7 @@ class ProjetSectionMediaController extends Controller
             $mediaMeta['url'] = $validated['url'];
         } else {
             $file = $request->file('fichier');
-            $fileMeta = (new StoreUploadedFile)->execute(
+            $fileMeta = $fichiers->execute(
                 $file,
                 "medias/projets/{$projet->id}/sections/{$section->id}"
             );
@@ -86,7 +67,7 @@ class ProjetSectionMediaController extends Controller
     /**
      * Supprime un média de section.
      *
-     * Seul l'auteur du média ou un enseignant/admin peut supprimer.
+     * Seul l'auteur du média, l'enseignant du cours ou un admin peut supprimer.
      */
     public function destroy(
         Cours $cours,
@@ -98,16 +79,18 @@ class ProjetSectionMediaController extends Controller
     ): RedirectResponse {
         abort_if($classe->cours_id !== $cours->id, 404);
         abort_if($groupe->classe_id !== $classe->id, 404);
+        abort_if($typeProjet->cours_id !== $cours->id, 404);
+        abort_if($section->type_projet_id !== $typeProjet->id, 404);
         abort_if($media->section_id !== $section->id, 404);
 
-        $user = auth()->user();
+        // Le média doit appartenir au projet de ce groupe, sinon on pourrait viser celui d'un autre groupe
+        $projet = $media->projet;
+        abort_if($projet->groupe_id !== $groupe->id || $projet->type_projet_id !== $typeProjet->id, 404);
 
         // L'auteur peut toujours supprimer son propre média
-        if ($media->user_id !== $user->id) {
-            abort_unless(
-                in_array($user->role, ['enseignant', 'admin']),
-                403
-            );
+        if ($media->user_id !== auth()->id()) {
+            $groupe->loadMissing('classe.cours');
+            $this->authorize('deleteMedia', $groupe);
         }
 
         if ($media->source_type === 'upload') {

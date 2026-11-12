@@ -175,3 +175,14 @@ test('le panneau admin expose theme_libre depuis le pivot user_etablissement', f
             ->where('temoinsEnAttente.0.theme_libre', 'Mon thème personnel')
         );
 });
+
+test("l'approbation par un admin enregistre qui a approuvé", function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $pa = User::factory()->create(['role' => 'personne_agee', 'statut' => 'en_attente']);
+
+    $this->actingAs($admin)
+        ->put(route('administration.temoins.approuver', $pa))
+        ->assertRedirect();
+
+    expect($pa->fresh()->approuve_par_id)->toBe($admin->id);
+});

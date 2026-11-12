@@ -112,7 +112,7 @@ test('la création redirige vers la page edit du nouveau type de projet', functi
     $cours = creerCours($enseignant);
 
     $this->actingAs($enseignant)
-        ->post("/cours/{$cours->id}/types-projets", ['nom' => 'Nouveau projet'])
+        ->post("/cours/{$cours->id}/types-projets", donneesTypeProjet(['nom' => 'Nouveau projet']))
         ->assertRedirect();
 
     $typeProjet = TypeProjet::where('nom', 'Nouveau projet')->first();
@@ -126,10 +126,10 @@ test("l'enseignant peut créer un type de projet", function () {
     $cours = creerCours($enseignant);
 
     $this->actingAs($enseignant)
-        ->post("/cours/{$cours->id}/types-projets", [
+        ->post("/cours/{$cours->id}/types-projets", donneesTypeProjet([
             'nom' => 'Projet de recherche',
             'description' => 'Un projet sympa',
-        ])
+        ]))
         ->assertRedirect();
 
     $this->assertDatabaseHas('types_projets', [
@@ -145,7 +145,7 @@ test('le nom est obligatoire lors de la création', function () {
     $cours = creerCours($enseignant);
 
     $this->actingAs($enseignant)
-        ->postJson("/cours/{$cours->id}/types-projets", ['nom' => ''])
+        ->postJson("/cours/{$cours->id}/types-projets", donneesTypeProjet(['nom' => '']))
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['nom']);
 });
@@ -157,13 +157,13 @@ test("l'enseignant peut créer un type de projet avec des paramètres de remise"
     $cours = creerCours($enseignant);
 
     $this->actingAs($enseignant)
-        ->post("/cours/{$cours->id}/types-projets", [
+        ->post("/cours/{$cours->id}/types-projets", donneesTypeProjet([
             'nom' => 'Projet avec remise',
             'type' => 'standard',
             'date_remise' => '2026-05-01T23:59',
             'remises_multiples' => true,
             'retard_permis' => false,
-        ])
+        ]))
         ->assertRedirect();
 
     $this->assertDatabaseHas('types_projets', [
@@ -180,11 +180,11 @@ test('la date de remise doit inclure une heure lors de la création', function (
     $cours = creerCours($enseignant);
 
     $this->actingAs($enseignant)
-        ->postJson("/cours/{$cours->id}/types-projets", [
+        ->postJson("/cours/{$cours->id}/types-projets", donneesTypeProjet([
             'nom' => 'Projet avec date invalide',
             'type' => 'standard',
             'date_remise' => '2026-05-01',
-        ])
+        ]))
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['date_remise']);
 });
@@ -196,7 +196,7 @@ test('les flags de génération sont true par défaut lors de la création', fun
     $cours = creerCours($enseignant);
 
     $this->actingAs($enseignant)
-        ->post("/cours/{$cours->id}/types-projets", ['nom' => 'Projet sans flags'])
+        ->post("/cours/{$cours->id}/types-projets", donneesTypeProjet(['nom' => 'Projet sans flags']))
         ->assertRedirect();
 
     $this->assertDatabaseHas('types_projets', [
@@ -211,11 +211,11 @@ test("l'enseignant peut désactiver la page titre lors de la création", functio
     $cours = creerCours($enseignant);
 
     $this->actingAs($enseignant)
-        ->post("/cours/{$cours->id}/types-projets", [
+        ->post("/cours/{$cours->id}/types-projets", donneesTypeProjet([
             'nom' => 'Projet sans page titre',
             'generer_page_titre' => false,
             'generer_table_matieres' => true,
-        ])
+        ]))
         ->assertRedirect();
 
     $this->assertDatabaseHas('types_projets', [
@@ -230,11 +230,11 @@ test("l'enseignant peut désactiver la table des matières lors de la création"
     $cours = creerCours($enseignant);
 
     $this->actingAs($enseignant)
-        ->post("/cours/{$cours->id}/types-projets", [
+        ->post("/cours/{$cours->id}/types-projets", donneesTypeProjet([
             'nom' => 'Projet sans TDM',
             'generer_page_titre' => true,
             'generer_table_matieres' => false,
-        ])
+        ]))
         ->assertRedirect();
 
     $this->assertDatabaseHas('types_projets', [
@@ -257,11 +257,11 @@ test("l'enseignant peut modifier les flags de génération via update", function
     ]);
 
     $this->actingAs($enseignant)
-        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", donneesTypeProjet([
             'nom' => 'Projet',
             'generer_page_titre' => false,
             'generer_table_matieres' => false,
-        ])
+        ]))
         ->assertRedirect();
 
     $this->assertDatabaseHas('types_projets', [
@@ -279,10 +279,10 @@ test("l'enseignant peut modifier son type de projet", function () {
     $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Ancien nom', 'accessible' => false]);
 
     $this->actingAs($enseignant)
-        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", donneesTypeProjet([
             'nom' => 'Nouveau nom',
             'description' => 'Nouvelle description',
-        ])
+        ]))
         ->assertRedirect(route('types-projets.index', $cours));
 
     $this->assertDatabaseHas('types_projets', [
@@ -297,12 +297,12 @@ test("l'enseignant peut configurer les paramètres de remise via update", functi
     $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Projet', 'accessible' => false]);
 
     $this->actingAs($enseignant)
-        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", donneesTypeProjet([
             'nom' => 'Projet',
             'date_remise' => '2026-06-15T23:59',
             'remises_multiples' => true,
             'retard_permis' => true,
-        ])
+        ]))
         ->assertRedirect(route('types-projets.index', $cours));
 
     $this->assertDatabaseHas('types_projets', [
@@ -343,10 +343,10 @@ test('les booléens du formulaire d’édition persistent dans les deux directio
     ];
 
     $this->actingAs($enseignant)
-        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", donneesTypeProjet([
             'nom' => 'Projet booléens',
             ...$booléens,
-        ])
+        ]))
         ->assertRedirect(route('types-projets.index', $cours));
 
     $this->assertDatabaseHas('types_projets', [
@@ -368,7 +368,7 @@ test('les booléens du formulaire d’édition persistent dans les deux directio
         );
 
     $this->actingAs($enseignant)
-        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", donneesTypeProjet([
             'nom' => 'Projet booléens',
             'remises_multiples' => false,
             'retard_permis' => false,
@@ -378,7 +378,7 @@ test('les booléens du formulaire d’édition persistent dans les deux directio
             'has_introduction' => false,
             'has_conclusion_individuelle' => false,
             'is_sommatif' => false,
-        ])
+        ]))
         ->assertRedirect(route('types-projets.index', $cours));
 
     $this->assertDatabaseHas('types_projets', [
@@ -402,7 +402,7 @@ test("un enseignant ne peut pas modifier le type de projet d'un autre enseignant
     $typeProjet = TypeProjet::create(['enseignant_id' => $enseignantA->id, 'cours_id' => $cours->id, 'nom' => 'Type de A', 'accessible' => false]);
 
     $this->actingAs($enseignantB)
-        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", ['nom' => 'Piraté'])
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", donneesTypeProjet(['nom' => 'Piraté']))
         ->assertForbidden();
 
     $this->assertDatabaseHas('types_projets', ['id' => $typeProjet->id, 'nom' => 'Type de A']);
@@ -623,13 +623,13 @@ test("l'enseignant peut créer un type de projet avec des sections inline", func
     $cours = creerCours($enseignant);
 
     $this->actingAs($enseignant)
-        ->post("/cours/{$cours->id}/types-projets", [
+        ->post("/cours/{$cours->id}/types-projets", donneesTypeProjet([
             'nom' => 'Projet avec sections',
             'sections' => [
                 ['label' => 'Introduction', 'description' => 'Présentez le sujet'],
                 ['label' => 'Développement'],
             ],
-        ])
+        ]))
         ->assertRedirect();
 
     $typeProjet = TypeProjet::where('nom', 'Projet avec sections')->first();
@@ -655,13 +655,13 @@ test("l'enseignant peut ajouter des sections via update", function () {
     $typeProjet = TypeProjet::create(['enseignant_id' => $enseignant->id, 'cours_id' => $cours->id, 'nom' => 'Projet', 'accessible' => false]);
 
     $this->actingAs($enseignant)
-        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", donneesTypeProjet([
             'nom' => 'Projet',
             'sections' => [
                 ['label' => 'Section A'],
                 ['label' => 'Section B'],
             ],
-        ])
+        ]))
         ->assertRedirect();
 
     $this->assertDatabaseHas('type_projet_sections', ['type_projet_id' => $typeProjet->id, 'label' => 'Section A', 'ordre' => 1]);
@@ -686,12 +686,12 @@ test("l'update supprime les sections retirées et leur contenu cascade", functio
 
     // Envoyer uniquement s1 — s2 doit être supprimé avec son contenu
     $this->actingAs($enseignant)
-        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", [
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", donneesTypeProjet([
             'nom' => 'Projet',
             'sections' => [
                 ['id' => $s1->id, 'label' => 'S1 modifiée'],
             ],
-        ])
+        ]))
         ->assertRedirect();
 
     $this->assertDatabaseMissing('type_projet_sections', ['id' => $s2->id]);
@@ -706,7 +706,7 @@ test("l'update sans clé sections ne modifie pas les sections existantes", funct
     TypeProjetSection::create(['type_projet_id' => $typeProjet->id, 'label' => 'Intro', 'ordre' => 1]);
 
     $this->actingAs($enseignant)
-        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", ['nom' => 'Nouveau nom'])
+        ->put("/cours/{$cours->id}/types-projets/{$typeProjet->id}", donneesTypeProjet(['nom' => 'Nouveau nom']))
         ->assertRedirect();
 
     expect(TypeProjetSection::where('type_projet_id', $typeProjet->id)->count())->toBe(1);

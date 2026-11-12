@@ -1,26 +1,41 @@
 <?php
 
-use App\Http\Controllers\AdministrationController;
+use App\Http\Controllers\Admin\AdministrationController;
+use App\Http\Controllers\Admin\EnseignantController as AdminEnseignantController;
+use App\Http\Controllers\Admin\EtablissementController;
+use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\Classe\ClasseController;
 use App\Http\Controllers\Classe\ClasseEtudiantController;
+use App\Http\Controllers\Classe\ClasseNotesApercuController;
 use App\Http\Controllers\Cours\CoursController;
 use App\Http\Controllers\Cours\CoursDocumentController;
 use App\Http\Controllers\Cours\CoursLienEntrevueController;
 use App\Http\Controllers\Cours\CoursObjectifController;
 use App\Http\Controllers\Cours\CoursReferenceController;
 use App\Http\Controllers\Cours\EcheancierController;
+use App\Http\Controllers\Cours\TableauBordEtudiantController;
 use App\Http\Controllers\Cours\TransfererCoursController;
-use App\Http\Controllers\EnseignantController;
-use App\Http\Controllers\EtablissementController;
-use App\Http\Controllers\EtudiantController;
-use App\Http\Controllers\EtudiantReferenceController;
+use App\Http\Controllers\Enseignant\EnseignantController;
+use App\Http\Controllers\Enseignant\ThematiqueController;
+use App\Http\Controllers\Etudiant\EtudiantController;
+use App\Http\Controllers\Etudiant\EtudiantReferenceController;
+use App\Http\Controllers\Etudiant\ZoteroCredentialController;
+use App\Http\Controllers\Etudiant\ZoteroSyncController;
 use App\Http\Controllers\Groupe\GroupeController;
 use App\Http\Controllers\Groupe\GroupeEchangeController;
 use App\Http\Controllers\Groupe\GroupeMediaController;
+use App\Http\Controllers\Groupe\GroupeMembreController;
+use App\Http\Controllers\Groupe\GroupeNoteController;
+use App\Http\Controllers\Groupe\GroupeNoteCorrectionController;
 use App\Http\Controllers\Groupe\GroupeTacheController;
+use App\Http\Controllers\Groupe\GroupeTemoinController;
+use App\Http\Controllers\Groupe\GroupeThematiqueController;
 use App\Http\Controllers\Groupe\GroupeVideoChapitreController;
 use App\Http\Controllers\Groupe\GroupeVideoController;
-use App\Http\Controllers\InscriptionTemoinController;
+use App\Http\Controllers\Groupe\GroupeVideoEditionController;
+use App\Http\Controllers\Groupe\GroupeVideoPublicationController;
+use App\Http\Controllers\Groupe\GroupeVideoStreamController;
+use App\Http\Controllers\Groupe\GroupeVideoTranscriptionController;
 use App\Http\Controllers\Musee\MuseeBlocController;
 use App\Http\Controllers\Musee\MuseeImageController;
 use App\Http\Controllers\Musee\MuseeMetaController;
@@ -29,32 +44,39 @@ use App\Http\Controllers\Musee\MuseePublicController;
 use App\Http\Controllers\Musee\MuseeTemplateController;
 use App\Http\Controllers\Musee\MuseeVideoSegmentController;
 use App\Http\Controllers\MuseePageController;
-use App\Http\Controllers\PersonneAgeeController;
 use App\Http\Controllers\Projet\ConsentementVideoController;
 use App\Http\Controllers\Projet\EntrevueConceptController;
+use App\Http\Controllers\Projet\EntrevueLigneController;
 use App\Http\Controllers\Projet\ProjetAnnotationController;
 use App\Http\Controllers\Projet\ProjetCommentaireController;
+use App\Http\Controllers\Projet\ProjetConclusionController;
 use App\Http\Controllers\Projet\ProjetCorrectionController;
 use App\Http\Controllers\Projet\ProjetCritereCocheController;
 use App\Http\Controllers\Projet\ProjetCritereCorrectionController;
 use App\Http\Controllers\Projet\ProjetDeveloppementController;
 use App\Http\Controllers\Projet\ProjetExportController;
+use App\Http\Controllers\Projet\ProjetModeEditionController;
 use App\Http\Controllers\Projet\ProjetMuseeController;
 use App\Http\Controllers\Projet\ProjetRechercheController;
 use App\Http\Controllers\Projet\ProjetRemiseController;
 use App\Http\Controllers\Projet\ProjetRenvoiCommentaireController;
 use App\Http\Controllers\Projet\ProjetRenvoiController;
 use App\Http\Controllers\Projet\ProjetSchemaVisuelController;
+use App\Http\Controllers\Projet\ProjetSectionContenuController;
 use App\Http\Controllers\Projet\ProjetSectionMediaController;
 use App\Http\Controllers\Projet\ProjetSectionParagrapheController;
-use App\Http\Controllers\QuestionBanqueController;
-use App\Http\Controllers\SessionController;
-use App\Http\Controllers\ThematiqueController;
-use App\Http\Controllers\TypeProjet\SectionController;
+use App\Http\Controllers\Projet\ProjetVerrouController;
+use App\Http\Controllers\Temoin\InscriptionTemoinController;
+use App\Http\Controllers\Temoin\PersonneAgeeController;
+use App\Http\Controllers\Temoin\TemoinApprobationController;
+use App\Http\Controllers\TypeProjet\QuestionBanqueController;
 use App\Http\Controllers\TypeProjet\TypeProjetController;
 use App\Http\Controllers\TypeProjet\TypeProjetCritereController;
+use App\Http\Controllers\TypeProjet\TypeProjetSectionController;
 use App\Http\Controllers\TypeProjet\TypeProjetTacheController;
-use App\Http\Controllers\VisioConferenceController;
+use App\Http\Controllers\Visio\VisioConferenceController;
+use App\Http\Controllers\Visio\VisioEnregistrementController;
+use App\Http\Controllers\Visio\VisioSessionController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -123,20 +145,20 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/administration', [AdministrationController::class, 'index'])
         ->name('administration.index');
 
-    Route::post('/administration/enseignants', [AdministrationController::class, 'storeEnseignant'])
+    Route::post('/administration/enseignants', [AdminEnseignantController::class, 'store'])
         ->name('administration.enseignants.store');
 
-    Route::put('/administration/enseignants/{enseignant}', [AdministrationController::class, 'updateEnseignant'])
+    Route::put('/administration/enseignants/{enseignant}', [AdminEnseignantController::class, 'update'])
         ->name('administration.enseignants.update');
 
-    Route::delete('/administration/enseignants/{enseignant}', [AdministrationController::class, 'destroyEnseignant'])
+    Route::delete('/administration/enseignants/{enseignant}', [AdminEnseignantController::class, 'destroy'])
         ->name('administration.enseignants.destroy');
 
     // Approbation / déclin des témoins (personnes âgées) en attente
-    Route::put('/administration/temoins/{user}/approuver', [AdministrationController::class, 'approuverTemoin'])
+    Route::put('/administration/temoins/{user}/approuver', [TemoinApprobationController::class, 'approuver'])
         ->name('administration.temoins.approuver');
 
-    Route::put('/administration/temoins/{user}/decliner', [AdministrationController::class, 'declinerTemoin'])
+    Route::put('/administration/temoins/{user}/decliner', [TemoinApprobationController::class, 'decliner'])
         ->name('administration.temoins.decliner');
 
     // Gestion des établissements (cégeps)
@@ -158,10 +180,10 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
     Route::get('/enseignant', [EnseignantController::class, 'index'])
         ->name('enseignant.index');
 
-    Route::get('/enseignant/cours/create', [EnseignantController::class, 'createCours'])
+    Route::get('/enseignant/cours/create', [CoursController::class, 'create'])
         ->name('enseignant.cours.create');
 
-    Route::get('/enseignant/cours/{cours}/edit', [EnseignantController::class, 'editCours'])
+    Route::get('/enseignant/cours/{cours}/edit', [CoursController::class, 'edit'])
         ->name('enseignant.cours.edit');
 
     Route::get('/enseignant/thematiques/create', [ThematiqueController::class, 'create'])
@@ -210,10 +232,10 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
         ->name('thematiques.destroy');
 
     // Gestion des classes (sections de cours) — enseignant/admin
-    Route::get('/cours/{cours}/classes/{classe}/types-projets/{typeProjet}/apercu-notes', [ClasseController::class, 'apercuNotesClasse'])
+    Route::get('/cours/{cours}/classes/{classe}/types-projets/{typeProjet}/apercu-notes', [ClasseNotesApercuController::class, 'show'])
         ->name('classes.apercu.notes');
 
-    Route::get('/cours/{cours}/classes/{classe}/apercu-notes-accumulees', [ClasseController::class, 'apercuNotesAccumulees'])
+    Route::get('/cours/{cours}/classes/{classe}/apercu-notes-accumulees', [ClasseNotesApercuController::class, 'accumulees'])
         ->name('classes.apercu.notes.accumulees');
 
     Route::post('/cours/{cours}/classes', [ClasseController::class, 'store'])
@@ -239,7 +261,7 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
         ->name('classes.etudiants.import');
 
     // Assignation d'un témoin à un groupe (enseignant/admin)
-    Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/temoin', [GroupeController::class, 'assignerTemoin'])
+    Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/temoin', GroupeTemoinController::class)
         ->name('groupes.temoin.update');
 
     // Suppression d'un groupe (enseignant ou admin)
@@ -247,16 +269,16 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
         ->name('groupes.destroy');
 
     // Fiche détail + approbation / déclin des témoins liés aux thématiques de l'enseignant
-    Route::get('/enseignant/temoins/{user}', [EnseignantController::class, 'showTemoin'])
+    Route::get('/enseignant/temoins/{user}', [TemoinApprobationController::class, 'show'])
         ->name('enseignant.temoins.show');
 
-    Route::put('/enseignant/temoins/{user}/approuver', [EnseignantController::class, 'approuverTemoin'])
+    Route::put('/enseignant/temoins/{user}/approuver', [TemoinApprobationController::class, 'approuver'])
         ->name('enseignant.temoins.approuver');
 
-    Route::put('/enseignant/temoins/{user}/decliner', [EnseignantController::class, 'declinerTemoin'])
+    Route::put('/enseignant/temoins/{user}/decliner', [TemoinApprobationController::class, 'decliner'])
         ->name('enseignant.temoins.decliner');
 
-    Route::put('/enseignant/temoins/{user}/desapprouver', [EnseignantController::class, 'desapprouverTemoin'])
+    Route::put('/enseignant/temoins/{user}/desapprouver', [TemoinApprobationController::class, 'desapprouver'])
         ->name('enseignant.temoins.desapprouver');
 
     // Objectifs pédagogiques du cours
@@ -295,16 +317,16 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
         ->name('types-projets.destroy');
 
     // Sections du type de projet (définies par le professeur)
-    Route::post('/cours/{cours}/types-projets/{typeProjet}/sections', [SectionController::class, 'store'])
+    Route::post('/cours/{cours}/types-projets/{typeProjet}/sections', [TypeProjetSectionController::class, 'store'])
         ->name('types-projets.sections.store');
 
-    Route::put('/cours/{cours}/types-projets/{typeProjet}/sections/reorder', [SectionController::class, 'reorder'])
+    Route::put('/cours/{cours}/types-projets/{typeProjet}/sections/reorder', [TypeProjetSectionController::class, 'reorder'])
         ->name('types-projets.sections.reorder');
 
-    Route::put('/cours/{cours}/types-projets/{typeProjet}/sections/{section}', [SectionController::class, 'update'])
+    Route::put('/cours/{cours}/types-projets/{typeProjet}/sections/{section}', [TypeProjetSectionController::class, 'update'])
         ->name('types-projets.sections.update');
 
-    Route::delete('/cours/{cours}/types-projets/{typeProjet}/sections/{section}', [SectionController::class, 'destroy'])
+    Route::delete('/cours/{cours}/types-projets/{typeProjet}/sections/{section}', [TypeProjetSectionController::class, 'destroy'])
         ->name('types-projets.sections.destroy');
 
     // Banque de questions (sections de type choix_questions) — gérées par l'enseignant
@@ -340,7 +362,7 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
     Route::patch('/cours/{cours}/types-projets/{typeProjet}/criteres/reorder', [TypeProjetCritereController::class, 'reorder'])
         ->name('types-projets.criteres.reorder');
 
-    Route::patch('/cours/{cours}/types-projets/{typeProjet}/criteres/visible-groupe', [TypeProjetCritereController::class, 'toggleVisibleGroupe'])
+    Route::patch('/cours/{cours}/types-projets/{typeProjet}/criteres/visible-groupe', [TypeProjetCritereController::class, 'toggleVisibiliteGroupe'])
         ->name('types-projets.criteres.visible-groupe');
 
     Route::put('/cours/{cours}/types-projets/{typeProjet}/criteres/{critere}', [TypeProjetCritereController::class, 'update'])
@@ -401,7 +423,7 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
     Route::delete('/cours/{cours}/echeancier', [EcheancierController::class, 'destroyAll'])
         ->name('echeancier.destroyAll');
 
-    Route::patch('/cours/{cours}/echeancier/{etape}/toggle', [EcheancierController::class, 'toggleDone'])
+    Route::patch('/cours/{cours}/echeancier/{etape}/toggle', [EcheancierController::class, 'toggleTerminee'])
         ->name('echeancier.toggle');
 
     Route::put('/cours/{cours}/visio/{visio}', [VisioConferenceController::class, 'update'])
@@ -410,23 +432,23 @@ Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
     Route::delete('/cours/{cours}/visio/{visio}', [VisioConferenceController::class, 'destroy'])
         ->name('cours.visio.destroy');
 
-    Route::post('/cours/{cours}/visio/{visio}/recording', [VisioConferenceController::class, 'storeRecording'])
+    Route::post('/cours/{cours}/visio/{visio}/recording', [VisioEnregistrementController::class, 'store'])
         ->name('cours.visio.recording.store');
 });
 
 // Streaming des fichiers privés — accessible à tous les rôles authentifiés (auth contrôlée dans le controller/policy)
 Route::middleware(['auth'])->group(function () {
-    Route::get('/cours/{cours}/visio/{visio}/recording', [VisioConferenceController::class, 'streamRecording'])
+    Route::get('/cours/{cours}/visio/{visio}/recording', [VisioEnregistrementController::class, 'show'])
         ->name('cours.visio.recording');
 
     // Vidéos de groupe — stockées hors webroot, servies après vérification policy
-    Route::get('/videos/{video}/stream', [GroupeVideoController::class, 'stream'])
+    Route::get('/videos/{video}/stream', GroupeVideoStreamController::class)
         ->name('groupes.videos.stream');
 });
 
 // ─── Étudiant ─────────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'role:etudiant'])->group(function () {
-    Route::get('/cours', [CoursController::class, 'index'])
+    Route::get('/cours', TableauBordEtudiantController::class)
         ->name('cours.index');
 
     Route::get('/etudiant', [EtudiantController::class, 'index'])
@@ -439,14 +461,14 @@ Route::middleware(['auth', 'role:etudiant'])->group(function () {
     Route::delete('/etudiant/references/{reference}', [EtudiantReferenceController::class, 'destroy'])
         ->name('etudiant.references.destroy');
 
-    Route::post('/etudiant/references/sync', [EtudiantReferenceController::class, 'syncZotero'])
+    Route::post('/etudiant/references/sync', ZoteroSyncController::class)
         ->name('etudiant.references.sync');
 
     // Credentials Zotero de l'étudiant
-    Route::post('/etudiant/zotero/credential', [EtudiantReferenceController::class, 'saveCredential'])
+    Route::post('/etudiant/zotero/credential', [ZoteroCredentialController::class, 'store'])
         ->name('etudiant.zotero.credential.store');
 
-    Route::delete('/etudiant/zotero/credential', [EtudiantReferenceController::class, 'destroyCredential'])
+    Route::delete('/etudiant/zotero/credential', [ZoteroCredentialController::class, 'destroy'])
         ->name('etudiant.zotero.credential.destroy');
 
     // Routes sur un cours spécifique — bloquées si le cours est verrouillé
@@ -462,10 +484,10 @@ Route::middleware(['auth', 'role:etudiant'])->group(function () {
             ->name('groupes.store');
 
         // Notes collaboratives du groupe
-        Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/notes', [GroupeController::class, 'storeNote'])
+        Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/notes', [GroupeNoteController::class, 'store'])
             ->name('groupes.notes.store');
 
-        Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/notes/{note}', [GroupeController::class, 'destroyNote'])
+        Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/notes/{note}', [GroupeNoteController::class, 'destroy'])
             ->name('groupes.notes.destroy');
 
         // Progression personnelle de l'étudiant sur l'échéancier
@@ -493,19 +515,19 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin,personne_agee', 'cour
 
 // ─── Corrections inline des notes (enseignant + admin) ────────────────────────
 Route::middleware(['auth', 'role:enseignant,admin'])->group(function () {
-    Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/notes/{note}/corrections', [GroupeController::class, 'upsertNoteCorrection'])
+    Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/notes/{note}/corrections', [GroupeNoteCorrectionController::class, 'upsert'])
         ->name('groupes.notes.corrections.upsert');
 
-    Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/notes/{note}/corrections/{correction}', [GroupeController::class, 'destroyNoteCorrection'])
+    Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/notes/{note}/corrections/{correction}', [GroupeNoteCorrectionController::class, 'destroy'])
         ->name('groupes.notes.corrections.destroy');
 });
 
 // ─── Actions créateur du groupe ────────────────────────────────────────────────
 Route::middleware(['auth', 'role:etudiant', 'cours.accessible'])->group(function () {
-    Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/thematiques', [GroupeController::class, 'updateThematiques'])
+    Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/thematiques', [GroupeThematiqueController::class, 'update'])
         ->name('groupes.thematiques.update');
 
-    Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/membres', [GroupeController::class, 'updateMembres'])
+    Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/membres', [GroupeMembreController::class, 'update'])
         ->name('groupes.membres.update');
 });
 
@@ -545,27 +567,27 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin', 'cours.accessible']
     Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}', [GroupeVideoController::class, 'destroy'])
         ->name('groupes.videos.destroy');
 
-    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/publier', [GroupeVideoController::class, 'publier'])
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/publier', GroupeVideoPublicationController::class)
         ->name('groupes.videos.publier');
 
-    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/editer', [GroupeVideoController::class, 'editer'])
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/editer', [GroupeVideoEditionController::class, 'editer'])
         ->name('groupes.videos.editer');
 
     Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/statut', [GroupeVideoController::class, 'statut'])
         ->name('groupes.videos.statut');
 
-    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/jumeler', [GroupeVideoController::class, 'jumeler'])
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/jumeler', [GroupeVideoEditionController::class, 'jumeler'])
         ->name('groupes.videos.jumeler');
 
-    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/transcrire', [GroupeVideoController::class, 'transcrire'])
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/transcrire', [GroupeVideoTranscriptionController::class, 'store'])
         ->name('groupes.videos.transcrire')
         ->middleware('throttle:5,1');
 
-    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/transcription/modifier', [GroupeVideoController::class, 'modifierTranscription'])
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/transcription/modifier', [GroupeVideoTranscriptionController::class, 'update'])
         ->name('groupes.videos.transcription.modifier')
         ->middleware('throttle:10,1');
 
-    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/transcription/importer', [GroupeVideoController::class, 'importerTranscription'])
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/videos/{video}/transcription/importer', [GroupeVideoTranscriptionController::class, 'import'])
         ->name('groupes.videos.transcription.importer')
         ->middleware('throttle:10,1');
 
@@ -588,8 +610,8 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin', 'cours.accessible']
         ->name('projets.index');
 
     // Toutes les routes suivantes sont scoped par {typeProjet}
-    Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/edit', [ProjetRechercheController::class, 'show'])
-        ->name('projets.show');
+    Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/edit', [ProjetRechercheController::class, 'edit'])
+        ->name('projets.edit');
 
     Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/apercu', [ProjetRechercheController::class, 'apercu'])
         ->name('projets.apercu');
@@ -598,7 +620,7 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin', 'cours.accessible']
         ->name('projets.update');
 
     // Conclusion individuelle de l'étudiant authentifié
-    Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/conclusion', [ProjetRechercheController::class, 'updateConclusion'])
+    Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/conclusion', [ProjetConclusionController::class, 'update'])
         ->name('projets.conclusion.update');
 
     // Commentaires de l'enseignant par champ (enseignant uniquement — vérifié dans le controller)
@@ -609,7 +631,7 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin', 'cours.accessible']
         ->name('projets.commentaires.destroy');
 
     // Sections dynamiques — contenu rédigé par les étudiants
-    Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}', [ProjetRechercheController::class, 'updateSectionContenu'])
+    Route::put('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}', [ProjetSectionContenuController::class, 'update'])
         ->name('projets.sections.update');
 
     // Paragraphes de section de type 'paragraphes' — CRUD + réordonnancement
@@ -663,7 +685,7 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin', 'cours.accessible']
     Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/correction-visible', [ProjetCorrectionController::class, 'toggleVisible'])
         ->name('projets.correction-visible.toggle');
 
-    Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/verrouille', [ProjetRechercheController::class, 'toggleVerrouille'])
+    Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/verrouille', ProjetVerrouController::class)
         ->name('projets.verrouille.toggle');
 
     // Remise de travail
@@ -694,7 +716,7 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin', 'cours.accessible']
         ->name('projets.renvois.commentaires.destroy');
 
     // Toggle mode édition enseignant (enseignant uniquement — vérifié dans le controller)
-    Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/mode-edition-enseignant', [ProjetRechercheController::class, 'toggleModeEditionEnseignant'])
+    Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/mode-edition-enseignant', ProjetModeEditionController::class)
         ->name('projets.mode-edition-enseignant.toggle');
 
     Route::get('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/pdf', [ProjetExportController::class, 'pdf'])
@@ -719,13 +741,13 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin', 'cours.accessible']
     Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/concepts/{concept}', [EntrevueConceptController::class, 'destroy'])
         ->name('projets.sections.concepts.destroy');
 
-    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/concepts/{concept}/lignes', [EntrevueConceptController::class, 'storeLigne'])
+    Route::post('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/concepts/{concept}/lignes', [EntrevueLigneController::class, 'store'])
         ->name('projets.sections.concepts.lignes.store');
 
-    Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/concepts/{concept}/lignes/{ligne}', [EntrevueConceptController::class, 'updateLigne'])
+    Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/concepts/{concept}/lignes/{ligne}', [EntrevueLigneController::class, 'update'])
         ->name('projets.sections.concepts.lignes.update');
 
-    Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/concepts/{concept}/lignes/{ligne}', [EntrevueConceptController::class, 'destroyLigne'])
+    Route::delete('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/sections/{section}/concepts/{concept}/lignes/{ligne}', [EntrevueLigneController::class, 'destroy'])
         ->name('projets.sections.concepts.lignes.destroy');
 
     // Médias de section (vidéo/audio) — upload ou URL
@@ -750,7 +772,7 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin', 'cours.accessible']
     Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/taches/{tache}/assigner', [GroupeTacheController::class, 'assigner'])
         ->name('groupes.taches.assigner');
 
-    Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/taches/{tache}/toggle', [GroupeTacheController::class, 'toggleCompleted'])
+    Route::patch('/cours/{cours}/classes/{classe}/groupes/{groupe}/projets/{typeProjet}/taches/{tache}/toggle', [GroupeTacheController::class, 'toggleTerminee'])
         ->name('groupes.taches.toggle');
 
     // ─── Musée virtuel — Pages (multi-pages) ─────────────────────────────────
@@ -845,11 +867,11 @@ Route::middleware(['auth', 'role:etudiant,enseignant,admin', 'cours.accessible']
         ->name('cours.visio.store');
 
     // Démarrage d'une session — enseignant ou membre du groupe (auth contrôlée dans le controller)
-    Route::patch('/cours/{cours}/visio/{visio}/start', [VisioConferenceController::class, 'startSession'])
+    Route::patch('/cours/{cours}/visio/{visio}/start', [VisioSessionController::class, 'demarrer'])
         ->name('cours.visio.start');
 
     // Fin d'une session — enseignant ou membre du groupe (auth contrôlée dans le controller)
-    Route::patch('/cours/{cours}/visio/{visio}/end', [VisioConferenceController::class, 'endSession'])
+    Route::patch('/cours/{cours}/visio/{visio}/end', [VisioSessionController::class, 'terminer'])
         ->name('cours.visio.end');
 });
 

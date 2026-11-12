@@ -5,10 +5,10 @@ namespace App\Models;
 use App\Enums\StatutProjetRecherche;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Support\Collection;
 
 class ProjetRecherche extends Model
 {
@@ -47,6 +47,22 @@ class ProjetRecherche extends Model
             'remis_le' => 'datetime',
             'statut' => StatutProjetRecherche::class,
         ];
+    }
+
+    /**
+     * Retourne le projet du groupe pour ce type de projet, ou lève une 404.
+     *
+     * Charge toujours typeProjet pour que peutEtreRemis() lise les paramètres
+     * de remise depuis le TypeProjet plutôt que depuis les colonnes héritées.
+     *
+     * @throws ModelNotFoundException
+     */
+    public static function trouverPour(Groupe $groupe, TypeProjet $typeProjet): self
+    {
+        return static::where('groupe_id', $groupe->id)
+            ->where('type_projet_id', $typeProjet->id)
+            ->with('typeProjet')
+            ->firstOrFail();
     }
 
     /**
@@ -93,7 +109,6 @@ class ProjetRecherche extends Model
         $retardPermis = $tp !== null ? $tp->retard_permis : $this->retard_permis;
         $remisesMultiples = $tp !== null ? $tp->remises_multiples : $this->remises_multiples;
 
-        // Blocage si délai dépassé et retard non permis
         if (! $retardPermis && $dateRemise !== null && now()->gt($dateRemise)) {
             return false;
         }
@@ -318,62 +333,5 @@ class ProjetRecherche extends Model
         }
 
         return (int) round($remplisTotal / $total * 100);
-    }
-
-    /**
-     * Calcule le score d'une section (ou des critères globaux) pour un étudiant donné.
-     *
-     * Les corrections individuelles prennent la priorité sur les corrections de groupe.
-     * Nécessite que les relations `critereCorrections` et `typeProjet.criteres` soient
-     * chargées sur le modèle.
-     *
-     * @param  int|null  $sectionId  null = critères globaux
-     * @param  int|null  $userId  Identifiant de l'étudiant ; null = score de groupe
-     * @return array{points: float, max: float}
-     */
-    public function scoreSection(?int $sectionId, ?int $userId = null): array
-    {
-        /** @var Collection<int, TypeProjetCritere> $tousLesCriteres */
-        $tousLesCriteres = $this->typeProjet?->relationLoaded('criteres')
-            ? $this->typeProjet->criteres
-            : collect();
-
-        $criteresDeLaSection = $tousLesCriteres->filter(
-            fn (TypeProjetCritere $c) => $c->section_id === $sectionId
-        );
-
-        $max = $criteresDeLaSection
-            ->where('type', 'positif')
-            ->sum(fn (TypeProjetCritere $c) => (float) $c->pointage);
-
-        $corrections = $this->relationLoaded('critereCorrections')
-            ? $this->critereCorrections
-            : collect();
-
-        $points = 0.0;
-
-        foreach ($criteresDeLaSection as $critere) {
-            // Correction individuelle prime sur la correction de groupe
-            $individuelle = $userId !== null
-                ? $corrections->first(fn ($cor) => $cor->critere_id === $critere->id && $cor->user_id === $userId)
-                : null;
-            $groupe = $corrections->first(fn ($cor) => $cor->critere_id === $critere->id && $cor->user_id === null);
-
-            $correction = $individuelle ?? $groupe;
-
-            if ($correction === null) {
-                continue;
-            }
-
-            if ($critere->type === 'positif' && $correction->verifie) {
-                $points += $correction->points !== null
-                    ? (float) $correction->points
-                    : (float) $critere->pointage;
-            } elseif ($critere->type === 'negatif') {
-                $points -= (float) ($correction->points ?? $critere->pointage);
-            }
-        }
-
-        return ['points' => $points, 'max' => $max];
     }
 }

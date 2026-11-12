@@ -21,4 +21,18 @@ class ProfileDeleteRequest extends FormRequest
             'password' => $this->currentPasswordRules(),
         ];
     }
+
+    /**
+     * Retourne les messages d'erreur de validation personnalisés.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'password.required' => __('profile.password.required'),
+            'password.string' => __('profile.password.string'),
+            'password.current_password' => __('profile.password.current_password'),
+        ];
+    }
 }
